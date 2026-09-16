@@ -23,9 +23,42 @@ export const SECRET_NAMES = {
   zernio: "zernio_api_key",
   /** API key del AI Gateway para el nodo AI Response. */
   aiGateway: "ai_gateway_api_key",
+  /** `AUTHENTICATION_API_KEY` del despliegue de Evolution: la clave global del servidor. */
+  evolutionApiKey: "evolution_api_key",
+  /** Secreto `jwt_key` con el que Evolution firma cada entrega de webhook. */
+  evolutionWebhookSecret: "evolution_webhook_secret",
+  /** El secreto anterior, aceptado solo durante la ventana de rotación. */
+  evolutionWebhookSecretPrevious: "evolution_webhook_secret_previous",
 } as const;
 
 export type SecretName = (typeof SECRET_NAMES)[keyof typeof SECRET_NAMES] | string;
+
+/**
+ * Nombre del secret que guarda el token de una instancia de Evolution.
+ *
+ * POR QUÉ ESTE ES POR CANAL Y EL SECRETO DEL WEBHOOK ES POR WORKSPACE.
+ * La asimetría no es obvia y conviene tenerla escrita, porque la tentación de
+ * unificarlos es real.
+ *
+ * El secreto del webhook prueba UNA sola cosa: que el evento vino de nuestro
+ * despliegue de Evolution. Hay un solo despliegue, así que dos instancias
+ * firmando con el mismo secreto es correcto, y por workspace alcanza.
+ *
+ * El token de la instancia es otra cosa: Evolution lo genera por instancia y
+ * autoriza operar ESA instancia, o sea mandar mensajes, leer conversaciones y
+ * borrarla. Guardarlo como secret de workspace lo rompe en silencio, porque el
+ * nombrado de la 00018 es `ws:<workspace_id>:<nombre>` y la segunda instancia
+ * pisaría el token de la primera. El día que el negocio quiera dos números,
+ * ventas y soporte, el de soporte se queda con el token de ventas y nadie se
+ * entera hasta que un envío sale por el número equivocado.
+ *
+ * Con el id del canal en el nombre, el aislamiento sale gratis: la 00018 arma
+ * `ws:<workspace_id>:evolution_instance_token:<channel_id>` sin que haya que
+ * tocar ninguna de sus tres funciones.
+ */
+export function evolutionInstanceTokenName(channelId: string): SecretName {
+  return `evolution_instance_token:${channelId}`;
+}
 
 // ── Caché ───────────────────────────────────────────────────────────────────
 

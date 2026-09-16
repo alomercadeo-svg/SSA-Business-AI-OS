@@ -10,6 +10,15 @@ export type Json =
 
 export type { Platform };
 
+/**
+ * Quién opera el canal. `zernio` es la API oficial de Meta; `evolution` es el
+ * WhatsApp autoalojado. Migración 00022.
+ */
+export type ChannelProvider = "zernio" | "evolution";
+
+/** Condiciones que registra el receptor de webhooks. Migración 00022. */
+export type WebhookAlertCondition = "webhook_auth_failed" | "webhook_unknown_instance";
+
 export type FlowStatus = "draft" | "published" | "archived";
 export type ConversationStatus = "open" | "closed" | "snoozed";
 export type MessageDirection = "inbound" | "outbound";
@@ -137,7 +146,14 @@ export interface Database {
           id: string;
           workspace_id: string;
           platform: Platform;
-          late_account_id: string;
+          /**
+           * Nulo en los canales de Evolution, que no tienen cuenta de Zernio
+           * (migración 00022). Toda lectura necesita guarda: el patrón del repo
+           * es `if (!channel?.late_account_id) return;`.
+           */
+          late_account_id: string | null;
+          provider: ChannelProvider;
+          instance_name: string | null;
           username: string | null;
           display_name: string | null;
           profile_picture: string | null;
@@ -153,7 +169,9 @@ export interface Database {
           id?: string;
           workspace_id: string;
           platform: Platform;
-          late_account_id: string;
+          late_account_id?: string | null;
+          provider?: ChannelProvider;
+          instance_name?: string | null;
           username?: string | null;
           display_name?: string | null;
           profile_picture?: string | null;
@@ -167,7 +185,9 @@ export interface Database {
         };
         Update: {
           platform?: Platform;
-          late_account_id?: string;
+          late_account_id?: string | null;
+          provider?: ChannelProvider;
+          instance_name?: string | null;
           username?: string | null;
           display_name?: string | null;
           profile_picture?: string | null;
@@ -993,6 +1013,46 @@ export interface Database {
         };
         Relationships: [];
       };
+      /**
+       * Condiciones abiertas del receptor de webhooks: una fila por condición
+       * con su contador, no una por evento. Se escribe solo por las funciones
+       * `record_webhook_alert` y `resolve_webhook_alert` (migración 00022).
+       */
+      webhook_alerts: {
+        Row: {
+          id: string;
+          /** Nulo en las alertas de sistema, que no tienen workspace al que atribuirse */
+          workspace_id: string | null;
+          channel_id: string | null;
+          source: string;
+          alert_condition: WebhookAlertCondition;
+          /** Motivo corto. Nunca el cuerpo del aviso ni credenciales */
+          detail: string | null;
+          occurrences: number;
+          first_seen_at: string;
+          last_seen_at: string;
+          /** Nulo mientras la condición está abierta */
+          resolved_at: string | null;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "webhook_alerts_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "webhook_alerts_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       sequences: {
         Row: {
           id: string;
@@ -1142,6 +1202,31 @@ export interface Database {
           ws_id: string;
         };
         Returns: boolean;
+      };
+      is_any_workspace_owner: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      record_webhook_alert: {
+        Args: {
+          p_source: string;
+          p_condition: WebhookAlertCondition;
+          p_workspace_id?: string | null;
+          p_channel_id?: string | null;
+          p_detail?: string | null;
+        };
+        /** Id de la condición abierta, sea nueva o la que ya estaba */
+        Returns: string;
+      };
+      resolve_webhook_alert: {
+        Args: {
+          p_source: string;
+          p_condition: WebhookAlertCondition;
+          p_workspace_id?: string | null;
+          p_detail_match?: string | null;
+        };
+        /** Cuántas condiciones cerró. 0 significa que no había ninguna abierta */
+        Returns: number;
       };
     };
     Enums: {

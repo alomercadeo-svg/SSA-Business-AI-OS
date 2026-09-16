@@ -7,8 +7,9 @@ import {
   ensureWebhookRegistered,
   getOrCreateWorkspaceWebhookSecret,
 } from "@/lib/zernio-webhook";
-import { backfillInboxConversations } from "@/lib/inbox-sync";
+import { backfillInboxConversations, canalesConCuentaDeZernio } from "@/lib/inbox-sync";
 import { isSupportedPlatform } from "@/lib/platforms";
+import { debeDesactivarseCanal } from "@/lib/channel-rules";
 
 /**
  * POST /api/v1/channels/sync
@@ -47,7 +48,19 @@ export async function POST() {
     );
 
     // The SDK type doesn't declare profilePicture but the API returns it
-    const lateAccountIds = new Set(lateAccounts.map((a: { _id?: string }) => a._id).filter(Boolean));
+    //
+    // El predicado de tipo en vez de `.filter(Boolean)`: este último no estrecha
+    // el tipo, así que el Set quedaba en `unknown` y cualquier comparación
+    // contra él pasaba el compilador sin que nadie mirara qué se estaba
+    // comparando. Es justamente la comparación del bucle de desactivación.
+    const lateAccountIds = new Set<string | undefined>(
+      lateAccounts
+        .map((a: { _id?: string }) => a._id)
+        // El tipo del parámetro va explícito porque `lateAccounts` viene del
+        // SDK como `any`: sin la anotación, el predicado queda en `any` y no
+        // estrecha nada, que es el problema que este cambio vino a resolver.
+        .filter((id: string | undefined): id is string => Boolean(id))
+    );
     let created = 0;
     let updated = 0;
     const skipped: string[] = [];
@@ -104,10 +117,15 @@ export async function POST() {
       }
     }
 
-    // Deactivate channels whose Zernio accounts no longer exist
+    // Deactivate channels whose Zernio accounts no longer exist.
+    //
+    // La decisión vive en `debeDesactivarseCanal` y no acá adentro porque tiene
+    // dos mitades que se rompen en silencio —desactivar un canal de Evolution
+    // que no corresponde, o dejar de desactivar uno de Zernio que sí— y las dos
+    // necesitan test. Ver lib/channel-rules.ts.
     let deactivated = 0;
     for (const channel of existingChannels ?? []) {
-      if (!lateAccountIds.has(channel.late_account_id) && channel.is_active) {
+      if (debeDesactivarseCanal(channel, lateAccountIds)) {
         await supabase
           .from("channels")
           .update({ is_active: false })
@@ -144,7 +162,7 @@ export async function POST() {
         supabase,
         zernio,
         workspaceId: workspace.id,
-        channels: activeChannels ?? [],
+        channels: canalesConCuentaDeZernio(activeChannels ?? []),
       });
       conversationsImported = imported;
     } catch (err) {

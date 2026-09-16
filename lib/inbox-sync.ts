@@ -21,6 +21,23 @@ export interface BackfillChannel {
   platform: string;
 }
 
+/**
+ * Deja solo los canales que el backfill puede atender.
+ *
+ * El backfill trae conversaciones por la API de Zernio, así que un canal sin
+ * `late_account_id` no tiene por dónde consultarse: es un canal de Evolution,
+ * cuyo historial vive en otro lado y se trae de otra forma. Filtrarlo acá es
+ * mejor que dejarlo entrar y que falle adentro con un `accountId: null`, que
+ * Zernio respondería con un error genérico difícil de atribuir.
+ */
+export function canalesConCuentaDeZernio(
+  canales: Array<{ id: string; late_account_id: string | null; platform: string }>
+): BackfillChannel[] {
+  return canales.filter(
+    (c): c is BackfillChannel => typeof c.late_account_id === "string"
+  );
+}
+
 /** Conversation item shape returned by Zernio's listInboxConversations. */
 interface ZernioInboxConversation {
   id?: string;

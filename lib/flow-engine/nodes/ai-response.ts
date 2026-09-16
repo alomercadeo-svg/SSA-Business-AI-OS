@@ -44,8 +44,8 @@ export async function executeAiResponse(
       .eq("id", context.channelId)
       .single();
 
-    if (!channel) {
-      console.error("No channel found for id:", context.channelId);
+    if (!channel?.late_account_id) {
+      console.error("No Zernio account for channel id:", context.channelId);
       return cancelRun(supabase, sessionId);
     }
     lateAccountId = channel.late_account_id;

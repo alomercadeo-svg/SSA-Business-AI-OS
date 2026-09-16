@@ -220,7 +220,7 @@ export async function processComment({
           contactId,
           conversationId: conversation.id,
           workspaceId: channel.workspace_id,
-          lateAccountId: channel.late_account_id,
+          lateAccountId: channel.late_account_id ?? undefined,
           incomingMessage: {
             text: comment.text,
             sender: {

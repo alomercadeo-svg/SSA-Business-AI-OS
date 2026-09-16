@@ -453,7 +453,7 @@ async function executeSendMessage(
       .eq("id", context.channelId)
       .single();
 
-    if (!channel) return;
+    if (!channel?.late_account_id) return;
     lateAccountId = channel.late_account_id;
     if (!context.platform) {
       context.platform = channel.platform as FlowExecutionContext["platform"];
@@ -877,7 +877,9 @@ async function executeCommentReply(
       .eq("id", context.channelId)
       .single();
 
-    if (!channel) return;
+    // Sin cuenta de Zernio no hay a dónde mandar: un canal de Evolution no se
+    // opera por esta vía. Misma guarda que lib/sequence-processor.ts.
+    if (!channel?.late_account_id) return;
     lateAccountId = channel.late_account_id;
   }
 
@@ -926,7 +928,9 @@ async function executePrivateReply(
       .eq("id", context.channelId)
       .single();
 
-    if (!channel) return;
+    // Sin cuenta de Zernio no hay a dónde mandar: un canal de Evolution no se
+    // opera por esta vía. Misma guarda que lib/sequence-processor.ts.
+    if (!channel?.late_account_id) return;
     lateAccountId = channel.late_account_id;
   }
 

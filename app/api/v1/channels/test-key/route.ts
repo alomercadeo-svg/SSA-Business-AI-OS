@@ -6,7 +6,7 @@ import {
   ensureWebhookRegistered,
   getOrCreateWorkspaceWebhookSecret,
 } from "@/lib/zernio-webhook";
-import { backfillInboxConversations } from "@/lib/inbox-sync";
+import { backfillInboxConversations, canalesConCuentaDeZernio } from "@/lib/inbox-sync";
 import { isSupportedPlatform } from "@/lib/platforms";
 import { SECRET_NAMES, setWorkspaceSecret } from "@/lib/vault";
 
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
       supabase,
       zernio: createZernioClient(apiKey.trim()),
       workspaceId: workspace.id,
-      channels: activeChannels ?? [],
+      channels: canalesConCuentaDeZernio(activeChannels ?? []),
     });
   } catch (err) {
     console.error("[test-key] inbox backfill failed:", err);
