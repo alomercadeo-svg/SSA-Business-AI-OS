@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getWorkspaceOrNull } from "@/lib/workspace";
+import { requireManager } from "@/lib/workspace";
 import { CHANNEL_PUBLIC_COLUMNS } from "@/lib/safe-columns";
 import { createZernioClient } from "@/lib/zernio-client";
 import { getZernioApiKey } from "@/lib/vault";
@@ -18,9 +18,8 @@ import { isSupportedPlatform } from "@/lib/platforms";
  * Deactivates channels whose Zernio accounts no longer exist.
  */
 export async function POST() {
-  const contexto = await getWorkspaceOrNull();
-  if (!contexto)
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { contexto, error: authError } = await requireManager();
+  if (authError) return authError;
   const { workspace, supabase } = contexto;
 
   const apiKey = await getZernioApiKey(supabase, workspace.id);

@@ -1,12 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { destinoSeguro } from "@/lib/next-param";
 
+/**
+ * useSearchParams() obliga a renderizar del lado del cliente, así que el
+ * formulario va dentro de un Suspense. Sin eso, Next falla al prerenderizar
+ * esta página, que hoy es estática.
+ */
 export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
+function RegisterForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -14,6 +28,11 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+  // A dónde ir después de registrarse. La pantalla de invitación enlaza acá con
+  // `?next=/invite/<id>`: sin esto, el invitado se registra y cae en el
+  // dashboard de su workspace fantasma, con la invitación sin aceptar y sin
+  // forma de volver al link.
+  const destino = destinoSeguro(useSearchParams().get("next"));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -25,7 +44,7 @@ export default function RegisterPage() {
       password,
       options: {
         data: { full_name: name },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(destino)}`,
       },
     });
 
@@ -35,7 +54,7 @@ export default function RegisterPage() {
       return;
     }
 
-    router.push("/dashboard");
+    router.push(destino);
     router.refresh();
   }
 
@@ -43,7 +62,7 @@ export default function RegisterPage() {
     await supabase.auth.signInWithOAuth({
       provider: "github",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(destino)}`,
       },
     });
   }

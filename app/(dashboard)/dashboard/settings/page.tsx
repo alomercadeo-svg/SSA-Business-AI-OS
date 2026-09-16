@@ -1,9 +1,9 @@
-import { getWorkspace } from "@/lib/workspace";
+import { getWorkspaceAsManager } from "@/lib/workspace";
 import { hasWorkspaceSecret, SECRET_NAMES } from "@/lib/vault";
 import { SettingsView } from "./settings-view";
 
 export default async function SettingsPage() {
-  const { workspace, supabase } = await getWorkspace();
+  const { workspace, supabase } = await getWorkspaceAsManager();
 
   // Solo si la clave está configurada o no. El valor no se le manda al cliente:
   // antes venía en la fila del workspace y viajaba al navegador en cada carga.

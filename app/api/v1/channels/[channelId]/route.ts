@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getWorkspaceOrNull } from "@/lib/workspace";
+import { requireManager } from "@/lib/workspace";
 import { createZernioClient } from "@/lib/zernio-client";
 import { getZernioApiKey } from "@/lib/vault";
 
@@ -15,9 +15,8 @@ export async function DELETE(
   { params }: { params: Promise<{ channelId: string }> }
 ) {
   const { channelId } = await params;
-  const contexto = await getWorkspaceOrNull();
-  if (!contexto)
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { contexto, error: authError } = await requireManager();
+  if (authError) return authError;
   const { workspace, supabase } = contexto;
 
   const { data: channel } = await supabase

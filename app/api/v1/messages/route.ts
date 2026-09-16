@@ -26,9 +26,28 @@ export async function GET(request: NextRequest) {
     .from("conversations")
     .select("late_conversation_id, workspace_id, channels(late_account_id)")
     .eq("id", conversationId)
-    .single();
+    .maybeSingle();
 
-  if (!conversation?.late_conversation_id) {
+  // Sin fila hay dos causas posibles y para el usuario son la misma: o la
+  // conversación se borró, o dejó de estar en su scope porque le reasignaron el
+  // lead. La RLS devuelve vacío en los dos casos, así que no se pueden
+  // distinguir desde acá, y tampoco conviene: decir "existe pero no es tuya"
+  // confirma la existencia de un lead ajeno.
+  //
+  // El código va aparte del mensaje para que el cliente pueda mostrar algo
+  // claro. Antes esto era un 404 genérico que la bandeja interpretaba como
+  // "conversación sin mensajes" y renderizaba un hilo vacío, sin explicación.
+  if (!conversation) {
+    return NextResponse.json(
+      {
+        error: "Esta conversación ya no está disponible para vos",
+        code: "fuera_de_scope",
+      },
+      { status: 403 }
+    );
+  }
+
+  if (!conversation.late_conversation_id) {
     return NextResponse.json({ error: "Conversation not found or missing Zernio ID" }, { status: 404 });
   }
 
@@ -116,10 +135,19 @@ export async function POST(request: NextRequest) {
     .from("conversations")
     .select("*, channels(late_account_id)")
     .eq("id", conversationId)
-    .single();
+    .maybeSingle();
 
+  // Mismo caso que en el GET: la conversación se borró o salió de su scope, y
+  // la RLS devuelve vacío en los dos. Intentar responder un lead que le acaban
+  // de quitar tiene que decir eso, no "Conversation not found".
   if (!conversation) {
-    return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+    return NextResponse.json(
+      {
+        error: "Esta conversación ya no está disponible para vos",
+        code: "fuera_de_scope",
+      },
+      { status: 403 }
+    );
   }
 
   if (!conversation.late_conversation_id) {

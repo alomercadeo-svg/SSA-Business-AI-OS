@@ -14,9 +14,12 @@ import {
   Plus,
   Loader2,
   ArrowLeft,
+  Copy,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  changeTeamMemberRole,
   inviteTeamMember,
   removeTeamMember,
   revokeInvite,
@@ -71,10 +74,18 @@ export function TeamView({
   pendingInvites: PendingInvite[];
 }) {
   const router = useRouter();
-  const isOwner = currentUserRole === "owner";
+  // Dos capacidades distintas, no una sola: invitar, revocar y cambiar rol es
+  // de Owner y Admin; remover a alguien del workspace es solo del Owner.
+  const puedeGestionar = currentUserRole === "owner" || currentUserRole === "admin";
+  const esOwner = currentUserRole === "owner";
 
   const [members, setMembers] = useState(initialMembers);
   const [invites, setInvites] = useState(initialInvites);
+  // Los errores de remover, revocar y cambiar rol se tragaban en silencio: la
+  // acción devolvía { error } y el componente solo miraba el caso de éxito.
+  const [accionError, setAccionError] = useState<string | null>(null);
+  const [linkCopiado, setLinkCopiado] = useState<string | null>(null);
+  const [cambiandoRolDe, setCambiandoRolDe] = useState<string | null>(null);
 
   // Invite form
   const [inviteEmail, setInviteEmail] = useState("");
@@ -114,10 +125,13 @@ export function TeamView({
 
   async function handleRemove(userId: string) {
     setRemovingId(userId);
+    setAccionError(null);
 
     const result = await removeTeamMember(workspaceId, userId);
 
-    if (!result.error) {
+    if (result.error) {
+      setAccionError(result.error);
+    } else {
       setMembers((prev) => prev.filter((m) => m.userId !== userId));
     }
 
@@ -126,14 +140,59 @@ export function TeamView({
 
   async function handleRevoke(inviteId: string) {
     setRevokingId(inviteId);
+    setAccionError(null);
 
     const result = await revokeInvite(inviteId);
 
-    if (!result.error) {
+    if (result.error) {
+      setAccionError(result.error);
+    } else {
       setInvites((prev) => prev.filter((i) => i.id !== inviteId));
     }
 
     setRevokingId(null);
+  }
+
+  async function handleCambiarRol(userId: string, nuevoRol: string) {
+    setCambiandoRolDe(userId);
+    setAccionError(null);
+
+    const result = await changeTeamMemberRole(workspaceId, userId, nuevoRol);
+
+    if (result.error) {
+      setAccionError(result.error);
+    } else {
+      setMembers((prev) =>
+        prev.map((m) => (m.userId === userId ? { ...m, role: nuevoRol } : m))
+      );
+      // El rol decide qué ve y qué puede hacer esa persona en el resto de la
+      // app, así que se refresca el render del servidor y no solo este estado.
+      router.refresh();
+    }
+
+    setCambiandoRolDe(null);
+  }
+
+  /**
+   * El link de la invitación. Hoy no se manda ningún email: el envío por Resend
+   * es del Bloque 2. Hasta entonces, esta es la única forma de que la
+   * invitación llegue a destino, así que se muestra y se puede copiar.
+   */
+  function linkDeInvitacion(inviteId: string): string {
+    if (typeof window === "undefined") return `/invite/${inviteId}`;
+    return `${window.location.origin}/invite/${inviteId}`;
+  }
+
+  async function copiarLink(inviteId: string) {
+    try {
+      await navigator.clipboard.writeText(linkDeInvitacion(inviteId));
+      setLinkCopiado(inviteId);
+      setTimeout(() => setLinkCopiado(null), 2000);
+    } catch {
+      // Sin permiso de portapapeles (o sin HTTPS): el link está a la vista y se
+      // puede seleccionar a mano, así que no hace falta más que avisar.
+      setAccionError("No se pudo copiar. Seleccioná el link y copialo a mano.");
+    }
   }
 
   return (
@@ -195,15 +254,35 @@ export function TeamView({
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0 ml-4">
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium capitalize",
-                        roleStyles[member.role] ?? roleStyles.member
-                      )}
-                    >
-                      {roleIcons[member.role] ?? roleIcons.member}
-                      {member.role}
-                    </span>
+                    {/* El rol del Owner y el propio no se editan: el Owner lo es
+                        por haber creado el workspace, y sin ese límite un Admin
+                        podría degradarlo y quedarse con el workspace. */}
+                    {puedeGestionar &&
+                    member.role !== "owner" &&
+                    member.userId !== currentUserId ? (
+                      <select
+                        value={member.role}
+                        onChange={(e) =>
+                          handleCambiarRol(member.userId, e.target.value)
+                        }
+                        disabled={cambiandoRolDe === member.userId}
+                        className="rounded-full border border-input bg-background px-2 py-0.5 text-[10px] font-medium capitalize focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+                        title="Cambiar rol"
+                      >
+                        <option value="member">Member</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    ) : (
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium capitalize",
+                          roleStyles[member.role] ?? roleStyles.member
+                        )}
+                      >
+                        {roleIcons[member.role] ?? roleIcons.member}
+                        {member.role}
+                      </span>
+                    )}
 
                     <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                       Joined{" "}
@@ -214,7 +293,7 @@ export function TeamView({
                       })}
                     </span>
 
-                    {isOwner && member.userId !== currentUserId && (
+                    {esOwner && member.userId !== currentUserId && (
                       <button
                         onClick={() =>
                           setConfirmRemove({ userId: member.userId, name: member.name })
@@ -234,10 +313,14 @@ export function TeamView({
                 </div>
               ))}
             </div>
+
+            {accionError && (
+              <p className="mt-3 text-xs text-destructive">{accionError}</p>
+            )}
           </section>
 
-          {/* Invite section (owners only) */}
-          {isOwner && (
+          {/* Invite section (Owner y Admin) */}
+          {puedeGestionar && (
             <>
               <hr className="border-border" />
 
@@ -247,7 +330,9 @@ export function TeamView({
                   <h2 className="text-sm font-semibold">Invite a Member</h2>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Send an invitation link. The invite expires in 7 days.
+                  Se crea el link de invitación y vence a los 7 días. El envío
+                  por email todavía no está: copiá el link de la lista de abajo
+                  y hacéselo llegar vos.
                 </p>
 
                 <form onSubmit={handleInvite} className="mt-4 flex gap-2">
@@ -289,7 +374,7 @@ export function TeamView({
                 )}
                 {inviteSuccess && (
                   <p className="mt-2 text-xs text-green-600">
-                    Invite sent successfully!
+                    Invitación creada. Copiá el link de abajo y mandáselo.
                   </p>
                 )}
               </section>
@@ -317,10 +402,11 @@ export function TeamView({
                       <div
                         key={invite.id}
                         className={cn(
-                          "flex items-center justify-between rounded-xl border border-border bg-card p-4",
+                          "rounded-xl border border-border bg-card p-4",
                           isExpired && "opacity-60"
                         )}
                       >
+                        <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted">
                             <Mail className="h-4 w-4 text-muted-foreground" />
@@ -358,12 +444,12 @@ export function TeamView({
                           </div>
                         </div>
 
-                        {isOwner && (
+                        {puedeGestionar && (
                           <button
                             onClick={() => setConfirmRevoke(invite.id)}
                             disabled={revokingId === invite.id}
                             className="shrink-0 ml-4 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
-                            title="Revoke invite"
+                            title="Revocar invitación"
                           >
                             {revokingId === invite.id ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -371,6 +457,36 @@ export function TeamView({
                               <X className="h-3.5 w-3.5" />
                             )}
                           </button>
+                        )}
+                        </div>
+
+                        {/* El link es la invitación: no se manda ningún email
+                            todavía, así que si no se muestra acá no hay forma de
+                            que llegue a destino. Una invitación vencida no se
+                            muestra: el link ya no sirve. */}
+                        {puedeGestionar && !isExpired && (
+                          <div className="mt-3 flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
+                            <code className="flex-1 truncate text-[11px] text-muted-foreground">
+                              {linkDeInvitacion(invite.id)}
+                            </code>
+                            <button
+                              onClick={() => copiarLink(invite.id)}
+                              className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                              title="Copiar link de invitación"
+                            >
+                              {linkCopiado === invite.id ? (
+                                <>
+                                  <Check className="h-3 w-3" />
+                                  Copiado
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-3 w-3" />
+                                  Copiar
+                                </>
+                              )}
+                            </button>
+                          </div>
                         )}
                       </div>
                     );

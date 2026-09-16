@@ -1,9 +1,9 @@
-import { getWorkspace } from "@/lib/workspace";
+import { getWorkspaceAsManager } from "@/lib/workspace";
 import { CHANNEL_PUBLIC_COLUMNS } from "@/lib/safe-columns";
 import { ChannelsView } from "./channels-view";
 
 export default async function ChannelsPage() {
-  const { workspace, supabase } = await getWorkspace();
+  const { workspace, supabase } = await getWorkspaceAsManager();
 
   const { data: channels } = await supabase
     .from("channels")

@@ -1,18 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { destinoSeguro } from "@/lib/next-param";
 
+/** Ver la nota de Suspense en la pantalla de registro: mismo motivo. */
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+  // La pantalla de invitación enlaza acá con `?next=/invite/<id>` para el
+  // invitado que ya tiene cuenta.
+  const destino = destinoSeguro(useSearchParams().get("next"));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -30,7 +43,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
+    router.push(destino);
     router.refresh();
   }
 
@@ -38,7 +51,7 @@ export default function LoginPage() {
     await supabase.auth.signInWithOAuth({
       provider: "github",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(destino)}`,
       },
     });
   }

@@ -103,6 +103,10 @@ npm test             # tests con Vitest
 
 El riesgo de ese archivo es humano, no del CLI: si alguna vez se aplican migraciones a mano en el SQL Editor, se usa `ALL_MIGRATIONS.sql` **o** los 16 numerados, nunca los dos. Aplicar los dos duplica todo y rompe la base.
 
+**Que el CLI lo ignore no lo vuelve inerte, y hay un test que lo hace cumplir.** `lib/platforms.test.ts:36` exige que `ALL_MIGRATIONS.sql` sea una **copia fiel y en orden** de cada migración numerada: recorre los archivos `<dígitos>_nombre.sql` en orden y busca el cuerpo de cada uno dentro del bundle, avanzando un cursor. Por lo tanto: **cada migración nueva se agrega al final del bundle**, con el mismo formato de encabezado que las anteriores (`-- ====`, `-- MIGRATION N: NOMBRE EN MAYÚSCULAS`, `-- ====`, y debajo el cuerpo del archivo). Si se olvida, `npm test` falla.
+
+Que falle es deliberado, y el motivo es el párrafo de arriba: el día que alguien aplique el bundle a mano —reconstruyendo la base, levantando un entorno nuevo—, un bundle desincronizado deja un esquema **incompleto**, sin las policies o las columnas de las migraciones que faltan. Un esquema incompleto no se anuncia: la app arranca y falla más tarde, en el camino que dependía de lo que no se aplicó. El test es la única cosa que lo impide.
+
 Reglas:
 
 - Migraciones nuevas y re-aplicaciones: siempre con `supabase db push`. Nunca pegando SQL en el editor de Supabase salvo que yo lo pida explícitamente.

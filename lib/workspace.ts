@@ -115,6 +115,24 @@ export function esManager(role: string): boolean {
 }
 
 /**
+ * Para páginas que solo puede abrir un Owner o un Admin.
+ *
+ * Manda al Member a /dashboard en lugar de renderizar. La guarda va en el
+ * servidor y no en el componente porque estas páginas leen datos que la RLS no
+ * frena: `settings/team` arma el listado del equipo con el service client y
+ * resuelve cada email contra `auth.users`. Esconder los botones en el cliente
+ * deja el dato igual en el HTML.
+ *
+ * Cacheada por request, igual que getWorkspace().
+ */
+export const getWorkspaceAsManager = cache(async (): Promise<WorkspaceContext> => {
+  const contexto = await resolveWorkspace();
+  if (!contexto) redirect("/login");
+  if (!esManager(contexto.role)) redirect("/dashboard");
+  return contexto;
+});
+
+/**
  * Para API routes que solo puede usar un Owner o un Admin.
  *
  * Devuelve el contexto, o la respuesta de error ya armada para que el handler

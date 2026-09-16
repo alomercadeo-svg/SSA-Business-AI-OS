@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { getWorkspaceOrNull } from "@/lib/workspace";
+import { requireManager } from "@/lib/workspace";
 import { CHANNEL_PUBLIC_COLUMNS } from "@/lib/safe-columns";
 
 export async function GET() {
-  const contexto = await getWorkspaceOrNull();
-  if (!contexto)
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { contexto, error: authError } = await requireManager();
+  if (authError) return authError;
   const { workspace, supabase } = contexto;
 
   const { data: channels, error } = await supabase

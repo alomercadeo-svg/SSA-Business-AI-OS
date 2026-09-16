@@ -1207,7 +1207,8 @@ estaban previstas, así que la numeración efectiva se corre. Esta es la lista r
 | `00017_lead_scope_columns.sql` | 1 | `contacts.setter_id`, `contacts.vendedor_id`, `workspaces.unassigned_leads_visible_to_members` e índices | **Aplicada** |
 | `00018_vault_setup.sql` | 1 | Extensión, funciones RPC y **copia** de las claves en texto plano. No borra columnas | **Aplicada** |
 | `00019_lead_scope_rls.sql` | 1 | `can_see_contact`, `can_see_conversation`, reemplazo de las policies del fork en 13 tablas y borrado sin reemplazo de las de `scheduled_jobs` | **Aplicada** |
-| `00020_signup_respects_invite.sql` | 1 | Solo si hace falta: que `handle_new_user` no cree workspace propio al invitado | Condicional (Sesión B) |
+| `00020_workspace_members_manager_select.sql` | 1 | Un manager ve las membresías de su workspace. Sin esto la policy de UPDATE de la 00019 era letra muerta | **Aplicada** |
+| `signup_respects_invite` | 1 | Que `handle_new_user` no le cree workspace propio al invitado. **No hizo falta**: el invitado aterriza en el workspace correcto por la heurística de membresía más reciente. Si alguna vez se hace, toma el número libre que corresponda | Condicional, no aplicada |
 | `00021_drop_plaintext_key_columns.sql` | 1 | Borra `late_api_key_encrypted` y `ai_api_key` | Pendiente (Sesión B) |
 | `00022_extend_contacts.sql` y siguientes | 3 y 4 | La lista planificada de arriba, corrida cinco números | Pendiente |
 
@@ -1307,6 +1308,63 @@ autorizaban vía `flows` y vía `broadcasts` con `is_workspace_member`. La prime
 las dos: `variables jsonb` es donde el motor guarda todo lo que capturó de la conversación —nombre,
 email, teléfono, respuestas—, así que un Member leía lo capturado de cualquier lead del workspace.
 
+#### Decisiones de la 00020, y el bug silencioso que la motivó
+
+La 00019 le dio al manager una policy de UPDATE sobre `workspace_members` para poder cambiar el rol
+de un miembro. **No alcanzaba, y fallaba en silencio.**
+
+Postgres aplica también las policies de **SELECT** cuando un UPDATE o un DELETE referencia columnas
+de la tabla, y PostgREST siempre arma un `WHERE`. La policy de SELECT del fork es
+`user_id = auth.uid()`: cada quien ve solo su propia fila. Entonces un Owner que intentaba cambiarle
+el rol a otra persona no veía esa fila, el UPDATE afectaba cero filas, y PostgREST respondía **204**
+igual. Éxito aparente, rol sin cambiar.
+
+Apareció probando con un Member invitado de verdad: la comprobación "un Manager SÍ puede cambiar el
+rol de un miembro" devolvía 204 con el rol intacto. Es el mismo modo de fallar que el de
+`conversations` y el marcar-como-leído: cero filas afectadas no es un error.
+
+La 00020 lo arregla dejando que el manager vea las membresías de su workspace. Además de destrabar
+el UPDATE, es correcto por sí solo: la pantalla de equipo ya muestra ese listado y hasta ahora tenía
+que armarlo con el service client porque la RLS no se lo permitía. No hay recursión porque la rama
+nueva no consulta `workspace_members` directamente: llama a `is_workspace_manager`, que es
+`security definer`. Escribir no cambia: el UPDATE sigue siendo de manager y el DELETE solo del Owner.
+
+#### Roles e invitaciones (Sesión B, PASO 2)
+
+**Las guardas de rol viven en `lib/workspace.ts`**, no como parches por ruta: `requireManager()` para
+rutas de API (403 en JSON, distinguido del 401) y `getWorkspaceAsManager()` para páginas (manda al
+Member a `/dashboard` en vez de renderizar). Cubren `/dashboard/settings`,
+`/dashboard/settings/team`, `/dashboard/channels` y las **cinco** rutas de `api/v1/channels`, más
+`/api/v1/broadcasts/[id]/send` que ya las necesitaba desde la 00019.
+
+Poner la guarda en `/dashboard/settings/team` es lo que cierra la fuga del listado de equipo: la
+página arma el roster con el service client y resuelve cada email contra `auth.users`, así que la
+RLS no la frenaba y esconder los botones en el cliente no servía de nada.
+
+**`api/v1/channels/test-key` no tenía ninguna capa de autorización**: ni `getUser()`, ni chequeo de
+membresía, y tomaba el `workspaceId` del body. Un POST sin sesión llegaba a Zernio con la clave que
+mandara quien llamara y recibía `{ accounts }`, o sea un oráculo abierto para validar claves de
+Zernio robadas. Ahora exige manager y el workspace sale de la sesión.
+
+**Quién hace qué:** invitar, revocar y cambiar rol es de Owner y Admin; remover a alguien del
+workspace sigue siendo solo del Owner. No se puede tocar el rol de un Owner ni ascender a nadie a
+Owner: sin ese límite un Admin podría degradar al Owner y quedarse con el workspace.
+
+**Entrega de la invitación.** No se manda ningún email —eso es Resend, Bloque 2—, así que el link
+`/invite/<id>` se muestra y se copia desde la pantalla de equipo: hasta ahora no se mostraba en
+ningún lado y no había forma de hacerlo llegar. Además `/login` y `/register` ahora respetan el
+parámetro `next`, que la pantalla de invitación ya les pasaba y las dos ignoraban; el invitado
+volvía del login al dashboard con la invitación sin aceptar. El `next` se valida en
+`lib/next-param.ts` con la misma regla que `auth/callback`: solo rutas internas, porque si no la
+pantalla de login se convierte en un redirector abierto.
+
+**Lead que sale del scope con la pantalla abierta.** `api/v1/messages` devolvía un 404 genérico que
+la bandeja interpretaba como "conversación sin mensajes" y renderizaba un hilo vacío sin
+explicación. Ahora responde 403 con `code: "fuera_de_scope"` en el GET y en el POST, y la bandeja
+muestra un mensaje claro con un botón para actualizar. No se distingue "se borró" de "te la
+sacaron": la RLS devuelve vacío en los dos casos y decir "existe pero no es tuya" confirmaría la
+existencia de un lead ajeno.
+
 #### Pendientes de rendimiento, para el Bloque 4
 
 **La medición de `EXPLAIN ANALYZE` de la consulta de la bandeja queda diferida.** Hoy la base tiene
@@ -1331,6 +1389,10 @@ y cada una consulta `contacts`.** No se optimiza ahora.
 - `scheduleJob` (`lib/scheduler.ts`) es código muerto: no tiene ningún llamador.
 - **Los dos verificadores corren contra la base de producción.** Hoy está vacía y es tolerable;
   cuando el negocio opere tienen que apuntar a una base local o de staging.
+- **El envío de invitaciones por email, Bloque 2** (Resend). Hasta entonces el link se copia a mano
+  desde la pantalla de equipo.
+- El botón de sincronizar de la bandeja le devuelve 403 a un Member en vez de esconderse. Antes le
+  fallaba igual, con un error de Vault menos claro, porque leer la clave de Zernio ya exigía manager.
 
 ### Variables de entorno
 

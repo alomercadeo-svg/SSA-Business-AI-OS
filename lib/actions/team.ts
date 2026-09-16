@@ -1,29 +1,39 @@
 "use server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { getWorkspace } from "@/lib/workspace";
+import { esManager, getWorkspace } from "@/lib/workspace";
 
+/**
+ * Roles asignables desde la UI. `owner` no está: no se otorga invitando ni
+ * cambiando un rol, se tiene por haber creado el workspace.
+ */
+const ROLES_ASIGNABLES = ["member", "admin"];
+
+/**
+ * Quién hace qué en el equipo:
+ *   - Invitar, revocar y cambiar rol: Owner y Admin.
+ *   - Remover a alguien del workspace: solo Owner.
+ *
+ * El rol sale de `getWorkspace()`, que ya lo resuelve. Antes cada acción hacía
+ * su propia consulta a `workspace_members` para averiguarlo: tres copias del
+ * mismo SELECT que el resolvedor ya había hecho.
+ *
+ * Estas guardas son la primera línea, no la única: las policies de la 00019
+ * sobre `workspace_invites` y `workspace_members` dicen lo mismo en la base.
+ */
 export async function inviteTeamMember(
   workspaceId: string,
   email: string,
   role: string
 ) {
-  const { workspace, user, supabase } = await getWorkspace();
+  const { workspace, user, role: rolPropio, supabase } = await getWorkspace();
 
   if (workspace.id !== workspaceId) {
     return { error: "Workspace mismatch" };
   }
 
-  // Validate caller is owner
-  const { data: membership } = await supabase
-    .from("workspace_members")
-    .select("role")
-    .eq("workspace_id", workspaceId)
-    .eq("user_id", user.id)
-    .single();
-
-  if (membership?.role !== "owner") {
-    return { error: "Only workspace owners can invite members" };
+  if (!esManager(rolPropio)) {
+    return { error: "Solo Owner y Admin pueden invitar" };
   }
 
   const trimmedEmail = email.trim().toLowerCase();
@@ -31,9 +41,8 @@ export async function inviteTeamMember(
     return { error: "A valid email address is required" };
   }
 
-  const validRoles = ["member", "admin"];
-  if (!validRoles.includes(role)) {
-    return { error: "Invalid role. Must be member or admin." };
+  if (!ROLES_ASIGNABLES.includes(role)) {
+    return { error: "Rol inválido. Tiene que ser member o admin." };
   }
 
   // Check if this email is already a member
@@ -77,31 +86,85 @@ export async function inviteTeamMember(
   return { ok: true, invite };
 }
 
-export async function removeTeamMember(
+/**
+ * Cambiar el rol de un miembro. Owner y Admin.
+ *
+ * No se puede tocar a un Owner ni ascender a nadie a Owner: el rol de Owner
+ * viene de haber creado el workspace y no se otorga desde acá. Sin ese límite,
+ * un Admin podría degradar al Owner y quedarse con el workspace.
+ */
+export async function changeTeamMemberRole(
   workspaceId: string,
-  userId: string
+  userId: string,
+  nuevoRol: string
 ) {
-  const { workspace, user, supabase } = await getWorkspace();
+  const { workspace, user, role: rolPropio, supabase } = await getWorkspace();
 
   if (workspace.id !== workspaceId) {
     return { error: "Workspace mismatch" };
   }
 
-  // Validate caller is owner
-  const { data: membership } = await supabase
+  if (!esManager(rolPropio)) {
+    return { error: "Solo Owner y Admin pueden cambiar roles" };
+  }
+
+  if (!ROLES_ASIGNABLES.includes(nuevoRol)) {
+    return { error: "Rol inválido. Tiene que ser member o admin." };
+  }
+
+  if (userId === user.id) {
+    return { error: "No podés cambiar tu propio rol" };
+  }
+
+  // El rol actual del afectado se lee con el service client: la policy de
+  // SELECT de workspace_members solo deja ver la fila propia.
+  const serviceClient = await createServiceClient();
+  const { data: objetivo } = await serviceClient
     .from("workspace_members")
     .select("role")
     .eq("workspace_id", workspaceId)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .single();
 
-  if (membership?.role !== "owner") {
-    return { error: "Only workspace owners can remove members" };
+  if (!objetivo) {
+    return { error: "Esa persona no es miembro del workspace" };
+  }
+
+  if (objetivo.role === "owner") {
+    return { error: "No se puede cambiar el rol del Owner" };
+  }
+
+  const { error: updateError } = await supabase
+    .from("workspace_members")
+    .update({ role: nuevoRol })
+    .eq("workspace_id", workspaceId)
+    .eq("user_id", userId);
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  return { ok: true };
+}
+
+export async function removeTeamMember(
+  workspaceId: string,
+  userId: string
+) {
+  const { workspace, user, role: rolPropio, supabase } = await getWorkspace();
+
+  if (workspace.id !== workspaceId) {
+    return { error: "Workspace mismatch" };
+  }
+
+  // Remover es la única acción de equipo que no se delega en el Admin.
+  if (rolPropio !== "owner") {
+    return { error: "Solo el Owner puede remover miembros" };
   }
 
   // Can't remove yourself
   if (userId === user.id) {
-    return { error: "You cannot remove yourself from the workspace" };
+    return { error: "No podés removerte a vos mismo del workspace" };
   }
 
   const { error: deleteError } = await supabase
@@ -193,7 +256,7 @@ export async function acceptInvite(inviteId: string) {
 }
 
 export async function revokeInvite(inviteId: string) {
-  const { user, supabase } = await getWorkspace();
+  const { workspace, role: rolPropio, supabase } = await getWorkspace();
 
   // Fetch the invite to get workspace_id
   const { data: invite, error: fetchError } = await supabase
@@ -206,16 +269,15 @@ export async function revokeInvite(inviteId: string) {
     return { error: "Invite not found" };
   }
 
-  // Validate caller is owner
-  const { data: membership } = await supabase
-    .from("workspace_members")
-    .select("role")
-    .eq("workspace_id", invite.workspace_id)
-    .eq("user_id", user.id)
-    .single();
+  // La invitación tiene que ser del workspace activo. Sin este chequeo, un
+  // manager de un workspace podría revocar la de otro pasando el id a mano:
+  // `rolPropio` es su rol en SU workspace, no en el de la invitación.
+  if (invite.workspace_id !== workspace.id) {
+    return { error: "Invite not found" };
+  }
 
-  if (membership?.role !== "owner") {
-    return { error: "Only workspace owners can revoke invites" };
+  if (!esManager(rolPropio)) {
+    return { error: "Solo Owner y Admin pueden revocar invitaciones" };
   }
 
   const { error: deleteError } = await supabase

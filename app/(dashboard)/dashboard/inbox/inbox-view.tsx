@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { MessageSquare, RefreshCw, User } from "lucide-react";
+import { Lock, MessageSquare, RefreshCw, User } from "lucide-react";
 import { ConversationList } from "@/components/inbox/conversation-list";
 import { MessageThread } from "@/components/inbox/message-thread";
 import { ContactPanel } from "@/components/inbox/contact-panel";
@@ -29,6 +29,10 @@ export function InboxView({
   const [showContactPanel, setShowContactPanel] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  // Un lead que le sacaron a este usuario mientras lo tenía abierto. Antes esto
+  // no existía: el 403 caía en el mismo setMessages([]) que una conversación sin
+  // mensajes, así que el hilo se renderizaba vacío y sin explicación.
+  const [scopeError, setScopeError] = useState<string | null>(null);
 
   // Imports conversations that already exist in Zernio (e.g. from before the
   // webhook was registered), then refreshes the server-rendered list.
@@ -64,6 +68,8 @@ export function InboxView({
 
     async function loadMessages() {
       setLoadingMessages(true);
+      setScopeError(null);
+      let fueraDeScope = false;
       try {
         const res = await fetch(
           `/api/v1/messages?conversationId=${selected!.id}`
@@ -72,8 +78,16 @@ export function InboxView({
           const data = await res.json();
           setMessages(data ?? []);
         } else {
-          console.error("Failed to load messages:", res.status);
+          const data = await res.json().catch(() => null);
           setMessages([]);
+          if (res.status === 403 || data?.code === "fuera_de_scope") {
+            fueraDeScope = true;
+            setScopeError(
+              data?.error ?? "Esta conversación ya no está disponible para vos"
+            );
+          } else {
+            console.error("Failed to load messages:", res.status);
+          }
         }
       } catch (err) {
         console.error("Failed to load messages:", err);
@@ -82,8 +96,9 @@ export function InboxView({
         setLoadingMessages(false);
       }
 
-      // Mark as read
-      if (selected!.unread_count > 0) {
+      // Marcar como leído. No se intenta si el lead salió del scope: el UPDATE
+      // afectaría cero filas y no hay nada que marcar.
+      if (selected!.unread_count > 0 && !fueraDeScope) {
         const supabase = createClient();
         await supabase
           .from("conversations")
@@ -148,6 +163,28 @@ export function InboxView({
           ) : loadingMessages && selected ? (
             <div className="flex h-full items-center justify-center">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+            </div>
+          ) : scopeError ? (
+            <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+              <Lock className="h-10 w-10 text-muted-foreground/40" />
+              <p className="mt-3 text-sm font-medium text-muted-foreground">
+                {scopeError}
+              </p>
+              <p className="mt-1 max-w-xs text-xs text-muted-foreground/70">
+                Puede que te hayan reasignado el lead o que lo hayan archivado.
+                Consultá con un responsable del equipo.
+              </p>
+              <button
+                onClick={() => {
+                  setSelected(null);
+                  setScopeError(null);
+                  router.refresh();
+                }}
+                className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Actualizar la bandeja
+              </button>
             </div>
           ) : (
             <MessageThread

@@ -80,7 +80,9 @@ export function SettingsView({
       const res = await fetch("/api/v1/channels/test-key", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey: keyToTest, workspaceId: workspace.id }),
+        // Sin workspaceId: la ruta lo resuelve de la sesión. Mandarlo desde el
+        // cliente era lo que permitía escribir sobre un workspace ajeno.
+        body: JSON.stringify({ apiKey: keyToTest }),
       });
 
       const data = await res.json();
