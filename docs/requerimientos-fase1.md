@@ -1205,6 +1205,30 @@ estaban previstas, así que la numeración efectiva se corre. Esta es la lista r
 | Archivo real | Bloque | Qué hace | Estado |
 | --- | --- | --- | --- |
 | `00017_lead_scope_columns.sql` | 1 | `contacts.setter_id`, `contacts.vendedor_id`, `workspaces.unassigned_leads_visible_to_members` e índices | **Aplicada** |
+| `00018_vault_setup.sql` | 1 | Extensión, funciones RPC y **copia** de las claves en texto plano. No borra columnas | **Aplicada** |
+| `00019_lead_scope_rls.sql` | 1 | `can_see_contact`, `can_see_conversation` y reemplazo de las policies del fork | Pendiente (Sesión B) |
+| `00020_signup_respects_invite.sql` | 1 | Solo si hace falta: que `handle_new_user` no cree workspace propio al invitado | Condicional (Sesión B) |
+| `00021_drop_plaintext_key_columns.sql` | 1 | Borra `late_api_key_encrypted` y `ai_api_key` | Pendiente (Sesión B) |
+| `00022_extend_contacts.sql` y siguientes | 3 y 4 | La lista planificada de arriba, corrida cinco números | Pendiente |
+
+**`00018` no borra las columnas: expandir y contraer.** El plan original juntaba en una sola
+migración la creación de los RPC, la copia de los valores y el `drop` de las columnas. Entre ese
+push y la reescritura de las 16 lecturas del código la app queda rota, y si la reescritura sale mal
+no hay camino de vuelta porque el dato viejo ya no existe. Ahora `00018` solo copia, los dos
+mecanismos conviven mientras se reescribe y se prueba el código, y `00021` borra las columnas
+cuando Vault ya está probado en todos los caminos. Consecuencia: el criterio de F2
+"`select * from workspaces` no devuelve ninguna clave" se cumple al aplicar `00021`, no `00018`.
+
+**Fuga encontrada al verificar F2, más grave que el problema documentado.** El documento describe
+las claves "en texto plano en una columna". Además de eso, `app/(dashboard)/layout.tsx` pasaba la
+fila completa del workspace a `<Sidebar>`, que es un Client Component, así que Next serializaba
+`late_api_key_encrypted` y `webhook_secret` en el HTML de **todas** las páginas del dashboard: la
+clave de Zernio y el secreto de HMAC de los webhooks viajaban al navegador en cada carga. Corregido
+enumerando las columnas en `getWorkspace()`. El `webhook_secret` es el que valida la firma de los
+webhooks de Zernio, así que quien lo tuviera podía forjar eventos entrantes firmados.
+
+**La extensión de `channels` a más plataformas no hace falta todavía**, igual que dice la nota de
+arriba.
 
 **Por qué se desdobló `00017_extend_contacts`:** el scope de leads de F3 se define por `setter_id` y
 `vendedor_id`, que el plan original ubicaba en la extensión de `contacts` del Bloque 3. Sin esas dos
