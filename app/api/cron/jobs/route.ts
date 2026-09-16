@@ -495,7 +495,7 @@ async function processJob(
       // Process individual broadcast recipient
       const { data: recipient, error: recipientError } = await supabase
         .from("broadcast_recipients")
-        .select("*, contacts(*), channels(*), broadcasts(*)")
+        .select("*, contacts(*), channels(late_account_id), broadcasts(*)")
         .eq("id", payload.recipientId)
         .single();
 

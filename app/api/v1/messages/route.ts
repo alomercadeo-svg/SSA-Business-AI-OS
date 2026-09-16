@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
   // Get conversation with channel info
   const { data: conversation } = await supabase
     .from("conversations")
-    .select("*, channels(*)")
+    .select("*, channels(late_account_id)")
     .eq("id", conversationId)
     .single();
 

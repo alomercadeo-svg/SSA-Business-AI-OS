@@ -24,7 +24,13 @@ import {
   type Platform,
 } from "@/lib/platforms";
 
-type Channel = Database["public"]["Tables"]["channels"]["Row"];
+// Sin webhook_secret: es el secreto con el que se valida la firma HMAC de los
+// webhooks de Zernio, y las props de un Client Component se serializan en el
+// HTML. Dejarlo fuera del tipo hace que el compilador impida volver a traerlo.
+type Channel = Omit<
+  Database["public"]["Tables"]["channels"]["Row"],
+  "webhook_secret"
+>;
 
 
 function getDmLink(platform: Platform, username: string | null): { url: string | null; label: string } {

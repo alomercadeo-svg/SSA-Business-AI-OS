@@ -19,7 +19,13 @@ import { createClient } from "@/lib/supabase/client";
 import type { Database, Json } from "@/lib/types/database";
 import { PLATFORM_LABELS } from "@/lib/platforms";
 
-type Channel = Database["public"]["Tables"]["channels"]["Row"];
+// Sin el secreto de firma del canal: las props de un Client Component se
+// serializan en el HTML. Dejarlo fuera del tipo hace que el compilador impida
+// volver a traerlo (ver lib/safe-columns.ts).
+type Channel = Omit<
+  Database["public"]["Tables"]["channels"]["Row"],
+  "webhook_secret"
+>;
 type CommentLog = Database["public"]["Tables"]["comment_logs"]["Row"];
 
 interface TriggerWithFlow {

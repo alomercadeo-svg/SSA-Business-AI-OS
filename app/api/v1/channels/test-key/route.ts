@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { CHANNEL_PUBLIC_COLUMNS } from "@/lib/safe-columns";
 import { createZernioClient } from "@/lib/zernio-client";
 import {
   ensureWebhookRegistered,
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
     // Auto-sync channels
     const { data: existingChannels } = await supabase
       .from("channels")
-      .select("*")
+      .select(CHANNEL_PUBLIC_COLUMNS)
       .eq("workspace_id", workspaceId);
 
     const existingByLateId = new Map(

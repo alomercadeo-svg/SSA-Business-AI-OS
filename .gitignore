@@ -32,6 +32,9 @@ yarn-error.log*
 .env
 .env*.local
 
+# salidas de trabajo con Claude, no forman parte del proyecto
+/Claude outputs/
+
 # vercel
 .vercel
 

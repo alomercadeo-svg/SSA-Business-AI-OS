@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { CHANNEL_PUBLIC_COLUMNS, WORKSPACE_PUBLIC_COLUMNS } from "@/lib/safe-columns";
 import { createZernioClient } from "@/lib/zernio-client";
 import { getZernioApiKey } from "@/lib/vault";
 import {
@@ -17,7 +18,7 @@ async function getWorkspace(supabase: Awaited<ReturnType<typeof createClient>>) 
 
   const { data: membership } = await supabase
     .from("workspace_members")
-    .select("workspace_id, workspaces(*)")
+    .select(`workspace_id, workspaces(${WORKSPACE_PUBLIC_COLUMNS})`)
     .eq("user_id", user.id)
     .limit(1)
     .single();
@@ -56,7 +57,7 @@ export async function POST() {
     // Get existing channels for this workspace
     const { data: existingChannels } = await supabase
       .from("channels")
-      .select("*")
+      .select(CHANNEL_PUBLIC_COLUMNS)
       .eq("workspace_id", workspace.id);
 
     const existingByZernioId = new Map(
@@ -171,7 +172,7 @@ export async function POST() {
     // Return updated channel list
     const { data: channels } = await supabase
       .from("channels")
-      .select("*")
+      .select(CHANNEL_PUBLIC_COLUMNS)
       .eq("workspace_id", workspace.id)
       .order("created_at", { ascending: false });
 

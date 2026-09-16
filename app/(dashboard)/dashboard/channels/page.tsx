@@ -1,4 +1,5 @@
 import { getWorkspace } from "@/lib/workspace";
+import { CHANNEL_PUBLIC_COLUMNS } from "@/lib/safe-columns";
 import { ChannelsView } from "./channels-view";
 
 export default async function ChannelsPage() {
@@ -6,7 +7,9 @@ export default async function ChannelsPage() {
 
   const { data: channels } = await supabase
     .from("channels")
-    .select("*")
+    // Sin "*": estas filas se serializan en las props de ChannelsView, que es
+    // un Client Component, y el secreto de firma terminaría en el HTML.
+    .select(CHANNEL_PUBLIC_COLUMNS)
     .eq("workspace_id", workspace.id)
     .order("created_at", { ascending: false });
 

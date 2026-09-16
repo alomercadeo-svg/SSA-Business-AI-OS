@@ -1,4 +1,5 @@
 import { getWorkspace } from "@/lib/workspace";
+import { CHANNEL_PUBLIC_COLUMNS } from "@/lib/safe-columns";
 import { GrowthView } from "./growth-view";
 
 export default async function GrowthPage() {
@@ -20,7 +21,9 @@ export default async function GrowthPage() {
   ] = await Promise.all([
     supabase
       .from("channels")
-      .select("*")
+      // Sin "*": estas filas van a las props de GrowthView, que es un Client
+      // Component, y el secreto de firma del canal terminaría en el HTML.
+      .select(CHANNEL_PUBLIC_COLUMNS)
       .eq("workspace_id", workspace.id)
       .eq("is_active", true)
       .order("created_at", { ascending: false }),
