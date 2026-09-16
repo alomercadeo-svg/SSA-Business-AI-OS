@@ -90,6 +90,41 @@ export async function POST(request: NextRequest) {
 }
 
 /**
+ * Verifica la firma HMAC-SHA256 del evento entrante.
+ *
+ * **Sin secret configurado no se procesa nada.** Antes la condición era
+ * `if (secret && !verifica(...))`: si no había secret, el webhook aceptaba el
+ * evento sin verificar. Eso convierte a `/api/webhooks/late` en un endpoint
+ * abierto durante toda la ventana entre conectar un canal y guardar el secret, y
+ * cualquiera que conozca la URL y un `late_account_id` puede inyectar mensajes
+ * entrantes falsos, que el motor de flujos procesa como reales.
+ *
+ * Fallar cerrado tiene una consecuencia operativa que hay que conocer: si se
+ * conectan los canales antes de registrar el webhook con su secret, los mensajes
+ * de prueba se descartan con 401 y se pierden. El orden correcto está en
+ * `docs/checklist-verificacion-instagram.md`.
+ *
+ * El log lleva el canal y nunca el secret ni la firma: sirve para diagnosticar
+ * "por qué no me llegan los mensajes" sin ser un canal de fuga.
+ */
+function verificarFirma(
+  secret: string | null,
+  body: string,
+  signature: string | null,
+  channel: { id: string; platform: string },
+): boolean {
+  if (!secret) {
+    console.error(
+      `[webhook] rechazado: el canal ${channel.id} (${channel.platform}) no tiene ` +
+      `webhook secret configurado. Guardá la API key y registrá el webhook en Zernio ` +
+      `antes de recibir eventos.`
+    );
+    return false;
+  }
+  return verifyWebhookSignature(secret, body, signature);
+}
+
+/**
  * Claim an event id for processing. Returns false when another delivery of the
  * same event already claimed it (Zernio retries with the same id), so retries
  * and redeliveries never re-run a flow. Events without an id are processed
@@ -173,10 +208,7 @@ async function handleWebhook(request: NextRequest) {
     }
   }
 
-  // Verify HMAC-SHA256 signature against the workspace-level secret
-  // (falls back to the legacy per-channel secret during transition).
-  const secret = await resolveWebhookSecret(supabase, channel);
-  if (secret && !verifyWebhookSignature(secret, body, signature)) {
+  if (!verificarFirma(await resolveWebhookSecret(supabase, channel), body, signature, channel)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
@@ -347,8 +379,7 @@ async function handleCommentWebhook(
     return NextResponse.json({ ok: true, skipped: true, reason: "own_comment" });
   }
 
-  const secret = await resolveWebhookSecret(supabase, channel);
-  if (secret && !verifyWebhookSignature(secret, rawBody, signature)) {
+  if (!verificarFirma(await resolveWebhookSecret(supabase, channel), rawBody, signature, channel)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 

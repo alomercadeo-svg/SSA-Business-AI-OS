@@ -65,6 +65,8 @@ const ALLOWLIST: Record<string, string> = {
     "las excluye con Omit para que el compilador impida volver a traerlas",
   "app/api/webhooks/late/route.ts":
     "necesita la fila completa del canal para resolver el secreto de la firma; nunca la devuelve",
+  "app/api/webhooks/late/route.test.ts":
+    "tests de la firma: arma canales de mentira y prueba el secret heredado del canal; los valores son inventados",
 };
 
 function archivosFuente(): string[] {

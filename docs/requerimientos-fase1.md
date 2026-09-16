@@ -1365,6 +1365,56 @@ muestra un mensaje claro con un botón para actualizar. No se distingue "se borr
 sacaron": la RLS devuelve vacío en los dos casos y decir "existe pero no es tuya" confirmaría la
 existencia de un lead ajeno.
 
+#### Firma HMAC y canales (Sesión B, PASO 3)
+
+**El webhook pasa a fallar cerrado.** La condición era `if (secret && !verifica(...))`: **sin secret
+configurado, el evento se procesaba sin verificar nada**. Eso convierte `/api/webhooks/late` en una
+entrada abierta al motor de flujos durante toda la ventana entre conectar un canal y guardar el
+secret; cualquiera que conociera la URL y un `late_account_id` podía inyectar mensajes entrantes
+falsos. Ahora, sin secret, responde 401 y lo registra en el log (con el canal, nunca con el secret
+ni la firma).
+
+**La consecuencia operativa hay que conocerla:** si se conectan canales y se mandan mensajes de
+prueba **antes** de registrar el webhook con su secret, esos mensajes se descartan con 401 y se
+pierden. Zernio reintenta un rato y abandona; no quedan en ninguna cola local. Por eso
+`docs/checklist-verificacion-instagram.md` arranca por el orden de conexión —clave, secret,
+después mensajes— y no por los criterios.
+
+**Tests del handler** en `app/api/webhooks/late/route.test.ts`: firma válida, inválida y ausente;
+rechazo sin secret en el camino de mensajes **y** en el de comentarios; el secret heredado del canal
+como fallback; paridad Instagram/WhatsApp comparando la respuesta y lo que recibe el procesamiento;
+idempotencia por `webhook_events` para las dos plataformas y para comentarios; story reply; mensajes
+salientes ignorados; cuerpo que no es JSON.
+
+**`scripts/verify-realtime-scope.mjs`.** PostgREST y Realtime son dos caminos distintos: el primero
+es una consulta con la RLS adelante, el segundo es el servidor empujando filas y decidiendo a quién
+mandárselas. Podían estar de acuerdo o no, y la bandeja usa los dos. Verificado: un Member recibe los
+eventos de su conversación y **no** los de la ajena.
+
+Dos cosas que ese script dejó escritas:
+
+- **Los eventos de DELETE no los filtra la RLS.** Postgres solo entrega la clave primaria vieja en el
+  WAL, así que Realtime no tiene columnas contra las cuales evaluar la policy y manda el evento a
+  todos los suscriptores. Lo que viaja es un UUID, sin contenido. La app no borra conversaciones ni
+  mensajes desde la interfaz, y el soft delete del Bloque 3 es un UPDATE, que sí se filtra.
+- **Tiene un canario, y no es decoración.** La primera corrida dio verde en las dos comprobaciones de
+  "no recibe lo ajeno" porque no llegó **ningún** evento: la suscripción todavía no estaba caliente.
+  Un verificador que pasa por vacío es peor que no tenerlo. Ahora primero prueba que el pipe entrega
+  un evento propio, y solo entonces mide.
+
+#### Dos criterios de F4 que no se pueden cumplir como están escritos
+
+Los dos son diferencias entre el documento y el fork, no fallas de construcción. Están detallados en
+el checklist; acá quedan registrados para que el criterio se ajuste cuando se decida.
+
+- **"El estado de la conexión es visible en `/settings/integrations`".** Esa pantalla es del Bloque 2
+  (sección 4.8). Hoy el estado se ve en `/dashboard/channels`, por canal.
+- **"Los mensajes se almacenan en `messages` con la referencia correcta a conversación y canal".**
+  Solo se cumple para los **salientes**. El fork no guarda los entrantes: el handler lo dice
+  explícitamente —*"Messages are stored by Zernio (source of truth) — no local insert needed"*— y la
+  bandeja los lee de la API de Zernio. Guardarlos también localmente es un cambio de alcance con
+  consecuencias: duplica la fuente de verdad y obliga a decidir qué pasa cuando las dos difieren.
+
 #### Pendientes de rendimiento, para el Bloque 4
 
 **La medición de `EXPLAIN ANALYZE` de la consulta de la bandeja queda diferida.** Hoy la base tiene
