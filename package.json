@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "verify:security": "node scripts/verify-lead-scope.mjs && node scripts/verify-realtime-scope.mjs"
   },
   "dependencies": {
     "@icons-pack/react-simple-icons": "^13.11.2",

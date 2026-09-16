@@ -24,10 +24,11 @@ import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import type { Database } from "@/lib/types/database";
 
 // Solo las columnas que getWorkspace() trae a la UI: la fila completa incluye
-// secretos que no deben serializarse a un Client Component.
+// `webhook_secret`, que no debe serializarse a un Client Component. Las dos
+// columnas de API keys que este Omit también excluía las borró la 00021.
 type Workspace = Omit<
   Database["public"]["Tables"]["workspaces"]["Row"],
-  "late_api_key_encrypted" | "ai_api_key" | "webhook_secret"
+  "webhook_secret"
 >;
 
 interface WorkspaceItem {

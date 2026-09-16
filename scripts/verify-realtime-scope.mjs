@@ -27,6 +27,15 @@
  *   node scripts/verify-realtime-scope.mjs
  *
  * Crea y borra sus propios datos. La limpieza corre en un finally.
+ *
+ * SI FALLA EL CANARIO JUSTO DESPUÉS DE UN `supabase db push`: volvé a correrlo.
+ * Pasó una vez, corriendo inmediatamente después de aplicar una migración con
+ * `alter table`, y a la siguiente corrida pasó sin tocar nada. La explicación
+ * probable —inferencia, no verificada— es que Realtime recarga su cache de
+ * esquema tras un DDL y durante esa ventana no empuja cambios. Lo importante es
+ * que se ve como un fallo del canario y no como un verde: el script dice "no
+ * concluyente" en lugar de afirmar que el scope está bien. Si falla dos veces
+ * seguidas sin un DDL de por medio, ahí sí hay algo que investigar.
  */
 
 import { readFileSync } from "node:fs";

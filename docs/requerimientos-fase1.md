@@ -1209,7 +1209,7 @@ estaban previstas, así que la numeración efectiva se corre. Esta es la lista r
 | `00019_lead_scope_rls.sql` | 1 | `can_see_contact`, `can_see_conversation`, reemplazo de las policies del fork en 13 tablas y borrado sin reemplazo de las de `scheduled_jobs` | **Aplicada** |
 | `00020_workspace_members_manager_select.sql` | 1 | Un manager ve las membresías de su workspace. Sin esto la policy de UPDATE de la 00019 era letra muerta | **Aplicada** |
 | `signup_respects_invite` | 1 | Que `handle_new_user` no le cree workspace propio al invitado. **No hizo falta**: el invitado aterriza en el workspace correcto por la heurística de membresía más reciente. Si alguna vez se hace, toma el número libre que corresponda | Condicional, no aplicada |
-| `00021_drop_plaintext_key_columns.sql` | 1 | Borra `late_api_key_encrypted` y `ai_api_key` | Pendiente (Sesión B) |
+| `00021_drop_plaintext_key_columns.sql` | 1 | Borra `late_api_key_encrypted` y `ai_api_key`. Cierra el expandir-y-contraer de la 00018 y con él el criterio de F2 | **Aplicada** |
 | `00022_extend_contacts.sql` y siguientes | 3 y 4 | La lista planificada de arriba, corrida cinco números | Pendiente |
 
 **`00018` no borra las columnas: expandir y contraer.** El plan original juntaba en una sola
@@ -1402,18 +1402,123 @@ Dos cosas que ese script dejó escritas:
   Un verificador que pasa por vacío es peor que no tenerlo. Ahora primero prueba que el pipe entrega
   un evento propio, y solo entonces mide.
 
-#### Dos criterios de F4 que no se pueden cumplir como están escritos
+#### Un criterio de F4 desfasado en el tiempo
 
-Los dos son diferencias entre el documento y el fork, no fallas de construcción. Están detallados en
-el checklist; acá quedan registrados para que el criterio se ajuste cuando se decida.
+**"El estado de la conexión es visible en `/settings/integrations`".** Esa pantalla es del Bloque 2
+(sección 4.8). Hoy el estado se ve en `/dashboard/channels`, por canal. No hay nada que decidir: el
+criterio se verifica ahí hasta que la pantalla exista.
 
-- **"El estado de la conexión es visible en `/settings/integrations`".** Esa pantalla es del Bloque 2
-  (sección 4.8). Hoy el estado se ve en `/dashboard/channels`, por canal.
-- **"Los mensajes se almacenan en `messages` con la referencia correcta a conversación y canal".**
-  Solo se cumple para los **salientes**. El fork no guarda los entrantes: el handler lo dice
-  explícitamente —*"Messages are stored by Zernio (source of truth) — no local insert needed"*— y la
-  bandeja los lee de la API de Zernio. Guardarlos también localmente es un cambio de alcance con
-  consecuencias: duplica la fuente de verdad y obliga a decidir qué pasa cuando las dos difieren.
+---
+
+## DECISIÓN ABIERTA: dónde vive el historial de mensajes
+
+**Estado: sin resolver. No la tomó nadie. Bloquea decisiones de Fase 2 en adelante.**
+
+Verificando F4 apareció que **el sistema no guarda los mensajes entrantes**. El handler del webhook
+lo dice explícitamente —*"Messages are stored by Zernio (source of truth) — no local insert
+needed"*— y la bandeja los lee de la API de Zernio en cada apertura. En `messages` solo hay
+salientes: lo que manda el motor de flujos, el procesador de secuencias y el nodo de IA.
+
+Esto se descubrió como una diferencia de redacción en un criterio de aceptación, pero **no es un
+problema de redacción**. Es una decisión de arquitectura que se tomó por omisión, heredada del fork,
+y que define de quién es el historial de conversaciones del negocio.
+
+### Qué depende de esto
+
+| Área | Qué pasa si el historial vive en Zernio |
+| --- | --- |
+| **Agente de IA** | El contexto de la conversación hay que pedírselo a Zernio en cada turno: más latencia, más costo por llamada, y un límite externo a cuánto historial se puede usar en un prompt |
+| **Analíticas** | No se puede consultar sobre el contenido ni los tiempos de respuesta con SQL. Toda métrica de conversación depende de lo que la API de Zernio exponga y pagine |
+| **Filtros de bandeja** (4.12) | Filtrar o buscar por texto del mensaje exige traerlo de Zernio primero. Un `where text ilike` sobre la base local no existe |
+| **Soft delete** (4.11) | Se puede marcar borrado el contacto y la conversación local, pero los mensajes siguen en Zernio. "Borrar los datos de una persona" queda a medias |
+| **Cambio de proveedor** | Es el peso mayor. Si algún día se deja Zernio, **el historial se va con Zernio**. No hay migración posible de lo que nunca se guardó |
+| **Disponibilidad** | Una caída de Zernio deja la bandeja vacía, no desactualizada |
+
+### Las dos opciones
+
+**A. Seguir como está.** Zernio es la fuente de verdad del historial; el sistema guarda las
+conversaciones, los contactos y los mensajes salientes. Es lo que hay hoy, no cuesta nada, y sirve
+mientras el negocio opere sobre Zernio y las funcionalidades de arriba no aprieten.
+
+**B. La base local es la fuente de verdad y Zernio queda como transporte.** El webhook inserta cada
+mensaje entrante en `messages` al recibirlo, y Zernio pasa a ser el canal por el que entran y salen
+los mensajes, no el archivo donde viven. Da historial propio, consultable y portable.
+
+Lo que hay que resolver si se elige B, y es la razón por la que no se decide de paso:
+
+- **Qué pasa cuando las dos fuentes difieren.** Un mensaje que Zernio tiene y la base no —porque el
+  webhook falló, porque el evento se descartó con 401— hoy no se nota. Con B hay que decidir si se
+  reconcilia, cada cuánto, y quién gana.
+- **El backfill.** `backfillInboxConversations` ya trae conversaciones previas; habría que extenderlo
+  a los mensajes, con paginación y sin duplicar.
+- **La idempotencia.** `webhook_events` cubre el reintento del mismo evento, pero no el mismo mensaje
+  llegando por dos caminos (webhook y backfill). Haría falta una clave única por
+  `platform_message_id`.
+- **El volumen.** Es la tabla que más crece del sistema, y hoy no tiene política de retención.
+
+### Recomendación
+
+**B**, y cuanto antes mejor: los mensajes que no se guardan hoy no se pueden recuperar mañana. Cada
+día que pasa es historial que solo existe en Zernio. Pero **es una decisión del dueño del producto,
+no de la construcción**, y el lugar natural para tomarla es al planificar el Bloque 3, donde entran
+el modelo de contacto, el soft delete y los filtros de bandeja: los tres la tocan.
+
+Hasta que se decida, el criterio 8 de F4 se lee como "los mensajes **salientes** se almacenan en
+`messages` con la referencia correcta a conversación y canal".
+
+---
+
+## Regla de verificación: toda comprobación negativa necesita un control positivo al lado
+
+Salió tres veces en el Bloque 1, siempre de la misma forma, y las tres veces costó descubrirla.
+
+**El problema.** Una comprobación negativa —"el Member NO ve el lead ajeno", "NO recibe el evento
+ajeno", "el UPDATE NO pasa"— se cumple sola cuando no pasa nada. Si el escenario no se armó, si la
+conexión no estaba lista, si la consulta apuntaba a otro lado, el resultado es el mismo que cuando
+la seguridad funciona: vacío. **Sin un control positivo al lado, "no pasó nada malo" y "no pasó
+nada" son indistinguibles**, y el segundo se lee como verde.
+
+**La regla.** Junto a cada comprobación de que algo NO ocurre, tiene que haber una que demuestre que
+el mecanismo estaba vivo y habría detectado lo contrario.
+
+Los tres casos del bloque, para que se entienda qué forma toma:
+
+| Dónde | La negativa | El control positivo | Qué habría pasado sin él |
+| --- | --- | --- | --- |
+| `verify-realtime-scope.mjs` | El Member no recibe el evento de la conversación ajena | El canario: primero se prueba que el pipe entrega un evento **propio**, y recién entonces se mide | Pasó de verdad: la primera corrida dio verde en las dos negativas porque no llegó **ningún** evento. La suscripción no estaba caliente |
+| PASO 2, roles | El Member no puede invitar, ascenderse ni renombrar el workspace | "Un Manager **SÍ** puede invitar, revocar y cambiar el rol" | Ahí apareció que la policy de UPDATE de la 00019 era letra muerta: devolvía 204 sin cambiar nada. Las negativas no lo habrían mostrado nunca |
+| `verify-lead-scope.mjs` | Las 11 comprobaciones de scope | El script se escribió **en rojo a propósito** contra las policies del fork, y se lo vio fallar antes de arreglar nada | Un script que nunca falló no prueba que detecte algo. Podría estar consultando mal y dar verde siempre |
+
+**Cómo se aplica en la práctica:**
+
+- Un script de verificación nuevo se corre **antes** del arreglo, y tiene que fallar. Si pasa en
+  rojo a verde, mide algo. Si nació en verde, no se sabe.
+- Toda negativa sobre un canal que puede estar frío o roto —Realtime, un webhook, una suscripción—
+  lleva canario: un evento que **sí** tiene que llegar, esperado por condición y no por un sleep.
+- Toda restricción por rol lleva su contraparte: si se prueba que el Member no puede, se prueba que
+  el Manager sí. Es lo que separa "está bien restringido" de "está roto para todos".
+- Cuando el control positivo falla, el veredicto no es "la seguridad funciona": es **no
+  concluyente**, y hay que decirlo con esas palabras en lugar de reportar verde.
+
+#### Cierre del Bloque 1 (Sesión B, PASO 4)
+
+**La 00021 cierra el expandir-y-contraer.** Borradas `late_api_key_encrypted` y `ai_api_key`, más
+los tipos y el `Omit` que las excluía. `webhook_secret` **no** se toca: sigue en uso para validar la
+firma de los webhooks, y `lib/safe-columns.ts` lo sigue protegiendo.
+
+Con eso se cumple el criterio de F2 que la 00018 no podía cumplir. Verificado contra la base: un
+`select *` sobre `workspaces` devuelve `id, name, slug, global_keywords, created_at, updated_at,
+ai_provider, webhook_secret, unassigned_leads_visible_to_members`. Ninguna clave de API.
+
+**`npm run verify:security`** corre los dos verificadores juntos, que es el punto: ninguno de los
+dos corre con `npm test`, así que la suite podía estar entera en verde con el scope roto. Un comando
+con nombre que no se olvida.
+
+Detalle operativo: **si el canario de Realtime falla justo después de un `supabase db push`, hay que
+volver a correrlo.** Pasó una vez, corriendo inmediatamente después de aplicar la 00021; a la
+siguiente corrida pasó sin tocar nada. La explicación probable —inferencia, no verificada— es que
+Realtime recarga su cache de esquema tras un DDL. Lo importante es que se ve como un fallo del
+canario y no como un verde.
 
 #### Pendientes de rendimiento, para el Bloque 4
 

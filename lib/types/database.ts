@@ -73,12 +73,12 @@ export interface Database {
           name: string;
           slug: string;
           /**
-           * OJO: estas dos columnas siguen existiendo pero YA NO SE LEEN. Las
-           * API keys viven en Supabase Vault (lib/vault.ts). Se borran en
-           * 00021_drop_plaintext_key_columns, y con ellas estos campos.
+           * Las API keys NO están acá. La 00021 borró
+           * `late_api_key_encrypted` y `ai_api_key`: viven en Supabase Vault y
+           * se leen con lib/vault.ts. `webhook_secret` sí sigue en la tabla,
+           * porque lib/zernio-webhook.ts lo necesita para validar firmas, y
+           * está protegido por lib/safe-columns.ts.
            */
-          late_api_key_encrypted: string | null;
-          ai_api_key: string | null;
           ai_provider: string;
           global_keywords: Json | null;
           unassigned_leads_visible_to_members: boolean;
@@ -89,8 +89,6 @@ export interface Database {
           id?: string;
           name: string;
           slug: string;
-          late_api_key_encrypted?: string | null;
-          ai_api_key?: string | null;
           ai_provider?: string;
           global_keywords?: Json | null;
           unassigned_leads_visible_to_members?: boolean;
@@ -101,8 +99,6 @@ export interface Database {
           id?: string;
           name?: string;
           slug?: string;
-          late_api_key_encrypted?: string | null;
-          ai_api_key?: string | null;
           ai_provider?: string;
           global_keywords?: Json | null;
           unassigned_leads_visible_to_members?: boolean;
