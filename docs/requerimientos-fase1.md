@@ -6,6 +6,30 @@
 
 ---
 
+> ## ⚠ Documento parcialmente reemplazado
+>
+> **Las secciones de Bloques 2, 3 y 4 de este documento quedaron reemplazadas por
+> [`requerimientos-bloques-2-3-4.md`](requerimientos-bloques-2-3-4.md), del 16 de septiembre de
+> 2026.** Para esos tres bloques manda el documento nuevo. Lo que se lea acá sobre ellos está
+> desactualizado.
+>
+> **Este archivo se conserva como el registro del Bloque 1**, que está construido, probado y
+> publicado en la rama `bloque-1-foundation`. Sus criterios de aceptación F1 a F6, el modelo de
+> datos del Bloque 1, y la regla de verificación del control positivo siguen siendo la referencia
+> de lo que se hizo y por qué.
+>
+> **Qué cambió, en una línea:** WhatsApp dejó de ir por la API oficial de Meta y pasa a Evolution
+> API autoalojado, con Meta vía Zernio como plan B. Eso arrastra el historial de mensajes a la
+> base local, y reemplaza la ventana de 24 horas de WhatsApp por seis reglas de seguridad de
+> secuencia. El motivo y el detalle están en la sección 0 del documento nuevo, y la investigación
+> que lo respalda en [`investigacion-evolution-api.md`](investigacion-evolution-api.md).
+>
+> **Cuidado con dos secciones de acá que ahora se leen distinto:** la Decisión 29 del documento de
+> alcance y el anexo de integración de WhatsApp siguen redactados como si la API oficial fuera el
+> camino principal. Hoy son el manual del plan B.
+
+---
+
 ## 0. Registro de cambios respecto del BRD de clase
 
 ### Cambio mayor: WhatsApp

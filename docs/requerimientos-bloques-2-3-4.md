@@ -1,0 +1,975 @@
+# Requerimientos, Sistema Operativo para Negocios de Servicios Digitales
+
+## Etapa 1, Fase 1: Foundation, Canales y CRM. Bloques 2, 3 y 4
+
+**Versión:** 2.0, regenerada tras el cambio de canal de WhatsApp
+**Fecha:** 16 de septiembre de 2026
+**Cliente:** negocio de servicios digitales (single-tenant)
+
+> Este documento reemplaza las secciones de Bloques 2, 3 y 4 del plano anterior. El Bloque 1 está construido, probado y publicado: su registro está en `claude/estado-fase1-bloque1.md` y en la rama `bloque-1-foundation`. Lo que sigue es autocontenido.
+
+---
+
+## 0. Qué cambió respecto de la versión anterior
+
+Tres cosas, y ninguna es cosmética.
+
+**WhatsApp ya no va por la API oficial de Meta.** Va por [Evolution API](https://github.com/EvolutionAPI/evolution-api) autoalojado en [Railway](https://railway.com). El motivo es el modelo de seguimiento del negocio: los leads llegan por pauta y escriben primero, se califican, algunos llegan a una reunión, y después reciben seguimiento semanal o quincenal. Ese seguimiento cae fuera de la ventana de 24 horas de Meta, así que en la API oficial serían plantillas aprobadas con costo por mensaje y por lead, todas las semanas. La API oficial vía [Zernio](https://zernio.com) queda como plan B, y se activa si Meta bloquea el número.
+
+**El historial de mensajes pasa a vivir en la base local.** El fork solo guarda los mensajes que salen y lee los que entran desde la API del proveedor, cada vez. Eso se invierte: los entrantes se guardan, y la base pasa a ser la única fuente de verdad. Sin esto no hay migración posible al plan B, ni agente de IA, ni analíticas, ni búsqueda dentro de las conversaciones.
+
+**La ventana de 24 horas deja de aplicar a WhatsApp.** Se conserva completa para Instagram, donde es una regla real de Meta. Para WhatsApp la reemplazan seis reglas de seguridad de secuencia, que protegen el número sin prohibir el trabajo. El modelo de ventana y plantillas no se borra: queda escrito y sin construir, para el plan B.
+
+Todo lo que sigue se apoya en `docs/investigacion-evolution-api.md`, que respondió cinco preguntas contra el código fuente de Evolution 2.3.7, citando archivo y línea.
+
+---
+
+## 1. Mapa de ruta de fases
+
+| Etapa | Fase | Contenido | Estado |
+|---|---|---|---|
+| Etapa 1 | Fase 1 | Foundation, canales y CRM | **Actual.** Bloque 1 cerrado |
+| Etapa 1 | Fase 2 | Comunicación y automatizaciones: secuencias, agente de respuesta, difusiones | Siguiente |
+| Etapa 1 | Fase 3 | Agente de IA, analíticas y pulido | Después |
+| Etapa 2 | | Publicación de contenido, email bidireccional, roles custom, Meta Ads | Propuesta aparte |
+| Etapa 3 | | Agente de IA integral, Fathom, conector MCP | Propuesta aparte |
+| Etapa 4 | | Agendamiento, ventas, pipeline comercial | Opcional |
+
+**Lo que no se construye ahora pero el diseño ya contempla:**
+
+El motor de secuencias de la Fase 2 va a consumir las reglas de seguridad y el estado de conversación que se definen acá. El agente de IA de la Fase 3 va a leer el historial de mensajes que se empieza a guardar en el Bloque 3. Y el plan B de WhatsApp reutiliza el modelo de ventana y plantillas que queda escrito sin construirse, sin necesidad de rediseñarlo.
+
+---
+
+## 2. Objetivo de esta fase y mapa de bloques
+
+**Objetivo:** que un mensaje de un lead entre por Instagram o WhatsApp, cree o encuentre su contacto sin duplicarlo, quede guardado en la base del negocio, y sea gestionable desde una bandeja con las herramientas mínimas de CRM.
+
+**Qué problema resuelve.** Hoy los mensajes de los leads viven repartidos entre dos aplicaciones distintas, nadie sabe quién atiende a quién, y los que no agendan no reciben seguimiento porque no hay sistema que lo recuerde. Esta fase construye el lugar donde esa información existe.
+
+**Por qué va en este orden.** El Bloque 2 deja la cañería: sin un receptor de mensajes autenticado no hay nada que guardar. El Bloque 3 construye el camino de entrada completo, que es donde vive el riesgo real del proyecto. El Bloque 4 es la capa de uso diario, que solo tiene sentido cuando hay datos que mostrar.
+
+### Bloques de ejecución
+
+| Bloque | Día | Qué se construye | Contexto compartido |
+|---|---|---|---|
+| Bloque 2: Infraestructura de canal, email e integraciones | 1 a 2 | Despliegue de Evolution, receptor de webhook autenticado, email por Resend, pantalla de integraciones y BYOK de IA | `integration_configs`, Vault, Railway, `/settings/integrations` |
+| Bloque 3: Modelo de contacto, ingesta y CRM | 3 a 4 | Modelo de contacto, identidad de canal, guardado de mensajes, adjuntos, deduplicación cross-canal, notas, ficha, borrado suave, registro de auditoría | `contacts`, `contact_channels`, `messages`, `conversations`, Supabase Storage |
+| Bloque 4: Bandeja, herramientas y reglas de seguridad | 5 a 6 | Bandeja, filtros, respuestas rápidas, no contactar, reglas de seguridad de secuencia, importación CSV, estado de sesión | Bandeja, `response_templates`, `channels` |
+| Testing de fase | 7 | Testing completo, correcciones y colchón | |
+
+**Nota sobre el tamaño del Bloque 3.** Es el más cargado de los tres. En el Bloque 1 aprendimos que un bloque demasiado grande obliga a partirlo a mitad de camino, con la memoria de la sesión ya gastada justo en el paso más delicado. Conviene planificar el Bloque 3 partido desde el principio: una sesión para el modelo de contacto y la identidad de canal, otra para la ingesta, los adjuntos y la deduplicación.
+
+**Nota sobre el número de WhatsApp.** Al momento de escribir esto el número dedicado sigue en trámite. El plano está escrito para que el despliegue de Evolution y toda la ingesta se construyan y se prueben sin el número, con mensajes de prueba. La conexión del canal en vivo es un paso aparte, con su propio checklist, que se ejecuta cuando el número llegue.
+
+---
+
+## 3. Usuarios y roles
+
+Construidos y verificados en el Bloque 1. Se documentan acá porque las funcionalidades nuevas los usan.
+
+| Rol | Descripción | Puede hacer | No puede hacer |
+|---|---|---|---|
+| Owner | Dueño del negocio | Todo | |
+| Admin | Encargado o socio | Todo lo operativo, configuración, integraciones, invitar, revocar y cambiar roles | Remover miembros, tocar el rol de un Owner, ascender a alguien a Owner |
+| Member | Setter o vendedor | Ver y editar solo los contactos y conversaciones donde figura como setter, vendedor o agente asignado | Entrar a configuración, integraciones o equipo, y ver cualquier lead ajeno |
+
+**Rol por defecto del primer usuario:** el primero que se registra queda como Owner de su propio espacio de trabajo, por un mecanismo automático que ya trae el proyecto base.
+
+**Cómo se suman usuarios nuevos:** por invitación desde la pantalla de equipo. Hoy el link de invitación se copia a mano; con el envío de correo del Bloque 2 pasa a llegar por email.
+
+**Cómo se aplica el alcance por rol.** Un Member solo ve sus leads, y eso se hace cumplir en la base de datos, no con un filtro en la pantalla. En simple: aunque alguien consulte los datos por fuera de la interfaz, la base le devuelve solo lo suyo. Está construido y verificado con 24 comprobaciones automáticas.
+
+---
+
+## 4. Alcance específico de esta fase
+
+### 4.1 Despliegue de Evolution API
+
+**Qué hace:** deja corriendo en Railway el servicio que va a manejar WhatsApp, con su base de datos propia, configurado de forma segura y con la versión fijada.
+
+**Hasta dónde llega:** el servicio desplegado y accesible desde la aplicación, con una instancia creada y sin número vinculado, y con el aviso de mensajes nuevos apuntando a nuestro receptor.
+
+**Qué NO hace en esta fase:** no vincula el número, no escanea ningún código QR, no manda ni recibe mensajes reales.
+
+**Dónde va lo que queda afuera:** la conexión del número es un checklist operativo, ejecutable en cualquier momento después del Bloque 2, cuando el número esté disponible.
+
+### 4.2 Receptor de mensajes entrantes de WhatsApp
+
+**Qué hace:** recibe los avisos que manda Evolution cada vez que llega un mensaje, comprueba que vengan de nuestra instancia y no de un impostor, contesta rápido y deja el trabajo pesado para después.
+
+**Hasta dónde llega:** autenticación, control de duplicados, acuse inmediato y encolado.
+
+**Qué NO hace en esta fase:** no interpreta el contenido del mensaje ni toca los contactos.
+
+**Dónde va lo que queda afuera:** el procesamiento del contenido es del Bloque 3.
+
+### 4.3 Email saliente
+
+**Qué hace:** manda los correos que el sistema necesita enviar, empezando por las invitaciones de equipo, usando [Resend](https://resend.com).
+
+**Hasta dónde llega:** correos transaccionales, es decir, los que salen como consecuencia de una acción puntual.
+
+**Qué NO hace en esta fase:** no manda secuencias ni campañas.
+
+**Dónde va lo que queda afuera:** Fase 2.
+
+### 4.4 Pantalla de configuración de integraciones y claves de IA
+
+**Qué hace:** un solo lugar donde se conectan todos los servicios externos: los canales de mensajería, el correo, y los proveedores de inteligencia artificial.
+
+**Hasta dónde llega:** guardar las claves de forma segura, mostrar el estado de cada conexión, y permitir conectar y desconectar.
+
+**Qué NO hace en esta fase:** no configura TikTok, YouTube ni LinkedIn.
+
+**Dónde va lo que queda afuera:** Etapa 2. La estructura queda preparada para que agregarlos sea cargar un registro, no cambiar la base de datos.
+
+### 4.5 Modelo de contacto extendido
+
+**Qué hace:** agrega al contacto todos los datos que el negocio necesita: teléfono, país, redes, temperatura del lead, fecha del próximo seguimiento, atribución de dónde vino.
+
+**Hasta dónde llega:** los campos, su normalización y sus índices.
+
+**Qué cambia respecto del plano anterior:** el teléfono deja de ser obligatorio. WhatsApp está migrando a un esquema donde el identificador del contacto puede no contener el número, y si el modelo lo exige, esos leads se pierden o entran con datos inventados.
+
+### 4.6 Identidad de canal y reconciliación de teléfonos
+
+**Qué hace:** guarda cómo llegó cada contacto por cada canal, y resuelve después el teléfono de los que entraron sin él.
+
+**Hasta dónde llega:** la marca visible, las tres vías de reconciliación y la fusión con confirmación humana.
+
+**Qué NO hace en esta fase:** no fusiona contactos automáticamente. La fusión siempre la confirma una persona, porque deshacerla es caro.
+
+### 4.7 Guardado de mensajes entrantes
+
+**Qué hace:** cada mensaje que llega queda guardado en la base del negocio, con su archivo adjunto descargado.
+
+**Hasta dónde llega:** guardar lo que entra de ahora en más.
+
+**Qué NO hace en esta fase:** no importa el historial previo del número, porque el número es nuevo y no tiene historial.
+
+**Dónde va lo que queda afuera:** la capacidad de importar historial queda diseñada para poder usarse más adelante, si alguna vez se conecta un número con conversaciones anteriores.
+
+> **Regla dura: el número no se vincula hasta que F27 esté construido y probado.**
+>
+> No es una recomendación ni una preferencia de orden. El receptor del Bloque 2 autentica el aviso, controla que no esté repetido, responde el acuse y **descarta el contenido**, porque guardarlo es justamente lo que construye F27. Si el número se vincula antes, cada mensaje real que llegue se pierde: el receptor responde que todo salió bien, Evolution da la entrega por exitosa y no reintenta, no se registra ningún error y no se dispara ninguna alerta. El único síntoma serían conversaciones con leads que nunca existieron, descubiertas semanas después.
+>
+> Queda escrito con el motivo porque dentro de tres semanas, con el número ya en la mano, "probemos que ande" va a sonar razonable. La prueba de que el canal anda se hace con avisos de prueba firmados, que es exactamente lo que verifica el Bloque 2, y no necesita un número real.
+
+### 4.8 Reglas de seguridad de secuencia
+
+**Qué hace:** deja configuradas y aplicadas por el sistema las seis reglas que protegen el número de WhatsApp de un bloqueo.
+
+**Hasta dónde llega:** la configuración y los mecanismos que la hacen cumplir.
+
+**Qué NO hace en esta fase:** no construye las secuencias en sí.
+
+**Dónde va lo que queda afuera:** el motor de secuencias es Fase 2. Acá se construyen las barandas que ese motor va a respetar.
+
+### 4.9 Ventana de conversación
+
+**Instagram:** se construye completa. 24 horas desde el último mensaje del lead, con la excepción de la respuesta privada a un comentario, que llega hasta 7 días y una sola vez por comentario.
+
+**WhatsApp:** no aplica en el camino principal. El modelo queda escrito para el plan B.
+
+### 4.10 Estado de sesión del canal
+
+**Qué hace:** muestra si WhatsApp está realmente conectado, y permite volver a vincularlo.
+
+**Por qué existe:** cuando la sesión se cae, la bandeja deja de recibir mensajes y no hay ningún síntoma. Se ve exactamente igual que un día tranquilo.
+
+### 4.11 Herramientas de CRM en la bandeja
+
+**Qué hace:** filtros, respuestas rápidas reutilizables, marca de "no contactar" e importación de contactos desde una planilla.
+
+**Qué NO hace en esta fase:** no incluye respuestas automáticas ni agente de IA.
+
+**Dónde va lo que queda afuera:** Fases 2 y 3.
+
+---
+
+## 5. Funcionalidades y criterios de aceptación
+
+### Bloque 2: Infraestructura de canal, email e integraciones
+
+#### F21: Despliegue de Evolution API en Railway
+
+**Descripción:** dejar corriendo el servicio de WhatsApp, configurado de forma segura, sin vincular todavía ningún número.
+
+**Criterios de aceptación:**
+
+- [ ] Servicio desplegado con la imagen fijada en `evoapicloud/evolution-api:v2.3.7`, nunca en `latest`. El tag `latest` apunta hoy a una versión cuyo identificador no coincide con ninguna publicación oficial etiquetada
+- [ ] Dos servicios, no tres: Evolution y su PostgreSQL. Se configura `CACHE_LOCAL_ENABLED=true` y `CACHE_REDIS_ENABLED=false`. Redis es solo caché de rendimiento y no hace falta
+- [ ] `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false`. Con el valor por defecto, Evolution incluye la clave de acceso de la instancia dentro de cada aviso que manda, y esa clave permite enviar mensajes y borrar la instancia
+- [ ] `WEBHOOK_GLOBAL_ENABLED=false`. El aviso global no manda datos de autenticación, así que no se puede verificar
+- [ ] La clave de la instancia y el secreto de los avisos se guardan en Supabase Vault, nunca en variables de entorno de la aplicación
+- [ ] Instancia creada con sincronización de historial activada y grupos ignorados
+- [ ] Aviso de mensajes configurado por instancia, incluyendo el dato de autenticación
+- [ ] El archivo `.env.example` documenta cada variable nueva, con qué es y dónde se consigue
+- [ ] La documentación de despliegue queda en `docs/despliegue-evolution.md`, con pasos reproducibles
+
+#### F22: Receptor de mensajes entrantes, autenticado
+
+**Descripción:** la puerta por donde entran los mensajes de WhatsApp al sistema.
+
+**Criterios de aceptación:**
+
+- [ ] Ruta nueva en `app/api/webhooks/evolution/`
+- [ ] Verificación del dato de autenticación que manda Evolution, fijando el algoritmo esperado y usando el secreto guardado en Vault. Sin autenticación válida, se rechaza
+- [ ] Procedimiento de cambio de secreto documentado y soportado: durante el cambio se aceptan el secreto viejo y el nuevo. Un rechazo cancela los reintentos de Evolution y el mensaje se pierde para siempre, así que un cambio mal hecho pierde mensajes en silencio
+- [ ] Alerta ante cualquier rechazo. Acá un rechazo no es ruido: es un mensaje de un lead que se perdió
+- [ ] Nunca se registra en los logs el contenido completo del aviso, porque incluye credenciales
+- [ ] Control de duplicados reusando el registro de eventos que ya existe
+- [ ] Responde con acuse inmediato antes de procesar. El mecanismo de reintentos de Evolution queda bloqueado mientras espera
+- [ ] Tests: autenticación válida, inválida, ausente, vencida, con algoritmo distinto, y evento repetido
+
+#### F23: Email saliente vía Resend
+
+**Descripción:** correo transaccional para invitaciones y notificaciones del sistema.
+
+**Criterios de aceptación:**
+
+- [ ] La clave de Resend se guarda en Vault desde `/settings/integrations`
+- [ ] Se envían las invitaciones de equipo y las notificaciones del sistema
+- [ ] El remitente es el dominio verificado por el negocio en Resend
+- [ ] Si falla un envío, se registra el error y se reintenta hasta 3 veces
+- [ ] Los correos enviados quedan registrados para poder consultarlos
+- [ ] Cierra una deuda del Bloque 1: la invitación deja de depender de copiar un link a mano
+
+#### F24: Pantalla de integraciones y claves de IA
+
+**Descripción:** el lugar donde se conectan todos los servicios externos.
+
+**Criterios de aceptación:**
+
+- [ ] Pantalla en `/settings/integrations`, solo para Owner y Admin, con el control de rol hecho en el servidor
+- [ ] Sección de canales de mensajería, con Instagram vía Zernio, WhatsApp vía Evolution con su estado de sesión, y Facebook y X como opcionales
+- [ ] Sección de correo, con Resend y su dominio verificado
+- [ ] Sección de proveedores de IA, con OpenAI, Anthropic y Google, cada uno con su clave y su modelo por defecto
+- [ ] Todas las claves van a Vault. Ninguna viaja al navegador: la pantalla muestra "configurada" o "sin configurar" según exista el secreto, nunca su valor
+- [ ] Cada integración es un registro con su tipo. Agregar una nueva en la Etapa 2 no requiere cambiar la base de datos
+- [ ] Al guardar una clave se valida el formato, con largo mínimo y prefijo esperado donde corresponda
+
+---
+
+### Bloque 3: Modelo de contacto, ingesta y CRM
+
+#### F25: Modelo de contacto extendido
+
+**Descripción:** el contacto con todos los datos que el negocio necesita para trabajarlo.
+
+**Criterios de aceptación:**
+
+- [ ] Se agregan a `contacts`: `phone`, `secondary_email`, `country`, `instagram_username`, `whatsapp_phone`, `next_followup_date`, `do_not_contact`, `do_not_contact_reason`, `do_not_contact_at`, `ai_conversation_summary`, `lead_temperature`, `attribution`, `deleted_at`. Los campos de asignación ya existen desde el Bloque 1
+- [ ] El teléfono se normaliza a formato internacional en el servidor, no solo en el formulario. Sin esto la deduplicación entre canales falla, y arreglarlo después implica limpiar datos sucios
+- [ ] El teléfono NO es obligatorio. Un contacto de WhatsApp puede existir sin teléfono conocido
+- [ ] Campo `phone_resolved` que marca si el teléfono ya se conoce o sigue pendiente
+- [ ] Índices en teléfono, correo, usuario de Instagram y marca de borrado, y compuestos por espacio de trabajo con teléfono y con correo
+- [ ] Los campos personalizados que ya existen se conservan sin modificar
+
+#### F26: Identidad de canal y reconciliación de teléfonos
+
+**Descripción.** WhatsApp está migrando a un esquema donde el identificador del contacto puede ser un código opaco en lugar del número de teléfono. Evolution reemplaza ese código por el número antes de avisarnos, pero solo cuando tiene el dato para hacerlo. Cuando no lo tiene, el mensaje llega sin número por ningún lado, y no existe forma de averiguarlo.
+
+Como el número todavía no está conectado, no sabemos con qué frecuencia pasa. El diseño tiene que funcionar bien en los dos escenarios.
+
+**Criterios de aceptación:**
+
+- [ ] `contact_channels` guarda el identificador crudo tal como llegó y el modo de direccionamiento, además del teléfono derivado
+- [ ] Cada mensaje guarda el identificador con el que llegó, sin sobrescribirlo
+- [ ] Un contacto sin teléfono conocido entra como contacto nuevo, con marca visible de "teléfono sin resolver"
+- [ ] Nunca se deduplica por nombre. Un duplicado visible y reconciliable es preferible a una fusión incorrecta, que es destructiva y difícil de deshacer
+- [ ] Reconciliación posterior por tres vías, todas con registro en el historial de auditoría:
+    1. Un mensaje posterior de la misma conversación que sí traiga el teléfono
+    2. El aviso de actualización de contacto que manda Evolution, que aplica el mismo criterio
+    3. Carga manual del teléfono por el operador desde la ficha. Esta es la que garantiza que el caso nunca queda trabado, y es barata de construir
+- [ ] Al reconciliar, si ya existe otro contacto con ese teléfono, se propone la fusión mostrando los dos lados. La fusión la confirma una persona, nunca es automática
+- [ ] Al fusionar se unifican conversaciones, notas, etiquetas y atribución
+- [ ] Instrumentación obligatoria: contador de cuántos mensajes entrantes llegan sin teléfono resuelto, visible para el Owner. Es el dato que decide si esto es marginal o si hay que invertir más
+
+#### F27: Guardado de mensajes entrantes
+
+**Descripción:** que las conversaciones con los leads vivan en la base del negocio y no en un proveedor.
+
+**Criterios de aceptación:**
+
+- [ ] Los mensajes entrantes se guardan en `messages`. Hoy solo se guardan los salientes
+- [ ] Restricción de unicidad sobre la combinación de chat, identificador de mensaje y dirección, no sobre el identificador solo: ese identificador lo genera el teléfono que envía y es único por conversación, no en todo el sistema. La propia base de Evolution no deduplica, así que los duplicados son esperables
+- [ ] La fecha del proveedor viene en segundos y se convierte al guardar
+- [ ] Se contemplan las dos formas del aviso: el de mensaje individual trae un objeto, el de sincronización trae una lista
+- [ ] Se guarda la referencia al mensaje citado, para poder reconstruir hilos, aunque ese mensaje todavía no exista de nuestro lado
+- [ ] Tipos soportados: texto, imagen, audio, documento, video, sticker, ubicación y respuesta a otro mensaje
+- [ ] La base pasa a ser la fuente de verdad de la bandeja. Después de esta funcionalidad, la bandeja no consulta más al proveedor para mostrar mensajes
+- [ ] El camino de entrada es el mismo para Instagram y WhatsApp, sin condicionales por plataforma más allá del adaptador
+
+#### F28: Adjuntos
+
+**Descripción:** que las fotos, audios y documentos que mandan los leads queden guardados.
+
+**Criterios de aceptación:**
+
+- [ ] El archivo se descarga al recibirlo y se guarda en Supabase Storage. Ninguna dirección que entrega el proveedor sirve a largo plazo: la de WhatsApp está cifrada y la del almacenamiento intermedio caduca a los 7 días
+- [ ] Bucket privado, con direcciones firmadas de vida corta para mostrar en la bandeja
+- [ ] Estructura de carpetas por espacio de trabajo, conversación y mensaje
+- [ ] Validación del tipo de archivo real, no de la extensión. Tamaño máximo configurable
+- [ ] Si la descarga falla, el mensaje se guarda igual con marca de "adjunto no disponible" y se reintenta
+- [ ] La descarga no bloquea el acuse del aviso
+
+#### F29: Detección de contacto entre canales
+
+**Descripción:** reconocer que el que escribe por WhatsApp es el mismo que ya escribió por Instagram.
+
+**Criterios de aceptación:**
+
+- [ ] Al llegar un mensaje de un canal nuevo, se busca contacto por teléfono normalizado, correo o nombre de usuario
+- [ ] Coincidencia exacta de teléfono o correo vincula automáticamente
+- [ ] Coincidencia solo por nombre de usuario sugiere la vinculación al operador, no la hace sola
+- [ ] Se crea el registro de canal para el contacto
+- [ ] Cada conversación queda separada por canal, los hilos no se mezclan
+- [ ] La ficha muestra todas las conversaciones agrupadas por canal
+- [ ] Las vinculaciones automáticas y manuales quedan en el historial de auditoría
+
+#### F30: Notas, ficha de contacto y borrado suave
+
+**Descripción:** la vista completa del lead y la posibilidad de deshacer un borrado.
+
+**Criterios de aceptación:**
+
+- [ ] Tabla `contact_notes` con lista cronológica en la ficha. Cualquier miembro con acceso al contacto crea notas; solo el autor, un Admin o el Owner edita o elimina
+- [ ] Ficha completa con datos, conversaciones por canal, notas, etiquetas, campos personalizados, historial y atribución
+- [ ] Marca visible si el contacto pidió no ser contactado, y marca si el teléfono está sin resolver
+- [ ] Campo `deleted_at` en contactos, notas, conversaciones y respuestas rápidas. Eliminar marca la fecha, no borra
+- [ ] Los listados y las reglas de seguridad excluyen lo eliminado
+- [ ] Tarea diaria que borra definitivamente lo que lleva más de 30 días eliminado, en cascada
+- [ ] El historial de auditoría no se purga nunca
+
+#### F31: Historial de auditoría
+
+**Descripción:** saber quién hizo qué y cuándo.
+
+**Criterios de aceptación:**
+
+- [ ] Tabla `audit_log` con índices por espacio de trabajo, por entidad y por fecha
+- [ ] Registran entrada: contacto creado, editado, eliminado, restaurado, asignado, marcado como no contactar y reconciliado por teléfono; canal conectado, desconectado o con error; cambios de configuración; importaciones; movimientos de equipo
+- [ ] Owner y Admin ven todo; un Member solo sus propias acciones
+- [ ] Nunca se elimina ni tiene borrado suave
+
+---
+
+### Bloque 4: Bandeja, herramientas y reglas de seguridad
+
+#### F32: Estado de sesión del canal y reconexión
+
+**Descripción:** que se vea cuando WhatsApp dejó de estar conectado.
+
+**Criterios de aceptación:**
+
+- [ ] La pantalla de canales muestra el estado de la sesión de WhatsApp
+- [ ] Aviso por evento y chequeo periódico, los dos. Ante una caída pasajera Evolution reconecta solo y no avisa, así que el aviso por sí solo no alcanza para mostrar el estado real
+- [ ] Un estado desconocido se muestra como "no se pudo verificar", nunca como "desconectado"
+- [ ] Se contempla el estado de "se agotaron los intentos de vinculación", que significa empezar de nuevo
+- [ ] Botón de reconectar que muestra el código QR cuando corresponde. No siempre puede entregarlo, porque depende del estado actual, y eso se explica en pantalla
+- [ ] Si la sesión está caída, la bandeja lo indica de forma visible. Una bandeja silenciosa no puede parecer un día tranquilo
+
+#### F33: Reglas de seguridad de secuencia
+
+**Descripción.** Reemplazan a la ventana de 24 horas en WhatsApp. Son configuración del canal y las hace cumplir el sistema, no el hábito de quien lo usa. Existen porque el seguimiento automático saliente es justamente el comportamiento que Meta busca para bloquear un número.
+
+**Criterios de aceptación:**
+
+- [ ] Corte con el silencio: después de una cantidad configurable de seguimientos sin respuesta, por defecto 3, la secuencia se detiene sola y lo registra. Es la protección más importante, porque el que nunca contesta y sigue recibiendo mensajes es el que denuncia
+- [ ] Texto variable: el sistema interpola datos del contacto y rota entre variantes. Se advierte si un paso manda texto idéntico a muchos destinatarios, porque eso es una huella de envío masivo
+- [ ] Envíos espaciados: separación aleatoria configurable entre mensajes de un mismo grupo. Nunca todo junto
+- [ ] Horario comercial: franja horaria configurable, respetando la zona horaria del contacto. Fuera de ella el envío se pospone, no se cancela
+- [ ] Opt-out duro: un pedido de no contacto corta para siempre, sin opción de forzarlo desde ninguna pantalla
+- [ ] Proporción de respuesta como señal de salud: se calcula y se muestra qué porcentaje de los seguimientos recibe respuesta. Si cae por debajo de un umbral configurable, se avisa. Es mejor que un tope arbitrario de mensajes, porque mide si lo que mandás le sirve a alguien
+- [ ] Todo es configuración por canal, no condicionales en el código
+- [ ] La Fase 2 construye el motor que las consume
+
+#### F34: Marca de no contactar
+
+**Descripción:** respetar a quien pidió no recibir más mensajes.
+
+**Criterios de aceptación:**
+
+- [ ] Lista de frases de baja configurable por espacio de trabajo
+- [ ] Al detectar una: se marca el contacto, se registra el motivo y la fecha, se pausan las secuencias activas y queda en el historial de auditoría
+- [ ] Marca roja visible en la bandeja y en la ficha
+- [ ] Un Admin o el Owner puede revertirla, con registro
+- [ ] Al intentar enviar a un contacto marcado se bloquea el envío, sin opción de forzarlo. Con Evolution una denuncia pesa más que cien mensajes
+- [ ] Un contacto marcado nunca entra a una secuencia
+
+#### F35: Bandeja y filtros
+
+**Descripción:** el lugar donde el equipo trabaja todos los días.
+
+**Criterios de aceptación:**
+
+- [ ] La bandeja lee los mensajes de la base, no del proveedor
+- [ ] Filtro por etiquetas, por asignación, por canal y por fecha del último mensaje
+- [ ] Filtro por estado de ventana solo para Instagram, que es donde la ventana existe
+- [ ] Filtro por "teléfono sin resolver", para poder trabajar esa cola
+- [ ] Filtros combinables, reflejados en la dirección de la página para poder compartirla, con contador y botón de limpiar
+- [ ] Búsqueda de texto dentro de los mensajes, que ahora es posible porque están guardados
+
+#### F36: Respuestas rápidas
+
+**Descripción:** textos reutilizables que el operador inserta escribiendo una barra.
+
+**Criterios de aceptación:**
+
+- [ ] Tabla `response_templates` con alta, baja y modificación en `/settings/response-templates`
+- [ ] Selector con "/" en la bandeja, con búsqueda por nombre o atajo
+- [ ] Interpolación de datos del contacto; si un dato falta, queda vacío
+- [ ] En la interfaz se llaman "respuestas rápidas", nunca "plantillas", para no confundirlas con las plantillas de WhatsApp del plan B
+
+#### F37: Importación de contactos desde planilla
+
+**Descripción:** cargar contactos que ya existen en otro lado.
+
+**Criterios de aceptación:**
+
+- [ ] Archivo de hasta 10 MB y 10.000 filas, con vista previa y asignación de columnas
+- [ ] Validación: correo con formato válido, teléfono normalizado, al menos uno de los dos presente
+- [ ] Deduplicación por correo o teléfono: si ya existe, actualiza en vez de duplicar
+- [ ] Más de 500 filas se procesan en segundo plano, no en el momento
+- [ ] Barra de progreso y resumen final con importados, actualizados y errores con detalle
+- [ ] Todo queda en el historial de auditoría
+
+### Funcionalidades de fases siguientes, que no se construyen ahora
+
+| Funcionalidad | Destino |
+|---|---|
+| Motor de secuencias de seguimiento | Fase 2 |
+| Agente de respuesta automática | Fase 2 |
+| Difusiones y envíos masivos | Fase 2 |
+| Email bidireccional | Etapa 2 |
+| Agente de IA integral con base de conocimiento | Fase 3 |
+| Analíticas y tablero de métricas | Fase 3 |
+| Publicación de contenido en redes | Etapa 2 |
+| TikTok, YouTube y LinkedIn como canales | Etapa 2 |
+| Roles personalizados con permisos granulares | Etapa 2 |
+| Plantillas de WhatsApp aprobadas por Meta | Plan B, sin fecha |
+
+---
+
+## 6. Flujos principales
+
+### Flujo 1: Mensaje entrante de WhatsApp
+
+**Descripción:** el camino completo desde que un lead escribe hasta que aparece en la bandeja.
+
+1. El lead escribe al número del negocio.
+2. Evolution recibe el mensaje y avisa a nuestro receptor, con un dato de autenticación firmado.
+3. El receptor verifica ese dato. Si no es válido, rechaza y dispara una alerta, porque ese mensaje se pierde.
+4. Verifica que no sea un aviso repetido. Si lo es, acusa y descarta.
+5. Responde el acuse de inmediato y encola el procesamiento.
+6. El procesamiento busca el contacto: primero por el identificador de canal, después por teléfono normalizado. Si el identificador es opaco y no hay teléfono, crea el contacto con la marca de "sin resolver".
+7. Guarda el mensaje con su control de duplicados.
+8. Si hay adjunto, lo descarga y lo sube al almacenamiento. Si falla, lo marca y reintenta.
+9. Actualiza la conversación y avisa a las pantallas abiertas, respetando el alcance por rol.
+
+**Resultado exitoso:** el mensaje aparece en la bandeja de quien corresponde, con su adjunto, asociado al contacto correcto.
+
+**Casos de error:** si la autenticación falla, se alerta y el mensaje se pierde, por eso el cambio de secreto tiene procedimiento. Si la descarga del adjunto falla, el mensaje igual queda guardado con el texto y una marca. Si el procesamiento falla después del acuse, queda en la cola para reintentar.
+
+### Flujo 2: Reconciliación de un contacto sin teléfono
+
+**Descripción:** cómo se resuelve un lead que entró sin número identificable.
+
+1. Existe un contacto con la marca de "teléfono sin resolver".
+2. Llega un mensaje posterior que sí trae el teléfono, o el operador lo carga a mano desde la ficha.
+3. El sistema busca si ya existe otro contacto con ese teléfono.
+4. Si existe, propone la fusión mostrando los dos lados con sus datos.
+5. Una persona confirma. Al confirmar se unifican conversaciones, notas, etiquetas y atribución.
+6. Si no existe otro contacto, simplemente se completa el teléfono y se saca la marca.
+
+**Resultado exitoso:** un solo contacto con todo su historial junto, y el registro de la fusión en la auditoría.
+
+**Casos de error:** si la fusión se confirma por equivocación, el historial de auditoría permite reconstruir qué se unió. Por eso la fusión nunca es automática.
+
+### Flujo 3: La sesión de WhatsApp se cae
+
+**Descripción:** qué pasa y cómo se detecta cuando el número se desconecta.
+
+1. La sesión expira o WhatsApp cierra el vínculo.
+2. Si la caída es definitiva, Evolution avisa y el sistema marca el canal como caído.
+3. Si es pasajera, Evolution reconecta solo y no avisa: el chequeo periódico es el que lo detecta.
+4. La pantalla de canales muestra el estado, y la bandeja indica que WhatsApp no está recibiendo.
+5. El Owner o un Admin pide reconectar y escanea el código.
+6. Todo el ciclo queda en el historial de auditoría.
+
+**Resultado exitoso:** el canal vuelve a recibir y nadie pasó días creyendo que no había mensajes.
+
+**Casos de error:** si se agotaron los intentos de vinculación, el botón de reconectar no puede entregar un código y la pantalla explica que hay que empezar de nuevo.
+
+### Flujo 4: Primer setup de WhatsApp, cuando llegue el número
+
+**Descripción:** el orden correcto para conectar el canal.
+
+1. Desplegar Evolution, si no está desplegado.
+2. Crear la instancia y guardar sus credenciales en Vault.
+3. Configurar el aviso de mensajes con el secreto.
+4. Verificar que el receptor acepta un aviso de prueba firmado, **antes** de vincular el número.
+5. **Confirmar que F27 está construido y probado.** Si no lo está, el checklist se detiene acá. Ver la regla dura en 4.7.
+6. Vincular el número escaneando el código.
+7. Mandar un mensaje de prueba desde otro teléfono y confirmar que aparece en la bandeja y en la base.
+
+**Resultado exitoso:** el canal queda conectado y el primer mensaje real queda guardado.
+
+**Casos de error, y son dos puertas distintas que se cierran en silencio.** Si se invierte el orden y se vincula el número antes de verificar el receptor, los primeros mensajes reales se **rechazan** y se pierden sin dejar rastro: ese es el motivo del paso 4. Si se vincula antes de que exista F27, los mensajes se **aceptan** y se descartan igual, que es peor todavía, porque el receptor responde que todo salió bien: ese es el motivo del paso 5. En los dos casos el resultado es el mismo, conversaciones perdidas sin ningún síntoma, y por eso los dos pasos son obligatorios y no intercambiables.
+
+### Flujo 5: Mensaje entrante de Instagram
+
+**Descripción:** el mismo camino que WhatsApp, por otro proveedor.
+
+1. El lead escribe o responde una historia.
+2. Zernio avisa a nuestro receptor con firma criptográfica.
+3. Se verifica la firma, se controla el duplicado, se acusa y se encola.
+4. Se resuelve el contacto y se guarda el mensaje.
+5. Se recalcula la ventana de 24 horas de la conversación.
+
+**Resultado exitoso:** el mensaje aparece en la misma bandeja que los de WhatsApp, con su estado de ventana visible.
+
+**Casos de error:** sin firma válida se rechaza. Fuera de la ventana, la bandeja no deja escribir texto libre y lo explica.
+
+---
+
+## 7. Modelo de datos
+
+### 7.1 Extensiones a tablas existentes
+
+| Entidad | Campo | Tipo | Requerido | Descripción |
+|---|---|---|---|---|
+| contacts | phone | text | No | Teléfono en formato internacional, normalizado en servidor. Puede no existir |
+| contacts | phone_resolved | boolean | Sí | Marca si el teléfono ya se conoce |
+| contacts | secondary_email | text | No | Correo alternativo |
+| contacts | country | text | No | País del lead |
+| contacts | instagram_username | text | No | Usuario de Instagram |
+| contacts | whatsapp_phone | text | No | Teléfono de WhatsApp si difiere del principal |
+| contacts | next_followup_date | date | No | Próximo seguimiento programado |
+| contacts | do_not_contact | boolean | Sí | Pidió no ser contactado |
+| contacts | do_not_contact_reason | text | No | Motivo registrado |
+| contacts | do_not_contact_at | timestamptz | No | Cuándo lo pidió |
+| contacts | lead_temperature | text | No | Frío, tibio o caliente |
+| contacts | ai_conversation_summary | text | No | Resumen generado, se usa en Fase 3 |
+| contacts | attribution | jsonb | Sí | Primer y último clic de origen |
+| contacts | deleted_at | timestamptz | No | Marca de borrado suave |
+| contact_channels | raw_jid | text | Sí | Identificador tal como llegó, sin transformar |
+| contact_channels | addressing_mode | text | No | Cómo se direccionó el mensaje |
+| messages | platform_message_id | text | Sí | Identificador del proveedor |
+| messages | remote_jid | text | Sí | Conversación a la que pertenece |
+| messages | from_me | boolean | Sí | Dirección del mensaje |
+| messages | message_type | text | Sí | Texto, imagen, audio, documento, video, sticker o ubicación |
+| messages | quoted_message_id | text | No | Mensaje citado, para reconstruir hilos |
+| messages | media_path | text | No | Ruta del archivo en el almacenamiento |
+| messages | media_status | text | Sí | Pendiente, descargado, fallido o no disponible |
+| channels | provider | text | Sí | `zernio` o `evolution` |
+| channels | instance_name | text | No | Nombre de la instancia de Evolution |
+| channels | late_account_id | text | **Pasa a No** | Identificador de cuenta de Zernio. Era obligatorio; ahora es opcional |
+| channels | session_state | text | No | Estado de conexión conocido |
+| channels | session_checked_at | timestamptz | No | Última verificación |
+| channels | safety_config | jsonb | Sí | Las seis reglas de seguridad de secuencia |
+
+**Restricción de unicidad en `messages`:** la combinación de `remote_jid`, `platform_message_id` y `from_me`.
+
+**`channels.instance_name` lleva un índice único global, no por espacio de trabajo.** La búsqueda va de nombre de instancia a canal a espacio de trabajo, y está en el camino que autentica cada mensaje entrante: si dos canales pudieran compartir nombre, esa búsqueda sería ambigua. Además los nombres de instancia son globales del lado de Evolution.
+
+**Por qué `late_account_id` pasa a opcional.** Un canal de Evolution no tiene cuenta de Zernio. El valor correcto es vacío, no el nombre de la instancia metido en una columna que dice otra cosa: esa clase de atajo es la que produjo `late_api_key_encrypted`, una columna que decía "encrypted" y guardaba texto plano, y costó dos sesiones deshacerla.
+
+Sacarle el `NOT NULL` destapó un error que ya estaba latente en el código heredado. El bucle que desactiva canales cuyas cuentas de Zernio dejaron de existir compara contra un conjunto de identificadores: con el valor en nulo la comparación da negativa siempre, así que **cada vez que alguien apretara "Sincronizar" en la pantalla de canales, el canal de WhatsApp quedaría desactivado**, y a partir de ahí todos los mensajes entrantes se rechazarían sin síntoma. Se corrige salteando los canales que no son de Zernio en ese bucle, con su prueba afirmativa al lado: un canal de Zernio cuya cuenta ya no existe **tiene** que seguir desactivándose, porque si la guarda queda mal escrita la sincronización deja de limpiar y nadie se entera.
+
+**Alcance de lo que se construye en el Bloque 2:** del bloque de columnas de `channels` de esta tabla, el Bloque 2 agrega solamente `provider`, `instance_name` y el cambio de `late_account_id`, que es lo mínimo para resolver instancia → canal → espacio de trabajo y poder leer el secreto. `session_state`, `session_checked_at` y `safety_config` van en el Bloque 4, con las funcionalidades que las usan.
+
+### 7.2 Tablas nuevas
+
+| Tabla | Para qué |
+|---|---|
+| contact_notes | Notas internas sobre el contacto |
+| response_templates | Respuestas rápidas reutilizables |
+| audit_log | Quién hizo qué y cuándo |
+| integration_configs | Configuración de cada servicio externo conectado |
+| csv_imports | Registro de cada importación de planilla |
+| webhook_alerts | Condiciones abiertas del receptor de avisos: rechazos de autenticación e instancias desconocidas |
+
+**`webhook_alerts` agrupa por condición, no por evento.** Un rechazo nunca viene solo: los tres escenarios donde ocurre (un cambio de secreto mal hecho, el mecanismo de autenticación que desaparece en una actualización de Evolution, una configuración equivocada) hacen que fallen **todos** los mensajes hasta que alguien intervenga. Si entran quinientos mensajes en una hora, eso es una fila con un contador en quinientos, no quinientas filas ni quinientos avisos. Cada condición guarda cuántas veces ocurrió, cuándo fue la primera y la última, y se cierra sola cuando vuelve a entrar un aviso válido.
+
+**Dos condiciones distintas, y la segunda no tiene espacio de trabajo.** La primera es el rechazo de autenticación, que sí sabe de qué canal viene. La segunda es el aviso que llega para una instancia que no existe en nuestra base: ahí no hay canal, así que no hay espacio de trabajo al que atribuirlo. El caso que importa no es una sonda de internet, es que alguien renombre la instancia en Evolution o que se edite la fila del canal; a partir de ese momento cada mensaje real devuelve un error que **también** cancela los reintentos, y se pierde todo. Es tan grave como el rechazo de autenticación y hasta ahora no tenía alerta.
+
+Como el nombre de la instancia lo controla quien llama, **todas** las instancias desconocidas se agrupan en una sola condición abierta, con el nombre únicamente en el detalle de la última. Agrupar por nombre permitiría llenar la tabla mandando nombres al azar.
+
+**Quién puede leerlas.** Las condiciones con espacio de trabajo, su Owner y sus Admin. La condición de instancia desconocida es una alerta de sistema y la lee el Owner, sin depender del espacio de trabajo: no es atribuible a ninguno, así que tampoco debería mostrarse a todos. Sin esa segunda regla la fila se registra y no la puede leer nadie, ni el indicador de la pantalla de canales, así que la agrupación y el contador pueden estar perfectos y la alerta no llegarle a ninguna persona.
+
+**Por qué no se reusa `audit_log`,** que es la alternativa obvia: el historial de auditoría responde *quién hizo qué*, y un rechazo de autenticación no tiene autor. Y además nunca se purga, así que un cambio de secreto mal hecho lo llenaría para siempre con el mismo evento repetido.
+
+**Una alerta que nadie consulta es un diario.** La pantalla de canales muestra un indicador de condiciones sin resolver, que es donde alguien va a mirar cuando sospeche que algo no está entrando.
+
+### 7.3 Notas de optimización
+
+**Tablas que se evitaron.** No se crea una tabla separada para el estado de sesión del canal: es un campo en `channels`, porque siempre hay exactamente un estado por canal y no hace falta historial. No se crea tabla de adjuntos: el archivo es un campo del mensaje, porque un mensaje tiene como máximo un adjunto en estos canales. No se crea tabla de reglas de seguridad: son configuración de un canal y viven como un campo estructurado.
+
+**Campos agregados para etapas futuras.** `ai_conversation_summary` se agrega ahora aunque el agente de IA es Fase 3, para no migrar datos después. `lead_temperature` y `next_followup_date` se agregan ahora aunque el pipeline comercial es Etapa 4. El campo `provider` en `channels` existe para que agregar un canal de otro proveedor no requiera cambios de esquema.
+
+**Lo que queda especificado y sin construir.** La tabla de plantillas de WhatsApp y los campos de ventana de conversación para WhatsApp quedan escritos para el plan B. Si alguna vez se migra a la API oficial, esa parte se activa sin rediseñarla.
+
+### 7.4 Políticas de datos
+
+| Política | Definición |
+|---|---|
+| Borrado suave | Contactos, notas, conversaciones y respuestas rápidas. Retención de 30 días y después purga |
+| Auditoría | Todas las entidades principales registran quién y cuándo. El historial de auditoría nunca se borra |
+| Snapshot | No aplica todavía: los precios son de la Etapa 4 |
+| Deduplicación | Por teléfono normalizado o correo, nunca solo por nombre |
+
+---
+
+## 8. Arquitectura del sistema
+
+**Frontend.** [Next.js](https://nextjs.org) 16 con React 19 y App Router. Componentes de servidor más hooks, sin almacén global de estado. Estilos con [Tailwind CSS](https://tailwindcss.com) v4.
+
+**Backend.** Rutas de API dentro de la misma aplicación para recibir los avisos de los proveedores, y acciones de servidor para las operaciones de la interfaz.
+
+**Base de datos.** [Supabase](https://supabase.com) con seguridad por filas activada en todas las tablas. En simple: la base decide qué puede ver cada persona, no la pantalla.
+
+**Integraciones externas.**
+
+| Servicio | Para qué | Cómo se conecta |
+|---|---|---|
+| Zernio | Instagram | API oficial de Meta, con firma criptográfica en los avisos |
+| Evolution API | WhatsApp | Servicio propio en Railway, con aviso autenticado |
+| Resend | Correo saliente | Clave guardada en Vault |
+| OpenAI, Anthropic, Google | IA | Claves del propio negocio, guardadas en Vault |
+
+**Autenticación.** Supabase Auth con cookies seguras del lado del servidor.
+
+**Almacenamiento de archivos.** Supabase Storage, bucket privado.
+
+### Despliegue
+
+Un proyecto de Railway con tres servicios:
+
+| Servicio | Qué es | Dominio público |
+|---|---|---|
+| Aplicación Next.js | Dashboard y receptores de avisos | Sí |
+| Evolution API | Motor de WhatsApp, versión fijada | No |
+| PostgreSQL de Evolution | Estado interno de Evolution, incluida la sesión | No |
+
+Railway factura por consumo de recursos, no por cantidad de servicios.
+
+**Dos bases de datos PostgreSQL, y no son intercambiables.** Supabase guarda los datos del negocio. La de Railway guarda el estado interno de Evolution. Ninguna consulta de la aplicación toca la segunda.
+
+**Una aclaración de seguridad que conviene dejar escrita.** La red privada de Railway no es una capa de defensa en esta arquitectura. El receptor de avisos es una ruta de la aplicación, y la aplicación tiene dominio público porque es el dashboard. Que Evolution entre por la puerta privada no cierra la pública. Para que lo fuera habría que sacar el receptor a un servicio sin dominio propio, y eso es un cambio de arquitectura que hoy no está presupuestado.
+
+---
+
+## 9. Almacenamiento de archivos
+
+| Aspecto | Definición |
+|---|---|
+| Dónde | Supabase Storage, plan Pro, 100 GB incluidos |
+| Bucket | `message-media`, privado, con direcciones firmadas de vida corta |
+| Estructura | Por espacio de trabajo, conversación y mensaje |
+| Límites | Tamaño máximo configurable. Validación del tipo real de archivo en el servidor, no de la extensión |
+| Temporales | La descarga ocurre en segundo plano; si falla, el mensaje queda marcado y se reintenta |
+| Retención | Los adjuntos siguen la retención del mensaje. Si el contacto se purga a los 30 días de eliminado, sus archivos también |
+| Cuándo revisar | Si el volumen mensual de archivos supera unos pocos gigabytes, evaluar un almacenamiento de objetos más barato. No es una preocupación de esta fase |
+
+---
+
+## 10. Stack y decisiones técnicas
+
+| Componente | Tecnología | Justificación |
+|---|---|---|
+| Base del proyecto | Fork de [ZernFlow](https://github.com/zernio-dev/zernflow), licencia MIT | Resuelve bandeja, CRM básico, motor de flujos y conexión con Zernio. Construir eso de cero eran semanas |
+| Frontend | Next.js 16.1.6 con React 19.2.4 | Viene del fork. Cambiarlo implicaría reescribirlo entero |
+| Estilos | Tailwind CSS 4.1.18 | Viene del fork. Atención: es v4, no v3, y la sintaxis difiere |
+| Base de datos y auth | Supabase, plan Pro | Constante del método. El plan Pro hace falta por el almacenamiento y por Vault |
+| Secretos | Supabase Vault | Las claves de terceros nunca en variables de entorno de la aplicación ni en texto plano |
+| Instagram | Zernio sobre API oficial de Meta | Es el único de los dos proveedores que soporta Instagram |
+| WhatsApp | Evolution API autoalojado | El seguimiento del negocio es semanal y cae fuera de la ventana de Meta. En la API oficial cada seguimiento sería un mensaje de plantilla con costo |
+| Correo | Resend | Constante del método |
+| IA | Vercel AI SDK v6 con claves del propio negocio | El negocio paga su propio uso; el sistema no cobra por intermediar |
+| Hosting | Railway | Control total, costos por consumo, y Evolution necesita un servicio propio de todos modos |
+| Versionado | GitHub | Constante del método |
+| Testing | Vitest | Viene del fork |
+
+**Una decisión técnica que conviene explicar.** El fork no usa [Zod](https://zod.dev) para validar datos. Si en algún momento hace falta validación de estructuras, se adopta Zod 4, no la versión 3, para evitar mezclar dos formas distintas de escribir lo mismo.
+
+---
+
+## 11. Pantallas principales
+
+### 11.1 Convenciones globales
+
+**Navegación.** Barra lateral fija en escritorio con las secciones principales: bandeja, contactos, canales, flujos, secuencias y configuración. En móvil la barra se colapsa en un menú.
+
+**Sistema visual.** Tipografía del sistema, espaciado consistente, y los componentes reutilizables que ya trae el fork: botones, campos, tarjetas, tablas y ventanas modales. No se introduce una librería de componentes nueva.
+
+**Estados estándar, obligatorios en todas las pantallas.**
+
+| Estado | Qué se muestra |
+|---|---|
+| Vacío | Explicación de qué va a aparecer ahí y un botón que lleva a la acción que lo llena. Nunca una pantalla en blanco |
+| Cargando | Esqueleto de la estructura, no un círculo girando sobre la nada |
+| Error | Mensaje en lenguaje claro y una acción sugerida. Nunca el error técnico crudo |
+| Éxito | Confirmación breve que desaparece sola |
+
+**Responsive.** Todas las pantallas funcionan en teléfono. La bandeja en móvil muestra la lista de conversaciones o el hilo, no las dos cosas a la vez.
+
+### 11.2 Detalle por pantalla
+
+#### Bloque 2
+
+##### Pantalla: Configuración de integraciones
+
+- **Propósito:** conectar los servicios externos en un solo lugar.
+- **URL:** `/settings/integrations`
+- **Layout:** una columna con secciones plegables, una por tipo de servicio.
+- **Componentes:**
+    - Sección de canales, con una tarjeta por canal: nombre, estado, campos de conexión y botones de conectar y desconectar. La tarjeta de WhatsApp muestra además el estado de sesión y un botón de reconectar.
+    - Sección de correo, con la clave de Resend y el dominio verificado.
+    - Sección de IA, con una fila por proveedor: clave y modelo por defecto.
+- **Estados:** con servicios conectados se ve el estado de cada uno; sin nada conectado, cada tarjeta explica para qué sirve ese servicio y qué se gana conectándolo.
+- **Interacciones:** al guardar una clave se valida el formato y se prueba la conexión. El campo de clave nunca muestra el valor guardado, solo si está configurada o no.
+- **Reglas:** solo Owner y Admin. Un Member que intente entrar es redirigido, y el control está en el servidor, no en la pantalla.
+- **Responsive:** las secciones se apilan.
+
+#### Bloque 3
+
+##### Pantalla: Ficha de contacto
+
+- **Propósito:** la vista completa de un lead.
+- **URL:** `/contacts/[id]`
+- **Layout:** dos columnas en escritorio. Izquierda con los datos, derecha con conversaciones y notas.
+- **Componentes:** datos personales y de contacto, asignaciones de setter y vendedor, temperatura, próximo seguimiento, atribución de origen, etiquetas, campos personalizados, lista de conversaciones por canal, notas cronológicas e historial de cambios.
+- **Estados:** si el teléfono está sin resolver, se muestra una marca con un campo para cargarlo a mano. Si el contacto pidió no ser contactado, se muestra una marca roja.
+- **Interacciones:** al cargar un teléfono a mano, si ya existe otro contacto con ese número, se abre la propuesta de fusión mostrando los dos lados. La fusión la confirma la persona.
+- **Reglas:** un Member solo abre la ficha de sus propios leads. Si le sacan la asignación mientras la tiene abierta, ve un mensaje claro, no un error de permisos.
+- **Responsive:** las columnas se apilan, con los datos arriba.
+
+#### Bloque 4
+
+##### Pantalla: Bandeja
+
+- **Propósito:** donde el equipo trabaja todos los días.
+- **URL:** `/inbox`
+- **Layout:** tres zonas en escritorio: filtros y lista de conversaciones a la izquierda, hilo en el centro, datos del contacto a la derecha.
+- **Componentes:** barra de filtros con contador de filtros activos, lista de conversaciones con vista previa y canal, hilo de mensajes con sus adjuntos, campo de respuesta con selector de respuestas rápidas.
+- **Estados:** sin conversaciones, explica que ahí van a aparecer los mensajes cuando se conecte un canal. Si un canal está caído, un aviso visible lo indica, porque si no una bandeja sin mensajes parece un día tranquilo.
+- **Interacciones:** escribir "/" abre el selector de respuestas rápidas. En Instagram, con la ventana cerrada, el campo se deshabilita y explica por qué. Con un contacto marcado como no contactar, el envío se bloquea.
+- **Reglas:** un Member ve solo sus conversaciones, y eso lo garantiza la base.
+- **Responsive:** en móvil se ve la lista o el hilo, con navegación entre los dos.
+
+##### Pantalla: Canales
+
+- **Propósito:** ver y administrar el estado de las conexiones.
+- **URL:** `/dashboard/channels`
+- **Layout:** una tarjeta por canal.
+- **Componentes:** nombre del canal, cuenta conectada, estado de sesión con su fecha de verificación, y botón de reconectar con el código QR cuando corresponde.
+- **Estados:** conectado, caído, sin verificar y "se agotaron los intentos", cada uno con su explicación en lenguaje claro.
+- **Interacciones:** el botón de reconectar no siempre puede entregar un código, y cuando no puede lo dice en lugar de fallar en silencio.
+- **Reglas:** solo Owner y Admin.
+
+##### Pantalla: Configuración del canal de WhatsApp
+
+- **Propósito:** ajustar las seis reglas que protegen el número.
+- **URL:** `/settings/channels/whatsapp`
+- **Componentes:** un control por regla, con su valor por defecto y una explicación de una línea de para qué sirve y qué pasa si se desactiva.
+- **Reglas:** solo Owner y Admin. La regla de opt-out no se puede desactivar.
+
+---
+
+## 12. Guías de interfaz, marca y diseño
+
+El negocio tiene identidad visual propia, pero el sistema es una herramienta interna, no una pieza de marca. Se usa el diseño neutro y profesional que trae el fork, con estas pautas:
+
+- **Tono de los textos:** claro y directo, sin jerga técnica. Un mensaje de error dice qué pasó y qué hacer, no un código.
+- **Prioridad a las acciones de un clic.** Lo que se hace todos los días, como responder o asignar, no debería requerir abrir una ventana.
+- **Nada de ventanas modales para formularios largos.** La ficha de contacto se edita en su propia pantalla.
+- **Densidad de información alta en la bandeja.** Es una herramienta de trabajo, no una página de marketing: más conversaciones visibles sin desplazarse es mejor.
+- **Colores con significado consistente.** El rojo se reserva para bloqueos y advertencias reales, como "no contactar" o "canal caído". Si todo es rojo, nada lo es.
+
+La personalización de marca del negocio, si en algún momento hace falta, se configura desde la interfaz, no tocando código.
+
+---
+
+## 13. Fuera del alcance de esta fase
+
+### Para fases siguientes de esta etapa
+
+| Funcionalidad | Fase destino | Nota |
+|---|---|---|
+| Motor de secuencias de seguimiento | Fase 2 | Consume las reglas de seguridad que se definen acá |
+| Agente de respuesta automática | Fase 2 | |
+| Difusiones y envíos masivos | Fase 2 | La tabla ya existe en el fork y se conserva |
+| Agente de IA integral | Fase 3 | Lee el historial que se empieza a guardar en el Bloque 3 |
+| Analíticas y tablero de métricas | Fase 3 | Solo son posibles porque los mensajes se guardan |
+
+### Para etapas futuras
+
+| Funcionalidad | Etapa destino | Nota |
+|---|---|---|
+| Publicación de contenido en redes | Etapa 2 | |
+| TikTok, YouTube y LinkedIn como canales | Etapa 2 | La estructura de integraciones ya lo contempla |
+| Email bidireccional | Etapa 2 | Acá solo sale correo, no entra |
+| Roles personalizados con permisos granulares | Etapa 2 | Hoy son tres roles fijos |
+| Meta Ads | Etapa 2 | |
+| Fathom y conector MCP | Etapa 3 | |
+| Agendamiento y pipeline comercial | Etapa 4 | Opcional |
+
+### Especificado pero no construido, para el plan B
+
+| Funcionalidad | Motivo |
+|---|---|
+| Plantillas de WhatsApp aprobadas por Meta | Solo aplican en la API oficial |
+| Ventana de 24 y 72 horas para WhatsApp | Solo aplica en la API oficial |
+| Alta de cuenta de WhatsApp Business en Meta | Solo si se migra |
+
+### Deuda que se arrastra del Bloque 1
+
+| Tema | Nota |
+|---|---|
+| `comment_logs` sin alcance por lead | Se correlaciona con un lead por el usuario del autor. Exige decidir antes si un comentario pertenece a un lead o al espacio de trabajo |
+| Medición de rendimiento de la bandeja | Solo tiene sentido con datos reales |
+| Políticas de escritura de `broadcast_recipients` | Siguen autorizando por membresía |
+| Los verificadores corren contra la base de producción | Tolerable mientras está vacía |
+
+### Deuda que abre el Bloque 2
+
+| Tema | Nota |
+|---|---|
+| Las conversaciones existen en dos bases | Evolution se despliega con el guardado de historial activado, así que copia cada mensaje a su propio PostgreSQL de Railway, además de Supabase, que es la fuente de verdad. Hoy se justifica por dos motivos: habilita el endpoint de historial, que es la vía limpia para una importación inicial, y mientras F27 no exista es la única red de contención si el receptor falla. **Punto de revisión: cuando F27 esté construido y probado, esa copia deja de ser red de contención y pasa a ser redundancia.** Ahí se decide si se apaga el guardado o si se le define una retención a la base de Evolution. Son conversaciones con clientes creciendo en un lugar donde nadie definió por cuánto tiempo, y eso no puede quedar sin decidir por omisión |
+
+---
+
+## 14. Decisiones transversales
+
+| Decisión | Definición para este proyecto |
+|---|---|
+| Historial y auditoría | Todas las entidades principales registran quién, qué y cuándo. El historial nunca se borra |
+| Borrado suave | Contactos, notas, conversaciones y respuestas rápidas. Retención de 30 días, después purga por tarea programada |
+| Deduplicación de contactos | Por teléfono normalizado o correo, nunca solo por nombre. Un contacto sin teléfono resuelto no se deduplica: se marca y se reconcilia después, con confirmación humana |
+| Snapshot de precios | No aplica en esta etapa. Se contempla en Etapa 4 |
+| Estados y ciclo de vida | Conversación: abierta, archivada. Contacto: activo, no contactar, eliminado. Canal: conectado, caído, sin verificar, agotado. Mensaje: pendiente, enviado, fallido |
+| Casos borde | Si el operador cierra la ventana a mitad de una importación, el trabajo sigue en segundo plano. Si le sacan un lead que tenía abierto, ve un mensaje claro y no un error. Si la sesión de WhatsApp se cae, la bandeja lo indica en lugar de parecer vacía |
+| Zona horaria e idioma | Español rioplatense en toda la interfaz. La zona horaria del negocio es la de Costa Rica. Los envíos de secuencia respetan la zona horaria del contacto cuando se conoce |
+| Motor de automatización | El fork trae un motor de flujos visual que se conserva. Las secuencias de la Fase 2 se apoyan en él |
+| Precios variables | No aplica en esta etapa |
+| Modelo de asignación | Doble asignación independiente: setter, quien contacta, y vendedor, quien cierra. Asignación manual. La conversación además tiene un agente asignado |
+| Contacto entre canales | El identificador principal es el teléfono normalizado, después el correo, después el nombre de usuario de la red. Coincidencia exacta de los dos primeros vincula sola; por nombre de usuario solo sugiere. Al unificar, el historial de los dos contactos se junta y queda registrado |
+| Claves de terceros | Supabase Vault. Rotación manual desde la interfaz. Si una clave vence, el sistema avisa y degrada esa integración sin romper el resto |
+| Patrón de avisos entrantes | Control de duplicados con registro de eventos, acuse inmediato antes de procesar, procesamiento en segundo plano, y verificación de autenticidad obligatoria. En Zernio es firma criptográfica; en Evolution es un dato firmado que caduca |
+| Patrón de envíos masivos y límites | Lotes con separación aleatoria, cola de envío, corte automático ante silencio, y franja horaria. Se construye como configuración en el Bloque 4 y lo usa el motor de la Fase 2 |
+
+---
+
+## 14b. Seguridad
+
+| Área | Definición para este proyecto |
+|---|---|
+| Autenticación | Supabase Auth con correo y contraseña, cookies seguras del lado del servidor. El registro público debe estar desactivado: los usuarios entran por invitación |
+| Seguridad por filas | Activada en las 24 tablas. Un Member solo accede a los contactos y conversaciones donde figura asignado, y eso lo decide la base de datos. Verificado con 24 comprobaciones automáticas contra la API |
+| Validación de datos | En el servidor siempre, no solo en el formulario. Teléfonos normalizados en servidor. Tipo real de archivo validado en servidor |
+| Protección de rutas de API | Sesión verificada en todas las rutas. Control de rol en el servidor para las pantallas y rutas de configuración |
+| Datos sensibles | Todas las claves de terceros en Vault. Ninguna clave viaja al navegador. Los logs nunca incluyen el contenido completo de un aviso entrante, porque incluye credenciales |
+| Protección contra ataques comunes | Las direcciones de redirección se validan comparando el origen, no con una lista de prohibiciones. Un test estático impide que una columna con nombre de secreto llegue al navegador |
+| Comunicaciones | HTTPS en producción. Avisos entrantes verificados antes de procesar, en los dos proveedores |
+
+### Checklist para la IA constructora
+
+- [ ] Seguridad por filas activada en todas las tablas de Supabase
+- [ ] Políticas escritas y probadas para cada tabla nueva
+- [ ] Sesión verificada en todas las rutas de API
+- [ ] Control de rol en el servidor, no solo escondiendo botones
+- [ ] Validación de datos en el servidor, no solo en el cliente
+- [ ] Secretos en Vault, no en variables de entorno de la aplicación
+- [ ] Los logs no incluyen credenciales ni cuerpos completos de avisos entrantes
+- [ ] Verificación de autenticidad en los dos receptores de avisos
+- [ ] Alerta configurada ante rechazos del receptor de Evolution
+- [ ] Bucket de archivos privado, con direcciones firmadas de vida corta
+- [ ] `npm run verify:security` en verde antes de cerrar cada bloque
+
+---
+
+## 14c. Base técnica heredada
+
+| Aspecto | Detalle |
+|---|---|
+| Proyecto base | [ZernFlow](https://github.com/zernio-dev/zernflow), licencia MIT |
+| Framework | Next.js 16.1.6, React 19.2.4, Tailwind CSS 4.1.18. Atención: Tailwind es v4, no v3 |
+| Tablas existentes | 24 tablas en 16 migraciones, más las 5 migraciones del Bloque 1 |
+| Ya implementado, no reconstruir | Autenticación, motor de flujos visual, bandeja básica, CRM con etiquetas y campos personalizados, secuencias con pausa automática, gestión de equipo, difusiones, control de duplicados de avisos, versionado de flujos, actualización en vivo, cliente de Zernio con sus adaptadores |
+| Patrones a respetar | Componentes de servidor más hooks, sin almacén global. Avisos en rutas de API, mutaciones en acciones de servidor. Clave de servicio solo en servidor. Estilos con clases de Tailwind, sin módulos de CSS |
+| Dependencias críticas | `@zernio/node` fijado en versión exacta, sin prefijo, porque es una librería en versión 0.x y puede romper entre versiones menores |
+| Lo que el README dice mal | El README habla de 23 tablas y 17 o 18 tipos de nodo. En el código son 24 tablas y 16 tipos de nodo |
+
+---
+
+## 14d. Proyecto como template clonable
+
+El proyecto va a servir de base para clonar y personalizar, así que estas reglas aplican.
+
+### Migraciones
+
+- Numeradas secuencialmente. Las del fork van de la 00001 a la 00016; las propias desde la 00017.
+- Las del fork no son idempotentes y se aplican una sola vez sobre una base limpia, con el CLI de Supabase, que lleva su propio registro de qué aplicó.
+- Las propias, de la 00017 en adelante, sí son idempotentes: se pueden correr dos veces sin romper nada.
+- El archivo consolidado `ALL_MIGRATIONS.sql` se mantiene sincronizado, y hay un test que falla si alguien agrega una migración y se olvida de sumarla.
+
+### Variables de entorno
+
+`.env.example` con todas las variables agrupadas por servicio, cada una con su comentario de qué es y dónde se consigue. Ninguna clave de terceros va ahí: las de Zernio, Evolution, Resend e IA se cargan desde la interfaz y se guardan en Vault.
+
+### README de setup
+
+1. Forkear el repositorio
+2. Crear proyecto en Supabase
+3. Aplicar las migraciones con el CLI
+4. Copiar `.env.example` a `.env` y completar
+5. Instalar dependencias y correr en desarrollo
+6. Desplegar en Railway, incluyendo el servicio de Evolution
+
+Con su sección de problemas frecuentes.
+
+### Separación de datos
+
+El sistema funciona con la base vacía. Los datos de ejemplo, si se agregan, van en archivos separados de las migraciones de estructura.
+
+### Personalización
+
+| Qué se personaliza | Desde dónde | Requiere código |
+|---|---|---|
+| Nombre y datos del negocio | Interfaz | No |
+| Canales conectados | Interfaz | No |
+| Reglas de seguridad de secuencia | Interfaz | No |
+| Respuestas rápidas y frases de baja | Interfaz | No |
+| Flujos y automatizaciones | Interfaz | No |
+| Agregar funcionalidades nuevas | Código | Sí |
+| Cambiar o agregar integraciones | Código | Sí |
+
+---
+
+## 15. Notas y pendientes
+
+### Pendientes que solo se resuelven midiendo
+
+No se deciden leyendo documentación. Se instrumentan y se miran.
+
+| Pendiente | Cómo se resuelve | Cuándo |
+|---|---|---|
+| Con qué frecuencia llega un mensaje sin teléfono resuelto | Contador en el sistema, primera semana con el número conectado | Después del Bloque 3 |
+| Qué tan completo viene el historial al vincular el número | Comparar con lo que se ve en el teléfono | Al conectar |
+| Cómo se comporta la reconexión en caídas largas | Registro del chequeo periódico | Primeras semanas |
+| Si el mecanismo de autenticación del aviso sigue existiendo en versiones nuevas de Evolution | Volver a verificar contra el código en cada actualización | En cada actualización |
+| Consumo real de Railway con los servicios nuevos | Mirar el medidor la primera semana | Después del Bloque 2 |
+
+### Lo que se necesita antes de construir
+
+- El número dedicado de WhatsApp, todavía en trámite. No bloquea el Bloque 2 ni el 3, pero sí la conexión en vivo.
+- Verificación del negocio en Meta, prevista para la semana del 22 de septiembre. No bloquea nada del camino principal; sirve para el plan B.
+
+### Cambios que convendría reflejar en documentos anteriores
+
+El documento de **alcance** todavía tiene la Decisión 29 escrita a favor de la API oficial de WhatsApp, y el **anexo de integración de WhatsApp** sigue redactado como si fuera el camino principal en lugar del manual del plan B. Ninguno bloquea la construcción, pero los dos se leen distinto ahora, y si en algún momento se arma la propuesta comercial con `06-propuesta`, esos sí llegan al cliente.
+
+Mi recomendación es actualizarlos recién antes de la propuesta, no ahora: hoy no cambian ninguna decisión y el esfuerzo rinde más cuando el destinatario es alguien de afuera del proyecto.
