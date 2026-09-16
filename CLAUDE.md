@@ -123,6 +123,7 @@ Reglas:
 - **Realtime tiene que respetar el scope de leads.** Si la configuración no lo garantiza, filtrar del lado del servidor antes de emitir.
 - **Secrets en Supabase Vault**, nunca hardcodeados ni en variables de entorno del frontend.
 - **Problema heredado a corregir en el Bloque 1:** la columna `workspaces.late_api_key_encrypted` se llama "encrypted" pero **guarda la clave en texto plano**. El código la lee y la pasa directo al cliente de la API, sin desencriptar. Lo mismo con `ai_api_key`. Hay que migrar los valores a Vault, apuntar todas las lecturas a Vault, y eliminar las columnas.
+- **Nunca `select("*")` sobre `workspaces` ni `channels`** en una consulta que alimente un Client Component o una respuesta de API. Enumerar columnas con `WORKSPACE_PUBLIC_COLUMNS` o `CHANNEL_PUBLIC_COLUMNS` de `lib/safe-columns.ts`. Las dos tablas guardan secretos en columnas, y las props de un Client Component se serializan en el HTML: un `*` manda el secreto al navegador. Lo hacen cumplir el tipo (los Client Components usan `Omit<Row, secreto>`) y `lib/safe-columns.test.ts`.
 - Validación en servidor, no solo en cliente.
 - Firma HMAC validada en todos los webhooks de Zernio antes de procesar.
 - Service Role Key solo en servidor.

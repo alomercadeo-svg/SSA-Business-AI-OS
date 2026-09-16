@@ -1220,12 +1220,29 @@ cuando Vault ya está probado en todos los caminos. Consecuencia: el criterio de
 "`select * from workspaces` no devuelve ninguna clave" se cumple al aplicar `00021`, no `00018`.
 
 **Fuga encontrada al verificar F2, más grave que el problema documentado.** El documento describe
-las claves "en texto plano en una columna". Además de eso, `app/(dashboard)/layout.tsx` pasaba la
-fila completa del workspace a `<Sidebar>`, que es un Client Component, así que Next serializaba
-`late_api_key_encrypted` y `webhook_secret` en el HTML de **todas** las páginas del dashboard: la
-clave de Zernio y el secreto de HMAC de los webhooks viajaban al navegador en cada carga. Corregido
-enumerando las columnas en `getWorkspace()`. El `webhook_secret` es el que valida la firma de los
-webhooks de Zernio, así que quien lo tuviera podía forjar eventos entrantes firmados.
+las claves "en texto plano en una columna". Además de eso, seis consultas mandaban secretos al
+navegador o los devolvían en una respuesta de API:
+
+| Dónde | Cómo salía |
+| --- | --- |
+| `app/(dashboard)/layout.tsx` | fila completa del workspace a `<Sidebar>` (Client Component) |
+| `.../dashboard/channels/page.tsx` | filas completas de canales a `<ChannelsView>` |
+| `.../dashboard/growth/page.tsx` | filas completas de canales a `<GrowthView>` |
+| `GET /api/v1/channels` | filas de canales como JSON |
+| `POST /api/v1/channels/sync` | devuelve la lista de canales en la respuesta |
+| `/api/v1/messages` y `/api/cron/jobs` | `channels(*)` relacional, de uso interno |
+
+`workspaces.webhook_secret` y `channels.webhook_secret` son el secreto con el que se valida la
+firma HMAC de los webhooks de Zernio: quien lo tuviera podía **forjar eventos entrantes firmados**.
+Las props de un Client Component se serializan en el HTML, así que una fila "leída solo en el
+servidor" terminaba en el navegador con todo lo que trae.
+
+**Regla nueva del proyecto, en `lib/safe-columns.ts`:** ninguna consulta que alimente un Client
+Component o una respuesta de API usa `select("*")` sobre `workspaces` ni `channels`. Se enumeran
+columnas. Lo hacen cumplir dos cosas: el tipo (los Client Components usan `Omit<Row, secreto>`, así
+que el compilador rechaza traer la columna) y `lib/safe-columns.test.ts`, un test estático que
+prohíbe el `*` y el nombre de la columna fuera de un allowlist con motivo escrito. El test encontró
+cuatro de los seis puntos que la revisión manual no había visto.
 
 **La extensión de `channels` a más plataformas no hace falta todavía**, igual que dice la nota de
 arriba.
