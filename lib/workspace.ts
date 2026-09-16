@@ -7,28 +7,48 @@ import { redirect } from "next/navigation";
 export const WORKSPACE_COOKIE = "zernflow_workspace_id";
 
 /**
- * Cached per-request: deduplicates across layout + page in the same render.
- * Reads workspace ID from cookie if set; falls back to first workspace.
+ * Resolución del workspace activo. Único lugar del proyecto donde se decide
+ * sobre qué workspace opera una request.
+ *
+ * Antes había cinco copias de esta lógica: esta y una en cada ruta de
+ * `api/v1/channels`. Las cuatro de las rutas ignoraban la cookie y las cinco
+ * cerraban con `.limit(1).single()` **sin `order by`**. Postgres no garantiza
+ * orden sin `order by`, así que la consulta podía devolver un workspace
+ * distinto en cada llamada: el dashboard y la API podían estar operando sobre
+ * workspaces distintos al mismo tiempo, y dos llamadas seguidas a la misma ruta
+ * podían discrepar. Con un solo usuario y un solo workspace no se nota; con un
+ * Member invitado, que además tiene el workspace propio que le crea el trigger
+ * de registro, sí.
+ *
+ * Orden de resolución:
+ *   1. La cookie de workspace, si apunta a uno donde el usuario es miembro.
+ *   2. La membresía más reciente, con desempate por id.
+ *
+ * Por qué la más reciente y no la más antigua: al registrarse, el trigger
+ * `handle_new_user` le crea a todo usuario su propio workspace. Un invitado
+ * queda entonces con dos membresías, y la del workspace real es la más nueva.
+ * La más antigua lo mandaría siempre a su workspace fantasma vacío. Es una
+ * heurística mientras exista ese workspace de más; el arreglo de fondo es que
+ * el registro por invitación no lo cree.
  */
-export const getWorkspace = cache(async () => {
+async function resolveWorkspace() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  if (!user) return null;
 
   const cookieStore = await cookies();
   const selectedId = cookieStore.get(WORKSPACE_COOKIE)?.value;
 
-  // Try cookie workspace first
   if (selectedId) {
     const { data: membership } = await supabase
       .from("workspace_members")
       .select(`workspace_id, role, workspaces(${WORKSPACE_PUBLIC_COLUMNS})`)
       .eq("user_id", user.id)
       .eq("workspace_id", selectedId)
-      .single();
+      .maybeSingle();
 
     if (membership?.workspaces) {
       return {
@@ -40,15 +60,19 @@ export const getWorkspace = cache(async () => {
     }
   }
 
-  // Fallback to first workspace
+  // Sin cookie válida: la membresía más reciente. El segundo `order` es el
+  // desempate que hace la consulta determinística aunque dos membresías
+  // compartan `created_at`.
   const { data: membership } = await supabase
     .from("workspace_members")
     .select(`workspace_id, role, workspaces(${WORKSPACE_PUBLIC_COLUMNS})`)
     .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .order("workspace_id", { ascending: true })
     .limit(1)
-    .single();
+    .maybeSingle();
 
-  if (!membership?.workspaces) redirect("/login");
+  if (!membership?.workspaces) return null;
 
   return {
     user,
@@ -56,4 +80,30 @@ export const getWorkspace = cache(async () => {
     role: membership.role,
     supabase,
   };
+}
+
+export type WorkspaceContext = NonNullable<Awaited<ReturnType<typeof resolveWorkspace>>>;
+
+/**
+ * Para Server Components y páginas: redirige a /login cuando no hay sesión o el
+ * usuario no pertenece a ningún workspace.
+ *
+ * Cacheada por request: deduplica entre el layout y la página del mismo render.
+ */
+export const getWorkspace = cache(async (): Promise<WorkspaceContext> => {
+  const contexto = await resolveWorkspace();
+  if (!contexto) redirect("/login");
+  return contexto;
 });
+
+/**
+ * Para API routes: devuelve null en lugar de redirigir, para que el handler
+ * responda 401 en JSON. Una redirección a /login desde un endpoint de API le
+ * llega al cliente como HTML donde esperaba datos.
+ *
+ * Sin `cache()` a propósito: un route handler la llama una sola vez por
+ * request, así que no habría nada que deduplicar.
+ */
+export async function getWorkspaceOrNull(): Promise<WorkspaceContext | null> {
+  return resolveWorkspace();
+}

@@ -3,7 +3,9 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import {
   CHANNEL_PUBLIC_COLUMNS,
+  SAFE_LOOKING_COLUMNS,
   SECRET_COLUMNS,
+  nombreParecesSecreto,
   SENSITIVE_TABLES,
   WORKSPACE_PUBLIC_COLUMNS,
 } from "./safe-columns";
@@ -170,6 +172,155 @@ describe("columnas de secretos", () => {
     for (const [ruta, motivo] of Object.entries(ALLOWLIST)) {
       expect(existentes.has(ruta), `el allowlist nombra ${ruta}, que no existe`).toBe(true);
       expect(motivo.length, `${ruta} está en el allowlist sin motivo`).toBeGreaterThan(20);
+    }
+  });
+});
+
+/**
+ * Dirección contraria: las reglas de arriba protegen las columnas que ya
+ * conocemos, no la regla. Si el Bloque 2 agrega una columna con un secreto en
+ * otra tabla, nada de lo anterior se entera.
+ *
+ * Esto lee `supabase/migrations/` y falla ante cualquier columna cuyo nombre
+ * contenga `secret`, `token`, `key` o `password` como segmento y no esté
+ * registrada, ni
+ * como prohibida (`SECRET_COLUMNS`) ni como segura (`SAFE_LOOKING_COLUMNS`).
+ * El mensaje dice qué migración la introdujo.
+ */
+describe("columnas nuevas con pinta de secreto", () => {
+  const DIR_MIGRACIONES = join(RAIZ, "supabase", "migrations");
+
+  interface ColumnaHallada {
+    tabla: string;
+    columna: string;
+    migracion: string;
+  }
+
+  /** Quita los comentarios de línea: un `--` puede mencionar una columna que ya no existe. */
+  function sinComentarios(sql: string): string {
+    return sql
+      .split("\n")
+      .map((l) => l.replace(/--.*$/, ""))
+      .join("\n");
+  }
+
+  /**
+   * Columnas que introduce cada migración, con la tabla a la que pertenecen.
+   *
+   * Solo mira dos lugares: el cuerpo de un `create table` y las cláusulas
+   * `add column`. Deja afuera los `declare` de los bloques `DO $$`, cuyas
+   * variables locales (`v_key text;`) se parecen mucho a una columna.
+   *
+   * Aplica los `rename column` en orden: `openai_api_key` nació en la 00007 y
+   * la 00008 lo renombró a `ai_api_key`. Sin esto, el test reclamaría para
+   * siempre por una columna que ya no existe con ese nombre.
+   */
+  function columnasIntroducidas(): ColumnaHallada[] {
+    const archivos = readdirSync(DIR_MIGRACIONES)
+      .filter((f) => /^\d+_.*\.sql$/.test(f))
+      .sort();
+
+    const halladas: ColumnaHallada[] = [];
+    const renombres = new Map<string, string>(); // "tabla.vieja" -> "nueva"
+
+    for (const archivo of archivos) {
+      const sql = sinComentarios(readFileSync(join(DIR_MIGRACIONES, archivo), "utf8"));
+
+      // create table <tabla> ( ... );
+      const creates = sql.matchAll(
+        /create\s+table\s+(?:if\s+not\s+exists\s+)?["`]?(\w+)["`]?\s*\(([\s\S]*?)\n\s*\)\s*;/gi,
+      );
+      for (const m of creates) {
+        const tabla = m[1].toLowerCase();
+        for (const linea of m[2].split("\n")) {
+          const col = linea.match(
+            /^\s*["`]?(\w+)["`]?\s+(text|uuid|jsonb|json|boolean|bool|integer|int|bigint|timestamptz|timestamp|numeric|date)\b/i,
+          );
+          if (col) halladas.push({ tabla, columna: col[1].toLowerCase(), migracion: archivo });
+        }
+      }
+
+      // alter table <tabla> add column [if not exists] <columna>
+      const adds = sql.matchAll(
+        /alter\s+table\s+(?:only\s+)?["`]?(\w+)["`]?[\s\S]*?add\s+column\s+(?:if\s+not\s+exists\s+)?["`]?(\w+)["`]?/gi,
+      );
+      for (const m of adds) {
+        halladas.push({
+          tabla: m[1].toLowerCase(),
+          columna: m[2].toLowerCase(),
+          migracion: archivo,
+        });
+      }
+
+      // alter table <tabla> rename column <vieja> to <nueva>
+      const renames = sql.matchAll(
+        /alter\s+table\s+["`]?(\w+)["`]?\s+rename\s+column\s+["`]?(\w+)["`]?\s+to\s+["`]?(\w+)["`]?/gi,
+      );
+      for (const m of renames) {
+        renombres.set(`${m[1].toLowerCase()}.${m[2].toLowerCase()}`, m[3].toLowerCase());
+      }
+    }
+
+    // Una columna puede renombrarse más de una vez; se sigue la cadena.
+    return halladas.map((h) => {
+      let nombre = h.columna;
+      const vistos = new Set<string>();
+      while (renombres.has(`${h.tabla}.${nombre}`) && !vistos.has(nombre)) {
+        vistos.add(nombre);
+        nombre = renombres.get(`${h.tabla}.${nombre}`)!;
+      }
+      return { ...h, columna: nombre };
+    });
+  }
+
+  it("toda columna que parece un secreto está registrada como prohibida o como segura", () => {
+    const sinRegistrar: string[] = [];
+
+    for (const { tabla, columna, migracion } of columnasIntroducidas()) {
+      if (!nombreParecesSecreto(columna)) continue;
+
+      const prohibida = (SECRET_COLUMNS[tabla] ?? []).includes(columna);
+      const segura = Boolean(SAFE_LOOKING_COLUMNS[tabla]?.[columna]);
+
+      if (!prohibida && !segura) {
+        sinRegistrar.push(`${tabla}.${columna} (la introduce ${migracion})`);
+      }
+    }
+
+    expect(
+      [...new Set(sinRegistrar)],
+      "Hay columnas con pinta de secreto sin registrar en lib/safe-columns.ts.\n" +
+        "Si guarda un secreto, agregala a SECRET_COLUMNS: queda prohibida fuera del\n" +
+        "allowlist y, si su tabla es nueva, también se prohíbe select(*) sobre ella.\n" +
+        "Si solo lo parece, agregala a SAFE_LOOKING_COLUMNS con el motivo.\n" +
+        [...new Set(sinRegistrar)].join("\n"),
+    ).toEqual([]);
+  });
+
+  // Si el detector deja de encontrar columnas, los dos tests de arriba pasarían
+  // en verde sin revisar nada. Esto comprueba que sigue leyendo el esquema.
+  it("el detector encuentra las columnas de secretos que ya conocemos", () => {
+    const encontradas = columnasIntroducidas()
+      .filter((c) => nombreParecesSecreto(c.columna))
+      .map((c) => `${c.tabla}.${c.columna}`);
+
+    expect(encontradas).toContain("workspaces.webhook_secret");
+    expect(encontradas).toContain("channels.webhook_secret");
+    expect(encontradas).toContain("workspaces.late_api_key_encrypted");
+    // Nace como openai_api_key en la 00007 y la 00008 lo renombra: si la cadena
+    // de renombres se rompiera, acá aparecería el nombre viejo.
+    expect(encontradas).toContain("workspaces.ai_api_key");
+    expect(encontradas).not.toContain("workspaces.openai_api_key");
+  });
+
+  it("toda entrada de SAFE_LOOKING_COLUMNS tiene un motivo escrito", () => {
+    for (const [tabla, columnas] of Object.entries(SAFE_LOOKING_COLUMNS)) {
+      for (const [columna, motivo] of Object.entries(columnas)) {
+        expect(
+          motivo.length,
+          `${tabla}.${columna} está declarada segura sin motivo`,
+        ).toBeGreaterThan(20);
+      }
     }
   });
 });

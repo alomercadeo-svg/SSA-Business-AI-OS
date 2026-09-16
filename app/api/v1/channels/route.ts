@@ -1,29 +1,12 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { CHANNEL_PUBLIC_COLUMNS, WORKSPACE_PUBLIC_COLUMNS } from "@/lib/safe-columns";
-
-async function getWorkspace(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const { data: membership } = await supabase
-    .from("workspace_members")
-    .select(`workspace_id, workspaces(${WORKSPACE_PUBLIC_COLUMNS})`)
-    .eq("user_id", user.id)
-    .limit(1)
-    .single();
-
-  if (!membership?.workspaces) return null;
-  return membership.workspaces;
-}
+import { getWorkspaceOrNull } from "@/lib/workspace";
+import { CHANNEL_PUBLIC_COLUMNS } from "@/lib/safe-columns";
 
 export async function GET() {
-  const supabase = await createClient();
-  const workspace = await getWorkspace(supabase);
-  if (!workspace)
+  const contexto = await getWorkspaceOrNull();
+  if (!contexto)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { workspace, supabase } = contexto;
 
   const { data: channels, error } = await supabase
     .from("channels")

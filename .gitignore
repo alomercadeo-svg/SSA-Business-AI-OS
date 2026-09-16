@@ -42,3 +42,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 supabase/.temp
+
+# permisos locales de Claude Code, no del proyecto
+/settings.local.json

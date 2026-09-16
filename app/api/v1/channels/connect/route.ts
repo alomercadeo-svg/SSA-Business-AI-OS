@@ -1,26 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { WORKSPACE_PUBLIC_COLUMNS } from "@/lib/safe-columns";
+import { getWorkspaceOrNull } from "@/lib/workspace";
 import { createZernioClient } from "@/lib/zernio-client";
 import { getZernioApiKey } from "@/lib/vault";
 import { PLATFORMS, isSupportedPlatform } from "@/lib/platforms";
-
-async function getWorkspace(supabase: Awaited<ReturnType<typeof createClient>>) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const { data: membership } = await supabase
-    .from("workspace_members")
-    .select(`workspace_id, workspaces(${WORKSPACE_PUBLIC_COLUMNS})`)
-    .eq("user_id", user.id)
-    .limit(1)
-    .single();
-
-  if (!membership?.workspaces) return null;
-  return membership.workspaces;
-}
 
 /**
  * POST /api/v1/channels/connect
@@ -30,10 +12,10 @@ async function getWorkspace(supabase: Awaited<ReturnType<typeof createClient>>) 
  * and redirects back to our callback URL when done.
  */
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const workspace = await getWorkspace(supabase);
-  if (!workspace)
+  const contexto = await getWorkspaceOrNull();
+  if (!contexto)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { workspace, supabase } = contexto;
 
   const apiKey = await getZernioApiKey(supabase, workspace.id);
   if (!apiKey) {

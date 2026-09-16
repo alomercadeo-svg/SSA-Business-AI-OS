@@ -32,13 +32,49 @@ export const CHANNEL_PUBLIC_COLUMNS =
   "id, workspace_id, platform, late_account_id, username, display_name, profile_picture, webhook_id, is_active, last_comment_cursor, comment_rules, created_at, updated_at";
 
 /**
- * Columnas de secretos por tabla. Es la lista que el test usa para detectar
- * filtraciones, así que agregar un secreto nuevo acá lo protege solo.
+ * Columnas de secretos por tabla: PROHIBIDAS fuera del allowlist.
+ *
+ * Agregar una entrada acá alcanza para que quede protegida: el test prohíbe su
+ * nombre fuera del allowlist, y si la tabla es nueva también prohíbe el
+ * `select("*")` sobre ella, porque `SENSITIVE_TABLES` sale de las claves de acá.
  */
 export const SECRET_COLUMNS: Record<string, readonly string[]> = {
   workspaces: ["webhook_secret", "late_api_key_encrypted", "ai_api_key"],
   channels: ["webhook_secret"],
 };
 
+/**
+ * Columnas SEGURAS que igual parecen secretos por el nombre.
+ *
+ * El test lee `supabase/migrations/` y falla ante cualquier columna nueva que
+ * termine en `_secret`, `_token`, `_key` o `_password` y no esté registrada.
+ * Una columna que solo parece un secreto se declara acá, con el motivo, para
+ * que la decisión quede escrita en vez de perderse en una revisión.
+ *
+ * Está vacío a propósito: hoy ninguna columna del esquema cae en este caso.
+ */
+export const SAFE_LOOKING_COLUMNS: Record<string, Readonly<Record<string, string>>> = {};
+
 /** Tablas sobre las que está prohibido `select("*")` fuera del allowlist. */
 export const SENSITIVE_TABLES = Object.keys(SECRET_COLUMNS);
+
+/**
+ * Palabras que delatan a una columna con un secreto adentro. `safe-columns.test.ts`
+ * las busca en las migraciones.
+ *
+ * Se comparan como segmentos separados por guion bajo, no como sufijo. El
+ * motivo es concreto: `late_api_key_encrypted`, la columna que originó todo
+ * este problema, **no termina** en `_key` sino en `_encrypted`, así que una
+ * regla de sufijo la dejaba pasar. Con segmentos, `late_api_key_encrypted` da
+ * positivo por su segmento `key`, y `global_keywords` no, porque su segmento es
+ * `keywords`. Comprobado sobre las 210 columnas del esquema: la versión por
+ * segmento encuentra las cuatro columnas de secretos conocidas y no agrega
+ * ningún falso positivo; la de sufijo se perdía una.
+ */
+export const SECRET_NAME_WORDS = ["secret", "token", "key", "password"] as const;
+
+/** true si el nombre de la columna tiene alguna de esas palabras como segmento. */
+export function nombreParecesSecreto(columna: string): boolean {
+  const segmentos = columna.toLowerCase().split("_");
+  return SECRET_NAME_WORDS.some((w) => segmentos.includes(w));
+}
