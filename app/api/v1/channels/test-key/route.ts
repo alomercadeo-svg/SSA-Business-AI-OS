@@ -7,6 +7,7 @@ import {
 } from "@/lib/zernio-webhook";
 import { backfillInboxConversations } from "@/lib/inbox-sync";
 import { isSupportedPlatform } from "@/lib/platforms";
+import { SECRET_NAMES, setWorkspaceSecret } from "@/lib/vault";
 
 /**
  * POST /api/v1/channels/test-key
@@ -40,17 +41,19 @@ export async function POST(request: NextRequest) {
   if (workspaceId) {
     const supabase = await createClient();
 
-    // Save the API key
-    const { error: saveErr } = await supabase
-      .from("workspaces")
-      .update({ late_api_key_encrypted: apiKey.trim() })
-      .eq("id", workspaceId)
-      .select("id")
-      .single();
+    // Save the API key to Vault. store_secret solo acepta a Owner y Admin, así
+    // que un Member no puede sobreescribir la clave del workspace (antes podía:
+    // la RLS de `workspaces` deja actualizar a cualquier miembro).
+    const { error: saveErr } = await setWorkspaceSecret(
+      supabase,
+      workspaceId,
+      SECRET_NAMES.zernio,
+      apiKey.trim()
+    );
 
     if (saveErr) {
       return NextResponse.json(
-        { error: `Key valid but failed to save: ${saveErr.message}` },
+        { error: `Key valid but failed to save: ${saveErr}` },
         { status: 500 }
       );
     }

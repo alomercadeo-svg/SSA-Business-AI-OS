@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { SECRET_NAMES } from "@/lib/vault";
 
 interface WorkspaceSettings {
   id: string;
@@ -119,22 +120,9 @@ export function SettingsView({
     try {
       const supabase = createClient();
 
-      const update: Record<string, unknown> = {
-        name: name.trim(),
-        global_keywords: keywords,
-      };
-
-      // Only update keys if user entered new ones
-      if (apiKey.trim()) {
-        update.late_api_key_encrypted = apiKey.trim();
-      }
-      if (aiKey.trim()) {
-        update.ai_api_key = aiKey.trim();
-      }
-
       const { error: updateError } = await supabase
         .from("workspaces")
-        .update(update)
+        .update({ name: name.trim(), global_keywords: keywords })
         .eq("id", workspace.id)
         .select("id")
         .single();
@@ -142,6 +130,32 @@ export function SettingsView({
       if (updateError) {
         console.error("Settings save error:", updateError);
         throw new Error(updateError.message);
+      }
+
+      // Las API keys van a Supabase Vault, nunca a una columna. store_secret
+      // solo acepta a Owner y Admin, así que un Member recibe un error de
+      // permisos incluso llamando al RPC a mano.
+      if (apiKey.trim()) {
+        const { error } = await supabase.rpc("store_secret", {
+          secret_name: SECRET_NAMES.zernio,
+          secret_value: apiKey.trim(),
+          workspace_id: workspace.id,
+        });
+        if (error) {
+          console.error("Vault store error (zernio):", error.message);
+          throw new Error(`No se pudo guardar la API key de Zernio: ${error.message}`);
+        }
+      }
+      if (aiKey.trim()) {
+        const { error } = await supabase.rpc("store_secret", {
+          secret_name: SECRET_NAMES.aiGateway,
+          secret_value: aiKey.trim(),
+          workspace_id: workspace.id,
+        });
+        if (error) {
+          console.error("Vault store error (ai gateway):", error.message);
+          throw new Error(`No se pudo guardar la API key de IA: ${error.message}`);
+        }
       }
 
       setSaved(true);

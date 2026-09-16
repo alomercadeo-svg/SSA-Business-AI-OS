@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { createZernioClient } from "@/lib/zernio-client";
+import { getZernioApiKey } from "@/lib/vault";
 import { messagePreview } from "@/lib/message-preview";
 
 /**
@@ -31,13 +32,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Conversation not found or missing Zernio ID" }, { status: 404 });
   }
 
-  const { data: workspace } = await supabase
-    .from("workspaces")
-    .select("late_api_key_encrypted")
-    .eq("id", conversation.workspace_id)
-    .single();
+  // La conversación ya se leyó con el cliente del usuario, así que la RLS (y el
+  // scope de leads) autorizó el acceso. La clave se lee con el cliente de
+  // servicio porque un Member no tiene permiso sobre Vault y sí tiene que poder
+  // responder sus propias conversaciones: la clave nunca sale del servidor.
+  const apiKey = await getZernioApiKey(await createServiceClient(), conversation.workspace_id);
 
-  if (!workspace?.late_api_key_encrypted) {
+  if (!apiKey) {
     return NextResponse.json({ error: "API key not configured" }, { status: 400 });
   }
 
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
 
   // Fetch messages from Zernio API
   try {
-    const zernio = createZernioClient(workspace.late_api_key_encrypted);
+    const zernio = createZernioClient(apiKey);
     const res = await zernio.messages.getInboxConversationMessages({
       path: { conversationId: conversation.late_conversation_id },
       query: { accountId: channel.late_account_id },
@@ -133,19 +134,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Channel not found or missing Zernio account ID" }, { status: 404 });
   }
 
-  const { data: workspace } = await supabase
-    .from("workspaces")
-    .select("late_api_key_encrypted")
-    .eq("id", conversation.workspace_id)
-    .single();
+  // La conversación ya se leyó con el cliente del usuario, así que la RLS (y el
+  // scope de leads) autorizó el acceso. La clave se lee con el cliente de
+  // servicio porque un Member no tiene permiso sobre Vault y sí tiene que poder
+  // responder sus propias conversaciones: la clave nunca sale del servidor.
+  const apiKey = await getZernioApiKey(await createServiceClient(), conversation.workspace_id);
 
-  if (!workspace?.late_api_key_encrypted) {
+  if (!apiKey) {
     return NextResponse.json({ error: "API key not configured" }, { status: 400 });
   }
 
   // Send via Zernio SDK — Zernio stores the message, no local insert needed
   try {
-    const zernio = createZernioClient(workspace.late_api_key_encrypted);
+    const zernio = createZernioClient(apiKey);
     const res = await zernio.messages.sendInboxMessage({
       path: { conversationId: conversation.late_conversation_id },
       body: { accountId: channel.late_account_id, message: text },

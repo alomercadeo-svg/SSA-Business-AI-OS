@@ -23,7 +23,12 @@ import { cn } from "@/lib/utils";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import type { Database } from "@/lib/types/database";
 
-type Workspace = Database["public"]["Tables"]["workspaces"]["Row"];
+// Solo las columnas que getWorkspace() trae a la UI: la fila completa incluye
+// secretos que no deben serializarse a un Client Component.
+type Workspace = Omit<
+  Database["public"]["Tables"]["workspaces"]["Row"],
+  "late_api_key_encrypted" | "ai_api_key" | "webhook_secret"
+>;
 
 interface WorkspaceItem {
   id: string;

@@ -72,10 +72,16 @@ export interface Database {
           id: string;
           name: string;
           slug: string;
+          /**
+           * OJO: estas dos columnas siguen existiendo pero YA NO SE LEEN. Las
+           * API keys viven en Supabase Vault (lib/vault.ts). Se borran en
+           * 00021_drop_plaintext_key_columns, y con ellas estos campos.
+           */
           late_api_key_encrypted: string | null;
           ai_api_key: string | null;
           ai_provider: string;
           global_keywords: Json | null;
+          unassigned_leads_visible_to_members: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -87,6 +93,7 @@ export interface Database {
           ai_api_key?: string | null;
           ai_provider?: string;
           global_keywords?: Json | null;
+          unassigned_leads_visible_to_members?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -98,6 +105,7 @@ export interface Database {
           ai_api_key?: string | null;
           ai_provider?: string;
           global_keywords?: Json | null;
+          unassigned_leads_visible_to_members?: boolean;
           updated_at?: string;
         };
         Relationships: [];
@@ -194,6 +202,9 @@ export interface Database {
           is_subscribed: boolean;
           last_interaction_at: string | null;
           metadata: Json | null;
+          /** Asignación: define el scope de lectura del lead para un Member (F3). */
+          setter_id: string | null;
+          vendedor_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -206,6 +217,8 @@ export interface Database {
           is_subscribed?: boolean;
           last_interaction_at?: string | null;
           metadata?: Json | null;
+          setter_id?: string | null;
+          vendedor_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -216,6 +229,8 @@ export interface Database {
           is_subscribed?: boolean;
           last_interaction_at?: string | null;
           metadata?: Json | null;
+          setter_id?: string | null;
+          vendedor_id?: string | null;
           updated_at?: string;
         };
         Relationships: [
@@ -1096,6 +1111,41 @@ export interface Database {
           b_id: string;
         };
         Returns: undefined;
+      };
+      /**
+       * Supabase Vault (00018_vault_setup.sql). No se llaman directo: el acceso
+       * pasa por lib/vault.ts, que es el único lugar que lee o escribe claves.
+       */
+      store_secret: {
+        Args: {
+          secret_name: string;
+          secret_value: string;
+          workspace_id: string;
+        };
+        /** id del secret en vault.secrets */
+        Returns: string;
+      };
+      read_secret: {
+        Args: {
+          secret_name: string;
+          workspace_id: string;
+        };
+        /** null cuando el secret no está configurado */
+        Returns: string | null;
+      };
+      delete_secret: {
+        Args: {
+          secret_name: string;
+          workspace_id: string;
+        };
+        /** true si había algo para borrar */
+        Returns: boolean;
+      };
+      is_workspace_manager: {
+        Args: {
+          ws_id: string;
+        };
+        Returns: boolean;
       };
     };
     Enums: {

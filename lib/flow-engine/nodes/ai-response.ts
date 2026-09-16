@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/database";
 import type { FlowExecutionContext, AiResponseNodeData } from "../types";
 import { createZernioClient } from "@/lib/zernio-client";
+import { getAiGatewayKey, getZernioApiKey } from "@/lib/vault";
 import { generateText, createGateway } from "ai";
 
 // Halt the run: continuing would let a downstream Send Message deliver the
@@ -24,19 +25,15 @@ export async function executeAiResponse(
   context: FlowExecutionContext,
   sessionId: string
 ) {
-  // Get workspace for Zernio API key + AI Gateway key
-  const { data: workspace } = await supabase
-    .from("workspaces")
-    .select("late_api_key_encrypted, ai_api_key")
-    .eq("id", context.workspaceId)
-    .single();
+  // Zernio API key + AI Gateway key, ambas desde Vault
+  const apiKey = await getZernioApiKey(supabase, context.workspaceId);
 
-  if (!workspace?.late_api_key_encrypted) {
+  if (!apiKey) {
     console.error("No Zernio API key for workspace:", context.workspaceId);
     return cancelRun(supabase, sessionId);
   }
 
-  const zernio = createZernioClient(workspace.late_api_key_encrypted);
+  const zernio = createZernioClient(apiKey);
 
   // Resolve late_account_id from channel if not in context
   let lateAccountId = context.lateAccountId;
@@ -99,7 +96,10 @@ export async function executeAiResponse(
 
   try {
     const model = data.model || "openai/gpt-4o-mini";
-    const aiGatewayKey = workspace.ai_api_key || process.env.AI_GATEWAY_API_KEY;
+    // Vault primero; AI_GATEWAY_API_KEY del entorno queda como fallback de
+    // self-hosting, que es el comportamiento que ya traía el fork.
+    const aiGatewayKey =
+      (await getAiGatewayKey(supabase, context.workspaceId)) ?? process.env.AI_GATEWAY_API_KEY;
     const gw = createGateway({ apiKey: aiGatewayKey || undefined });
     const result = await generateText({
       model: gw(model),

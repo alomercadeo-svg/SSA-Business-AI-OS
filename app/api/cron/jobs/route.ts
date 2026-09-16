@@ -548,16 +548,13 @@ async function processJob(
       const broadcast = recipient.broadcasts as { workspace_id: string } | null;
       if (!broadcast) return;
 
-      const { data: workspace } = await supabase
-        .from("workspaces")
-        .select("late_api_key_encrypted")
-        .eq("id", broadcast.workspace_id)
-        .single();
+      const { getZernioApiKey } = await import("@/lib/vault");
+      const apiKey = await getZernioApiKey(supabase, broadcast.workspace_id);
 
-      if (!workspace?.late_api_key_encrypted) return;
+      if (!apiKey) return;
 
       const { createZernioClient } = await import("@/lib/zernio-client");
-      const zernio = createZernioClient(workspace.late_api_key_encrypted);
+      const zernio = createZernioClient(apiKey);
 
       const channel = recipient.channels as { late_account_id: string } | null;
       if (!channel) return;
