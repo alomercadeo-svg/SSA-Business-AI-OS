@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import { requireManager } from "@/lib/workspace";
 import { scheduleBroadcastDelivery } from "@/lib/scheduler";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json, Platform } from "@/lib/types/database";
@@ -25,39 +26,29 @@ interface SegmentFilter {
  *
  * Resolves the broadcast's segment filter into contacts,
  * creates broadcast_recipients, and schedules delivery jobs.
+ *
+ * Solo Owner y Admin. La 00019 borró las policies de `scheduled_jobs` que
+ * dejaban a cualquier usuario autenticado encolar trabajo que el servidor
+ * ejecuta, y esta ruta encola con service role: es el único camino que le queda
+ * a un cliente para meter filas en esa cola. Sin la guarda no cerraríamos la
+ * puerta, la mudaríamos acá.
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ broadcastId: string }> }
 ) {
   const { broadcastId } = await params;
-  const supabase = await createClient();
 
-  // Auth check
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { data: membership } = await supabase
-    .from("workspace_members")
-    .select("workspace_id")
-    .eq("user_id", user.id)
-    .limit(1)
-    .single();
-
-  if (!membership) {
-    return NextResponse.json({ error: "No workspace" }, { status: 404 });
-  }
+  const { contexto, error: authError } = await requireManager();
+  if (authError) return authError;
+  const { workspace, supabase } = contexto;
 
   // Fetch the broadcast
   const { data: broadcast, error: broadcastErr } = await supabase
     .from("broadcasts")
     .select("*")
     .eq("id", broadcastId)
-    .eq("workspace_id", membership.workspace_id)
+    .eq("workspace_id", workspace.id)
     .single();
 
   if (broadcastErr || !broadcast) {
@@ -98,7 +89,7 @@ export async function POST(
   const filter = broadcast.segment_filter as unknown as SegmentFilter | null;
   const contactIds = await resolveContacts(
     supabase,
-    membership.workspace_id,
+    workspace.id,
     filter
   );
 
@@ -172,8 +163,14 @@ export async function POST(
     );
   }
 
-  // Schedule delivery
-  await scheduleBroadcastDelivery(supabase, broadcastId, recipientIds);
+  // Encolar la entrega. Va con service role y no con el cliente del usuario:
+  // desde la 00019 `scheduled_jobs` no tiene ninguna policy, así que ningún
+  // token de usuario puede insertar ahí. Lo único que corre con service role es
+  // el encolado; toda la resolución de contactos de arriba usa el cliente del
+  // usuario a propósito, para que la segmentación quede sujeta al scope de
+  // leads en lugar de saltearlo.
+  const serviceClient = await createServiceClient();
+  await scheduleBroadcastDelivery(serviceClient, broadcastId, recipientIds);
 
   return NextResponse.json({
     broadcastId,

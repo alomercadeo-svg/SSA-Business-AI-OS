@@ -17,6 +17,9 @@
  *   - una conversación asignada al Member            → tiene que verla
  *   - una conversación de otra persona               → NO tiene que verla
  *   - un mensaje de la conversación ajena            → NO tiene que verlo
+ *   - las satélite del lead ajeno (@, flow_session,
+ *     destinatario de difusión)                      → NO tiene que verlas
+ *   - la cola de scheduled_jobs                      → NO tiene que tocarla
  *
  * Uso:
  *   node scripts/verify-lead-scope.mjs
@@ -24,11 +27,14 @@
  * Crea y borra sus propios datos. La limpieza corre en un finally, así que
  * también se ejecuta si una comprobación falla o el script se corta.
  *
- * ESTADO ESPERADO HOY (antes de 00019_lead_scope_rls): FALLA.
- * Las policies que trae el fork son `for all using (is_workspace_member(...))`,
- * y como las policies permisivas se combinan con OR, cualquier miembro del
- * workspace ve todo. Verlo fallar es el punto: un script de verificación que
- * nunca falló no prueba nada.
+ * ESTADO ESPERADO: pasa en verde con 00019_lead_scope_rls aplicada.
+ *
+ * Antes de esa migración fallaba 11 de 19, y eso era el punto de partida: las
+ * policies que trae el fork son `for all using (is_workspace_member(...))`, y
+ * como las policies permisivas se combinan con OR, cualquier miembro del
+ * workspace veía todo. Un script de verificación que nunca falló no prueba
+ * nada. Si alguna vez vuelve a rojo, la primera sospecha es una policy
+ * permisiva agregada al lado de las de la 00019 en lugar de reemplazarlas.
  */
 
 import { readFileSync } from "node:fs";
@@ -139,7 +145,7 @@ async function tokenDe(email, password) {
 // ── Estado a limpiar ────────────────────────────────────────────────────────
 
 const sufijo = randomUUID().slice(0, 8);
-const limpiar = { usuarios: [], workspaces: [], canales: [], contactos: [] };
+const limpiar = { usuarios: [], workspaces: [], canales: [], contactos: [], flujos: [], difusiones: [] };
 let flagOriginal = null;
 let workspaceA = null;
 
@@ -313,6 +319,24 @@ async function main() {
     "un GET directo de la conversación ajena devuelve vacío",
     `data=${JSON.stringify(convPuntual.data).slice(0, 200)}`);
 
+  // Regresión, no scope: la bandeja marca como leído desde el NAVEGADOR, con el
+  // cliente del usuario. Si al reemplazar la policy `for all` del fork se
+  // olvidara la de UPDATE, esto devolvería 0 filas afectadas y el
+  // marcar-como-leído se rompería sin un solo error visible. Por eso se prueba
+  // acá y no a mano en la UI.
+  await admin(`conversations?id=eq.${convPropia}`, {
+    method: "PATCH",
+    body: JSON.stringify({ unread_count: 3 }),
+  });
+  await comoUsuario(token, `conversations?id=eq.${convPropia}`, {
+    method: "PATCH",
+    body: JSON.stringify({ unread_count: 0 }),
+  });
+  const trasMarcarLeido = await admin(`conversations?select=unread_count&id=eq.${convPropia}`);
+  check(trasMarcarLeido.data[0]?.unread_count === 0,
+    "el Member SÍ puede marcar como leída una conversación suya (unread_count)",
+    `quedó en ${trasMarcarLeido.data[0]?.unread_count}`);
+
   // ── 4. Mensajes ─────────────────────────────────────────────────────────
   console.log("\n4. Los mensajes heredan el scope de su conversación");
 
@@ -341,6 +365,52 @@ async function main() {
     "NO ve el contact_channels del lead ajeno (su @ de la red social)",
     `data=${JSON.stringify(satelite.data).slice(0, 200)}`);
 
+  // flow_sessions.variables es donde el motor guarda lo que capturó de la
+  // conversación: nombre, email, teléfono, respuestas. La policy del fork
+  // autorizaba vía flows, no vía contacto, así que se leía todo el workspace.
+  const { data: flujo } = await admin("flows", {
+    method: "POST",
+    body: JSON.stringify({ workspace_id: workspaceA, name: `scope-test-${sufijo}` }),
+  });
+  limpiar.flujos.push(flujo[0].id);
+
+  await admin("flow_sessions", {
+    method: "POST",
+    body: JSON.stringify({
+      contact_id: cAjeno,
+      flow_id: flujo[0].id,
+      channel_id: canal[0].id,
+      variables: { email_capturado: `ajeno-${sufijo}@ejemplo.com` },
+    }),
+  });
+
+  const sesiones = await comoUsuario(token, `flow_sessions?select=variables&contact_id=eq.${cAjeno}`);
+  check(Array.isArray(sesiones.data) && sesiones.data.length === 0,
+    "NO ve la flow_session del lead ajeno (los datos que capturó el flujo)",
+    `data=${JSON.stringify(sesiones.data).slice(0, 200)}`);
+
+  // broadcast_recipients autorizaba vía broadcasts. Las difusiones no se usan
+  // en la Etapa 1, pero la policy es consultable hoy.
+  const { data: difusion } = await admin("broadcasts", {
+    method: "POST",
+    body: JSON.stringify({ workspace_id: workspaceA, name: `scope-test-${sufijo}` }),
+  });
+  limpiar.difusiones.push(difusion[0].id);
+
+  await admin("broadcast_recipients", {
+    method: "POST",
+    body: JSON.stringify({
+      broadcast_id: difusion[0].id,
+      contact_id: cAjeno,
+      channel_id: canal[0].id,
+    }),
+  });
+
+  const destinatarios = await comoUsuario(token, `broadcast_recipients?select=id&contact_id=eq.${cAjeno}`);
+  check(Array.isArray(destinatarios.data) && destinatarios.data.length === 0,
+    "NO ve el broadcast_recipient del lead ajeno",
+    `data=${JSON.stringify(destinatarios.data).slice(0, 200)}`);
+
   // ── 6. Reasignación ─────────────────────────────────────────────────────
   console.log("\n6. Reasignar un lead cambia de inmediato quién lo ve");
 
@@ -361,12 +431,46 @@ async function main() {
     "al quitárselo, deja de verlo",
     `data=${JSON.stringify(trasQuitar.data).slice(0, 200)}`);
 
-  // ── 7. Escritura y borrado ──────────────────────────────────────────────
+  // ── 7. La cola de trabajos no la toca ningún token de usuario ───────────
+  // Se prueba con el token del Member, que SÍ es miembro del workspace, y no
+  // con un no-miembro. El motivo: `scheduled_jobs` no tiene `workspace_id`, así
+  // que la pertenencia no otorga nada y un no-miembro pasaría sin demostrar
+  // nada. Lo que se prueba es que ningún token de usuario toca esa tabla, sea
+  // miembro o no.
+  //
+  // Las tres policies que borró la 00019 autorizaban con `auth.uid() is not
+  // null`: cualquier usuario autenticado del proyecto podía encolar trabajo que
+  // el cron ejecuta, marcar la cola entera como completed y leer los payloads
+  // de todos los workspaces.
+  console.log("\n7. Ningún token de usuario lee ni escribe en scheduled_jobs");
+
+  const colaLeida = await comoUsuario(token, "scheduled_jobs?select=id,type,payload");
+  check(Array.isArray(colaLeida.data) && colaLeida.data.length === 0,
+    "un Member NO lee la cola de trabajos",
+    `status=${colaLeida.status} data=${JSON.stringify(colaLeida.data).slice(0, 200)}`);
+
+  const tipoDePrueba = `scope-test-${sufijo}`;
+  await comoUsuario(token, "scheduled_jobs", {
+    method: "POST",
+    body: JSON.stringify({
+      type: tipoDePrueba,
+      payload: { intruso: true },
+      run_at: new Date().toISOString(),
+    }),
+  });
+  // Se comprueba contra la base y no contra el código de estado: lo que importa
+  // es que la fila no exista, no cómo se rechazó el intento.
+  const colaTrasInsert = await admin(`scheduled_jobs?select=id&type=eq.${tipoDePrueba}`);
+  check((colaTrasInsert.data ?? []).length === 0,
+    "un Member NO puede encolar un trabajo que el cron ejecutaría",
+    `quedaron ${(colaTrasInsert.data ?? []).length} filas con type=${tipoDePrueba}`);
+
+  // ── 8. Escritura y borrado ──────────────────────────────────────────────
   // Va al final y sobre contactos dedicados: si las policies NO frenan el
   // borrado (como pasa con las del fork), el cascade se lleva las
   // conversaciones y los mensajes, y cualquier comprobación posterior daría un
   // falso verde imposible de atribuir.
-  console.log("\n7. Un Member no puede editar ni borrar un lead ajeno");
+  console.log("\n8. Un Member no puede editar ni borrar un lead ajeno");
 
   const cParaUpdate = await crearContacto({ display_name: `update-${sufijo}`, setter_id: otro.id });
   const cParaDelete = await crearContacto({ display_name: `delete-${sufijo}`, setter_id: otro.id });
@@ -404,14 +508,21 @@ async function cleanup() {
       body: JSON.stringify({ unassigned_leads_visible_to_members: flagOriginal }),
     }).catch(() => {});
   }
-  // El canal cascadea conversaciones y mensajes; el contacto cascadea el resto.
+  // El canal cascadea conversaciones y mensajes; el flujo y la difusión
+  // cascadean sus sesiones y destinatarios; el contacto cascadea el resto.
   for (const id of limpiar.canales) await admin(`channels?id=eq.${id}`, { method: "DELETE" }).catch(() => {});
+  for (const id of limpiar.flujos) await admin(`flows?id=eq.${id}`, { method: "DELETE" }).catch(() => {});
+  for (const id of limpiar.difusiones) await admin(`broadcasts?id=eq.${id}`, { method: "DELETE" }).catch(() => {});
   for (const id of limpiar.contactos) await admin(`contacts?id=eq.${id}`, { method: "DELETE" }).catch(() => {});
   for (const id of limpiar.usuarios) await auth(`admin/users/${id}`, { method: "DELETE" }).catch(() => {});
   for (const id of limpiar.workspaces) await admin(`workspaces?id=eq.${id}`, { method: "DELETE" }).catch(() => {});
+  // Por si el INSERT del Member sobre la cola llegara a pasar: sin esto, una
+  // corrida en rojo dejaría un trabajo encolado que el cron levantaría.
+  await admin(`scheduled_jobs?type=eq.scope-test-${sufijo}`, { method: "DELETE" }).catch(() => {});
   console.log(
     `  ${limpiar.usuarios.length} usuarios, ${limpiar.workspaces.length} workspaces, ` +
-    `${limpiar.canales.length} canales y ${limpiar.contactos.length} contactos de prueba borrados`
+    `${limpiar.canales.length} canales, ${limpiar.flujos.length} flujos, ` +
+    `${limpiar.difusiones.length} difusiones y ${limpiar.contactos.length} contactos de prueba borrados`
   );
 }
 

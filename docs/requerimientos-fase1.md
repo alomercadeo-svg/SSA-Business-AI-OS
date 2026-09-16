@@ -1206,7 +1206,7 @@ estaban previstas, así que la numeración efectiva se corre. Esta es la lista r
 | --- | --- | --- | --- |
 | `00017_lead_scope_columns.sql` | 1 | `contacts.setter_id`, `contacts.vendedor_id`, `workspaces.unassigned_leads_visible_to_members` e índices | **Aplicada** |
 | `00018_vault_setup.sql` | 1 | Extensión, funciones RPC y **copia** de las claves en texto plano. No borra columnas | **Aplicada** |
-| `00019_lead_scope_rls.sql` | 1 | `can_see_contact`, `can_see_conversation` y reemplazo de las policies del fork | Pendiente (Sesión B) |
+| `00019_lead_scope_rls.sql` | 1 | `can_see_contact`, `can_see_conversation`, reemplazo de las policies del fork en 13 tablas y borrado sin reemplazo de las de `scheduled_jobs` | **Aplicada** |
 | `00020_signup_respects_invite.sql` | 1 | Solo si hace falta: que `handle_new_user` no cree workspace propio al invitado | Condicional (Sesión B) |
 | `00021_drop_plaintext_key_columns.sql` | 1 | Borra `late_api_key_encrypted` y `ai_api_key` | Pendiente (Sesión B) |
 | `00022_extend_contacts.sql` y siguientes | 3 y 4 | La lista planificada de arriba, corrida cinco números | Pendiente |
@@ -1263,6 +1263,74 @@ agrega el costo de armar un valor compuesto por fila, ata la firma al rowtype de
 Bloque 3 extiende) y obliga a materializar el registro entero en las policies de las tablas
 satélite. Se mantiene el espíritu del criterio: una sola función helper usada en las policies de
 SELECT, UPDATE y DELETE de `contacts`.
+
+#### Decisiones de la 00019
+
+**El INSERT no es simétrico entre `contacts` y `conversations`.** Las policies del fork son
+`for all`, así que también eran las que habilitaban el INSERT: al reemplazarlas hubo que decidir
+quién crea cada cosa.
+
+- **`contacts`: insertan todos los miembros, con un `with check` de auto-asignación.** Un Member que
+  crea un lead tiene que quedar como `setter_id` o `vendedor_id`, o el insert falla; Owner y Admin
+  insertan libre. Sin ese `with check` el propio scope le esconde el contacto en la consulta
+  siguiente: el lead existiría, sin dueño y sin que su creador pueda verlo. Queda listo para el alta
+  manual y la importación CSV del Bloque 3 sin otra migración.
+- **`conversations`: el INSERT desde el navegador es solo de manager.** Las conversaciones nacen del
+  webhook, que entra con service role y se saltea la RLS. No hay caso legítimo de creación desde la
+  interfaz.
+
+**`conversations` necesita policy de UPDATE, y no es opcional.** La bandeja marca como leído desde
+el **navegador** (`inbox-view.tsx`, `update` de `unread_count` con el cliente del usuario) y
+`api/v1/messages` actualiza la conversación al enviar. Sin UPDATE las dos cosas fallan devolviendo
+cero filas afectadas, sin error visible en ningún lado.
+
+**`scheduled_jobs`: se borraron las tres policies de la 00009 y no se reemplazaron.** Autorizaban
+con `auth.uid() is not null` y la tabla no tiene `workspace_id`, así que cualquier usuario
+autenticado del proyecto podía encolar un job con el `type` que quisiera —que el cron ejecuta—,
+marcar la cola entera como `completed` dejando caer secuencias y resume de flujos en silencio, y
+leer los payloads de todos los workspaces. Con RLS activa y sin policies, Postgres niega todo para
+cualquier token de usuario; el cron y el motor de flujos entran con service role y no se ven
+afectados.
+
+Antes de borrarlas se verificaron los dos puntos de inserción. `lib/flow-engine/engine.ts`
+(`executeDelay`) está limpio: los tres puntos de entrada a `executeFlow` / `resumeSession` son el
+webhook, `processComment` —que tiene un solo llamador, el mismo webhook— y el cron, los tres con
+`createServiceClient()`. `lib/scheduler.ts` (`scheduleBroadcastDelivery`) **no** lo estaba: recibía
+el cliente con cookies desde `/api/v1/broadcasts/[id]/send`. Esa ruta se corrigió en el mismo
+commit: encola con service role, quedó detrás de una guarda de manager —pasa a ser el único camino
+que le queda a un cliente para meter filas en la cola, así que sin guarda la puerta no se cierra, se
+muda— y su sexta copia del `limit(1).single()` sobre `workspace_members` se reemplazó por el
+resolvedor de `lib/workspace.ts`.
+
+**`flow_sessions` y `broadcast_recipients` también entraron.** Las dos tienen `contact_id` y
+autorizaban vía `flows` y vía `broadcasts` con `is_workspace_member`. La primera es la más grave de
+las dos: `variables jsonb` es donde el motor guarda todo lo que capturó de la conversación —nombre,
+email, teléfono, respuestas—, así que un Member leía lo capturado de cualquier lead del workspace.
+
+#### Pendientes de rendimiento, para el Bloque 4
+
+**La medición de `EXPLAIN ANALYZE` de la consulta de la bandeja queda diferida.** Hoy la base tiene
+0 contactos y 0 conversaciones: medir sería un seq scan de cero filas con cualquiera de las dos
+formas del helper y no diría nada. Se hace en el Bloque 4, cuando la importación CSV permita cargar
+unos miles de contactos de prueba. **Cómo:** `SUPABASE_DB_URL` en `.env` más un
+`scripts/explain-inbox.mjs` versionado que haga `SET LOCAL ROLE authenticated` con los claims del
+Member y corra el `EXPLAIN ANALYZE` bajo RLS real. Hasta entonces el helper se queda como está: la
+decisión de pasarlo a forma inline se toma con datos, no antes.
+
+En la misma corrida se mide otra cosa: **el SELECT de `messages` hace una llamada a función por fila
+y cada una consulta `contacts`.** No se optimiza ahora.
+
+#### Deuda conocida que la 00019 no cubre
+
+- **`comment_logs`, para el Bloque 4.** Tiene `author_username`, `author_name` y `comment_text`, y
+  `author_username` es el mismo identificador que `contact_channels.platform_username`, así que se
+  correlaciona con un lead. Pero **no tiene `contact_id`**: arreglarla exige decidir antes si un
+  comentario pertenece a un lead o al workspace, y esa decisión no se toma todavía.
+- Las policies de INSERT y UPDATE de `broadcast_recipients` que agregó la 00009 siguen autorizando
+  por `is_workspace_member`. Son caminos de escritura, no de lectura.
+- `scheduleJob` (`lib/scheduler.ts`) es código muerto: no tiene ningún llamador.
+- **Los dos verificadores corren contra la base de producción.** Hoy está vacía y es tolerable;
+  cuando el negocio opere tienen que apuntar a una base local o de staging.
 
 ### Variables de entorno
 

@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { WORKSPACE_PUBLIC_COLUMNS } from "@/lib/safe-columns";
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
@@ -106,4 +107,46 @@ export const getWorkspace = cache(async (): Promise<WorkspaceContext> => {
  */
 export async function getWorkspaceOrNull(): Promise<WorkspaceContext | null> {
   return resolveWorkspace();
+}
+
+/** Roles que pueden configurar el workspace: Owner y Admin. */
+export function esManager(role: string): boolean {
+  return role === "owner" || role === "admin";
+}
+
+/**
+ * Para API routes que solo puede usar un Owner o un Admin.
+ *
+ * Devuelve el contexto, o la respuesta de error ya armada para que el handler
+ * la retorne. El rol lo resuelve el servidor a partir de la sesión: nunca sale
+ * de nada que mande el cliente.
+ *
+ * Distingue 401 de 403 a propósito. 401 es "no sé quién sos", que el cliente
+ * resuelve volviendo a entrar; 403 es "sé quién sos y no alcanza", que no se
+ * arregla reintentando.
+ */
+export async function requireManager(): Promise<
+  | { contexto: WorkspaceContext; error: null }
+  | { contexto: null; error: NextResponse }
+> {
+  const contexto = await resolveWorkspace();
+
+  if (!contexto) {
+    return {
+      contexto: null,
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
+  }
+
+  if (!esManager(contexto.role)) {
+    return {
+      contexto: null,
+      error: NextResponse.json(
+        { error: "Requiere rol de Owner o Admin" },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return { contexto, error: null };
 }
