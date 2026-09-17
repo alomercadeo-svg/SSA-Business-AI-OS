@@ -4,6 +4,7 @@
 
 **Versión:** 2.0, regenerada tras el cambio de canal de WhatsApp
 **Fecha:** 16 de septiembre de 2026
+**Revisión:** 17 de septiembre de 2026, migración desde Pipedrive y decisión de Calendly
 **Cliente:** negocio de servicios digitales (single-tenant)
 
 > Este documento reemplaza las secciones de Bloques 2, 3 y 4 del plano anterior. El Bloque 1 está construido, probado y publicado: su registro está en `claude/estado-fase1-bloque1.md` y en la rama `bloque-1-foundation`. Lo que sigue es autocontenido.
@@ -21,6 +22,12 @@ Tres cosas, y ninguna es cosmética.
 **La ventana de 24 horas deja de aplicar a WhatsApp.** Se conserva completa para Instagram, donde es una regla real de Meta. Para WhatsApp la reemplazan seis reglas de seguridad de secuencia, que protegen el número sin prohibir el trabajo. El modelo de ventana y plantillas no se borra: queda escrito y sin construir, para el plan B.
 
 Todo lo que sigue se apoya en `docs/investigacion-evolution-api.md`, que respondió cinco preguntas contra el código fuente de Evolution 2.3.7, citando archivo y línea.
+
+### Y qué cambió el 17 de septiembre
+
+El proyecto arrancó como ejercicio de curso con un cliente de ejemplo. El cliente real usa dos herramientas que este plano no contemplaba: **Pipedrive** como CRM actual, con contactos y tratos que hay que migrar, y **Calendly** para agendar reuniones, sin ninguna conexión con el CRM.
+
+Los dos exports se analizaron contra los datos reales, 526 personas y 517 tratos, y de ahí salieron tres cosas: **F38**, la migración desde Pipedrive, al final del Bloque 4; **diez columnas nuevas en `contacts`**, siete de estado comercial heredado y tres de estado de agenda; y la decisión de construir una **integración de solo lectura con Calendly en la Fase 2**, con una de sus definiciones tomada desde ahora porque condiciona cómo se arma el flujo. Todos los números que aparecen en esas secciones salen del análisis, no de estimaciones.
 
 ---
 
@@ -55,7 +62,7 @@ El motor de secuencias de la Fase 2 va a consumir las reglas de seguridad y el e
 |---|---|---|---|
 | Bloque 2: Infraestructura de canal, email e integraciones | 1 a 2 | Despliegue de Evolution, receptor de webhook autenticado, email por Resend, pantalla de integraciones y BYOK de IA | `integration_configs`, Vault, Railway, `/settings/integrations` |
 | Bloque 3: Modelo de contacto, ingesta y CRM | 3 a 4 | Modelo de contacto, identidad de canal, guardado de mensajes, adjuntos, deduplicación cross-canal, notas, ficha, borrado suave, registro de auditoría | `contacts`, `contact_channels`, `messages`, `conversations`, Supabase Storage |
-| Bloque 4: Bandeja, herramientas y reglas de seguridad | 5 a 6 | Bandeja, filtros, respuestas rápidas, no contactar, reglas de seguridad de secuencia, importación CSV, estado de sesión | Bandeja, `response_templates`, `channels` |
+| Bloque 4: Bandeja, herramientas y reglas de seguridad | 5 a 6 | Bandeja, filtros, respuestas rápidas, no contactar, reglas de seguridad de secuencia, importación CSV, migración desde Pipedrive, estado de sesión | Bandeja, `response_templates`, `channels` |
 | Testing de fase | 7 | Testing completo, correcciones y colchón | |
 
 **Nota sobre el tamaño del Bloque 3.** Es el más cargado de los tres. En el Bloque 1 aprendimos que un bloque demasiado grande obliga a partirlo a mitad de camino, con la memoria de la sesión ya gastada justo en el paso más delicado. Conviene planificar el Bloque 3 partido desde el principio: una sesión para el modelo de contacto y la identidad de canal, otra para la ingesta, los adjuntos y la deduplicación.
@@ -462,6 +469,65 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [ ] Barra de progreso y resumen final con importados, actualizados y errores con detalle
 - [ ] Todo queda en el historial de auditoría
 
+#### F38: Migración desde Pipedrive
+
+**Descripción:** traer al sistema los contactos y el estado comercial que hoy viven en Pipedrive, una sola vez, de forma verificable y repetible. Va después de F37 porque se apoya en el importador de planilla.
+
+Los números salen del análisis de los dos exports reales el 17 de septiembre de 2026: 526 personas y 517 tratos. No son estimaciones.
+
+**Qué entra y qué no:**
+
+| Qué | Cuántos | Cómo entra |
+|---|---|---|
+| Personas de Pipedrive | 526 | Importación de planilla, todas |
+| Tratos que no son "IG DM" | 399 | Aplanados en el contacto: etapa, estado, valor, moneda, fecha de cierre |
+| Tratos "IG DM" | 118 | **No se migran.** Los trae la conexión de Instagram |
+| Los 30 "IG DM" calificados | 30 | Marcado manual en la bandeja, después de conectar el canal |
+| Motivo de pérdida | 401 | Como nota en el contacto |
+
+**Por qué los leads de Instagram no se migran.** 118 de los 517 tratos tienen "IG DM" en el título y ninguno corresponde a una persona del CRM: son conversaciones de Instagram anotadas como tratos, y explican 116 de los 119 tratos sin contacto. **Ninguno tiene el usuario de Instagram**: se revisaron los 118 títulos y cero contienen una arroba. La forma es "IG DM - Nombre Apellido", varios con emoji y tipografías decorativas, que es como se ve un nombre para mostrar, no un usuario. El nombre para mostrar no sirve como identificador: se cambia cuando uno quiere y no es único, y el canal de Instagram identifica por usuario.
+
+Al conectar la cuenta, el proveedor reproduce el historial de mensajes directos y esas conversaciones crean los contactos solas, con el usuario real, el nombre real y el hilo completo. Pipedrive tiene un nombre visible y una etapa; Instagram tiene la conversación entera. Se comprobó empíricamente el 16 de septiembre: al conectar una cuenta entraron 33 conversaciones con sus contactos, en segundos.
+
+Lo único que se pierde es la etapa, y vale poco: de los 118, 81 están en "1. Nuevo contacto" o "2. Le escribí", que significan "no hice nada" y "le escribí", y se recuperan abriendo la conversación. Los que tienen criterio propio son unos 30, repartidos en "4. ¿Es mi cliente?" (19), "3. Respondió" (5), "11. Seguimiento intensivo" (3) y "5. Le ofrecí una cita" (2). Esos se marcan a mano en la bandeja, una vez.
+
+**Por qué se migran las 526 personas y no solo las activas:**
+
+| Segmento | Con teléfono o correo | Sin ninguno | Total |
+|---|---|---|---|
+| Con trato abierto | 2 | 6 | 8 |
+| Con trato ganado, o sea clientes | 31 | 13 | 44 |
+| Solo con tratos perdidos | 209 | 118 | 327 |
+| Sin ningún trato | 139 | 8 | 147 |
+
+Migrar solo los activos dejaría 8 contactos y tiraría 44 clientes. Y sobre todo tiraría los 327 de tratos perdidos, de los cuales 209 son contactables: ese es exactamente el grupo que el sistema existe para trabajar. El negocio ya lo sabe, tiene una etapa llamada "14. Repesca" y otra llamada "11. Seguimiento intensivo".
+
+El argumento decisivo es la asimetría del error: **dejar afuera es irreversible en la práctica, traer de más se corrige mirando.** Si se filtra ahora y en un mes alguien busca un nombre y no aparece, no va a poder distinguir entre "esa persona nunca fue lead" y "la dejamos afuera en la migración". Y 526 filas no cuestan nada. Lo que sí se hace es marcar, no descartar: una etiqueta de origen con la fecha de la migración, más la columna `deal_status`, y con eso la bandeja filtra lo que no quiere ver sin que haya que borrar nada.
+
+**Los dos teléfonos de Pipedrive son un solo campo partido en dos.** Ninguna de las 526 personas tiene los dos cargados, ninguna: no son principal y secundario, la persona que carga usa uno o el otro. "Móvil" tiene 153 valores, limpios, con código de país en 149. "Trabajo" tiene 190, de los cuales 132 son ocho dígitos pelados **sin código de país**. Y hay basura que rompe la normalización en silencio: varios valores traen un apóstrofe inicial, artefacto de planilla de cálculo, y once traen caracteres Unicode invisibles de dirección de texto.
+
+**El campo "Whatsapp chat link" no sirve como fuente de teléfono.** Se verificó contra los teléfonos de las 185 personas que lo tienen: cero coincidencias. Es un identificador interno de la herramienta que lo genera, no un número. Y las 185 que lo tienen ya tienen teléfono, así que tampoco aporta cobertura.
+
+**Criterios de aceptación:**
+
+- [ ] El importador de F37 mapea columnas a `pipeline_stage`, `deal_status`, `deal_value`, `deal_currency`, `deal_closed_at`, `pipedrive_person_id` y `pipedrive_deal_id`. Hoy solo mapea a las columnas centrales del contacto
+- [ ] La unión de personas y tratos se hace **fuera del sistema**, en una planilla, produciendo un solo archivo con una fila por contacto. El importador no resuelve la unión
+- [ ] Limpieza del teléfono antes de normalizar: se quitan el apóstrofe inicial y los caracteres Unicode invisibles de dirección de texto
+- [ ] El teléfono sale de "Móvil" y, si está vacío, de "Trabajo"
+- [ ] Los números que ya traen código de país se usan tal como vienen
+- [ ] **El código de país por defecto es configuración, no una constante en el código.** Vive como ajuste del espacio de trabajo, y la pantalla de importación permite cambiarlo para esa importación puntual. Hoy el 99 por ciento de los leads es de Costa Rica, pero la pauta puede dirigirse a otros países de la región, y ahí un `+506` cableado convertiría un número panameño de ocho dígitos en un número costarricense **válido y equivocado**, que es peor que un error. Es el mismo criterio que el proyecto ya aplica a las ventanas de mensajería: configuración del canal, no condicionales en el código
+- [ ] Cada fila que se normalizó usando el valor por defecto queda marcada en el resumen de la importación, para poder revisar cuáles fueron
+- [ ] **La normalización nunca adivina en silencio:** si un número no se puede normalizar, la fila queda con el error en el resumen, no con un valor inventado
+- [ ] Todos los contactos migrados reciben una etiqueta de origen con la fecha
+- [ ] `pipeline_stage` y `deal_status` rechazan cualquier valor fuera de su lista, en la base de datos
+- [ ] **Control de la migración, afirmativo:** la cantidad de filas con `pipedrive_deal_id` no nulo coincide con la cantidad de tratos no "IG DM" del export. Si no coinciden, falta algo y se sabe cuánto. Sin esta comprobación, "el importador dijo 399 filas" no distingue entre 399 de 399 y 399 de 412
+- [ ] La importación es repetible: correrla dos veces actualiza en vez de duplicar, y el conteo de control da lo mismo
+- [ ] Cada motivo de pérdida entra como una nota en `contact_notes`, con una marca de que vino de la migración. Son 401 tratos con 78 valores distintos de texto libre: **no se crea una columna para esto**, porque 78 valores de texto libre no son un vocabulario. Es la única fuente que el negocio tiene de *por qué* los leads no convierten, y es justo lo que el agente de IA de la Fase 3 va a querer leer
+- [ ] **Se escribe explícito y se prueba:** un contacto sin ningún canal no puede darse de alta en una secuencia. Son 145 de las 526, que no tienen ni teléfono ni correo: nunca van a corresponder con un mensaje entrante y no se les puede escribir. Estructuralmente ya no debería poder, porque una secuencia necesita un canal, pero eso es una suposición sobre el motor y el requerimiento no se apoya en suposiciones
+- [ ] La prueba lleva su control afirmativo al lado: un contacto **con** canal sí se da de alta
+
+> **Excepción explícita a la validación de F37.** F37 pide "al menos uno de los dos presente" entre correo y teléfono. La migración de F38 entra 145 personas que **no tienen ninguno de los dos**, y eso es deliberado: son parte de los 526 que se decidió traer enteros. El importador tiene que admitir esa combinación cuando la importación viene marcada como migración, y esos contactos quedan con la restricción de arriba, que no puedan entrar en secuencias. Si la validación de F37 se implementa sin contemplar esto, la migración pierde 145 contactos y el conteo de control no lo detecta, porque el control cuenta tratos y estas personas en su mayoría no tienen trato.
+
 ### Funcionalidades de fases siguientes, que no se construyen ahora
 
 | Funcionalidad | Destino |
@@ -469,6 +535,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 | Motor de secuencias de seguimiento | Fase 2 |
 | Agente de respuesta automática | Fase 2 |
 | Difusiones y envíos masivos | Fase 2 |
+| Integración de solo lectura con Calendly: estado de agenda en el contacto y condición en las secuencias | Fase 2 |
 | Email bidireccional | Etapa 2 |
 | Agente de IA integral con base de conocimiento | Fase 3 |
 | Analíticas y tablero de métricas | Fase 3 |
@@ -559,6 +626,23 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Casos de error:** sin firma válida se rechaza. Fuera de la ventana, la bandeja no deja escribir texto libre y lo explica.
 
+### Flujo 6: Migración desde Pipedrive
+
+**Descripción:** el camino completo de la migración, una sola vez. Corresponde a F38.
+
+1. El negocio exporta desde Pipedrive dos archivos, personas y tratos.
+2. Fuera del sistema, en una planilla, se unen por identificador de persona y se descartan los tratos con "IG DM" en el título. Queda un solo archivo con una fila por contacto.
+3. Se revisa esa planilla con los ojos antes de tocar la base de datos.
+4. Se importa con el flujo de F37, mapeando también las columnas comerciales.
+5. El sistema normaliza teléfonos, deduplica por teléfono o correo, y crea o actualiza.
+6. Se corre el control de la migración: cantidad de filas con identificador de trato contra cantidad de tratos del export.
+7. Se conecta el canal de Instagram. El proveedor reproduce el historial y crea los contactos de los leads de Instagram, con su usuario real.
+8. El negocio marca a mano en la bandeja los treinta leads de Instagram que estaban calificados.
+
+**Resultado exitoso:** los 526 contactos con su estado comercial, los leads de Instagram con su conversación completa, y los conteos que cuadran.
+
+**Casos de error:** si el conteo del paso 6 no cuadra, la migración no se da por buena y se revisa la planilla del paso 2. Si un teléfono no se puede normalizar, la fila entra con el error listado, no con un número inventado.
+
 ---
 
 ## 7. Modelo de datos
@@ -581,6 +665,16 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 | contacts | ai_conversation_summary | text | No | Resumen generado, se usa en Fase 3 |
 | contacts | attribution | jsonb | Sí | Primer y último clic de origen |
 | contacts | deleted_at | timestamptz | No | Marca de borrado suave |
+| contacts | pipeline_stage | text | No | Etapa del embudo heredado, con restricción de valores. Solo se llena en contactos migrados |
+| contacts | deal_status | text | No | `abierto`, `ganado` o `perdido`, con restricción de valores |
+| contacts | deal_value | numeric | No | Valor del trato |
+| contacts | deal_currency | text | No | Moneda del valor: en los datos migrados, `USD` o `CRC`. Sin esto el valor no significa nada |
+| contacts | deal_closed_at | date | No | Fecha de cierre, ganado o perdido |
+| contacts | pipedrive_person_id | text | No | Identificador de origen. Es el control de la migración, ver F38 |
+| contacts | pipedrive_deal_id | text | No | Identificador del trato de origen |
+| contacts | booking_status | text | No | `sin_agendar`, `agendada`, `asistio`, `no_asistio`, `cancelada`. Lo escribe la Fase 2 |
+| contacts | booking_at | timestamptz | No | Fecha y hora de la reunión agendada. Lo escribe la Fase 2 |
+| contacts | booking_external_id | text | No | Identificador de la reserva en el proveedor de agenda. Lo escribe la Fase 2 |
 | contact_channels | raw_jid | text | Sí | Identificador tal como llegó, sin transformar |
 | contact_channels | addressing_mode | text | No | Cómo se direccionó el mensaje |
 | messages | platform_message_id | text | Sí | Identificador del proveedor |
@@ -606,6 +700,46 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 Sacarle el `NOT NULL` destapó un error que ya estaba latente en el código heredado. El bucle que desactiva canales cuyas cuentas de Zernio dejaron de existir compara contra un conjunto de identificadores: con el valor en nulo la comparación da negativa siempre, así que **cada vez que alguien apretara "Sincronizar" en la pantalla de canales, el canal de WhatsApp quedaría desactivado**, y a partir de ahí todos los mensajes entrantes se rechazarían sin síntoma. Se corrige salteando los canales que no son de Zernio en ese bucle, con su prueba afirmativa al lado: un canal de Zernio cuya cuenta ya no existe **tiene** que seguir desactivándose, porque si la guarda queda mal escrita la sincronización deja de limpiar y nadie se entera.
 
 **Alcance de lo que se construye en el Bloque 2:** del bloque de columnas de `channels` de esta tabla, el Bloque 2 agrega solamente `provider`, `instance_name` y el cambio de `late_account_id`, que es lo mínimo para resolver instancia → canal → espacio de trabajo y poder leer el secreto. `session_state`, `session_checked_at` y `safety_config` van en el Bloque 4, con las funcionalidades que las usan.
+
+#### El estado comercial heredado: por qué son columnas y no campos personalizados
+
+Las siete columnas que van de `pipeline_stage` a `pipedrive_deal_id` guardan el estado comercial que hoy vive en Pipedrive, el CRM actual del negocio. Se llenan solo en los contactos que entran por la migración de F38.
+
+**La etapa es una columna con restricción de valores, no un campo personalizado ni una etiqueta.** Los campos personalizados del sistema tienen seis tipos (texto, número, booleano, fecha, url, correo) y **ninguno es de lista**: la etapa quedaría como texto libre y en dos semanas habría "Negociación", "negociacion" y "En negociación" como tres etapas distintas. Las etiquetas tampoco sirven, porque permiten dos etapas a la vez y un contacto está en exactamente una. Con una columna y su restricción, la exclusividad y el vocabulario los garantiza la base de datos, no la disciplina de nadie.
+
+**Los trece valores de `pipeline_stage`**, tal como los escribe el negocio:
+
+```
+1. Nuevo contacto
+2. Le escribí
+3. Respondió
+4. ¿Es mi cliente?
+5. Le ofrecí una cita
+6. Agendó
+7. Confirmó asistencia
+8. No llegó
+9. Reagendó
+11. Seguimiento intensivo
+12. En espera de pago
+13. ¡Cerrada!
+14. Repesca
+```
+
+La numeración salta del 9 al 11: el embudo no tiene etapa 10. Se transcribe como está, con la numeración adentro del texto, para que coincida carácter por carácter con el export y la importación no falle por una tilde.
+
+**La etapa y el estado son dos cosas independientes, y por eso son dos columnas.** El cruce de los 517 tratos del export lo muestra sin lugar a dudas: **253 están en "1. Nuevo contacto" y a la vez perdidos.** La etapa dice dónde quedó la conversación; el estado dice qué pasó con el trato. Con una sola columna, esos 253 contactos parecerían leads nuevos sin trabajar.
+
+**`deal_currency` no es opcional en la práctica.** De los 517 tratos, 363 están en dólares y 154 en colones. Un valor sin moneda es un número sin significado. El 87 por ciento de los tratos tiene valor cero, así que la columna va a venir casi vacía de todos modos: se agrega para que los 68 que sí tienen valor sean legibles. **No lleva restricción de valores en la base**, a diferencia de `pipeline_stage` y `deal_status`: la lista de monedas no es un vocabulario cerrado del negocio, y cablear dos monedas sería el mismo error que cablear un código de país, que F38 rechaza explícitamente.
+
+**No se agrega fecha esperada de cierre:** solo 3 de los 517 tratos la tienen.
+
+#### Las tres columnas de agenda se agregan ahora y las escribe la Fase 2
+
+`booking_status`, `booking_at` y `booking_external_id` no las escribe nada de esta fase. Se agregan igual, por la misma razón que `ai_conversation_summary` y `lead_temperature`: el modelo contempla lo que viene para no migrar datos después. Las llena la integración de solo lectura con Calendly de la Fase 2, y el día que exista el agendador propio de la Etapa 4 las escribe él, sin cambio de esquema. El detalle está en la sección 13.
+
+#### Estas columnas van en una migración nueva
+
+Ninguna de las columnas de `contacts` de esta sección está aplicada todavía: hoy la tabla tiene las del fork más `setter_id` y `vendedor_id` de la 00017. Las diez columnas nuevas de este bloque se aplican **en el mismo lote que el resto de las extensiones de `contacts` del Bloque 3**, en una migración numerada propia, idempotente, sin tocar ninguna migración ya aplicada.
 
 ### 7.2 Tablas nuevas
 
@@ -857,6 +991,7 @@ La personalización de marca del negocio, si en algún momento hace falta, se co
 | Difusiones y envíos masivos | Fase 2 | La tabla ya existe en el fork y se conserva |
 | Agente de IA integral | Fase 3 | Lee el historial que se empieza a guardar en el Bloque 3 |
 | Analíticas y tablero de métricas | Fase 3 | Solo son posibles porque los mensajes se guardan |
+| Integración de solo lectura con Calendly | Fase 2 | Escribe las tres columnas de agenda que esta fase agrega al contacto. Ver abajo: una de sus decisiones se toma ahora |
 
 ### Para etapas futuras
 
@@ -869,6 +1004,32 @@ La personalización de marca del negocio, si en algún momento hace falta, se co
 | Meta Ads | Etapa 2 | |
 | Fathom y conector MCP | Etapa 3 | |
 | Agendamiento y pipeline comercial | Etapa 4 | Opcional |
+
+### Lo que la migración desde Pipedrive deja afuera
+
+| Funcionalidad | Destino | Nota |
+|---|---|---|
+| Los 118 tratos "IG DM" de Pipedrive | No se migran nunca | Los trae la conexión de Instagram, con mejores datos. Ver F38 |
+| El historial de tratos cerrados más allá del último | Fuera del proyecto | 15 personas tienen más de un trato, todos cerrados. El modelo aplanado guarda el último; el resto queda en Pipedrive como archivo |
+| Reemplazo de Calendly por un agendador propio | Etapa 4, Fase 1 | La integración de la Fase 2 es de solo lectura y no lo adelanta |
+
+### Calendly: se construye en la Fase 2, pero una decisión se toma ahora
+
+**El problema no es de integración, es de secuencia.** La descripción del proyecto dice que el sistema da seguimiento automático *a los leads que no agendan*. Para saber quién no agendó, el sistema tiene que saber quién sí. Y agendar pasa en Calendly, que el brief lista explícitamente como "sin integración al CRM".
+
+El agendador propio es Etapa 4. Las secuencias de seguimiento son Fase 2. Entre esos dos momentos hay meses donde las secuencias correrían sin saber quién agendó, y el modo de falla es concreto: un lead agenda por Calendly y no responde el mensaje. Las secuencias se pausan cuando el contacto **responde**, no cuando agenda. La secuencia sigue y el sistema le manda "¿querés que agendemos?" a alguien que tiene la reunión confirmada para el martes.
+
+**La decisión: se construye una integración de solo lectura con Calendly en la Fase 2.** No reemplaza nada, y el agendador propio sigue siendo Etapa 4 sin cambios. Su alcance son tres cosas: un receptor de avisos para reserva creada y reserva cancelada, la escritura de `booking_status` y `booking_at` en el contacto, y una condición en las secuencias que excluya a los contactos con reunión agendada.
+
+**El 80 por ciento de ese trabajo sobrevive a la Etapa 4.** Las columnas de estado de agenda y la condición de las secuencias son exactamente lo que el agendador propio va a escribir y leer cuando exista. Lo único que se borra el día de la migración es el receptor de avisos.
+
+> #### Lo que no se puede postergar, aunque la integración sea de Fase 2
+>
+> **El enlace de Calendly que manda el flujo tiene que generarse por contacto, con el identificador del contacto en un parámetro de seguimiento.** El receptor lo lee de vuelta y hace la correspondencia por ahí.
+>
+> El motivo: Calendly entrega correo, y teléfono si el formulario lo pide. La deduplicación del sistema es por teléfono normalizado o correo. **Un lead que llegó por Instagram no tiene ninguno de los dos** hasta que los da. Una reserva de ese lead no corresponde con ningún contacto: crea uno nuevo, duplicado, y el contacto de Instagram sigue marcado como que no agendó.
+>
+> Esto define cómo se arma el nodo del flujo en la Fase 2, así que se decide ahora o se rehace después.
 
 ### Especificado pero no construido, para el plan B
 
@@ -893,6 +1054,12 @@ La personalización de marca del negocio, si en algún momento hace falta, se co
 |---|---|
 | Las conversaciones existen en dos bases | Evolution se despliega con el guardado de historial activado, así que copia cada mensaje a su propio PostgreSQL de Railway, además de Supabase, que es la fuente de verdad. Hoy se justifica por dos motivos: habilita el endpoint de historial, que es la vía limpia para una importación inicial, y mientras F27 no exista es la única red de contención si el receptor falla. **Punto de revisión: cuando F27 esté construido y probado, esa copia deja de ser red de contención y pasa a ser redundancia.** Ahí se decide si se apaga el guardado o si se le define una retención a la base de Evolution. Son conversaciones con clientes creciendo en un lugar donde nadie definió por cuánto tiempo, y eso no puede quedar sin decidir por omisión |
 
+### Una decisión operativa que queda abierta, fuera del sistema
+
+**La automatización que alimenta Pipedrive desde Instagram queda redundante y conviene apagarla.** Hoy hay una automatización por API que crea un trato por cada conversación nueva de Instagram, con el nombre para mostrar. Una vez conectado el canal, el sistema recibe esas mismas conversaciones por su propia vía, con el usuario real y el hilo completo.
+
+Si esa automatización sigue corriendo después de la migración, Pipedrive se sigue llenando de tratos que nadie va a leer, y aparece la duda de cuál de los dos sistemas tiene el dato bueno. Apagarla es parte de dar por terminada la migración, no un detalle posterior.
+
 ---
 
 ## 14. Decisiones transversales
@@ -913,6 +1080,7 @@ La personalización de marca del negocio, si en algún momento hace falta, se co
 | Claves de terceros | Supabase Vault. Rotación manual desde la interfaz. Si una clave vence, el sistema avisa y degrada esa integración sin romper el resto |
 | Patrón de avisos entrantes | Control de duplicados con registro de eventos, acuse inmediato antes de procesar, procesamiento en segundo plano, y verificación de autenticidad obligatoria. En Zernio es firma criptográfica; en Evolution es un dato firmado que caduca |
 | Patrón de envíos masivos y límites | Lotes con separación aleatoria, cola de envío, corte automático ante silencio, y franja horaria. Se construye como configuración en el Bloque 4 y lo usa el motor de la Fase 2 |
+| Estado comercial heredado | Un solo par etapa y estado por contacto, en columnas con restricción de valores. Se verificó en los datos: ninguna persona tiene un trato abierto y además uno cerrado. El pipeline comercial completo es Etapa 4 |
 
 ---
 
@@ -1016,6 +1184,12 @@ No se deciden leyendo documentación. Se instrumentan y se miran.
 | Si el mecanismo de autenticación del aviso sigue existiendo en versiones nuevas de Evolution | Volver a verificar contra el código en cada actualización | En cada actualización |
 | Consumo real de Railway con los servicios nuevos | Mirar el medidor la primera semana | Después del Bloque 2 |
 
+### Preguntas que ya se cerraron con el análisis de los datos
+
+- **El usuario de Instagram no está en Pipedrive, confirmado con el negocio.** Los contactos los importó una automatización por API que trajo únicamente el nombre para mostrar. No está en una nota ni en un campo sin exportar: no está. Eso cierra la pregunta y confirma la decisión de no migrar los 118 tratos "IG DM".
+- **Los 52 tratos abiertos sin persona son leads de Instagram.** No hay que "arreglarlos" en Pipedrive vinculándolos a una persona: no existe la persona porque no hay teléfono, correo ni usuario. Crear fichas con un nombre para mostrar sería fabricar registros que tampoco corresponderían con nada.
+- **El código de país por defecto queda como configuración**, con Costa Rica como valor inicial. Ver los criterios de F38.
+
 ### Lo que se necesita antes de construir
 
 - El número dedicado de WhatsApp, todavía en trámite. No bloquea el Bloque 2 ni el 3, pero sí la conexión en vivo.
@@ -1026,3 +1200,8 @@ No se deciden leyendo documentación. Se instrumentan y se miran.
 El documento de **alcance** todavía tiene la Decisión 29 escrita a favor de la API oficial de WhatsApp, y el **anexo de integración de WhatsApp** sigue redactado como si fuera el camino principal en lugar del manual del plan B. Ninguno bloquea la construcción, pero los dos se leen distinto ahora, y si en algún momento se arma la propuesta comercial con `06-propuesta`, esos sí llegan al cliente.
 
 Mi recomendación es actualizarlos recién antes de la propuesta, no ahora: hoy no cambian ninguna decisión y el esfuerzo rinde más cuando el destinatario es alguien de afuera del proyecto.
+
+El análisis de los exports de Pipedrive agregó dos más, y el segundo pesa:
+
+- **La tabla de herramientas del brief** debería listar Pipedrive como CRM actual y Calendly como agendador, que son las dos herramientas reales del negocio.
+- **El brief y el alcance describen una agencia de diez a quince personas**, con 330.000 leads en otra plataforma, equipo de setters y closers, director comercial y un tablero para el CEO. El negocio real es bastante más chico: **un solo embudo, una sola persona en el CRM, 526 contactos**. El modelo de roles ya está construido y no cuesta nada dejarlo, pero la propuesta comercial no puede seguir hablando de ese tamaño de negocio. Se corrige al correr `06-propuesta`.
