@@ -2,47 +2,68 @@
 
 import { revalidatePath } from "next/cache";
 import { getWorkspaceAsManager } from "@/lib/workspace";
+import { createServiceClient } from "@/lib/supabase/server";
 import type { WebhookAlertCondition } from "@/lib/types/database";
 
 /**
  * Cierre manual de una condición del receptor de webhooks.
  *
- * Existe porque las dos condiciones se cierran solas por caminos distintos y
- * uno de los dos puede no llegar nunca:
+ * ── POR QUÉ ES IMPRESCINDIBLE, Y NO UNA COMODIDAD ───────────────────────────
  *
- *   * `webhook_auth_failed` se apaga con el primer aviso válido del workspace.
- *   * `webhook_unknown_instance` se apaga con un aviso válido DE LA INSTANCIA
- *     que figura en su detalle. Si esa instancia se borró en vez de arreglarse,
- *     ese aviso no va a llegar nunca y la condición quedaría abierta para
- *     siempre, gritando por algo que ya no existe.
+ * Para `webhook_unknown_instance` este es el ÚNICO cierre que existe. La 00023
+ * le sacó el cierre automático porque dependía de que el `detail` coincidiera
+ * con la instancia del aviso, y el `detail` guarda el nombre de la ÚLTIMA
+ * instancia desconocida, no el de la que causó el problema: con tres nombres,
+ * arreglar el que rompía de verdad no cerraba nada, y un nombre basura posterior
+ * lo desactivaba para siempre.
  *
- * Una alarma que no se puede apagar deja de ser una alarma: la próxima vez que
- * suene por algo real, nadie la va a mirar.
+ * `webhook_auth_failed` sí se cierra sola cuando entra un aviso válido de ese
+ * workspace, pero también se puede cerrar acá.
  *
- * La autorización la decide la base. `resolve_webhook_alert` está otorgada a
- * `authenticated` y adentro llama a `can_touch_webhook_alert`, que exige ser
- * manager del workspace de la alerta, o Owner de alguno si es una alerta de
- * sistema. Acá no se replica ese chequeo: duplicarlo invita a que las dos
- * copias se desincronicen.
+ * ── QUIÉN AUTORIZA, Y POR QUÉ HAY DOS CAMINOS ───────────────────────────────
+ *
+ * Las dos clases de alerta tienen dueños distintos, así que se cierran distinto:
+ *
+ *   * **Con workspace:** va con el cliente del usuario. `resolve_webhook_alert`
+ *     llama por dentro a `can_touch_webhook_alert`, que exige ser manager de ese
+ *     workspace. La base decide y acá no se replica el chequeo: duplicarlo
+ *     invita a que las dos copias se desincronicen.
+ *
+ *   * **De sistema** (`workspace_id` nulo): desde la 00023,
+ *     `can_touch_webhook_alert(null)` solo acepta `service_role`. Así que va con
+ *     el cliente de servicio, detrás de una guarda de rol explícita en el
+ *     servidor. Es la contraparte de cómo se leen en el banner, y el motivo es
+ *     el mismo: esa fila no es atribuible a ningún workspace, así que su
+ *     autorización no puede colgarse de la membresía a uno.
  */
 export async function resolverAlertaDeWebhook(formData: FormData): Promise<void> {
-  const { supabase } = await getWorkspaceAsManager();
+  const { supabase, role, workspace } = await getWorkspaceAsManager();
 
   const source = String(formData.get("source") ?? "");
   const condicion = String(formData.get("condition") ?? "") as WebhookAlertCondition;
   const workspaceId = formData.get("workspace_id");
-  const detalle = formData.get("detail");
 
   if (!source || !condicion) return;
 
-  const { error } = await supabase.rpc("resolve_webhook_alert", {
+  // El `workspace_id` del formulario no se usa como autorización: se compara
+  // contra el workspace de la sesión. Un formulario editado no puede cerrar la
+  // alerta de otro workspace.
+  const esDeSistema = !workspaceId;
+  const destino = esDeSistema ? null : workspace.id;
+
+  if (esDeSistema && role !== "owner") return;
+
+  const cliente = esDeSistema ? await createServiceClient() : supabase;
+
+  const { error } = await cliente.rpc("resolve_webhook_alert", {
     p_source: source,
     p_condition: condicion,
-    p_workspace_id: workspaceId ? String(workspaceId) : null,
-    // Se pasa el detalle exacto de la fila que se está cerrando: si entre que
-    // se pintó la pantalla y se apretó el botón llegó otro aviso con un nombre
-    // de instancia distinto, esto cierra la que se vio, no otra.
-    p_detail_match: detalle ? String(detalle) : null,
+    p_workspace_id: destino,
+    // Sin `p_detail_match`: la condición de sistema agrupa todas las instancias
+    // desconocidas en una fila, así que cerrar "la del detalle" no significa
+    // nada. Se cierra la condición entera, que es lo que la persona está
+    // diciendo al apretar el botón.
+    p_detail_match: null,
   });
 
   if (error) console.error("[webhook-alerts] no se pudo cerrar la alerta:", error.message);

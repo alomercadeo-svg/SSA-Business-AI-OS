@@ -1,4 +1,5 @@
 import { AlertTriangle } from "lucide-react";
+import { createServiceClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, WebhookAlertCondition } from "@/lib/types/database";
 import { resolverAlertaDeWebhook } from "./webhook-alerts-actions";
@@ -6,22 +7,33 @@ import { resolverAlertaDeWebhook } from "./webhook-alerts-actions";
 /**
  * Aviso de condiciones abiertas del receptor de webhooks.
  *
- * POR QUÉ ESTÁ EN ESTA PANTALLA Y NO EN OTRA
+ * POR QUÉ ESTÁ EN ESTA PANTALLA
  * Una tabla que nadie consulta es un diario, no una alerta. Este es el lugar
- * donde alguien va a mirar cuando sospeche que algo no está entrando, así que
- * es donde la condición tiene que ser visible.
+ * donde alguien va a mirar cuando sospeche que algo no está entrando.
  *
- * QUÉ SIGNIFICA QUE ESTO APAREZCA
- * Que estamos perdiendo mensajes, no que hubo un error recuperable. Verificado
- * en el código de Evolution 2.3.7: los códigos 401 y 404 están en la lista por
- * defecto de códigos que cancelan los reintentos, así que cada aviso rechazado
- * se descarta sin segunda oportunidad. Por eso el texto no dice "hubo un
- * problema": dice cuántos mensajes se perdieron y desde cuándo.
+ * ── DE DÓNDE SALE CADA FILA, Y POR QUÉ SON DOS CONSULTAS ────────────────────
  *
- * Lee con el cliente del usuario, no con el de servicio, así que la RLS de la
- * 00022 decide qué ve cada uno: las condiciones del workspace las ven sus
- * managers, y la de instancia desconocida, que no tiene workspace al que
- * atribuirse, solo el Owner.
+ * Las condiciones se leen por dos caminos distintos porque tienen dueños
+ * distintos:
+ *
+ *   * **Las del workspace** (`webhook_auth_failed`) se leen con el cliente del
+ *     usuario. La RLS de la 00022 las autoriza para Owner y Admin de ese
+ *     workspace, así que la base decide y acá no hace falta nada más.
+ *
+ *   * **Las de sistema** (`webhook_unknown_instance`, con `workspace_id` nulo)
+ *     NO tienen policy de lectura: nadie las lee por RLS. Se leen con el cliente
+ *     de servicio y una guarda de rol explícita, del lado del servidor.
+ *
+ * La asimetría no es comodidad. La 00022 había resuelto esto con una función
+ * `is_any_workspace_owner()` que se contradecía con su propio motivo: decía que
+ * una instancia desconocida no es atribuible a ningún workspace, y después
+ * dejaba que cualquier Owner de cualquier workspace la leyera. Hoy no se nota
+ * porque hay un solo workspace, pero el esquema del fork es multi-tenant, y el
+ * `detail` lleva el nombre de una instancia que en ese escenario sería de otro
+ * despliegue. La 00023 borró esa función.
+ *
+ * Este componente corre solo en el servidor, así que el cliente de servicio
+ * nunca cruza al navegador.
  */
 
 type Alerta = Pick<
@@ -63,40 +75,67 @@ function titulo(condicion: WebhookAlertCondition): string {
   }
 }
 
-function queHacer(alerta: Alerta): string {
-  switch (alerta.alert_condition) {
-    case "webhook_auth_failed":
-      return (
-        "Los mensajes llegan pero no se pueden verificar, así que se descartan. " +
-        "Casi siempre es un cambio de secreto a medio hacer: revisá que el secreto " +
-        "configurado en Evolution sea el mismo que está guardado en Vault. Mientras " +
-        "esto siga, cada mensaje nuevo se pierde."
-      );
-    case "webhook_unknown_instance":
-      return (
-        `Llegaron mensajes para la conexión "${alerta.detail ?? "sin nombre"}", que no ` +
-        "figura en ningún canal activo. Suele pasar cuando se renombra la conexión en " +
-        "Evolution y el canal queda apuntando al nombre viejo. Corregí el nombre para " +
-        "que vuelvan a entrar."
-      );
-    default:
-      return "Revisá la configuración del canal de WhatsApp.";
+/**
+ * El recuento, y por qué dice cosas distintas según la condición.
+ *
+ * En `webhook_auth_failed` un incremento ES un mensaje perdido: el 401 está en
+ * la lista de códigos que cancelan los reintentos de Evolution, así que ese
+ * evento no vuelve nunca.
+ *
+ * En `webhook_unknown_instance` NO. Ahí devolvemos 503, que sí se reintenta
+ * hasta diez veces, así que el mismo mensaje puede haber golpeado el endpoint
+ * varias veces y el número cuenta intentos de entrega, no mensajes. Además la
+ * condición tiene un tope de una actualización por minuto (00023), así que el
+ * número es un piso y no un total. Decir "mensajes perdidos" ahí sería
+ * directamente falso: todavía no se perdió ninguno.
+ */
+function recuento(alerta: Alerta): string {
+  if (alerta.alert_condition === "webhook_unknown_instance") {
+    return alerta.occurrences === 1
+      ? "1 intento de entrega rechazado"
+      : `${alerta.occurrences} intentos de entrega rechazados`;
   }
+  return alerta.occurrences === 1 ? "1 mensaje perdido" : `${alerta.occurrences} mensajes perdidos`;
 }
 
 export async function WebhookAlertsBanner({
   supabase,
+  workspaceId,
+  esOwner,
 }: {
+  /** Cliente del usuario: la RLS decide qué ve de su propio workspace. */
   supabase: SupabaseClient<Database>;
+  workspaceId: string;
+  /**
+   * Resuelto por la página contra la sesión. Es la guarda que reemplaza a la
+   * policy que borró la 00023: las alertas de sistema solo las ve el Owner.
+   */
+  esOwner: boolean;
 }) {
-  const { data } = await supabase
+  const { data: delWorkspace } = await supabase
     .from("webhook_alerts")
     .select(COLUMNAS)
+    .eq("workspace_id", workspaceId)
     .is("resolved_at", null)
     .order("last_seen_at", { ascending: false })
     .returns<Alerta[]>();
 
-  const alertas = data ?? [];
+  let deSistema: Alerta[] = [];
+  if (esOwner) {
+    // Sin policy de lectura, así que va por el cliente de servicio. La
+    // autorización es el `if` de arriba, resuelto en el servidor.
+    const servicio = await createServiceClient();
+    const { data } = await servicio
+      .from("webhook_alerts")
+      .select(COLUMNAS)
+      .is("workspace_id", null)
+      .is("resolved_at", null)
+      .order("last_seen_at", { ascending: false })
+      .returns<Alerta[]>();
+    deSistema = data ?? [];
+  }
+
+  const alertas = [...(delWorkspace ?? []), ...deSistema];
   if (alertas.length === 0) return null;
 
   return (
@@ -113,14 +152,45 @@ export async function WebhookAlertsBanner({
               {titulo(alerta.alert_condition)}
             </p>
 
-            <p className="mt-1 text-sm text-red-800 dark:text-red-200">
-              {queHacer(alerta)}
-            </p>
+            {/*
+              EL NOMBRE DE INSTANCIA ES TEXTO NO CONFIABLE: lo elige quien llama
+              al webhook. React escapa el contenido, así que no hay inyección de
+              HTML, pero quedan dos problemas reales y los dos se resuelven acá:
+
+                1. Romper el layout con una cadena larga sin espacios. Por eso
+                   `break-all`, además del `left(detail, 200)` de la 00023.
+                2. Hacerse pasar por texto de la interfaz, con algo como
+                   "ssa-whatsapp — contactá a soporte en este link". Por eso el
+                   nombre va SIEMPRE dentro de su propio <code>, y la frase de la
+                   interfaz queda afuera: el mensaje no se arma interpolando el
+                   nombre en una oración.
+            */}
+            {alerta.alert_condition === "webhook_unknown_instance" ? (
+              <div className="mt-1 space-y-1 text-sm text-red-800 dark:text-red-200">
+                <p>Los mensajes llegaron para esta conexión:</p>
+                <code className="block break-all rounded bg-red-100 px-1.5 py-1 font-mono text-xs dark:bg-red-900/50">
+                  {alerta.detail ?? "(sin nombre)"}
+                </code>
+                <p>
+                  No figura en ningún canal activo. Suele pasar cuando se renombra la conexión
+                  en Evolution y el canal queda apuntando al nombre viejo.
+                </p>
+                <p className="font-medium">
+                  Todavía no se perdió ningún mensaje: se están reintentando durante unos 20
+                  minutos. Corregí el nombre antes de que se agoten.
+                </p>
+              </div>
+            ) : (
+              <p className="mt-1 text-sm text-red-800 dark:text-red-200">
+                Los mensajes llegan pero no se pueden verificar, así que se descartan. Casi
+                siempre es un cambio de secreto a medio hacer: revisá que el secreto configurado
+                en Evolution sea el mismo que está guardado en Vault. Mientras esto siga, cada
+                mensaje nuevo se pierde.
+              </p>
+            )}
 
             <p className="mt-2 text-xs text-red-700 dark:text-red-300">
-              {alerta.occurrences === 1
-                ? "1 mensaje perdido"
-                : `${alerta.occurrences} mensajes perdidos`}
+              {recuento(alerta)}
               {" · desde el "}
               {cuando(alerta.first_seen_at)}
               {" · el último, "}
@@ -128,18 +198,18 @@ export async function WebhookAlertsBanner({
             </p>
           </div>
 
-          {/* El cierre manual existe porque la condición de conexión
-              desconocida solo se apaga sola con un mensaje válido de esa misma
-              conexión, y si la conexión se borró en vez de arreglarse, ese
-              mensaje no llega nunca. */}
+          {/*
+            El cierre manual no es una comodidad: para la condición de conexión
+            desconocida es el ÚNICO cierre que existe. La 00023 le sacó el cierre
+            automático porque dependía de que el `detail` coincidiera, y el
+            `detail` guarda el nombre de la última instancia desconocida, no el
+            de la que causó el problema.
+          */}
           <form action={resolverAlertaDeWebhook} className="shrink-0 self-start">
             <input type="hidden" name="source" value={alerta.source} />
             <input type="hidden" name="condition" value={alerta.alert_condition} />
             {alerta.workspace_id && (
               <input type="hidden" name="workspace_id" value={alerta.workspace_id} />
-            )}
-            {alerta.detail && (
-              <input type="hidden" name="detail" value={alerta.detail} />
             )}
             <button
               type="submit"

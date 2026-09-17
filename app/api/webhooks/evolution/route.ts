@@ -130,18 +130,26 @@ async function manejarWebhook(request: NextRequest) {
     .maybeSingle<CanalEvolution>();
 
   if (!canal) {
-    // Un 404 también corta los reintentos, así que también es un mensaje
-    // perdido. El caso que importa no es una sonda de internet: es que alguien
-    // renombre la instancia en Evolution o que se edite la fila del canal. A
-    // partir de ese momento cada mensaje real cae acá y se pierde.
+    // 503 Y NO 404, y la diferencia son los mensajes de una ventana de veinte
+    // minutos.
+    //
+    // 404 está en la lista de códigos que cancelan los reintentos
+    // ([400, 401, 403, 404, 422]); 503 no. El caso que importa acá no es una
+    // sonda de internet: es que alguien renombre la instancia en Evolution, o
+    // que se edite la fila del canal. A partir de ese momento cada mensaje real
+    // cae acá, y con 404 se perdería entero. Con 503, Evolution reintenta hasta
+    // 10 veces con retroceso exponencial —unos 20 minutos, entre 16 y 24 con el
+    // jitter—, así que corregir `instance_name` dentro de esa ventana recupera
+    // todo lo que entró mientras tanto.
     await registrarAlerta(supabase, EVOLUTION_ALERTS.unknownInstance, {
       detalle: instancia,
     });
     console.error(
-      `[evolution] instancia desconocida: "${instancia}". Cada aviso para esta ` +
-      `instancia se descarta sin reintento. Revisá el nombre en Evolution y en channels.instance_name.`
+      `[evolution] instancia desconocida: "${instancia}". Evolution va a reintentar ` +
+      `durante ~20 minutos: corregí el nombre en Evolution o en channels.instance_name ` +
+      `antes de que se agote y los mensajes se pierdan.`
     );
-    return NextResponse.json({ error: "Unknown instance" }, { status: 404 });
+    return NextResponse.json({ error: "Unknown instance" }, { status: 503 });
   }
 
   // ── 2. Verificación del token ─────────────────────────────────────────────
@@ -171,6 +179,18 @@ async function manejarWebhook(request: NextRequest) {
   );
 
   if (!verificacion.ok) {
+    // ESTE 401 NO SE CONVIERTE EN 503, Y NO ES UN DESCUIDO.
+    //
+    // Arriba, la instancia desconocida devuelve 503 justamente para ganar la
+    // ventana de reintentos. Acá no, y el motivo es que un token que no verifica
+    // es indistinguible de una falsificación: desde el servidor no hay forma de
+    // saber si es Evolution con un secreto viejo o alguien probando. Devolver
+    // 503 le daría a un atacante diez entregas por evento durante veinte
+    // minutos, o sea un amplificador gratis contra nuestro propio endpoint.
+    //
+    // La pérdida de mensajes en ESTE camino se evita donde corresponde, que es
+    // el procedimiento de rotación: aceptar el secreto viejo y el nuevo durante
+    // la ventana, que es lo que hace `resolverSecretos()`.
     await registrarAlerta(supabase, EVOLUTION_ALERTS.authFailed, {
       workspaceId: canal.workspace_id,
       channelId: canal.id,
@@ -192,8 +212,9 @@ async function manejarWebhook(request: NextRequest) {
     );
   }
 
-  // ── 3. La alerta se apaga sola cuando el canal vuelve a funcionar ─────────
-  await resolverAlertas(supabase, canal, instancia);
+  // ── 3. La alerta de autenticación se apaga sola. La de instancia
+  //       desconocida NO: ver el comentario de resolverAlertas().
+  await resolverAlertas(supabase, canal);
 
   // ── 4. Idempotencia ───────────────────────────────────────────────────────
   //
@@ -284,46 +305,42 @@ async function registrarAlerta(
 }
 
 /**
- * Apaga las condiciones que este aviso válido desmiente.
+ * Apaga la condición que este aviso válido desmiente.
  *
- * Son dos, y se cierran con criterios distintos a propósito:
+ * SOLO CIERRA `webhook_auth_failed`, Y LA ASIMETRÍA CON LA OTRA CONDICIÓN ES
+ * DELIBERADA. Es la primera pregunta que va a hacer quien lea esto, así que va
+ * contestada acá y no en otro archivo.
  *
- *   * `webhook_auth_failed` es del workspace, y un aviso válido de ese
- *     workspace prueba que la autenticación volvió a funcionar.
- *   * `webhook_unknown_instance` es una alerta de sistema que agrupa todas las
- *     instancias desconocidas. Solo la cierra un aviso válido DE LA INSTANCIA
- *     que figura en su detalle, que es la prueba de que el renombre o la fila
- *     del canal se arreglaron. Un aviso de otra instancia no prueba nada sobre
- *     esta, y cerrarla sería apagar una alarma que sigue sonando por un motivo
- *     que no se resolvió.
+ * `webhook_auth_failed` está atada a un workspace, que es un dato nuestro: un
+ * aviso válido de ese workspace sí prueba que la autenticación volvió a
+ * funcionar, así que se cierra sola.
+ *
+ * `webhook_unknown_instance` NO se cierra sola, y no por olvido. El cierre
+ * automático se intentó y se descartó porque se contradecía con la decisión de
+ * agrupación: esa condición junta TODAS las instancias desconocidas en una fila,
+ * y el `detail` guarda el nombre de la ÚLTIMA, no el de la que causó el
+ * problema. Entonces:
+ *
+ *   * Con tres nombres desconocidos, el `detail` tiene el tercero, y arreglar el
+ *     `instance_name` que rompía de verdad no cerraría nada.
+ *   * Peor: cualquier nombre basura posterior al arreglo pisa el `detail` y
+ *     desactiva el cierre para siempre. Como ese nombre lo elige quien llama,
+ *     eso queda al alcance de cualquiera que conozca la URL.
+ *
+ * Una alerta que a veces se limpia sola y a veces no enseña a no creerle. Esa se
+ * cierra a mano, desde la pantalla de canales.
  */
 async function resolverAlertas(
   supabase: Awaited<ReturnType<typeof createServiceClient>>,
-  canal: CanalEvolution,
-  instancia: string
+  canal: CanalEvolution
 ): Promise<void> {
-  const cerrar = async (
-    condicion: (typeof EVOLUTION_ALERTS)[keyof typeof EVOLUTION_ALERTS],
-    args: { p_workspace_id: string | null; p_detail_match: string | null }
-  ) => {
-    const { error } = await supabase.rpc("resolve_webhook_alert", {
-      p_source: EVOLUTION_SOURCE,
-      p_condition: condicion,
-      ...args,
-    });
-    if (error) console.error("[evolution] no se pudo cerrar la alerta:", error.message);
-  };
-
-  await Promise.all([
-    cerrar(EVOLUTION_ALERTS.authFailed, {
-      p_workspace_id: canal.workspace_id,
-      p_detail_match: null,
-    }),
-    cerrar(EVOLUTION_ALERTS.unknownInstance, {
-      p_workspace_id: null,
-      p_detail_match: instancia,
-    }),
-  ]);
+  const { error } = await supabase.rpc("resolve_webhook_alert", {
+    p_source: EVOLUTION_SOURCE,
+    p_condition: EVOLUTION_ALERTS.authFailed,
+    p_workspace_id: canal.workspace_id,
+    p_detail_match: null,
+  });
+  if (error) console.error("[evolution] no se pudo cerrar la alerta:", error.message);
 }
 
 /** Log del rechazo: instancia y motivo, nunca el token ni el cuerpo. */

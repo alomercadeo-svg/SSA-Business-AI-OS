@@ -23,7 +23,10 @@ import type { NextRequest } from "next/server";
  *      rotación mal hecha no da errores, pierde mensajes.
  *
  *   3. **Las alertas.** Que la condición se registre, que se agrupe en vez de
- *      multiplicarse, que se cierre sola, y que no guarde credenciales.
+ *      multiplicarse, y que no guarde credenciales. Y que se cierren con los
+ *      criterios correctos, que NO son el mismo para las dos: la de
+ *      autenticación se cierra sola, la de instancia desconocida no. Ver el
+ *      bloque de tests de alertas.
  *
  *   4. **El orden del acuse.** Que el 200 salga ANTES de que corra el
  *      procesamiento. Es la afirmación central de F22.
@@ -413,14 +416,16 @@ describe("alertas", () => {
     expect(cerradas.some((c) => c.args.p_condition === "webhook_auth_failed")).toBe(true);
   });
 
-  it("una instancia desconocida responde 404 y registra su propia condición", async () => {
+  it("una instancia desconocida responde 503 y registra su propia condición", async () => {
     estado.canal = null;
 
     const res = await POST(pedido(cuerpo({ instancia: "instancia-que-no-existe" })));
 
-    // 404, como 401, está en la lista de códigos que cancelan los reintentos:
-    // el mensaje se pierde igual, así que alerta igual.
-    expect(res.status).toBe(404);
+    // 503 Y NO 404, y la diferencia son los mensajes de una ventana de ~20
+    // minutos. 404 está en la lista de códigos que cancelan los reintentos
+    // ([400, 401, 403, 404, 422]); 503 no, así que Evolution reintenta y
+    // corregir `instance_name` dentro de esa ventana recupera todo.
+    expect(res.status).toBe(503);
     const alertas = alertasRegistradas();
     expect(alertas).toHaveLength(1);
     expect(alertas[0].args).toMatchObject({
@@ -458,15 +463,44 @@ describe("alertas", () => {
     ]);
   });
 
-  it("un evento válido solo cierra la condición de SU instancia", async () => {
+  /**
+   * LA AFIRMACIÓN INVERTIDA, Y ESTÁ ESCRITA ASÍ A PROPÓSITO.
+   *
+   * La versión anterior de este test afirmaba lo contrario: que un evento
+   * válido de esa instancia cerraba la condición. Ese cierre automático se
+   * eliminó en la 00023, porque se contradecía con la decisión de agrupación.
+   *
+   * La condición junta TODAS las instancias desconocidas en una fila, y el
+   * `detail` guarda el nombre de la ÚLTIMA, no el de la que causó el problema.
+   * Con tres nombres desconocidos, arreglar el `instance_name` que rompía de
+   * verdad no cerraba nada; y peor, cualquier nombre basura posterior pisaba el
+   * `detail` y desactivaba el cierre para siempre. Como ese nombre lo elige
+   * quien llama al webhook, desactivar el cierre quedaba al alcance de
+   * cualquiera que conociera la URL.
+   *
+   * El test va en esta dirección para SOSTENER la decisión en vez de empujar
+   * contra ella: si quedara afirmando el cierre automático, quien tocara este
+   * código se encontraría con un test rojo cuya salida fácil es volver a
+   * ponerlo, reintroduciendo justo el problema que lo motivó.
+   */
+  it("un evento válido NO cierra la condición de instancia desconocida", async () => {
     await POST(pedido(cuerpo(), await firmar()));
 
-    const cierre = alertasCerradas().find(
-      (c) => c.args.p_condition === "webhook_unknown_instance",
-    );
-    // Con `p_detail_match`, un aviso de otra instancia no apaga una alerta que
-    // sigue vigente por un nombre distinto.
-    expect(cierre?.args.p_detail_match).toBe(INSTANCIA);
+    const cierres = alertasCerradas();
+    expect(cierres.some((c) => c.args.p_condition === "webhook_unknown_instance")).toBe(false);
+  });
+
+  it("y sí cierra la de autenticación, que es la que está atada a un workspace", async () => {
+    // El control positivo del anterior: sin esto, un receptor que no cerrara
+    // NINGUNA alerta pasaría el test de arriba.
+    await POST(pedido(cuerpo(), await firmar()));
+
+    const cierres = alertasCerradas();
+    expect(cierres).toHaveLength(1);
+    expect(cierres[0].args).toMatchObject({
+      p_condition: "webhook_auth_failed",
+      p_workspace_id: "ws-1",
+    });
   });
 
   it("ninguna alerta guarda el cuerpo del aviso ni credenciales", async () => {

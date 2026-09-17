@@ -1203,10 +1203,6 @@ export interface Database {
         };
         Returns: boolean;
       };
-      is_any_workspace_owner: {
-        Args: Record<string, never>;
-        Returns: boolean;
-      };
       record_webhook_alert: {
         Args: {
           p_source: string;

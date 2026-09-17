@@ -118,6 +118,18 @@ dependa de cuál sea el default de la versión que venga.
 | `LOG_LEVEL` | `ERROR,WARN,INFO` | El default incluye `DEBUG` y `VERBOSE`, que llenan el log de Railway y pueden imprimir cuerpos de mensajes |
 | `LOG_BAILEYS` | `error` | |
 | `DEL_INSTANCE` | `false` | Que una instancia desconectada no se borre sola |
+| `SERVER_DISABLE_MANAGER` | `true` | Ver abajo |
+
+> **`SERVER_DISABLE_MANAGER=true`, que no está en el `.env.example` de Evolution.**
+>
+> Verificado en `env.config.ts:464` (`process.env?.SERVER_DISABLE_MANAGER === 'true'`) y en
+> `index.router.ts:163` (`if (!serverConfig.DISABLE_MANAGER) router.use('/manager', ...)`). La
+> variable existe y funciona, pero no está documentada en el archivo de ejemplo, así que es fácil no
+> enterarse de que hay algo que apagar.
+>
+> Por defecto Evolution sirve una **interfaz web de administración en `/manager`**, sobre nuestro
+> dominio público, protegida solo por la clave global. No la usamos: el canal se administra desde
+> nuestro propio dashboard. Una superficie de ataque que no se usa se apaga.
 
 ### Base de datos
 
@@ -177,11 +189,48 @@ Si alguna vez hace falta correr más de una réplica de Evolution, Redis vuelve 
 | Variable | Valor | Por qué |
 |---|---|---|
 | `WEBHOOK_GLOBAL_ENABLED` | `false` | El webhook global se construye **sin headers**, así que no puede mandar el `jwt_key` y no habría nada que verificar. El webhook se configura por instancia |
-| `WEBHOOK_EVENTS_MESSAGES_UPSERT` | `true` | Los mensajes en vivo |
-| `WEBHOOK_EVENTS_MESSAGES_SET` | `true` | El historial, que llega como un array |
-| `WEBHOOK_EVENTS_QRCODE_UPDATED` | `true` | Para la pantalla de canales |
-| `WEBHOOK_EVENTS_CONNECTION_UPDATE` | `true` | Estado de sesión |
-| `WEBHOOK_EVENTS_CONTACTS_UPSERT` | `true` | Una de las tres vías de reconciliación de teléfonos (F26) |
+
+> #### Las `WEBHOOK_EVENTS_*` del entorno NO gobiernan nada en esta configuración
+>
+> Una versión anterior de este documento las listaba acá como si importaran. **Es falso**, y una
+> variable que parece gobernar algo y no lo gobierna es peor que no documentarla: el día que falte
+> un evento, alguien va a mirar esta tabla, verla en `true`, y buscar el problema en otra parte.
+>
+> Verificado en `webhook.controller.ts` de la 2.3.7, método `emit()`:
+>
+> ```ts
+> // línea 105: el camino POR INSTANCIA
+> if (local && instance?.enabled) {
+>   if (Array.isArray(webhookLocal) && webhookLocal.includes(we)) { ... }
+> }
+>
+> // línea 152: el camino GLOBAL, el ÚNICO que lee el entorno
+> if (webhookConfig.GLOBAL?.ENABLED) {
+>   if (webhookConfig.EVENTS[we]) { ... }
+> }
+> ```
+>
+> La emisión por instancia se gobierna **solo** por el array `events` guardado en la fila `Webhook`
+> de esa instancia. `webhookConfig.EVENTS`, que es de donde salen las `WEBHOOK_EVENTS_*`, se
+> consulta únicamente en la rama global, y nosotros la dejamos apagada a propósito.
+>
+> **Los eventos que nos llegan son los que pasa `scripts/setup-evolution-channel.mjs` en el array
+> `events` del paso 7, y nada más.** Van en MAYÚSCULAS con guion bajo, porque `emit()` transforma
+> `messages.upsert` en `MESSAGES_UPSERT` antes de comparar. Los nombres canónicos están en
+> `EventController.events`:
+>
+> | Evento | Para qué |
+> |---|---|
+> | `MESSAGES_UPSERT` | mensajes en vivo |
+> | `MESSAGES_SET` | historial, llega como array |
+> | `QRCODE_UPDATED` | pantalla de canales |
+> | `CONNECTION_UPDATE` | estado de sesión |
+> | `CONTACTS_UPSERT` | una de las tres vías de reconciliación de teléfonos (F26) |
+> | `STATUS_INSTANCE`, `LOGOUT_INSTANCE` | desconexión definitiva (F32, Bloque 4) |
+>
+> Y un detalle de la misma lectura: la línea 126 exige `regex.test(instance.url)` con
+> `/^(https?:\/\/)/`, así que la URL del webhook **tiene que incluir el esquema**. Sin `https://`
+> no se emite y no hay ningún error.
 
 ### Autenticación
 
@@ -257,14 +306,52 @@ curl -s -o /dev/null -w "%{http_code}\n" https://TU-EVOLUTION.up.railway.app/ins
 
 ## 6. Verificación del despliegue
 
-Antes de crear la instancia, tres comprobaciones que se pueden hacer sin ella:
+```bash
+node scripts/verify-evolution-deploy.mjs
+```
 
-1. **La versión es la que pedimos, no `latest`.** El JSON de bienvenida trae la versión.
-2. **El servidor rechaza sin clave.** `fetchInstances` sin header devuelve 401.
-3. **El servidor acepta con clave.** El mismo endpoint con la clave devuelve 200 y una lista vacía.
+Tres comprobaciones, que se pueden hacer antes de crear la instancia:
 
-La tercera es el control positivo de la segunda: sin ella, un 401 podría venir de un servidor que
-no arrancó, no de uno bien protegido.
+1. **La versión desplegada es la fijada en el repo.** Verificado en `index.router.ts:199-204`:
+   `GET /` responde `{ status, message, version, clientName, manager, ... }`, donde `version` sale
+   del `package.json` de Evolution. Para la imagen fijada reporta `2.3.7`.
+2. **El servidor rechaza sin clave.** `GET /instance/fetchInstances` sin header devuelve 401.
+3. **El servidor acepta con clave.** El mismo endpoint con el header `apikey` devuelve 200.
+
+**La tercera es el control positivo de la segunda**, y no es un formalismo: sin ella, un 401 podría
+venir de un servidor que no arrancó y no de uno bien protegido. Si la tercera falla, el script dice
+**"no concluyente"** sobre la segunda, con esas palabras, en vez de darla por verde.
+
+### El disparador de versión, y por qué está acá y no en este documento
+
+La sección 0 dice que hay que releer `webhook.controller.ts` antes de subir de versión. **Eso solo
+no es un control**: depende de que alguien lea este documento antes de cambiar un tag en la interfaz
+de Railway, que es exactamente lo que no va a pasar.
+
+Por eso la versión esperada vive en el repo, en `lib/evolution-version.mjs`, con el procedimiento
+completo en el comentario de al lado y las líneas exactas contra las que comparar. Y está enganchada
+en dos lugares, que atrapan cosas distintas:
+
+| Dónde | Qué atrapa | Necesita red |
+|---|---|---|
+| `npm test` (`lib/evolution-version.test.ts`) | Que alguien cambie el tag de la imagen y se olvide de la versión esperada | No |
+| `npm run verify:security` (este script) | Que lo desplegado no sea lo que el repo dice | Sí |
+
+Cuando la comprobación 1 falla, el mensaje no dice solo "no coincide": dice qué hay que leer y por
+qué, y recuerda que el mecanismo no está documentado y puede desaparecer sin aviso.
+
+**Mientras `EVOLUTION_API_URL` no esté en el `.env`, el script se saltea**, pero lo hace en voz
+alta:
+
+```
+  SALTEADO  verificación del despliegue de Evolution
+            falta EVOLUTION_API_URL en .env
+            (esperado hasta que se complete el Paso 3 del Bloque 2;
+             a partir de ahí, que esto aparezca es un problema)
+```
+
+Un check que se saltea en silencio cuando falta configuración es la forma en que los checks se
+mueren: pasa en verde durante meses y nadie nota que dejó de comprobar nada.
 
 ---
 
@@ -369,7 +456,54 @@ medio terminar no puede quedar invisible.
 
 ---
 
-## 10. Problemas frecuentes
+## 10. Migración al dominio propio: cinco lugares
+
+**Estado al 17 de septiembre de 2026:** `app.alomercadeo.com` funciona, con certificado. El problema
+había sido el registro TXT, que el hosting cargó sin el guion bajo inicial del nombre; ya está
+renombrado.
+
+Este checklist queda porque **dos de los cinco puntos se cierran recién al conectar el canal**, y
+porque el día que el dominio cambie otra vez hay que moverlo todo junto. Cambiar uno solo no arregla
+nada.
+
+| # | Qué | Estado | Cómo se verifica con tráfico real |
+|---|---|---|---|
+| 1 | `NEXT_PUBLIC_APP_URL` | Hecho | Es la que alimenta a las otras. Ver la nota del build más abajo |
+| 2 | URLs de Supabase Auth (Site URL y Redirect URLs) | Hecho | Cerrar sesión y volver a entrar desde el dominio nuevo |
+| 3 | Webhook de Zernio | Hecho y verificado | **Un DM real que entre a la bandeja.** No alcanza con "no vi errores" |
+| 4 | Webhook de Evolution | Pendiente: se registra en el paso 7 | `node scripts/verify-evolution-webhook.mjs` |
+| 5 | `redirect_url` del OAuth de Zernio | Pendiente de verificar | Reconectar el canal de Instagram desde cero |
+
+### El punto 3 falla en silencio, y peor de lo que parece
+
+Verificado: `ensureWebhookRegistered` está envuelto en try/catch en sus dos llamadores
+(`app/api/v1/channels/sync/route.ts` y `app/api/v1/channels/test-key/route.ts`), y los dos solo
+hacen `console.error`.
+
+Pero **el modo de falla que importa no es una excepción atrapada: es que nadie lo dispare.** El
+registro corre únicamente cuando alguien aprieta "Sincronizar" en la pantalla de canales o vuelve a
+guardar la API key. Si se cambia el dominio y no se hace ninguna de las dos cosas, Zernio sigue
+entregando en la URL vieja, todo "funciona", y los DM dejan de llegar sin un solo error en ningún
+log.
+
+Por eso su verificación no puede ser "no vi errores": tiene que ser un DM real que aparezca en la
+bandeja.
+
+### El punto 5 es fácil de olvidar porque solo importa un rato
+
+`app/api/v1/channels/connect/route.ts` arma `${appUrl}/dashboard/channels/callback` y se lo pasa a
+Zernio como `redirect_url`. Solo se usa durante un flujo de conexión, así que un valor viejo no da
+ningún síntoma hasta que alguien intenta reconectar un canal, y ahí el flujo muere a mitad de
+camino.
+
+### `NEXT_PUBLIC_APP_URL` se inlinea en build
+
+Tiene el prefijo `NEXT_PUBLIC_`, así que Next la resuelve **en tiempo de compilación**. Cambiarla en
+Railway exige un **redeploy**, no alcanza con reiniciar el servicio.
+
+---
+
+## 11. Problemas frecuentes
 
 | Síntoma | Causa probable | Qué mirar |
 |---|---|---|
