@@ -463,8 +463,8 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 **Criterios de aceptación:**
 
 - [ ] Archivo de hasta 10 MB y 10.000 filas, con vista previa y asignación de columnas
-- [ ] **Cada fila necesita al menos un identificador que permita deduplicar.** El correo se valida con formato y el teléfono se normaliza, pero los dos son ejemplos, no la lista: un identificador único del sistema de origen sirve igual, y de hecho sirve mejor, porque allá ya se garantizó que es único. Una fila sin ningún identificador no se puede deduplicar y se rechaza con su motivo
-- [ ] Deduplicación por cualquiera de los identificadores que traiga la fila: identificador de origen, correo o teléfono, en ese orden de confianza. Si ya existe, actualiza en vez de duplicar
+- [ ] **Cada fila necesita al menos un identificador que permita deduplicar, de los enumerados en la sección 14.** El correo se valida con formato y el teléfono se normaliza, pero los dos son ejemplos, no la lista: un identificador único del sistema de origen sirve igual, y de hecho sirve mejor, porque allá ya se garantizó que es único. Una fila sin ningún identificador no se puede deduplicar y se rechaza con su motivo
+- [ ] Deduplicación por cualquiera de los identificadores que traiga la fila: identificador de origen, correo o teléfono, en ese orden de confianza. Si ya existe, actualiza en vez de duplicar. **El importador no decide qué cuenta como identificador:** la lista está en la sección 14 y admitir uno nuevo se escribe ahí primero
 - [ ] Más de 500 filas se procesan en segundo plano, no en el momento
 - [ ] Barra de progreso y resumen final con importados, actualizados y errores con detalle
 - [ ] Todo queda en el historial de auditoría
@@ -814,7 +814,7 @@ Se llama `alert_condition` y no `condition` porque `CONDITION` es una palabra re
 | Borrado suave | Contactos, notas, conversaciones y respuestas rápidas. Retención de 30 días y después purga |
 | Auditoría | Todas las entidades principales registran quién y cuándo. El historial de auditoría nunca se borra |
 | Snapshot | No aplica todavía: los precios son de la Etapa 4 |
-| Deduplicación | Por cualquier identificador único y estable, nunca solo por nombre. Teléfono normalizado y correo en los canales; en una importación, también el identificador del sistema de origen |
+| Deduplicación | Por un identificador único y estable, nunca solo por nombre ni por nombre de usuario. Cuáles califican está enumerado en la sección 14, y la lista es cerrada: sumar uno es una decisión que se escribe |
 
 ---
 
@@ -1076,7 +1076,7 @@ Si esa automatización sigue corriendo después de la migración, Pipedrive se s
 |---|---|
 | Historial y auditoría | Todas las entidades principales registran quién, qué y cuándo. El historial nunca se borra |
 | Borrado suave | Contactos, notas, conversaciones y respuestas rápidas. Retención de 30 días, después purga por tarea programada |
-| Deduplicación de contactos | Por cualquier identificador que sea único y estable, nunca solo por nombre. En el tráfico de los canales eso son el teléfono normalizado y el correo; en una importación vale además un identificador único del sistema de origen, que es más confiable que los dos. Un contacto sin teléfono resuelto no se deduplica: se marca y se reconcilia después, con confirmación humana |
+| Deduplicación de contactos | Por un identificador único y estable, nunca solo por nombre. **Cuáles califican está enumerado abajo, y sumar uno nuevo es una decisión que se escribe acá**, no algo que cada importador o cada canal resuelva por su cuenta. Un contacto sin teléfono resuelto no se deduplica: se marca y se reconcilia después, con confirmación humana |
 | Snapshot de precios | No aplica en esta etapa. Se contempla en Etapa 4 |
 | Estados y ciclo de vida | Conversación: abierta, archivada. Contacto: activo, no contactar, eliminado. Canal: conectado, caído, sin verificar, agotado. Mensaje: pendiente, enviado, fallido |
 | Casos borde | Si el operador cierra la ventana a mitad de una importación, el trabajo sigue en segundo plano. Si le sacan un lead que tenía abierto, ve un mensaje claro y no un error. Si la sesión de WhatsApp se cae, la bandeja lo indica en lugar de parecer vacía |
@@ -1089,6 +1089,21 @@ Si esa automatización sigue corriendo después de la migración, Pipedrive se s
 | Patrón de avisos entrantes | Control de duplicados con registro de eventos, acuse inmediato antes de procesar, procesamiento en segundo plano, y verificación de autenticidad obligatoria. En Zernio es firma criptográfica; en Evolution es un dato firmado que caduca |
 | Patrón de envíos masivos y límites | Lotes con separación aleatoria, cola de envío, corte automático ante silencio, y franja horaria. Se construye como configuración en el Bloque 4 y lo usa el motor de la Fase 2 |
 | Estado comercial heredado | Un solo par etapa y estado por contacto, en columnas con restricción de valores. Se verificó en los datos: ninguna persona tiene un trato abierto y además uno cerrado. El pipeline comercial completo es Etapa 4 |
+
+### Los identificadores que califican para deduplicar
+
+**La lista es esta y es cerrada.** Agregar uno es una decisión que se escribe acá, con su motivo, no un criterio que cada importador o cada canal nuevo resuelva por su cuenta. **"Estable" es un juicio, y ahí es donde se cuelan los errores:** todo identificador le parece estable a quien lo está mirando en el momento.
+
+| Identificador | Dónde vive | Vincula |
+|---|---|---|
+| Teléfono normalizado a E.164 | `contacts.phone` | Solo con coincidencia exacta |
+| Correo | `contacts.email` | Solo con coincidencia exacta |
+| Identificador opaco del remitente que entrega el proveedor | `contact_channels.platform_sender_id`, con el valor crudo en `raw_jid` | Es la identidad del contacto en ese canal |
+| Identificador único del sistema de origen de una importación | La columna que corresponda, hoy `contacts.pipedrive_person_id` | Solo con coincidencia exacta |
+
+**Lo que NO califica, y el caso concreto está a la vuelta de la esquina.** Para Instagram el identificador estable es el **identificador opaco del remitente**, no el nombre de usuario y mucho menos el nombre para mostrar. El nombre de usuario se cambia cuando uno quiere, y el nombre visible todavía más. Por eso F29 vincula solo *sugiriendo* cuando la única coincidencia es el nombre de usuario, y por eso F26 dice que nunca se deduplica por nombre.
+
+No es una precaución teórica: **es exactamente lo que encontramos en los 118 tratos "IG DM" de Pipedrive.** Traen el nombre visible del lead y nada más, ninguno tiene el usuario, y por eso no sirven para identificar a nadie y no se migran. Un identificador que parecía suficiente cuando alguien armó esa automatización dejó 118 registros que no corresponden con ninguna persona.
 
 ---
 
