@@ -463,8 +463,8 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 **Criterios de aceptación:**
 
 - [ ] Archivo de hasta 10 MB y 10.000 filas, con vista previa y asignación de columnas
-- [ ] Validación: correo con formato válido, teléfono normalizado, al menos uno de los dos presente
-- [ ] Deduplicación por correo o teléfono: si ya existe, actualiza en vez de duplicar
+- [ ] **Cada fila necesita al menos un identificador que permita deduplicar.** El correo se valida con formato y el teléfono se normaliza, pero los dos son ejemplos, no la lista: un identificador único del sistema de origen sirve igual, y de hecho sirve mejor, porque allá ya se garantizó que es único. Una fila sin ningún identificador no se puede deduplicar y se rechaza con su motivo
+- [ ] Deduplicación por cualquiera de los identificadores que traiga la fila: identificador de origen, correo o teléfono, en ese orden de confianza. Si ya existe, actualiza en vez de duplicar
 - [ ] Más de 500 filas se procesan en segundo plano, no en el momento
 - [ ] Barra de progreso y resumen final con importados, actualizados y errores con detalle
 - [ ] Todo queda en el historial de auditoría
@@ -526,7 +526,13 @@ El argumento decisivo es la asimetría del error: **dejar afuera es irreversible
 - [ ] **Se escribe explícito y se prueba:** un contacto sin ningún canal no puede darse de alta en una secuencia. Son 145 de las 526, que no tienen ni teléfono ni correo: nunca van a corresponder con un mensaje entrante y no se les puede escribir. Estructuralmente ya no debería poder, porque una secuencia necesita un canal, pero eso es una suposición sobre el motor y el requerimiento no se apoya en suposiciones
 - [ ] La prueba lleva su control afirmativo al lado: un contacto **con** canal sí se da de alta
 
-> **Excepción explícita a la validación de F37.** F37 pide "al menos uno de los dos presente" entre correo y teléfono. La migración de F38 entra 145 personas que **no tienen ninguno de los dos**, y eso es deliberado: son parte de los 526 que se decidió traer enteros. El importador tiene que admitir esa combinación cuando la importación viene marcada como migración, y esos contactos quedan con la restricción de arriba, que no puedan entrar en secuencias. Si la validación de F37 se implementa sin contemplar esto, la migración pierde 145 contactos y el conteo de control no lo detecta, porque el control cuenta tratos y estas personas en su mayoría no tienen trato.
+> **Las 145 personas sin correo ni teléfono entran por `pipedrive_person_id`, y no hace falta ninguna excepción.**
+>
+> Son parte de los 526 que se decidió traer enteros, y traen el identificador de persona de Pipedrive, que es un identificador de deduplicación como cualquier otro: único en el sistema del que vienen, estable, y mejor que un correo escrito a mano. La regla de F37 pide **al menos un identificador que permita deduplicar**, no correo o teléfono en particular, así que estas filas la cumplen sin que nadie tenga que marcar nada.
+>
+> Que la regla se enuncie así y no como "correo o teléfono" no es una preferencia de redacción. Una casilla que apaga una validación se termina marcando siempre, y "esto es una migración" es una afirmación de quien importa, no un hecho que el sistema pueda verificar.
+>
+> **Y el modo de falla que esto evita es de los invisibles.** Con la regla mal enunciada, la migración perdería esas 145 filas y el control de conteo daría bien igual, porque cuenta tratos con `pipedrive_deal_id` y estas personas en su mayoría no tienen trato. Un control que dice "si falta algo, se sabe cuánto" y no lo sabe es peor que no tenerlo.
 
 ### Funcionalidades de fases siguientes, que no se construyen ahora
 
@@ -729,7 +735,9 @@ La numeración salta del 9 al 11: el embudo no tiene etapa 10. Se transcribe com
 
 **La etapa y el estado son dos cosas independientes, y por eso son dos columnas.** El cruce de los 517 tratos del export lo muestra sin lugar a dudas: **253 están en "1. Nuevo contacto" y a la vez perdidos.** La etapa dice dónde quedó la conversación; el estado dice qué pasó con el trato. Con una sola columna, esos 253 contactos parecerían leads nuevos sin trabajar.
 
-**`deal_currency` no es opcional en la práctica.** De los 517 tratos, 363 están en dólares y 154 en colones. Un valor sin moneda es un número sin significado. El 87 por ciento de los tratos tiene valor cero, así que la columna va a venir casi vacía de todos modos: se agrega para que los 68 que sí tienen valor sean legibles. **No lleva restricción de valores en la base**, a diferencia de `pipeline_stage` y `deal_status`: la lista de monedas no es un vocabulario cerrado del negocio, y cablear dos monedas sería el mismo error que cablear un código de país, que F38 rechaza explícitamente.
+**`deal_currency` no es opcional en la práctica.** De los 517 tratos, 363 están en dólares y 154 en colones. Un valor sin moneda es un número sin significado. El 87 por ciento de los tratos tiene valor cero, así que la columna va a venir casi vacía de todos modos: se agrega para que los 68 que sí tienen valor sean legibles. **No lleva restricción de valores en la base**, a diferencia de `pipeline_stage` y `deal_status`, y la diferencia no es de rigor sino de qué clase de vocabulario es cada uno. Las etapas son un vocabulario **arbitrario y propio del negocio**: los inventó alguien, no existen fuera de acá, y por eso la base tiene que ser la que garantice que nadie escriba una decimocuarta. Los códigos de moneda son un **estándar**, definido afuera y completo desde antes que este proyecto. Enumerar los dos que hay hoy en los datos no protege de nada y garantiza una sola cosa: que el día que haya una campaña en México, la importación se caiga por algo que no es un error.
+
+Esto no contradice la regla de que una normalización nunca adivina en silencio. Un valor por defecto adivina; una restricción rechaza a los gritos, y rechazar a los gritos es seguro. Lo que se evita acá no es el rechazo, es rechazar un dato correcto.
 
 **No se agrega fecha esperada de cierre:** solo 3 de los 517 tratos la tienen.
 
@@ -806,7 +814,7 @@ Se llama `alert_condition` y no `condition` porque `CONDITION` es una palabra re
 | Borrado suave | Contactos, notas, conversaciones y respuestas rápidas. Retención de 30 días y después purga |
 | Auditoría | Todas las entidades principales registran quién y cuándo. El historial de auditoría nunca se borra |
 | Snapshot | No aplica todavía: los precios son de la Etapa 4 |
-| Deduplicación | Por teléfono normalizado o correo, nunca solo por nombre |
+| Deduplicación | Por cualquier identificador único y estable, nunca solo por nombre. Teléfono normalizado y correo en los canales; en una importación, también el identificador del sistema de origen |
 
 ---
 
@@ -1068,7 +1076,7 @@ Si esa automatización sigue corriendo después de la migración, Pipedrive se s
 |---|---|
 | Historial y auditoría | Todas las entidades principales registran quién, qué y cuándo. El historial nunca se borra |
 | Borrado suave | Contactos, notas, conversaciones y respuestas rápidas. Retención de 30 días, después purga por tarea programada |
-| Deduplicación de contactos | Por teléfono normalizado o correo, nunca solo por nombre. Un contacto sin teléfono resuelto no se deduplica: se marca y se reconcilia después, con confirmación humana |
+| Deduplicación de contactos | Por cualquier identificador que sea único y estable, nunca solo por nombre. En el tráfico de los canales eso son el teléfono normalizado y el correo; en una importación vale además un identificador único del sistema de origen, que es más confiable que los dos. Un contacto sin teléfono resuelto no se deduplica: se marca y se reconcilia después, con confirmación humana |
 | Snapshot de precios | No aplica en esta etapa. Se contempla en Etapa 4 |
 | Estados y ciclo de vida | Conversación: abierta, archivada. Contacto: activo, no contactar, eliminado. Canal: conectado, caído, sin verificar, agotado. Mensaje: pendiente, enviado, fallido |
 | Casos borde | Si el operador cierra la ventana a mitad de una importación, el trabajo sigue en segundo plano. Si le sacan un lead que tenía abierto, ve un mensaje claro y no un error. Si la sesión de WhatsApp se cae, la bandeja lo indica en lugar de parecer vacía |
@@ -1192,6 +1200,7 @@ No se deciden leyendo documentación. Se instrumentan y se miran.
 
 ### Lo que se necesita antes de construir
 
+- **La pantalla de importación no está especificada, ni para F37 ni para F38.** La sección 11 no la tiene: el Bloque 4 documenta bandeja, canales y configuración del canal de WhatsApp, y ninguna pantalla de importación. El hueco es anterior a F38, pero F38 lo vuelve urgente, porque pide que esa pantalla permita cambiar el código de país por defecto para una importación puntual. **Hay que especificarla antes de construir el Bloque 4**, o esa decisión se va a tomar mientras se escribe el código, que es exactamente donde termina siendo una constante cableada.
 - El número dedicado de WhatsApp, todavía en trámite. No bloquea el Bloque 2 ni el 3, pero sí la conexión en vivo.
 - Verificación del negocio en Meta, prevista para la semana del 22 de septiembre. No bloquea nada del camino principal; sirve para el plan B.
 
