@@ -196,6 +196,8 @@ Construidos y verificados en el Bloque 1. Se documentan acá porque las funciona
 
 **Descripción:** dejar corriendo el servicio de WhatsApp, configurado de forma segura, sin vincular todavía ningún número.
 
+**Estado: pendiente.** Los dos servicios están creados en Railway pero el de Evolution todavía no se desplegó. El procedimiento reproducible, con las variables verificadas contra el archivo de ejemplo de la versión 2.3.7, está en `docs/despliegue-evolution.md`.
+
 **Criterios de aceptación:**
 
 - [ ] Servicio desplegado con la imagen fijada en `evoapicloud/evolution-api:v2.3.7`, nunca en `latest`. El tag `latest` apunta hoy a una versión cuyo identificador no coincide con ninguna publicación oficial etiquetada
@@ -212,16 +214,27 @@ Construidos y verificados en el Bloque 1. Se documentan acá porque las funciona
 
 **Descripción:** la puerta por donde entran los mensajes de WhatsApp al sistema.
 
+**Estado: construido y probado** (16 y 17 de septiembre de 2026). 28 tests.
+
 **Criterios de aceptación:**
 
-- [ ] Ruta nueva en `app/api/webhooks/evolution/`
-- [ ] Verificación del dato de autenticación que manda Evolution, fijando el algoritmo esperado y usando el secreto guardado en Vault. Sin autenticación válida, se rechaza
-- [ ] Procedimiento de cambio de secreto documentado y soportado: durante el cambio se aceptan el secreto viejo y el nuevo. Un rechazo cancela los reintentos de Evolution y el mensaje se pierde para siempre, así que un cambio mal hecho pierde mensajes en silencio
-- [ ] Alerta ante cualquier rechazo. Acá un rechazo no es ruido: es un mensaje de un lead que se perdió
-- [ ] Nunca se registra en los logs el contenido completo del aviso, porque incluye credenciales
-- [ ] Control de duplicados reusando el registro de eventos que ya existe
-- [ ] Responde con acuse inmediato antes de procesar. El mecanismo de reintentos de Evolution queda bloqueado mientras espera
-- [ ] Tests: autenticación válida, inválida, ausente, vencida, con algoritmo distinto, y evento repetido
+- [x] Ruta nueva en `app/api/webhooks/evolution/`
+- [x] Verificación del dato de autenticación que manda Evolution, fijando el algoritmo esperado y usando el secreto guardado en Vault. Sin autenticación válida, se rechaza
+- [x] Procedimiento de cambio de secreto documentado y soportado: durante el cambio se aceptan el secreto viejo y el nuevo. Un rechazo de autenticación cancela los reintentos de Evolution y el mensaje se pierde para siempre, así que un cambio mal hecho pierde mensajes en silencio
+- [x] Alerta ante cualquier rechazo, con lo que significa cada una escrito en la pantalla: en el rechazo de autenticación, cada ocurrencia es un mensaje de un lead que se perdió; en la instancia desconocida todavía no se perdió ninguno, y lo que se muestra es el plazo que queda para corregir
+- [x] Nunca se registra en los logs el contenido completo del aviso, porque incluye credenciales
+- [x] Control de duplicados reusando el registro de eventos que ya existe
+- [x] Responde con acuse inmediato antes de procesar. El mecanismo de reintentos de Evolution queda bloqueado mientras espera
+- [x] Tests: autenticación válida, inválida, ausente, vencida, con algoritmo distinto, y evento repetido
+
+**Criterios que salieron de la revisión del 17 de septiembre**, y que no estaban en la versión original de esta funcionalidad:
+
+- [x] Un aviso para una instancia que no conocemos responde **servicio no disponible**, no un rechazo definitivo. La diferencia son los mensajes de una ventana de unos veinte minutos de reintentos, que es el tiempo que hay para corregir el nombre. El rechazo de autenticación **sí** sigue siendo definitivo, y a propósito: darle reintentos a algo indistinguible de una falsificación sería regalarle diez entregas por evento a quien esté probando
+- [x] La condición de instancia desconocida **no se cierra sola**, solo a mano. El motivo está en 7.2 y no es una omisión
+- [x] Esa condición no se actualiza más de una vez por minuto, porque se alcanza antes de autenticar y cualquiera puede provocar la escritura
+- [x] El nombre de instancia se acota al guardarlo y se muestra delimitado: lo elige quien manda el aviso y termina en el dashboard
+- [x] Las alertas sin espacio de trabajo no son legibles por la vía normal de permisos. Las muestra la pantalla comprobando el rol en el servidor
+- [x] La versión de Evolution que el código espera vive en el repositorio, y hay una comprobación automática que falla si lo desplegado no coincide. Reemplaza al procedimiento escrito que dependía de que alguien leyera un documento antes de cambiar una versión
 
 #### F23: Email saliente vía Resend
 
@@ -605,17 +618,44 @@ Sacarle el `NOT NULL` destapó un error que ya estaba latente en el código here
 | csv_imports | Registro de cada importación de planilla |
 | webhook_alerts | Condiciones abiertas del receptor de avisos: rechazos de autenticación e instancias desconocidas |
 
-**`webhook_alerts` agrupa por condición, no por evento.** Un rechazo nunca viene solo: los tres escenarios donde ocurre (un cambio de secreto mal hecho, el mecanismo de autenticación que desaparece en una actualización de Evolution, una configuración equivocada) hacen que fallen **todos** los mensajes hasta que alguien intervenga. Si entran quinientos mensajes en una hora, eso es una fila con un contador en quinientos, no quinientas filas ni quinientos avisos. Cada condición guarda cuántas veces ocurrió, cuándo fue la primera y la última, y se cierra sola cuando vuelve a entrar un aviso válido.
+**Columnas, tal como quedaron en las migraciones 00022 y 00023 ya aplicadas.** Los nombres son los reales del esquema, no los del borrador:
 
-**Dos condiciones distintas, y la segunda no tiene espacio de trabajo.** La primera es el rechazo de autenticación, que sí sabe de qué canal viene. La segunda es el aviso que llega para una instancia que no existe en nuestra base: ahí no hay canal, así que no hay espacio de trabajo al que atribuirlo. El caso que importa no es una sonda de internet, es que alguien renombre la instancia en Evolution o que se edite la fila del canal; a partir de ese momento cada mensaje real devuelve un error que **también** cancela los reintentos, y se pierde todo. Es tan grave como el rechazo de autenticación y hasta ahora no tenía alerta.
+| Columna | Para qué |
+|---|---|
+| `workspace_id`, `channel_id` | A quién le pasa. **Las dos pueden ser nulas** |
+| `source` | El proveedor del aviso. Hoy solo `evolution` |
+| `alert_condition` | `webhook_auth_failed` o `webhook_unknown_instance` |
+| `detail` | Motivo corto, acotado a 200 caracteres. Nunca el cuerpo del aviso ni credenciales |
+| `occurrences`, `first_seen_at`, `last_seen_at` | El contador y las dos marcas de tiempo |
+| `resolved_at` | Nulo mientras la condición está abierta |
 
-Como el nombre de la instancia lo controla quien llama, **todas** las instancias desconocidas se agrupan en una sola condición abierta, con el nombre únicamente en el detalle de la última. Agrupar por nombre permitiría llenar la tabla mandando nombres al azar.
+Se llama `alert_condition` y no `condition` porque `CONDITION` es una palabra reservada del lenguaje de procedimientos de PostgreSQL, y las funciones que escriben esta tabla están escritas en ese lenguaje. El nombre feo evita una ambigüedad que no se ve al leer y que rompería al aplicar.
 
-**Quién puede leerlas.** Las condiciones con espacio de trabajo, su Owner y sus Admin. La condición de instancia desconocida es una alerta de sistema y la lee el Owner, sin depender del espacio de trabajo: no es atribuible a ninguno, así que tampoco debería mostrarse a todos. Sin esa segunda regla la fila se registra y no la puede leer nadie, ni el indicador de la pantalla de canales, así que la agrupación y el contador pueden estar perfectos y la alerta no llegarle a ninguna persona.
+**Agrupa por condición, no por evento.** Un rechazo nunca viene solo: los tres escenarios donde ocurre (un cambio de secreto mal hecho, el mecanismo de autenticación que desaparece en una actualización de Evolution, una configuración equivocada) hacen que fallen **todos** los avisos hasta que alguien intervenga. Si entran quinientos en una hora, eso es una fila con un contador en quinientos, no quinientas filas ni quinientos avisos.
 
-**Por qué no se reusa `audit_log`,** que es la alternativa obvia: el historial de auditoría responde *quién hizo qué*, y un rechazo de autenticación no tiene autor. Y además nunca se purga, así que un cambio de secreto mal hecho lo llenaría para siempre con el mismo evento repetido.
+**Dos condiciones distintas, y no se comportan igual en nada.** La tabla de abajo es el resumen, y cada diferencia tiene su motivo:
 
-**Una alerta que nadie consulta es un diario.** La pantalla de canales muestra un indicador de condiciones sin resolver, que es donde alguien va a mirar cuando sospeche que algo no está entrando.
+| | Rechazo de autenticación | Instancia desconocida |
+|---|---|---|
+| Qué responde el receptor | Rechazo definitivo | **Servicio no disponible**, que sí se reintenta |
+| ¿Se perdió el mensaje? | **Sí**, el proveedor no reintenta | **Todavía no**: hay unos 20 minutos de reintentos |
+| Qué cuenta el contador | Mensajes perdidos | Intentos de entrega, con un tope de uno por minuto |
+| Espacio de trabajo | Sí, sabe de qué canal viene | **No**, no hay canal al que atribuirlo |
+| Cómo se cierra | Sola, con el primer aviso válido | **Solo a mano** |
+
+**Por qué la instancia desconocida no responde un rechazo definitivo.** El caso que importa no es una sonda de internet: es que alguien renombre la instancia en Evolution, o que se edite la fila del canal. A partir de ese momento cada mensaje real cae ahí. Si se respondiera un rechazo definitivo, el proveedor cancelaría los reintentos y se perderían todos; respondiendo "servicio no disponible" los reintenta durante unos veinte minutos, así que corregir el nombre dentro de esa ventana los recupera. El rechazo de autenticación **no** se trata igual, y a propósito: un dato de autenticación que no verifica es indistinguible de una falsificación, y darle reintentos sería regalarle diez entregas por evento a quien esté probando.
+
+**Por qué la instancia desconocida no se cierra sola.** Se intentó y se descartó, porque se contradecía con la propia decisión de agrupación. La idea era cerrarla cuando llegara un aviso válido de la instancia que figura en el detalle, pero el detalle guarda el nombre de la **última** instancia desconocida, no el de la que causó el problema: con tres nombres distintos, arreglar el que rompía de verdad no cerraría nada. Y peor, cualquier nombre inventado posterior al arreglo pisa el detalle y desactiva el cierre para siempre; como ese nombre lo elige quien manda el aviso, eso queda al alcance de cualquiera que conozca la dirección. Una alerta que a veces se limpia sola y a veces no enseña a no creerle.
+
+**Por qué el nombre de la instancia no entra en la agrupación, y por qué se acota.** Lo controla quien llama. Si se agrupara por él, cualquiera llenaría la tabla mandando nombres al azar; por eso **todas** las instancias desconocidas van a una sola condición, con el nombre únicamente en el detalle de la última. Y como ese texto se muestra en el dashboard, se corta a 200 caracteres al guardarlo y se muestra delimitado, para que no pueda romper la pantalla ni hacerse pasar por un mensaje del sistema.
+
+**El tope de escritura.** La condición de instancia desconocida se alcanza **antes** de verificar la autenticación, porque para verificarla hay que saber de qué canal se trata. Eso significa que cualquiera puede provocar una escritura mandando un aviso bien formado con un nombre inventado. Por eso esa condición no se actualiza más de una vez por minuto. El contador pierde precisión y no importa, porque ahí ya no cuenta mensajes.
+
+**Quién puede leerlas.** Las condiciones que tienen espacio de trabajo las leen su Owner y sus Admin, y eso lo decide la base de datos. La condición de instancia desconocida **no la lee nadie por esa vía**: no es atribuible a ningún espacio de trabajo, así que su permiso no puede colgarse de pertenecer a uno. La lee la pantalla de canales, en el servidor, comprobando el rol antes de consultarla. Es la misma decisión que el resto del sistema toma al revés, y la excepción está justificada: una regla que dijera "cualquier Owner de cualquier espacio de trabajo" mostraría a un negocio el nombre de la instancia de otro.
+
+**Por qué no se reusa el historial de auditoría,** que es la alternativa obvia: ese historial responde *quién hizo qué*, y un rechazo de autenticación no tiene autor. Y además nunca se purga, así que un cambio de secreto mal hecho lo llenaría para siempre con el mismo evento repetido.
+
+**Una alerta que nadie consulta es un diario.** La pantalla de canales muestra un indicador de condiciones sin resolver, que es donde alguien va a mirar cuando sospeche que algo no está entrando. Incluye el botón de cierre manual, que para la condición de instancia desconocida es el único cierre que existe.
 
 ### 7.3 Notas de optimización
 
