@@ -301,6 +301,19 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [ ] Tipos soportados: texto, imagen, audio, documento, video, sticker, ubicación y respuesta a otro mensaje
 - [ ] La base pasa a ser la fuente de verdad de la bandeja. Después de esta funcionalidad, la bandeja no consulta más al proveedor para mostrar mensajes
 - [ ] El camino de entrada es el mismo para Instagram y WhatsApp, sin condicionales por plataforma más allá del adaptador
+- [ ] **Importación del historial de Instagram que ya existe.** Ver abajo: sin esto, el criterio anterior hace que la bandeja pierda las conversaciones viejas el día que se migre
+
+> **Hallazgo del 16 de septiembre de 2026: no existe ninguna importación de mensajes, y F27 la necesita.**
+>
+> El backfill que ya trae el proyecto, `backfillInboxConversations`, escribe en `contacts`, `contact_channels` y `conversations`. **Nunca escribe en `messages`.** Verificado leyendo el archivo, no supuesto.
+>
+> Eso choca de frente con el criterio de que la base pase a ser la fuente de verdad. F27 guarda lo que llega por aviso **de ahí en adelante**, así que el día que la bandeja deje de consultar al proveedor, el historial anterior desaparece de la pantalla. En Instagram eso no es hipotético: hoy hay 33 conversaciones con historial real, y una sola de ellas tiene 111 mensajes que arrancan en junio de 2024.
+>
+> Dicho de otra forma: migrar al guardado local **sin** una importación previa sería un retroceso visible para el usuario, no una mejora. Es el mismo principio que el CLAUDE.md ya fija para WhatsApp, "migrar sin historial no es migrar", aplicado al canal que ya está conectado.
+>
+> **El trabajo de paginar la API ya está hecho y es reutilizable.** `lib/zernio-message-map.ts` tiene el bucle contra el endpoint de mensajes de Zernio, con lo que hace falta saber medido contra la API real: el tamaño de página es 100 y está topeado ahí, `offset` no existe, se pagina con `cursor` desde `pagination.nextCursor`, y `sortOrder` acepta `asc` y `desc`. La importación de F27 necesita exactamente ese bucle, recorriendo hacia atrás en vez de traer una sola página.
+>
+> **Y hay un límite que conviene saber antes de prometer la importación:** el endpoint devuelve `message: ""` para buena parte de los mensajes históricos de Instagram, los que Zernio resume como `[Attachment]` en el listado. Medido: 22 de 24 en las primeras conversaciones revisadas. Ese contenido no está del lado del proveedor, así que ninguna importación lo puede recuperar. El historial que se importe va a tener huecos, y eso hay que decirlo antes y no después.
 
 #### F28: Adjuntos
 

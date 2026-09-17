@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Send, Paperclip, Bot, User, MessageSquare, CheckCircle, Clock, RotateCcw, Loader2 } from "lucide-react";
+import { Send, Paperclip, Bot, User, MessageSquare, CheckCircle, Clock, RotateCcw, Loader2, History } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { PlatformIcon } from "@/components/platform-icon";
@@ -116,9 +116,17 @@ function MessageBubble({ message }: { message: Message }) {
 export function MessageThread({
   conversation,
   messages: initialMessages,
+  hayAnteriores = false,
 }: {
   conversation: Conversation | null;
   messages: Message[];
+  /**
+   * true cuando la conversación tiene mensajes más viejos que los que se
+   * trajeron. El hilo pide la última página, así que en una conversación larga
+   * el corte existe y NO puede quedar callado: pasar de "faltan los nuevos sin
+   * avisar" a "faltan los viejos sin avisar" no sería una mejora.
+   */
+  hayAnteriores?: boolean;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -184,7 +192,9 @@ export function MessageThread({
               `/api/v1/messages?conversationId=${conversation.id}`
             );
             if (res.ok) {
-              const freshMessages = await res.json();
+              // La respuesta es { messages, hayAnteriores }, no un array.
+              const data = await res.json();
+              const freshMessages: Message[] = data?.messages ?? [];
               setMessages((prev) => {
                 const optimistic = prev.filter((m) => m.id.startsWith("optimistic-"));
                 return [...freshMessages, ...optimistic];
@@ -365,6 +375,16 @@ export function MessageThread({
       {/* Messages */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4">
         <div className="mx-auto max-w-2xl space-y-4">
+          {hayAnteriores && (
+            <div className="flex items-center gap-3 pb-2">
+              <div className="h-px flex-1 bg-border" />
+              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <History className="h-3 w-3" />
+                Hay mensajes anteriores que no se muestran acá
+              </span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+          )}
           {messages.map((message, i) => (
             <div key={message.id}>
               {shouldShowDateSeparator(message, messages[i - 1]) && (

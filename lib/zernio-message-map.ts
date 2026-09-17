@@ -134,6 +134,99 @@ function elegirFecha(m: MensajeDeZernio): string {
   return m.createdAt ?? m.sentAt ?? new Date().toISOString();
 }
 
+/**
+ * Cuántos mensajes se piden.
+ *
+ * El endpoint topea en 100: pedir 200 devuelve 100 igual, comprobado. Así que
+ * este número no es una preferencia, es el techo de la API.
+ */
+export const TAMANO_DE_PAGINA = 100;
+
+export interface MensajesDeConversacion {
+  messages: MensajeDeBandeja[];
+  /** true cuando la conversación tiene mensajes más viejos que los devueltos. */
+  hayAnteriores: boolean;
+}
+
+/** Lo mínimo del cliente de Zernio que esta función necesita. */
+export interface ClienteDeMensajes {
+  messages: {
+    getInboxConversationMessages(opts: {
+      path: { conversationId: string };
+      query: { accountId: string; limit?: number; sortOrder?: "asc" | "desc"; cursor?: string };
+    }): Promise<{
+      data?: {
+        messages?: unknown[];
+        pagination?: { hasMore?: boolean; nextCursor?: string | null };
+      };
+    }>;
+  };
+}
+
+/**
+ * Trae la última página de una conversación, en orden cronológico.
+ *
+ * ── EL BUG QUE ESTO ARREGLA ─────────────────────────────────────────────────
+ *
+ * Se pedía sin `sortOrder` ni `limit`. El default del endpoint es 100 mensajes
+ * en orden ASCENDENTE, así que lo que llegaba era la página de los 100 MÁS
+ * VIEJOS, y nadie pedía la siguiente. Medido contra la API real el 16/09/2026,
+ * sobre la conversación `1331828025829865`:
+ *
+ *     pagina 1: 100 mensajes  2024-06-27 -> 2026-08-25  hasMore=true
+ *     pagina 2:  11 mensajes  2026-08-29 -> 2026-09-17  hasMore=false
+ *
+ * El hilo terminaba el 25 de agosto porque ahí terminaba la página uno.
+ *
+ * ── POR QUÉ `desc` Y NO PAGINAR HACIA ADELANTE ──────────────────────────────
+ *
+ * Paginar en ascendente con un tope de páginas reintroduce exactamente el mismo
+ * bug, solo que más lejos: con tope de 5 páginas, una conversación de 600
+ * mensajes vuelve a cortar lo reciente, y el síntoma sería idéntico y aún más
+ * difícil de encontrar. El tope no se puede sacar, porque entonces el costo de
+ * abrir un hilo crece con el largo del historial.
+ *
+ * Pedir `desc` invierte cuál es la mitad que se sacrifica, y esa es la elección
+ * correcta para un chat: **una sola llamada, sin importar el largo, y lo
+ * reciente nunca se corta**. Lo que queda afuera es el historial viejo, que es
+ * lo que uno va a buscar a propósito, no lo que espera ver al abrir.
+ *
+ * Lo que NO se puede hacer es callarse el corte. Cambiar "faltan los nuevos sin
+ * avisar" por "faltan los viejos sin avisar" no sería una mejora: por eso se
+ * devuelve `hayAnteriores` y la pantalla lo muestra.
+ *
+ * La API entrega los recientes primero, y la pantalla los necesita al revés, así
+ * que se revierte acá.
+ */
+export async function traerMensajesDeConversacion(
+  zernio: ClienteDeMensajes,
+  opts: {
+    conversationIdDeZernio: string;
+    accountId: string;
+    conversationIdLocal: string;
+  }
+): Promise<MensajesDeConversacion> {
+  const res = await zernio.messages.getInboxConversationMessages({
+    path: { conversationId: opts.conversationIdDeZernio },
+    query: {
+      accountId: opts.accountId,
+      sortOrder: "desc",
+      limit: TAMANO_DE_PAGINA,
+    },
+  });
+
+  const crudos = res.data?.messages ?? [];
+
+  // `hasMore` sobre una consulta descendente significa "hay más VIEJOS", que es
+  // justo lo que el indicador tiene que anunciar.
+  const hayAnteriores = res.data?.pagination?.hasMore === true;
+
+  return {
+    messages: mapearMensajesDeZernio(crudos, opts.conversationIdLocal).reverse(),
+    hayAnteriores,
+  };
+}
+
 export function mapearMensajesDeZernio(
   crudos: unknown[],
   conversationId: string

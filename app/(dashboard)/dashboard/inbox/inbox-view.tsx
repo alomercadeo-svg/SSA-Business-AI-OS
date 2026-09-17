@@ -25,6 +25,7 @@ export function InboxView({
   const router = useRouter();
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [hayAnteriores, setHayAnteriores] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [showContactPanel, setShowContactPanel] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -63,6 +64,7 @@ export function InboxView({
   useEffect(() => {
     if (!selected) {
       setMessages([]);
+      setHayAnteriores(false);
       return;
     }
 
@@ -75,11 +77,16 @@ export function InboxView({
           `/api/v1/messages?conversationId=${selected!.id}`
         );
         if (res.ok) {
+          // La respuesta pasó de ser un array pelado a { messages, hayAnteriores }:
+          // se pide la última página, así que en una conversación larga queda
+          // historial afuera y el hilo tiene que avisarlo.
           const data = await res.json();
-          setMessages(data ?? []);
+          setMessages(data?.messages ?? []);
+          setHayAnteriores(data?.hayAnteriores === true);
         } else {
           const data = await res.json().catch(() => null);
           setMessages([]);
+          setHayAnteriores(false);
           if (res.status === 403 || data?.code === "fuera_de_scope") {
             fueraDeScope = true;
             setScopeError(
@@ -92,6 +99,7 @@ export function InboxView({
       } catch (err) {
         console.error("Failed to load messages:", err);
         setMessages([]);
+        setHayAnteriores(false);
       } finally {
         setLoadingMessages(false);
       }
@@ -190,6 +198,7 @@ export function InboxView({
             <MessageThread
               conversation={selected}
               messages={messages}
+              hayAnteriores={hayAnteriores}
             />
           )}
         </div>
