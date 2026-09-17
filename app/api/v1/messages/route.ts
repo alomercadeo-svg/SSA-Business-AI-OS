@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { createZernioClient } from "@/lib/zernio-client";
 import { getZernioApiKey } from "@/lib/vault";
 import { messagePreview } from "@/lib/message-preview";
+import { mapearMensajesDeZernio } from "@/lib/zernio-message-map";
 
 /**
  * GET /api/v1/messages?conversationId=...
@@ -74,31 +75,20 @@ export async function GET(request: NextRequest) {
       query: { accountId: channel.late_account_id },
     });
 
-    // The Zernio endpoint returns { success, messages: [...] } — NOT { data }.
+    // La respuesta real es { status, messages, pagination, sortOrderApplied,
+    // lastUpdated }. Verificado contra la API el 16/09/2026; el comentario
+    // anterior decía `{ success, messages }` y esa clave no existe. El `?? data`
+    // queda como red por si alguna versión cambia el envoltorio.
     const zernioMessages =
       (res.data as { messages?: unknown[] })?.messages ??
       (res.data as { data?: unknown[] })?.data ??
       [];
 
-    // Map Zernio messages to the shape the inbox UI expects
-    const messages = zernioMessages.map((m: any) => ({
-      id: m.id,
-      conversation_id: conversationId,
-      direction: m.direction === "outbound" ? "outbound" : "inbound",
-      text: m.text ?? m.message ?? null,
-      attachments: m.attachments?.length ? m.attachments : null,
-      quick_reply_payload: null,
-      postback_payload: null,
-      callback_data: null,
-      platform_message_id: m.platformMessageId ?? null,
-      sent_by_flow_id: null,
-      sent_by_node_id: null,
-      sent_by_user_id: null,
-      status: "sent",
-      created_at: m.sentAt ?? m.createdAt ?? new Date().toISOString(),
-    }));
-
-    return NextResponse.json(messages);
+    // La traducción vive en lib/zernio-message-map.ts, donde tiene test con un
+    // fixture de la respuesta real: es la parte que puede equivocarse sin que
+    // nada falle, porque un campo mal nombrado devuelve undefined en vez de
+    // error.
+    return NextResponse.json(mapearMensajesDeZernio(zernioMessages, conversationId));
   } catch (error) {
     console.error("Failed to fetch messages from Zernio API:", error);
     return NextResponse.json(
