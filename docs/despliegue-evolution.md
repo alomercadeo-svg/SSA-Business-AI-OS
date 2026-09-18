@@ -161,10 +161,16 @@ dependa de cuál sea el default de la versión que venga.
 > de Railway. Si hace falta para depurar, se agrega, se depura y **se saca**, y después se rota el
 > token con `--borrar-instancia` porque quedó en un log que no controlamos del todo.
 >
-> **No verificado del todo:** la rama de error (`this.logger.error`) **no** está detrás de
-> `enabledLog`, y `ERROR` sí está en nuestra lista. No pude confirmar si ese mensaje incluye el
-> payload o solo metadata de red. Si alguna vez aparece una falla de entrega en los logs, lo primero
-> es mirar qué imprimió.
+> **La rama de error: verificada, y está limpia.** Es la que importaba, porque `logger.error` **no**
+> está detrás de `enabledLog` y `ERROR` sí está en nuestra lista, así que esas líneas se imprimen
+> siempre. Y es la rama que tiene garantizado dispararse: todo el diseño del 503 y de las alertas
+> parte de que las entregas fallan.
+>
+> Leídas las cinco llamadas a `logger.error` del archivo (dos en `emit()`, tres en
+> `retryWebhookRequest()` y `generateJwtToken()`), ninguna recibe `webhookData`. Los campos que
+> loguean son `message`, `hostName`, `syscall`, `code`, `statusCode`, `errno`, `stack`, `name`,
+> `url` y `server_url`. **No hay credencial ahí.** El único campo no acotado es `stack`, y un stack
+> de axios no arrastra el cuerpo de la petición.
 
 ### Base de datos
 
@@ -286,11 +292,16 @@ Si alguna vez hace falta correr más de una réplica de Evolution, Redis vuelve 
 > ninguna condición**. No está atado a esta variable ni a ninguna otra. El token viaja en el cuerpo
 > de cada aviso, se ponga lo que se ponga acá.
 >
-> **Inferencia, no verificado del todo:** la variable se lee (`env.config.ts`:
-> `EXPOSE_IN_FETCH_INSTANCES: process.env?.AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES === 'true'`)
-> pero no se consume en el camino de `fetchInstances` en esta versión. Sale de dos lecturas de
-> archivo que no encontraron ningún uso, más la evidencia empírica de arriba. No es un hecho
-> establecido.
+> **La variable se lee y no se consume en ese camino.** Era una inferencia hasta que se cerró su
+> control positivo: **confirmado en Railway el 17/09/2026 que `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES`
+> existe y dice `false`, escrita así.** Eso descarta la otra explicación posible, que era que la
+> variable nunca se hubiera aplicado. Se lee (`env.config.ts`:
+> `EXPOSE_IN_FETCH_INSTANCES: process.env?.AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES === 'true'`) y
+> no se consume en el camino de `fetchInstances` en esta versión.
+>
+> Sin esa confirmación en Railway, el resultado empírico no distinguía "la variable no hace lo que
+> dice" de "la variable nunca llegó al contenedor". Es el mismo patrón que el control positivo del
+> despliegue.
 >
 > **Se deja en `false` igual**, porque cuesta cero y porque una versión futura puede empezar a
 > consumirla. Pero **no se cuenta como defensa**. Lo que de verdad protege ese token son dos cosas
@@ -632,10 +643,47 @@ código de la lista que cancela reintentos), así que **reintenta hasta 10 veces
 exponencial**, unos 20 minutos. Dentro de esa ventana, arreglar el DNS recupera todo. Pasada la
 ventana, los mensajes se pierden.
 
-Cómo se detecta: no hay alerta para esto, porque el aviso nunca llega a nuestro receptor y
-`webhook_alerts` solo registra lo que llegó. El síntoma es una bandeja quieta. Esto es una carencia
-conocida y su solución es F32 (Bloque 4), el chequeo de estado de la sesión, que mira del lado de
-Evolution en vez de esperar a que algo llegue.
+Cómo se detecta: **no hay forma de detectarlo hoy**, y F32 no lo arregla. Conviene dejar escrito por
+qué, porque es la conclusión intuitiva y es falsa.
+
+### Por qué F32 no cubre esto, aunque lo parezca
+
+F32 es el chequeo del estado de la **sesión de WhatsApp**. Si se cae el DNS de
+`app.alomercadeo.com`, la sesión sigue conectada y sana: Evolution recibe los mensajes, intenta
+entregarlos en una URL que no resuelve, reintenta veinte minutos y los descarta. **F32 mostraría
+verde todo el tiempo, con razón**, porque lo que mira está bien. Lo que está roto es el tramo entre
+Evolution y nosotros, que F32 no mira.
+
+### Lo que sí lo cubre: una comprobación de silencio (funcionalidad nueva, sin construir)
+
+Un interruptor de hombre muerto: algo que note que hace N horas que **no entra ningún evento** por el
+canal, y avise. Es el único control que sirve cuando el problema es que no llega nada, porque
+cualquier control que se dispare con lo que llega es ciego por definición ante la ausencia.
+
+**Por qué vale la pena, y no es paranoia:** hay al menos **tres causas distintas que producen
+exactamente el mismo síntoma**, y dos de las tres son hoy completamente invisibles.
+
+| Causa | ¿Se detecta hoy? |
+|---|---|
+| DNS caído o mal apuntado | No. El aviso nunca llega al receptor, así que `webhook_alerts` no registra nada |
+| Sesión de WhatsApp expirada | Sí, con F32, cuando exista |
+| Webhook registrado en la URL vieja después de un cambio de dominio | No. Mismo caso que el punto 3 de esta sección: todo "funciona" y no hay un solo error en ningún log |
+
+Y el síntoma común es que **la bandeja queda callada, que es indistinguible de que nadie haya
+escrito**. Para un negocio cuyos leads llegan por pauta, un día flojo y un canal roto se ven igual.
+
+**Forma mínima, para dimensionarla:** una columna con la marca de tiempo del último evento entrante
+por canal, que el receptor actualiza, más un trabajo periódico que compara contra un umbral y abre
+una condición en `webhook_alerts`, que ya existe y ya tiene su banner. La cola de trabajos
+(`scheduled_jobs`) también existe. No es infraestructura nueva.
+
+**Dónde la ubicaría: en el Bloque 3, junto con F27, y no en el Bloque 4.** El motivo es que la alarma
+solo es interpretable cuando hay tráfico esperable, y ese momento es exactamente cuando se vincula el
+número, que es lo que habilita F27. Antes de eso el silencio es el estado correcto y la alarma
+sonaría para siempre. Después de eso, cada día que pase sin la comprobación es un día con el número
+en vivo y dos de las tres causas invisibles. Dejarla para el Bloque 4 abre esa ventana a propósito.
+
+**Todavía no está numerada como F ni agregada al plano**: la ubicación está propuesta, no decidida.
 
 ### El punto 3 falla en silencio, y peor de lo que parece
 
@@ -666,7 +714,39 @@ Railway exige un **redeploy**, no alcanza con reiniciar el servicio.
 
 ---
 
-## 11. Problemas frecuentes
+## 11. Deudas anotadas del Bloque 2
+
+Dos, las dos con la solución escrita para que retomarlas no cueste redescubrirlas.
+
+### Las dos guardas de rol de las alertas no tienen test
+
+Desde la 00023, quién ve una alerta de sistema (`workspace_id` nulo) no lo decide la RLS: lo deciden
+dos comprobaciones escritas a mano en el servidor.
+
+| Archivo | La guarda |
+|---|---|
+| `app/(dashboard)/dashboard/channels/page.tsx` | `esOwner={role === "owner"}` |
+| `app/(dashboard)/dashboard/channels/webhook-alerts-actions.ts` | `if (esDeSistema && role !== "owner") return;` |
+
+Ninguna de las dos tiene cobertura. `verify-evolution-webhook.mjs` prueba la mitad negativa —que
+nadie las lee por RLS— y **dice en su propia salida que la mitad positiva no está probada**, para que
+nadie cuente ese "7 de 7" como completo.
+
+**La solución, sin dependencias nuevas:** el proyecto tiene `vitest` pero no `jsdom` ni
+`@testing-library`, así que probar el componente exigiría sumar dos dependencias para verificar una
+comparación de string. En vez de eso, extraer la decisión a una función pura —del estilo
+`puedeVerAlertasDeSistema(role)`— usarla en los dos lugares y testearla sola. Cubre lo que importa,
+que es que la condición no se invierta ni se afloje, y no arrastra un entorno de DOM.
+
+### La comprobación de silencio no existe
+
+Ver el riesgo aceptado del DNS en la sección 10. Es funcionalidad nueva, no parte de F32, y la
+ubicación propuesta es el Bloque 3 junto con F27. Sin ella, dos de las tres causas de "la bandeja
+está callada" son invisibles.
+
+---
+
+## 12. Problemas frecuentes
 
 | Síntoma | Causa probable | Qué mirar |
 |---|---|---|
