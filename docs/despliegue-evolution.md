@@ -2,11 +2,16 @@
 
 Procedimiento reproducible para dejar corriendo el servicio de WhatsApp (F21).
 
-**Fecha:** 16 de septiembre de 2026.
+**Fecha:** 16 de septiembre de 2026. **Ejecutado y verificado el 17 de septiembre de 2026.**
 **Versión desplegada:** Evolution API 2.3.7.
 
 **Qué deja andando:** dos servicios en Railway, Evolution y su PostgreSQL, con una instancia creada
 y el aviso de mensajes apuntando a nuestro receptor. **Sin ningún número vinculado.**
+
+**Estado al 17 de septiembre de 2026:** desplegado y verificado de punta a punta. Instancia
+`alomercadeo-ventas`, en estado `close`, sin `ownerJid`, sin `number` y sin `profileName`. El
+webhook apunta a `https://app.alomercadeo.com/api/webhooks/evolution` con los siete eventos, leído
+de vuelta desde Evolution. `verify-evolution-deploy.mjs` y `verify-evolution-webhook.mjs` pasan.
 
 > ## ⚠ El número no se vincula todavía
 >
@@ -115,7 +120,7 @@ dependa de cuál sea el default de la versión que venga.
 | `SERVER_PORT` | `8080` | El puerto que expone la imagen |
 | `SERVER_URL` | La URL pública del paso 4 | Evolution la usa para armarse links a sí mismo. Se completa después de generar el dominio |
 | `TELEMETRY_ENABLED` | `false` | Por defecto viene en `true` y manda telemetría afuera. Es un servicio que maneja conversaciones de clientes |
-| `LOG_LEVEL` | `ERROR,WARN,INFO` | El default incluye `DEBUG` y `VERBOSE`, que llenan el log de Railway y pueden imprimir cuerpos de mensajes |
+| `LOG_LEVEL` | `ERROR,WARN,INFO` | Ver abajo: no es solo verbosidad, es lo que mantiene el token de la instancia fuera de los logs |
 | `LOG_BAILEYS` | `error` | |
 | `DEL_INSTANCE` | `false` | Que una instancia desconectada no se borre sola |
 | `SERVER_DISABLE_MANAGER` | `true` | Ver abajo |
@@ -130,6 +135,36 @@ dependa de cuál sea el default de la versión que venga.
 > Por defecto Evolution sirve una **interfaz web de administración en `/manager`**, sobre nuestro
 > dominio público, protegida solo por la clave global. No la usamos: el canal se administra desde
 > nuestro propio dashboard. Una superficie de ataque que no se usa se apaga.
+>
+> **Comprobado el 17 de septiembre de 2026:** `GET /manager` devuelve 404, o sea que la ruta no se
+> registró.
+
+> #### `WEBHOOKS` en `LOG_LEVEL` es una trampa, y no es un nivel de verbosidad
+>
+> Esto se investigó a fondo cuando quedó claro que el `apikey` de la instancia viaja en el cuerpo de
+> cada aviso: si Evolution loguea ese cuerpo, la credencial queda en los logs de Railway, o sea en
+> nuestra propia infraestructura.
+>
+> **Verificado en el código de la 2.3.7, y la respuesta es que hoy NO la loguea**, porque hay dos
+> compuertas y las dos están cerradas con nuestro valor:
+>
+> 1. La llamada está envuelta en `if (enabledLog)`, donde `enabledLog` es
+>    `LOG.LEVEL.includes('WEBHOOKS')`.
+> 2. Adentro usa `this.logger.log(logData)`, y `log()` exige `'LOG'` en la misma lista
+>    (`logger.config.ts`: cada método mapea a su propio nombre de nivel).
+>
+> Y `logData` es `{ local, url, ...webhookData }`, así que el spread **incluye el `apikey`**.
+>
+> **La trampa:** `WEBHOOKS` no es "más verboso", es una categoría aparte. Alguien que esté
+> depurando por qué no llegan las entregas lo va a querer agregar, y es justo lo que parece
+> inofensivo. Agregarlo —junto con `LOG`— empieza a escribir el token de la instancia en los logs
+> de Railway. Si hace falta para depurar, se agrega, se depura y **se saca**, y después se rota el
+> token con `--borrar-instancia` porque quedó en un log que no controlamos del todo.
+>
+> **No verificado del todo:** la rama de error (`this.logger.error`) **no** está detrás de
+> `enabledLog`, y `ERROR` sí está en nuestra lista. No pude confirmar si ese mensaje incluye el
+> payload o solo metadata de red. Si alguna vez aparece una falla de entrega en los logs, lo primero
+> es mirar qué imprimió.
 
 ### Base de datos
 
@@ -237,7 +272,37 @@ Si alguna vez hace falta correr más de una réplica de Evolution, Redis vuelve 
 | Variable | Valor | Por qué |
 |---|---|---|
 | `AUTHENTICATION_API_KEY` | Se genera en el paso 5 | La clave global del servidor |
-| `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES` | `false` | **El default es `true`.** Con `true`, Evolution incluye el token de la instancia en el cuerpo de **cada webhook**. Ese token autoriza mandar mensajes, leer conversaciones y borrar la instancia: cualquier log que registre el cuerpo completo guarda una credencial en texto plano |
+| `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES` | `false` | Ver abajo. **El motivo que este documento le atribuía era falso** |
+
+> #### Corrección del 17 de septiembre de 2026: esa variable no hace lo que decíamos
+>
+> Este documento afirmaba que con `true` Evolution mete el token de la instancia en el cuerpo de
+> cada webhook, y que por eso lo poníamos en `false`. **Es falso, y se descubrió mirando.**
+>
+> **Verificado empíricamente** contra nuestro propio despliegue, con la variable en `false`:
+> `GET /instance/fetchInstances` devuelve igual el campo `token` con el valor real.
+>
+> **Verificado en el código de la 2.3.7:** `emit()` arma el cuerpo con `apikey: apiKey` **sin
+> ninguna condición**. No está atado a esta variable ni a ninguna otra. El token viaja en el cuerpo
+> de cada aviso, se ponga lo que se ponga acá.
+>
+> **Inferencia, no verificado del todo:** la variable se lee (`env.config.ts`:
+> `EXPOSE_IN_FETCH_INSTANCES: process.env?.AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES === 'true'`)
+> pero no se consume en el camino de `fetchInstances` en esta versión. Sale de dos lecturas de
+> archivo que no encontraron ningún uso, más la evidencia empírica de arriba. No es un hecho
+> establecido.
+>
+> **Se deja en `false` igual**, porque cuesta cero y porque una versión futura puede empezar a
+> consumirla. Pero **no se cuenta como defensa**. Lo que de verdad protege ese token son dos cosas
+> que ya están en el código y que hay que preservar:
+>
+> * `route.ts` declara `apikey?: string` en la forma del payload explícitamente "para dejar
+>   constancia de que VIENE, no para usarlo", y nunca lo usa como autenticación.
+> * Ningún log del receptor escribe el cuerpo crudo.
+>
+> El error de fondo fue escribir un motivo plausible sin comprobarlo. Una variable con una
+> justificación falsa al lado es peor que una sin justificación: se cuenta como protección en los
+> repasos de seguridad y nadie vuelve a mirarla.
 
 ### QR
 
@@ -361,15 +426,65 @@ mueren: pasa en verde durante meses y nadie nota que dejó de comprobar nada.
 node scripts/setup-evolution-channel.mjs <nombre-de-la-instancia>
 ```
 
-El script hace cuatro cosas, en este orden:
+El script hace seis cosas, y **el orden es el control, no un detalle**:
 
-1. Crea la instancia con `syncFullHistory: true` y `groupsIgnore: true`.
-2. Guarda el token que devuelve Evolution en Vault, **con el nombre del canal adentro**
+1. Resuelve el workspace y lee la clave global de Vault.
+2. Crea la fila en `channels` con `provider = 'evolution'`, su `instance_name`, `late_account_id`
+   en nulo y **`is_active = false`**.
+3. Crea la instancia con `qrcode: false`, `syncFullHistory: true` y `groupsIgnore: true`.
+4. Guarda el token que devuelve Evolution en Vault, **con el id del canal adentro**
    (`evolution_instance_token:<channel_id>`). Ver abajo por qué.
-3. Genera el secreto del webhook, lo guarda en Vault y configura el webhook **por instancia**, con
-   `POST /webhook/set/{instance}` y el header `jwt_key`.
-4. Crea la fila en `channels` con `provider = 'evolution'`, su `instance_name` y
-   `late_account_id` en nulo.
+5. Resuelve el secreto del webhook —**lo reusa si ya existe**— y configura el webhook **por
+   instancia**, con `POST /webhook/set/{instance}` y el header `jwt_key`. Después **lo lee de vuelta**
+   con `GET /webhook/find/{instance}` y compara URL, `enabled` y la lista de eventos.
+6. Pone `is_active = true`.
+
+### Por qué la fila va antes que la instancia
+
+La fila no depende de Evolution: el `instance_name` lo elegimos nosotros. Así, **lo que falle antes
+del paso 3 deja una fila inactiva**, que se borra o que un reintento con el mismo nombre vuelve a
+encontrar por el índice único de la 00022. Al revés dejaría una instancia creada con un token que no
+se puede recuperar.
+
+Y arranca en `is_active = false` para que no exista, ni por un instante, un canal activo sin
+instancia detrás: el receptor filtra por `is_active`, así que un canal activo a medio construir es
+una ventana en la que los avisos se rechazan.
+
+**El único paso irreversible es el 3**, y la ventana que importa es entre el 3 y el 4: si el token no
+llega a Vault, no se recupera. La salida de recuperación del script apunta a `--borrar-instancia`.
+
+### El secreto del webhook se reusa, no se regenera
+
+Es el punto más fácil de romper sin darse cuenta. El secreto es **por workspace**. Si un segundo
+canal generara uno nuevo, el webhook del primero quedaría firmando con un secreto que ya no está en
+Vault y **todos sus mensajes entrantes empezarían a dar 401**, que Evolution no reintenta. Regenerar
+es siempre explícito, con `set-evolution-secret.mjs --rotar`.
+
+### La lectura de vuelta del paso 5 no es una formalidad
+
+El cuerpo va anidado bajo `webhook` (verificado en `event.dto.ts` de la 2.3.7). Si la forma fuera la
+equivocada, Evolution podría contestar 200 sin guardar nada y el script cantaría éxito sobre un
+webhook que no existe. Además, **`events: []` no significa "ninguno", significa los 31**:
+`event.controller.ts` hace `if (0 === events.length) events = EventController.events`. La lectura de
+vuelta es lo que detecta las dos cosas.
+
+`byEvents` va en `false`: en `true`, Evolution le agrega el nombre del evento al final de la URL, y
+nuestro receptor es una ruta sola.
+
+### Rotar el token de una instancia
+
+Evolution lo entrega en el `create` y no lo vuelve a dar, así que la única rotación posible es borrar
+y recrear:
+
+```bash
+node scripts/setup-evolution-channel.mjs <instancia> --borrar-instancia
+node scripts/setup-evolution-channel.mjs <instancia>
+node scripts/verify-evolution-webhook.mjs
+```
+
+El borrado lee la clave global de Vault y **no la imprime**. Una versión anterior de este documento
+sugería un `curl -H "apikey: <la clave>"`, que deja el secreto en el scrollback y en el historial del
+shell: es la clase de atajo que convierte un procedimiento de emergencia en una filtración.
 
 ### Por qué un secreto es por workspace y el otro por canal
 
@@ -401,18 +516,46 @@ concluyente"**, dicho con esas palabras, nunca verde.
 Qué comprueba, en orden:
 
 1. Un evento firmado con el secreto real llega al receptor y devuelve **200**.
-2. Un token vencido devuelve 401.
-3. Un token firmado con otro secreto devuelve 401.
-4. Un evento repetido se acusa sin reprocesar.
-5. El rechazo dejó la condición abierta en `webhook_alerts`, con su contador.
+2. Un evento repetido se acusa sin reprocesar.
+3. Un token vencido devuelve 401.
+4. Un token firmado con otro secreto devuelve 401.
+5. Los rechazos dejaron la condición abierta en `webhook_alerts`, con su contador.
 6. Un evento válido posterior la cerró.
-7. Un Owner **puede leer** la condición de instancia desconocida, y un Member no.
+7. La alerta de sistema **no es legible por RLS**, con su control positivo.
 
-La séptima merece su párrafo. Esa condición tiene `workspace_id` en nulo por definición, porque un
-aviso para una instancia que no existe no es atribuible a ningún workspace. Con una sola política
-de lectura, la fila se registraría con su contador perfecto y **no la podría leer nadie**: ni el
-Owner, ni el indicador de la pantalla de canales. La alerta existiría y no alertaría. Por eso hay
-una segunda política y por eso el control positivo está en la lista.
+### Por qué el evento repetido está segundo y no cuarto
+
+Porque un evento repetido es un evento **válido**, y en `route.ts` el orden del receptor es:
+verificar el token → `resolverAlertas()` → recién ahí el control de duplicados. Cualquier entrega
+válida cierra `webhook_auth_failed`, incluida una que después se descarta por repetida.
+
+Con esa comprobación después de los rechazos, cerraba la condición que ellos acababan de abrir, la 5
+la buscaba y no la encontraba, y **la 6 pasaba en falso**: afirmaba "el evento válido la cerró"
+mirando que no quedara ninguna abierta, cosa trivialmente cierta cuando nunca hubo una. Un
+verificador que altera el estado que está midiendo puede fabricar la condición que dice comprobar.
+La regla general quedó escrita en `CLAUDE.md`, separada de la del control positivo, porque es otra
+familia: un control positivo no la habría detectado.
+
+Por eso ahora la 6 está atada a la 5: si la 5 no encontró nada abierto, la 6 dice **"no
+concluyente"** en vez de verde.
+
+### La séptima cambió con la 00023, y el documento decía lo contrario
+
+Este documento pedía probar que "un Owner **puede leer** la condición de instancia desconocida, y un
+Member no". Era cierto con la 00022, que tenía `is_any_workspace_owner()` y una policy para las filas
+sin workspace. **La 00023 borró las dos.** Hoy esas filas no tienen ninguna vía de lectura por RLS y
+se leen del lado del servidor con el cliente de servicio detrás de una guarda de rol.
+
+Así que el verificador prueba lo que hoy tiene que ser cierto: que **ninguna persona la lee por
+RLS**. El control positivo es que el mismo token sí lee una alerta de su propio workspace — sin eso,
+cero filas no distingue "la policy lo niega" de "la consulta estaba mal escrita".
+
+**Lo que esa comprobación NO prueba, y el script lo dice con todas las letras en su salida:** que una
+**persona** pueda ver la alerta de sistema en la pantalla. Eso depende de dos guardas de rol escritas
+a mano en el servidor —`page.tsx` pasa `esOwner={role === "owner"}`, y `webhook-alerts-actions.ts`
+corta con `role !== "owner"`— y **ninguna de las dos tiene test hoy**. No se cuenta como probado.
+Cerrar ese hueco sin `jsdom` ni `@testing-library` es posible extrayendo la decisión de rol a una
+función pura; queda anotado como pendiente.
 
 ---
 
@@ -471,8 +614,28 @@ nada.
 | 1 | `NEXT_PUBLIC_APP_URL` | Hecho | Es la que alimenta a las otras. Ver la nota del build más abajo |
 | 2 | URLs de Supabase Auth (Site URL y Redirect URLs) | Hecho | Cerrar sesión y volver a entrar desde el dominio nuevo |
 | 3 | Webhook de Zernio | Hecho y verificado | **Un DM real que entre a la bandeja.** No alcanza con "no vi errores" |
-| 4 | Webhook de Evolution | Pendiente: se registra en el paso 7 | `node scripts/verify-evolution-webhook.mjs` |
+| 4 | Webhook de Evolution | **Hecho y verificado el 17/09/2026** | `node scripts/verify-evolution-webhook.mjs` |
 | 5 | `redirect_url` del OAuth de Zernio | Pendiente de verificar | Reconectar el canal de Instagram desde cero |
+
+### Riesgo aceptado: la entrega de mensajes ahora depende del DNS del hosting
+
+Al registrar el webhook en `app.alomercadeo.com`, la entrega de **cada mensaje entrante de WhatsApp**
+pasa a depender de que ese nombre resuelva. Y el proveedor de hosting que administra esa zona tardó
+dos intentos en cargar bien un registro TXT: lo cargó sin el guion bajo inicial del nombre.
+
+**No se cambia nada.** El dominio propio es la decisión correcta —no depender de un subdominio de
+Railway que puede cambiar— y re-registrar el webhook es un procedimiento escrito, de un comando. Lo
+que no puede pasar es que nadie lo haya mirado y aparezca como sorpresa.
+
+Qué pasa si el DNS falla: Evolution no puede entregar, la entrega falla con error de red (no con un
+código de la lista que cancela reintentos), así que **reintenta hasta 10 veces con retroceso
+exponencial**, unos 20 minutos. Dentro de esa ventana, arreglar el DNS recupera todo. Pasada la
+ventana, los mensajes se pierden.
+
+Cómo se detecta: no hay alerta para esto, porque el aviso nunca llega a nuestro receptor y
+`webhook_alerts` solo registra lo que llegó. El síntoma es una bandeja quieta. Esto es una carencia
+conocida y su solución es F32 (Bloque 4), el chequeo de estado de la sesión, que mira del lado de
+Evolution en vez de esperar a que algo llegue.
 
 ### El punto 3 falla en silencio, y peor de lo que parece
 

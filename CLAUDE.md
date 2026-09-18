@@ -188,6 +188,18 @@ Las cuatro formas de aplicarlo:
 - Toda restricción por rol lleva su contraparte afirmativa: si probás que un Member no puede, probá también que un manager sí puede.
 - Cuando el control positivo falla, el veredicto es **"no concluyente"**, dicho con esas palabras. Nunca verde.
 
+## Verificación: preguntá qué cambia el propio test
+
+Esta es una familia distinta de la anterior y no se atrapa con un control positivo. Apareció en el Bloque 2, con `verify-evolution-webhook.mjs`: la comprobación del evento repetido mandaba un evento **válido**, y en `route.ts` el cierre de alertas ocurre **antes** del control de duplicados. Así que esa comprobación cerraba la condición que las comprobaciones de rechazo acababan de abrir. La lectura de la alerta la buscaba y no la encontraba.
+
+Lo peor no fue el rojo, fue el verde de al lado: la comprobación siguiente afirmaba "un evento válido cerró la condición" mirando que no quedara ninguna abierta, cosa trivialmente cierta cuando nunca hubo una. Un verificador que altera el estado que está midiendo puede fabricar la condición que dice estar comprobando.
+
+Un control positivo no lo habría detectado, porque el camino afirmativo funcionaba perfecto. Lo que lo detecta es otra pregunta:
+
+- **Antes de escribir un paso de verificación, preguntarse qué efectos colaterales tiene sobre el estado que miden los pasos siguientes.** Un paso que parece de solo lectura —"mandar el mismo evento otra vez"— puede disparar un camino de escritura del lado del servidor.
+- **Los pasos que preparan una condición y los que la leen van juntos, sin nada en el medio que pueda alterarla.** Si entre "provocar el rechazo" y "leer la alerta" hay cualquier otra entrega, el resultado no es atribuible.
+- **Una comprobación que se cumple por ausencia necesita que la presencia esté probada antes.** "No queda ninguna abierta" solo significa algo si antes se comprobó que había una. Si el paso anterior falló, este dice "no concluyente".
+
 ## Nomenclatura obligatoria en la interfaz
 
 Hay dos cosas distintas que se llamarían "plantilla" y confundirlas genera errores caros:
