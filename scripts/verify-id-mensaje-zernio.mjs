@@ -69,6 +69,7 @@
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { protegerSalida, redactar } from "./redaccion.mjs";
 
 // ── Entorno ─────────────────────────────────────────────────────────────────
 
@@ -569,8 +570,11 @@ async function preparar() {
     console.error(`No se pudo leer la clave de Zernio de Vault: ${secreto.status}`);
     return null;
   }
-  console.log("Clave de Zernio leída de Vault.\n");
-  return { canal, clave };
+  // Desde acá, nada que contenga la clave puede salir por pantalla, ni siquiera
+  // por accidente adentro de un volcado de respuesta.
+  const sumarSecreto = protegerSalida([clave]);
+  console.log(`Clave de Zernio leída de Vault: ${redactar(clave)}\n`);
+  return { canal, clave, sumarSecreto };
 }
 
 /** Un listador con caché: una llamada por conversación, no una por mensaje. */
@@ -609,13 +613,21 @@ async function mainSalientes() {
 
   const prep = await preparar();
   if (!prep) return 3;
-  const { canal, clave } = prep;
+  const { canal, clave, sumarSecreto } = prep;
   const listar = hacerListador(clave);
 
   // Control del hueco de consulta: si la suscripción no escucha message.sent,
   // el log de webhooks va a dar cero para siempre y hay que decir por qué.
+  //
+  // OJO CON ESTA RESPUESTA: `GET /v1/webhooks/settings` devuelve el secreto de
+  // firma de cada webhook **en texto plano**, junto con el resto de la
+  // configuración. Se suma al filtro de salida apenas se lee, antes de tocar
+  // nada más, y de acá abajo solo se leen `events`. El filtro está para que un
+  // volcado accidental tampoco lo exponga.
   const sub = await zernio(clave, "/v1/webhooks/settings");
   if (sub.ok) {
+    for (const w of sub.cuerpo?.webhooks ?? []) sumarSecreto(w?.secret);
+
     const eventos = (sub.cuerpo?.webhooks ?? []).flatMap((w) => w.events ?? []);
     const escucha = eventos.includes("message.sent");
     console.log(
