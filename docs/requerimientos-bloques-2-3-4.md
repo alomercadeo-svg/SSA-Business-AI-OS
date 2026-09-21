@@ -269,6 +269,18 @@ Construidos y verificados en el Bloque 1. Se documentan acá porque las funciona
 - [ ] Todas las claves van a Vault. Ninguna viaja al navegador: la pantalla muestra "configurada" o "sin configurar" según exista el secreto, nunca su valor
 - [ ] Cada integración es un registro con su tipo. Agregar una nueva en la Etapa 2 no requiere cambiar la base de datos
 - [ ] Al guardar una clave se valida el formato, con largo mínimo y prefijo esperado donde corresponda
+- [ ] **Estado del registro del webhook de Zernio, visible en la sección de canales:** si está registrado, contra qué URL, y cuándo se verificó por última vez. Se lee de `GET /v1/webhooks/settings`, que ya devuelve todo eso
+- [ ] Ese estado nunca muestra el secreto de firma, que esa misma respuesta trae en texto plano. A lo sumo longitud y últimos cuatro caracteres, igual que el resto de las claves
+
+> **De dónde sale este criterio, y por qué el arreglo es mostrar y no hacer explotar.**
+>
+> `ensureWebhookRegistered` corre dentro de un `try/catch` que solo escribe en la consola, en los dos lugares que lo llaman: `app/api/v1/channels/sync/route.ts:141` y `app/api/v1/channels/test-key/route.ts:74`. Los dos comentarios dicen "best-effort: a failure must not block". Verificado leyendo el código, no supuesto.
+>
+> Esa decisión es correcta y **no hay que revertirla**: que falle el registro del webhook no tiene por qué impedir guardar la clave ni sincronizar los canales. Hacer que el `try/catch` explote cambiaría una falla silenciosa por una pantalla rota, que es peor.
+>
+> El problema no es que no falle: es que **la pantalla informa que el canal se sincronizó bien mientras el webhook puede no haber quedado registrado**. A partir de ahí la bandeja deja de recibir y el síntoma es, otra vez, el mismo que el de un día tranquilo. El estado real existe y es consultable; simplemente no se muestra en ningún lado.
+>
+> Por eso el arreglo es mostrarlo. Es el tercer caso de la regla de la sección 14, el de la vigilancia por ausencia, y es el único de los tres que se corrige sin construir ningún mecanismo nuevo: el dato ya está, falta la pantalla.
 
 ---
 
@@ -357,6 +369,16 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 > La medición se repite con `node scripts/verify-id-mensaje-zernio.mjs`, y `--salientes` corre el otro recorrido. Es de solo lectura. `--autoprueba` verifica al verificador: ejercita las cuatro ramas de veredicto con casos fabricados, porque un verde uniforme se ve igual venga de una comparación que discrimina o de una que siempre da verdadero.
 >
 > **Un hallazgo lateral que conviene tener escrito antes de apoyarse en ese log:** `metadata.messageId` del log de actividad **no es un campo de familia uniforme**. Los envíos con `source=api`, que son los que hace nuestro código, registran el identificador de plataforma; los de `source=platform`, escritos por alguien desde la app de Instagram, registran el interno. Nuestro código nunca manda ni guarda los segundos, así que no afecta a F27, pero cualquier cosa futura que lea ese campo tiene que filtrar por origen o va a comparar peras con manzanas.
+>
+> **Y cómo apareció ese hallazgo es método, no anécdota, así que va acá.** La primera corrida de los salientes dio dos rojos junto a cuatro verdes. Los dos rojos eran los mensajes escritos desde la app: no eran envíos nuestros, y un mensaje que nuestro código nunca escribe no puede decir nada sobre lo que nuestro código escribe. La población estaba mal, no el resultado.
+>
+> Recortarla fue correcto, pero **recortar la población después de ver los resultados es exactamente lo que hace un número conveniente**, y la diferencia entre una cosa y la otra no está en el recorte: está en tres condiciones, y las tres tienen que cumplirse.
+>
+> 1. **El criterio del recorte es anterior a los datos y es independiente del resultado.** "Solo los envíos que hace nuestro código" sale de la pregunta, no de qué filas daban verde. Si el criterio hubiera sido "los que coinciden", sería fraude.
+> 2. **Lo recortado no se descarta: se reporta aparte, con su veredicto y su motivo.** Los dos casos ajenos siguen saliendo en la salida del script, en su propia sección. Callarlos habría escondido la única evidencia de que el campo cambia de familia según el origen, que terminó siendo el hallazgo más útil de la corrida.
+> 3. **El recorte queda escrito donde vive la medición**, con el razonamiento completo, para que el que lea el verde vea también de qué población salió.
+>
+> Dicho al revés: un recorte que reduce el número de casos incómodos y además los hace desaparecer del reporte no es un recorte, es un borrado.
 
 #### F39: Detección de silencio del canal
 
@@ -1150,7 +1172,11 @@ No es una precaución teórica: **es exactamente lo que encontramos en los 118 t
 
 ### Un mecanismo que avisa por ausencia necesita su propia prueba de vida
 
-**La regla.** Todo mecanismo cuyo trabajo es avisar porque algo dejó de pasar tiene que exponer, en la interfaz, una señal propia de que él sí está funcionando. Sin esa señal, el mecanismo no se puede dar por verde: no hay forma de distinguir "no hay nada que avisar" de "nadie está mirando".
+**La regla, y se aplica sola.** **Todo trabajo periódico del que dependa algo que se muestre en pantalla escribe su marca de última ejecución y la muestra.** No hace falta decidirlo funcionalidad por funcionalidad: si algo de la interfaz depende de que un trabajo haya corrido, ese trabajo trae su marca, y punto. F32 la hereda, F39 la hereda, y el próximo trabajo periódico que alguien escriba también.
+
+**Por qué se redactó así y no como un criterio a evaluar caso por caso.** Una regla que necesita una decisión en cada caso es una regla que se va a saltear en el cuarto caso. Los tres primeros los discute alguien que se acuerda de por qué existe; el cuarto lo escribe otra persona, con apuro, y la pregunta "¿esto necesita marca de vida?" no se le ocurre porque nada se la hace. Aplicada sola, la pregunta no hay que acordarse de hacerla: la respuesta ya está.
+
+**Lo que la regla obliga a exponer.** Una señal propia de que el mecanismo sí está funcionando, visible en la interfaz. Sin esa señal, el mecanismo no se puede dar por verde: no hay forma de distinguir "no hay nada que avisar" de "nadie está mirando".
 
 **Por qué.** Un detector de silencio que depende de un trabajo periódico **falla igual que lo que vigila**. Si el trabajo muere, deja de abrir alertas, que es exactamente lo que hace cuando todo anda bien. El síntoma de la falla y el síntoma de la salud son el mismo símbolo en la misma pantalla: nada. Todo lo demás del sistema falla hacia afuera —una firma rechazada deja un rechazo, un envío fallido deja un mensaje en estado fallido—, y por eso un detector de ausencia es la única pieza que hay que verificar al revés, preguntando por su propia actividad en vez de por sus hallazgos.
 
@@ -1162,11 +1188,25 @@ No es una precaución teórica: **es exactamente lo que encontramos en los 118 t
 
 **Uno, F39, por diseño.** La marca de última ejecución del trabajo periódico. Es el caso que originó la regla.
 
-**Dos, el chequeo periódico de sesión de F32.** F32 pide explícitamente "aviso por evento y chequeo periódico, los dos", así que hay un sondeo, y todo sondeo puede morirse sin avisar. Una sesión que la pantalla muestra como "conectada" porque así quedó guardada, y que en realidad nadie verificó desde hace dos días, es una pantalla mintiendo con confianza. **Esto está anotado como puntero, no como requisito:** los criterios de aceptación de F32 hoy no piden ninguna marca de vida, y agregarla cambia lo que F32 tiene que entregar. Esa decisión va en la entrada de F32 y la toma el dueño del proyecto, no se cuela desde acá.
+**Dos, el chequeo periódico de sesión de F32, por herencia.** F32 pide explícitamente "aviso por evento y chequeo periódico, los dos", así que hay un sondeo del que depende lo que muestra la pantalla de canales, y todo sondeo puede morirse sin avisar. Una sesión que la pantalla muestra como "conectada" porque así quedó guardada, y que en realidad nadie verificó desde hace dos días, es una pantalla mintiendo con confianza. **No hace falta agregarle nada a la entrada de F32: la regla lo alcanza sola**, que es justamente para lo que está escrita de esta forma.
 
 **Tres, el re-registro del webhook de Zernio, y este está verificado en el código.** `ensureWebhookRegistered` corre dentro de un `try/catch` que solo escribe en la consola, en los dos lugares que lo llaman: `app/api/v1/channels/sync/route.ts:141` y `app/api/v1/channels/test-key/route.ts:74`. Los dos comentarios dicen lo mismo, "best-effort: a failure must not block". Es una decisión razonable —que falle el registro no tiene por qué impedir guardar la clave— con una consecuencia que nadie eligió: **la pantalla informa que el canal se sincronizó bien mientras el webhook puede no haber quedado registrado**. A partir de ahí la bandeja deja de recibir y el síntoma es, otra vez, exactamente el mismo que el de un día tranquilo. El estado real del registro existe y es consultable —`GET /v1/webhooks/settings` lo devuelve— pero no se muestra en ningún lado.
 
 Este tercer caso es el que convierte la regla en transversal en vez de en una nota al pie de F39: no salió de diseñar una funcionalidad nueva, salió de leer código heredado que ya está corriendo en producción.
+
+### Un test escrito con el supuesto equivocado del código es un espejo, no una red
+
+**El caso, del 21 de septiembre de 2026.** El receptor de Zernio descartaba los mensajes salientes comparando `direction === "outbound"`. El proveedor no manda nunca ese literal: los suyos son `"incoming"` y `"outgoing"`. La comparación no dio verdadero jamás, así que el guard no filtró nada desde el día que se escribió.
+
+Había un test que cubría exactamente eso, y estaba en verde. Mandaba `direction: "outbound"` — **el mismo literal inventado que comparaba el código**— y comprobaba que el mensaje se descartara. Como el fixture y el código compartían el error, el test confirmaba el bug en vez de atraparlo.
+
+**Es la cuarta aparición del mismo error de literal en el proyecto**, y la primera adentro de la red que tenía que detectarlo. Las tres anteriores están documentadas en `lib/zernio-message-map.ts`.
+
+**Por qué ningún control positivo lo habría encontrado.** El test tenía su contraparte afirmativa y las dos pasaban, porque las dos usaban el fixture equivocado. Un control positivo prueba que el camino de éxito funciona; no prueba que el dato de entrada se parezca al real. Cuando el fixture es ficción, el test entero mide una conversación entre el código y sí mismo.
+
+**La regla que sale de acá:** **los fixtures salen de una respuesta real del proveedor, no de lo que el código espera.** Copiada de un payload observado, con la fecha y el origen anotados al lado. Cuando no hay forma de conseguir una respuesta real, el fixture se marca como inventado, con esas palabras, para que el que venga sepa que esa parte no está verificada.
+
+El corolario incómodo, que conviene aceptar de entrada: **un test verde sobre un fixture inventado vale menos que no tener test**, porque ocupa el lugar donde alguien habría mirado.
 
 ---
 
