@@ -95,8 +95,16 @@ const ZERNIO = "https://zernio.com/api";
 /** Cuántas entregas del log se piden. Alcanza para muestrear sin paginar. */
 const MAX_ENTREGAS = 50;
 
-/** Cuántos mensajes distintos se comparan. */
-const MAX_MENSAJES = 6;
+/**
+ * Cuántos mensajes distintos se comparan.
+ *
+ * El tope existe para no castigar al proveedor con una llamada por conversación
+ * cuando el log tiene decenas de entregas. Los que quedan afuera **se nombran**
+ * en el reporte, con el motivo. Un mensaje que no se comparó y no se menciona
+ * es indistinguible de uno que se comparó y salió inconcluso, y esos dos son
+ * resultados muy distintos.
+ */
+const MAX_MENSAJES = 10;
 
 /**
  * Cuántos mensajes se piden del listado.
@@ -117,6 +125,21 @@ const MENSAJES_DEL_LISTADO = 10;
  * ventana cae más de un mensaje, el resultado es ambiguo y se dice.
  */
 const VENTANA_MS = 1000;
+
+/**
+ * Qué evento del log se mira.
+ *
+ * Los entrantes llegan como `message.received` y los salientes como
+ * `message.sent`. **El filtro del log es lo único que los separa**, así que
+ * correr esto sobre un solo evento y concluir "no hay datos sobre la otra
+ * dirección" sería confundir un hueco de consulta con un hueco de
+ * disponibilidad. Los dos caminos escriben en `platform_message_id` y los dos
+ * tienen que dar la misma cadena que el listado, que devuelve las dos
+ * direcciones mezcladas.
+ */
+const EVENTO =
+  process.argv.find((a) => a.startsWith("--evento="))?.slice("--evento=".length) ??
+  "message.received";
 
 const VEREDICTOS = {
   COINCIDEN: "COINCIDEN",
@@ -290,6 +313,122 @@ function dictaminar(m, lista) {
   return { veredicto: VEREDICTOS.HALLAZGO_ABIERTO, encontrado };
 }
 
+// ── Salientes ───────────────────────────────────────────────────────────────
+
+/**
+ * ── POR QUÉ LOS SALIENTES VAN POR OTRA PUERTA ───────────────────────────────
+ *
+ * El log de webhooks no sirve para los salientes, y no porque no haya datos:
+ * **la suscripción no incluye `message.sent`**. Verificado contra
+ * `GET /v1/webhooks/settings` el 21/09/2026: la suscripción "Zernflow" escucha
+ * `message.received` y `comment.received`, nada más. Así que pedir
+ * `?event=message.sent` devuelve cero filas para siempre, y leer ese cero como
+ * "no hay salientes" sería confundir un hueco de consulta con uno de
+ * disponibilidad. Es la misma trampa de siempre, con otro disfraz.
+ *
+ * Pero para los salientes el webhook tampoco es la fuente que importa. Lo que
+ * escribe `platform_message_id` en un saliente no es un aviso entrante: es la
+ * **respuesta del propio envío**. `lib/flow-engine/engine.ts:541`,
+ * `lib/sequence-processor.ts:197` y `lib/flow-engine/nodes/ai-response.ts:132`
+ * guardan `response.data.data.messageId`, y el SDK solo lo documenta como "ID
+ * of the sent message", sin decir de qué familia es.
+ *
+ * Ese valor sí se puede leer sin mandar nada: el log unificado de actividad
+ * (`GET /v1/logs`, retención de 90 días) guarda cada envío con su
+ * `metadata.messageId`, que es el identificador que Zernio registró para esa
+ * operación.
+ *
+ * ── EL CONTROL POSITIVO ACÁ ES DISTINTO, Y MÁS DÉBIL ────────────────────────
+ *
+ * En los entrantes las dos marcas de tiempo describen el mismo hecho y el delta
+ * dio 0 ms. Acá no: el log de actividad marca **cuándo se llamó a la API** y el
+ * listado marca **cuándo se envió el mensaje**, así que hay una diferencia real
+ * de hasta unos segundos que no es una conversión. Por eso la ventana es más
+ * ancha, y por eso se exige además que el mensaje del listado sea saliente y que
+ * sea el único en esa ventana. Si hay más de uno, el resultado es ambiguo y se
+ * dice.
+ *
+ * Y falta una pata: sin el webhook no tenemos el id interno del saliente, así
+ * que la comparación es de dos vías y no de tres. Para no perder la distinción
+ * se clasifica la FAMILIA del identificador por su forma, que en este proveedor
+ * son inconfundibles: el interno es un ObjectId de 24 hex y el de plataforma es
+ * un blob base64 de Meta. Es una heurística sobre la forma, no una lectura de
+ * un campo declarado, y por eso está dicho acá y en el reporte.
+ */
+/**
+ * ── SOBRE ESTE NÚMERO, QUE SE CAMBIÓ DESPUÉS DE VER LOS DATOS ───────────────
+ *
+ * Arrancó en 60 s, elegido antes de medir por el razonamiento de arriba: el log
+ * marca la llamada y el listado marca el envío, así que podían separarse varios
+ * segundos. Con esa ventana, dos envíos hechos con 22 s de diferencia caían los
+ * dos adentro y los dos salieron NO CONCLUYENTE por ambigüedad.
+ *
+ * Medido: los deltas reales fueron 92, 142, 424 y 733 ms. La diferencia entre
+ * las dos marcas es de menos de un segundo, no de varios. 5 s es siete veces el
+ * mayor delta observado y sigue siendo holgado.
+ *
+ * **Por qué afinar acá no es acomodar el resultado, que es la objeción obvia.**
+ * Una ventana más angosta solo puede hacer dos cosas: dejar afuera el mensaje
+ * correcto, que da NO CONCLUYENTE, o agarrar uno equivocado, que da identificadores
+ * distintos y por lo tanto NO COINCIDEN. Las dos son rojas o grises. Para
+ * fabricar un verde falso haría falta que un mensaje distinto tuviera el mismo
+ * identificador, y si eso pasara no habría nada que verificar. El error que
+ * introduce este número corre en la dirección segura.
+ */
+const VENTANA_SALIENTE_MS = 5_000;
+
+/** Heurística de forma, no campo declarado. Ver el comentario de arriba. */
+function familia(id) {
+  if (typeof id !== "string" || id === "") return "ausente";
+  return /^[0-9a-f]{24}$/.test(id) ? "interno" : "plataforma";
+}
+
+function dictaminarSaliente(envio, lista) {
+  if (!Array.isArray(lista)) {
+    return { veredicto: VEREDICTOS.NO_CONCLUYENTE, motivo: `el listado respondió ${lista.error}` };
+  }
+  if (envio.llamadaMs === null) {
+    return { veredicto: VEREDICTOS.NO_CONCLUYENTE, motivo: "el envío no trae marca de tiempo" };
+  }
+
+  // Control positivo: un saliente, y uno solo, cerca de la llamada.
+  const cerca = lista
+    .filter((x) => x.direction === "outgoing")
+    .map((x) => {
+      const deltas = [x.createdAtMs, x.sentAtMs]
+        .filter((t) => t !== null)
+        .map((t) => Math.abs(t - envio.llamadaMs));
+      return { x, delta: deltas.length ? Math.min(...deltas) : null };
+    })
+    .filter((c) => c.delta !== null && c.delta <= VENTANA_SALIENTE_MS);
+
+  if (cerca.length === 0) {
+    return {
+      veredicto: VEREDICTOS.NO_CONCLUYENTE,
+      motivo: `ningún saliente del listado cae dentro de ${VENTANA_SALIENTE_MS / 1000} s de la llamada`,
+    };
+  }
+  if (cerca.length > 1) {
+    return {
+      veredicto: VEREDICTOS.NO_CONCLUYENTE,
+      motivo: `${cerca.length} salientes caen dentro de ${VENTANA_SALIENTE_MS / 1000} s: ambiguo`,
+    };
+  }
+
+  const encontrado = { ...cerca[0].x, delta: cerca[0].delta };
+  if (encontrado.id && encontrado.id === envio.messageId) {
+    return { veredicto: VEREDICTOS.COINCIDEN, encontrado };
+  }
+  // Distintos. Qué tan distintos importa: si uno es de cada familia, el
+  // diagnóstico está hecho; si no, no hay explicación que inventar.
+  const fEnvio = familia(envio.messageId);
+  const fListado = familia(encontrado.id);
+  if (fEnvio !== fListado) {
+    return { veredicto: VEREDICTOS.NO_COINCIDEN, encontrado, motivo: `envío ${fEnvio}, listado ${fListado}` };
+  }
+  return { veredicto: VEREDICTOS.HALLAZGO_ABIERTO, encontrado, motivo: `las dos de familia ${fEnvio}` };
+}
+
 // ── Autoprueba ──────────────────────────────────────────────────────────────
 
 /**
@@ -332,10 +471,60 @@ function autoprueba() {
     ],
   ];
 
+  // El camino saliente tiene su propio dictamen, así que necesita sus propios
+  // casos: que las ramas del entrante discriminen no dice nada del otro.
+  const PLAT = "aWdfZAG1faXRlbToxOklHTWVzc2FnZ";
+  const INT = "6aab357e42ee880196d6e6bd";
+  const envio = { conversationId: "conv", messageId: PLAT, llamadaMs: T };
+  const sal = (id, ms, direction = "outgoing") => ({
+    id,
+    platformMessageId: null,
+    direction,
+    createdAtMs: ms,
+    sentAtMs: ms,
+  });
+
+  const casosSalientes = [
+    ["el listado devuelve el mismo id del envío", envio, [sal(PLAT, T + 3000)], VEREDICTOS.COINCIDEN],
+    [
+      "el envío guarda plataforma y el listado devuelve interno",
+      envio,
+      [sal(INT, T + 3000)],
+      VEREDICTOS.NO_COINCIDEN,
+    ],
+    [
+      "distintos y de la misma familia",
+      envio,
+      [sal(`${PLAT}OTRO`, T + 3000)],
+      VEREDICTOS.HALLAZGO_ABIERTO,
+    ],
+    ["no hay ningún saliente cerca", envio, [sal(PLAT, T + 600000)], VEREDICTOS.NO_CONCLUYENTE],
+    [
+      "el único cerca es entrante, no saliente",
+      envio,
+      [sal(PLAT, T + 3000, "incoming")],
+      VEREDICTOS.NO_CONCLUYENTE,
+    ],
+    [
+      "dos salientes en la ventana",
+      envio,
+      [sal(PLAT, T + 1000), sal(`${PLAT}X`, T + 2000)],
+      VEREDICTOS.NO_CONCLUYENTE,
+    ],
+  ];
+
   console.log("\nAutoprueba del verificador. No toca la red ni el proveedor.\n");
   let fallos = 0;
+  console.log("  entrantes:");
   for (const [desc, m, lista, esperado] of casos) {
     const { veredicto } = dictaminar(m, lista);
+    const ok = veredicto === esperado;
+    if (!ok) fallos++;
+    console.log(`  ${ok ? "ok   " : "FALLA"} ${desc}  →  ${veredicto}${ok ? "" : ` (esperaba ${esperado})`}`);
+  }
+  console.log("\n  salientes:");
+  for (const [desc, e, lista, esperado] of casosSalientes) {
+    const { veredicto } = dictaminarSaliente(e, lista);
     const ok = veredicto === esperado;
     if (!ok) fallos++;
     console.log(`  ${ok ? "ok   " : "FALLA"} ${desc}  →  ${veredicto}${ok ? "" : ` (esperaba ${esperado})`}`);
@@ -350,24 +539,20 @@ function autoprueba() {
 
 // ── Main ────────────────────────────────────────────────────────────────────
 
-async function main() {
-  console.log("\n¿El id del listado es el id interno o el de plataforma?");
-  console.log("Fuente: el log de entregas de Zernio. Solo lectura.\n");
-
-  // 1. El canal, y con él el workspace y la cuenta.
+/** El canal y la clave. Lo comparten los dos recorridos. */
+async function preparar() {
   const canales = await supa(
     "/rest/v1/channels?select=id,workspace_id,platform,late_account_id,username&is_active=eq.true"
   );
   if (!canales.ok) {
     console.error(`No se pudieron leer los canales: ${canales.status}`);
-    console.error(JSON.stringify(canales.cuerpo));
-    return 3;
+    return null;
   }
 
   const instagram = (canales.cuerpo ?? []).filter((c) => c.platform === "instagram");
   if (instagram.length === 0) {
-    console.error("No hay ningún canal de Instagram activo. Sin canal no hay entregas que mirar.");
-    return 3;
+    console.error("No hay ningún canal de Instagram activo. Sin canal no hay nada que mirar.");
+    return null;
   }
   const canal = instagram[0];
   console.log(`Canal: ${canal.platform} @${canal.username ?? "?"}  cuenta ${canal.late_account_id}`);
@@ -375,7 +560,6 @@ async function main() {
     console.log(`Aviso: hay ${instagram.length} canales de Instagram activos. Se usa el primero.`);
   }
 
-  // 2. La clave, de Vault.
   const secreto = await supa("/rest/v1/rpc/read_secret", {
     method: "POST",
     body: JSON.stringify({ secret_name: "zernio_api_key", workspace_id: canal.workspace_id }),
@@ -383,14 +567,214 @@ async function main() {
   const clave = typeof secreto.cuerpo === "string" ? secreto.cuerpo : null;
   if (!secreto.ok || !clave) {
     console.error(`No se pudo leer la clave de Zernio de Vault: ${secreto.status}`);
-    return 3;
+    return null;
   }
   console.log("Clave de Zernio leída de Vault.\n");
+  return { canal, clave };
+}
+
+/** Un listador con caché: una llamada por conversación, no una por mensaje. */
+function hacerListador(clave) {
+  const listados = new Map();
+  return async function listar(conversationId, accountId) {
+    if (listados.has(conversationId)) return listados.get(conversationId);
+    const res = await zernio(
+      clave,
+      `/v1/inbox/conversations/${encodeURIComponent(conversationId)}/messages` +
+        `?accountId=${encodeURIComponent(accountId)}&sortOrder=desc&limit=${MENSAJES_DEL_LISTADO}`
+    );
+    const valor = res.ok
+      ? (res.cuerpo?.data?.messages ?? res.cuerpo?.messages ?? []).map((m) => ({
+          id: m.id ?? null,
+          platformMessageId: m.platformMessageId ?? null,
+          direction: m.direction ?? null,
+          createdAtMs: aEpocaMs(m.createdAt),
+          sentAtMs: aEpocaMs(m.sentAt),
+        }))
+      : { error: res.status };
+    listados.set(conversationId, valor);
+    return valor;
+  };
+}
+
+/**
+ * Recorrido de los SALIENTES.
+ *
+ * Fuente: el log unificado de actividad, no el de webhooks. El porqué está en
+ * el bloque grande de la sección "Salientes".
+ */
+async function mainSalientes() {
+  console.log("\n¿El id que guardamos al enviar es el mismo que devuelve el listado?");
+  console.log("Fuente: el log de actividad de Zernio. Solo lectura.\n");
+
+  const prep = await preparar();
+  if (!prep) return 3;
+  const { canal, clave } = prep;
+  const listar = hacerListador(clave);
+
+  // Control del hueco de consulta: si la suscripción no escucha message.sent,
+  // el log de webhooks va a dar cero para siempre y hay que decir por qué.
+  const sub = await zernio(clave, "/v1/webhooks/settings");
+  if (sub.ok) {
+    const eventos = (sub.cuerpo?.webhooks ?? []).flatMap((w) => w.events ?? []);
+    const escucha = eventos.includes("message.sent");
+    console.log(
+      `Suscripción de webhook: ${escucha ? "incluye" : "NO incluye"} message.sent` +
+        `${escucha ? "" : " → por eso el log de webhooks da cero, no porque no haya salientes"}`
+    );
+  }
+
+  const log = await zernio(clave, `/v1/logs?type=messaging&days=90&limit=${MAX_ENTREGAS}`);
+  if (!log.ok) {
+    console.error(`El log de actividad respondió ${log.status}.`);
+    return 3;
+  }
+
+  const envios = (log.cuerpo?.logs ?? [])
+    .filter((L) => L.action === "message.sent")
+    .map((L) => {
+      // Frontera de privacidad, igual que `extraer`: de metadata salen dos
+      // identificadores y nada más. `messagePreview` y `request_body` traen el
+      // texto del mensaje y no se tocan.
+      let md = null;
+      try {
+        md = JSON.parse(L.metadata ?? "null");
+      } catch {
+        md = null;
+      }
+      return {
+        conversationId: md?.conversationId ?? null,
+        messageId: md?.messageId ?? null,
+        llamadaMs: aEpocaMs(L.created_at?.replace(" ", "T") + "Z"),
+        endpoint: L.endpoint ?? null,
+        estado: L.status ?? null,
+        /** `api` = lo mandó nuestro código. `platform` = lo mandaron desde la app. */
+        origen: md?.source ?? null,
+        adjunto: md?.hasAttachment === true,
+      };
+    })
+    .filter((e) => e.conversationId && e.messageId && e.estado === "success");
+
+  // ── LA POBLACIÓN CORRECTA, Y POR QUÉ SE RECORTA ───────────────────────────
+  //
+  // La pregunta es qué guarda NUESTRO camino de envío en `platform_message_id`.
+  // El log mezcla dos orígenes y hay que separarlos, porque no responden lo
+  // mismo:
+  //
+  //   source=api       lo mandó nuestro código, por
+  //                    POST /api/v1/inbox/conversations/{id}/messages.
+  //                    Es el único que termina en `messages`.
+  //   source=platform  lo escribió alguien desde la app de Instagram. Nuestro
+  //                    código nunca lo ve ni lo guarda.
+  //
+  // Medido el 21/09/2026: los de `api` registran el identificador de PLATAFORMA
+  // y los de `platform` registran el INTERNO. O sea que `metadata.messageId` del
+  // log de actividad no es un campo de familia uniforme: depende del origen.
+  //
+  // Recortar acá no es acomodar el resultado para que dé verde, y la diferencia
+  // importa: los de `source=platform` **no se descartan, se reportan aparte**,
+  // con su veredicto y su motivo. Lo que cambia es de qué población sale el
+  // veredicto global, porque un mensaje que nuestro código nunca escribe no
+  // puede decir nada sobre lo que nuestro código escribe.
+  const nuestros = envios.filter((e) => e.origen === "api");
+  const ajenos = envios.filter((e) => e.origen !== "api");
+
+  console.log(`\nEnvíos con identificador en el log: ${envios.length}`);
+  console.log(`  nuestros (source=api): ${nuestros.length}   desde la app (source=platform): ${ajenos.length}`);
+  if (nuestros.some((e) => e.adjunto) === false) {
+    console.log("  ninguno de los nuestros llevaba adjunto: el resultado no dice nada sobre adjuntos salientes");
+  }
+  if (nuestros.length === 0) {
+    console.log("\nVEREDICTO GLOBAL: NO CONCLUYENTE");
+    console.log("No hay ningún envío hecho por nuestro código. Mandá un mensaje desde la");
+    console.log("bandeja y repetí. Los envíos desde la app de Instagram no responden esto.");
+    return 3;
+  }
+
+  const muestra = nuestros.slice(0, MAX_MENSAJES);
+  if (nuestros.length > muestra.length) {
+    console.log(`Se comparan ${muestra.length}; ${nuestros.length - muestra.length} quedan afuera por el tope.`);
+  }
+
+  const resultados = [];
+  for (const e of muestra) {
+    const lista = await listar(e.conversationId, canal.late_account_id);
+    const fila = { e, ...dictaminarSaliente(e, lista) };
+    resultados.push(fila);
+    if (fila.veredicto === VEREDICTOS.HALLAZGO_ABIERTO) break;
+  }
+
+  // Los ajenos se miden igual y se muestran aparte. No entran en el veredicto,
+  // pero callarlos sería esconder la única evidencia de que el campo cambia de
+  // familia según el origen.
+  const resultadosAjenos = [];
+  for (const e of ajenos.slice(0, MAX_MENSAJES)) {
+    const lista = await listar(e.conversationId, canal.late_account_id);
+    resultadosAjenos.push({ e, ...dictaminarSaliente(e, lista) });
+  }
+
+  console.log("─".repeat(78));
+  for (const r of resultados) {
+    console.log(`\nEnvío a ${r.e.conversationId}   ${iso(r.e.llamadaMs)}`);
+    if (r.encontrado) {
+      console.log(`  control positivo  ok, un solo saliente en la ventana (delta ${r.encontrado.delta} ms)`);
+      console.log(`  guardado al enviar  ${r.e.messageId}   familia ${familia(r.e.messageId)}`);
+      console.log(`  listado id          ${r.encontrado.id}   familia ${familia(r.encontrado.id)}`);
+    } else {
+      console.log(`  control positivo  FALLA: ${r.motivo}`);
+    }
+    console.log(`  VEREDICTO         ${r.veredicto}${r.motivo && r.encontrado ? `  (${r.motivo})` : ""}`);
+  }
+
+  if (resultadosAjenos.length > 0) {
+    console.log(`\n${"·".repeat(78)}`);
+    console.log("FUERA DE LA PREGUNTA: mensajes escritos desde la app de Instagram.");
+    console.log("Nuestro código no los manda ni los guarda. Se muestran porque son la");
+    console.log("evidencia de que el campo cambia de familia según el origen.\n");
+    for (const r of resultadosAjenos) {
+      console.log(`  ${iso(r.e.llamadaMs)}  log ${familia(r.e.messageId)}  vs  listado ${
+        r.encontrado ? familia(r.encontrado.id) : "(sin control positivo)"
+      }  → ${r.veredicto}`);
+    }
+  }
+
+  const cuenta = {};
+  for (const r of resultados) cuenta[r.veredicto] = (cuenta[r.veredicto] ?? 0) + 1;
+  console.log(`\n${"─".repeat(78)}`);
+  console.log("Resumen de los envíos nuestros: " + Object.entries(cuenta).map(([k, v]) => `${k} ${v}`).join("   "));
+
+  if (cuenta[VEREDICTOS.HALLAZGO_ABIERTO]) {
+    console.log("\nVEREDICTO GLOBAL: HALLAZGO ABIERTO");
+    return 2;
+  }
+  if (cuenta[VEREDICTOS.NO_COINCIDEN]) {
+    console.log("\nVEREDICTO GLOBAL: NO COINCIDEN");
+    console.log("El camino de envío guarda una familia de identificador y el listado devuelve");
+    console.log("otra. La importación de F27 duplicaría todos los salientes.");
+    return 1;
+  }
+  if (cuenta[VEREDICTOS.NO_CONCLUYENTE] || !cuenta[VEREDICTOS.COINCIDEN]) {
+    console.log("\nVEREDICTO GLOBAL: NO CONCLUYENTE");
+    return 3;
+  }
+  console.log("\nVEREDICTO GLOBAL: COINCIDEN");
+  console.log(`Los ${cuenta[VEREDICTOS.COINCIDEN]} envíos comparados guardan la misma cadena que devuelve`);
+  console.log("el listado. Del lado saliente, la importación tampoco duplica.");
+  return 0;
+}
+
+async function main() {
+  console.log("\n¿El id del listado es el id interno o el de plataforma?");
+  console.log("Fuente: el log de entregas de Zernio. Solo lectura.\n");
+
+  const prep = await preparar();
+  if (!prep) return 3;
+  const { canal, clave } = prep;
 
   // 3. El log de entregas.
   const log = await zernio(
     clave,
-    `/v1/webhooks/logs?event=message.received&limit=${MAX_ENTREGAS}`
+    `/v1/webhooks/logs?event=${encodeURIComponent(EVENTO)}&limit=${MAX_ENTREGAS}`
   );
   if (!log.ok) {
     console.error(`El log de entregas respondió ${log.status}.`);
@@ -401,7 +785,7 @@ async function main() {
   }
 
   const entregas = log.cuerpo?.logs ?? [];
-  console.log(`Entregas de message.received en el log: ${entregas.length}`);
+  console.log(`Entregas de ${EVENTO} en el log: ${entregas.length}`);
   if (entregas.length === 0) {
     console.log("\nVEREDICTO GLOBAL: NO CONCLUYENTE");
     console.log("El log está vacío. Mandá un DM de prueba a la cuenta conectada y");
@@ -441,9 +825,19 @@ async function main() {
   }
   muestra.sort((a, b) => (b.sentAtMs ?? 0) - (a.sentAtMs ?? 0));
 
+  const afuera = candidatos.filter((c) => !muestra.includes(c));
+
   console.log(`Mensajes distintos en el log: ${candidatos.length}`);
   console.log(`  con adjunto: ${conAdjunto.length}   solo texto: ${soloTexto.length}`);
   console.log(`Se comparan ${muestra.length}.`);
+  if (afuera.length > 0) {
+    // Nombrarlos, no solo contarlos: "quedó afuera por el tope" y "se comparó y
+    // salió inconcluso" son resultados distintos y no se pueden ver iguales.
+    console.log(`Quedan afuera ${afuera.length} por el tope de ${MAX_MENSAJES}, no por su resultado:`);
+    for (const c of afuera) {
+      console.log(`  ${corto(c.idInterno)}  ${c.tipo}  ${c.direccion ?? "?"}  ${iso(c.sentAtMs)}`);
+    }
+  }
   if (conAdjunto.length === 0) {
     console.log("Aviso: el log no tiene ningún mensaje con adjunto, así que este");
     console.log("resultado no dice nada sobre los adjuntos.");
@@ -451,25 +845,7 @@ async function main() {
   console.log("");
 
   // 6. El listado, una llamada por conversación.
-  const listados = new Map();
-  async function listar(conversationId, accountId) {
-    if (listados.has(conversationId)) return listados.get(conversationId);
-    const res = await zernio(
-      clave,
-      `/v1/inbox/conversations/${encodeURIComponent(conversationId)}/messages` +
-        `?accountId=${encodeURIComponent(accountId)}&sortOrder=desc&limit=${MENSAJES_DEL_LISTADO}`
-    );
-    const valor = res.ok
-      ? (res.cuerpo?.data?.messages ?? res.cuerpo?.messages ?? []).map((m) => ({
-          id: m.id ?? null,
-          platformMessageId: m.platformMessageId ?? null,
-          createdAtMs: aEpocaMs(m.createdAt),
-          sentAtMs: aEpocaMs(m.sentAt),
-        }))
-      : { error: res.status };
-    listados.set(conversationId, valor);
-    return valor;
-  }
+  const listar = hacerListador(clave);
 
   // 7. La comparación, mensaje por mensaje.
   const resultados = [];
@@ -548,8 +924,9 @@ async function main() {
 }
 
 const soloAutoprueba = process.argv.includes("--autoprueba");
+const salientes = process.argv.includes("--salientes");
 
-(soloAutoprueba ? Promise.resolve(autoprueba()) : main())
+(soloAutoprueba ? Promise.resolve(autoprueba()) : salientes ? mainSalientes() : main())
   .then((codigo) => process.exit(codigo))
   .catch((err) => {
     console.error("\nError inesperado:", err);
