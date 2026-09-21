@@ -143,11 +143,13 @@ function eventoMensaje({
   id = "evt-1",
   texto = "hola",
   attachments = [] as Array<{ type: string; url: string }>,
+  direccion = "incoming" as "incoming" | "outgoing",
 }: {
   plataforma: "instagram" | "whatsapp";
   id?: string;
   texto?: string | null;
   attachments?: Array<{ type: string; url: string }>;
+  direccion?: "incoming" | "outgoing";
 }) {
   return JSON.stringify({
     id,
@@ -157,7 +159,11 @@ function eventoMensaje({
       conversationId: "zconv-1",
       platform: plataforma,
       platformMessageId: "pmid-1",
-      direction: "inbound",
+      // Los literales de Zernio son "incoming" y "outgoing". El fixture decía
+      // "inbound", que no existe en ninguna respuesta del proveedor: verificado
+      // contra los tipos generados del SDK y contra 8 entregas reales del log
+      // el 21/09/2026.
+      direction: direccion,
       text: texto,
       attachments,
       sender: { id: "sender-1", name: "Quien Escribe", username: "quien_escribe", picture: null },
@@ -369,14 +375,52 @@ describe("tipos de evento", () => {
     expect(pendientes).toHaveLength(1);
   });
 
+  /**
+   * Este test existía y no servía: mandaba `direction: "outbound"`, el mismo
+   * literal inventado que comparaba el handler. Un test que repite el error del
+   * código lo confirma en vez de atraparlo, y pasaba en verde mientras el guard
+   * no filtraba absolutamente nada.
+   *
+   * Los literales del proveedor son `"incoming"` y `"outgoing"`.
+   */
   it("ignora los mensajes salientes para no hacer un bucle consigo mismo", async () => {
-    const payload = JSON.parse(eventoMensaje({ plataforma: "instagram" }));
-    payload.message.direction = "outbound";
-    const body = JSON.stringify(payload);
+    const body = eventoMensaje({ plataforma: "instagram", direccion: "outgoing" });
 
     const res = await POST(pedido(body, { "x-late-signature": firmar(body) }));
     await expect(res.json()).resolves.toMatchObject({ skipped: true });
     expect(pendientes).toHaveLength(0);
+  });
+
+  /**
+   * La contraparte afirmativa, y no es decorativa: sin ella, un `return` de más
+   * en el handler dejaría el test de arriba en verde descartando TODO. "No se
+   * procesó" no distingue entre un filtro que funciona y una puerta tapiada.
+   */
+  it("procesa los entrantes, que es lo que el guard no tiene que descartar", async () => {
+    const body = eventoMensaje({ plataforma: "instagram", direccion: "incoming" });
+
+    const res = await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    await expect(res.json()).resolves.toEqual({ ok: true, queued: true });
+    expect(pendientes).toHaveLength(1);
+    await correrPendientes();
+    expect(upsertContactForSender).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Un literal que no conocemos cae del lado del contacto, igual que en
+   * `traducirDireccion` de `lib/zernio-message-map.ts`. Acá el efecto es
+   * descartar, así que la elección segura es NO descartar: perder un mensaje de
+   * un lead es peor que procesar de más uno propio, que además ya tiene el
+   * segundo guard por cuenta remitente.
+   */
+  it("ante una dirección desconocida procesa, no descarta", async () => {
+    const payload = JSON.parse(eventoMensaje({ plataforma: "instagram" }));
+    payload.message.direction = "algo_que_no_existe";
+    const body = JSON.stringify(payload);
+
+    const res = await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    await expect(res.json()).resolves.toEqual({ ok: true, queued: true });
+    expect(pendientes).toHaveLength(1);
   });
 
   it("responde 400 ante un cuerpo que no es JSON", async () => {

@@ -172,9 +172,23 @@ async function handleWebhook(request: NextRequest) {
 
   const { message: msg, account } = payload;
 
-  // Ignore outbound messages (sent by the bot itself) to prevent loops
-  if (msg.direction === "outbound") {
-    return NextResponse.json({ ok: true, skipped: true });
+  // Descarta los salientes para no hacer un bucle consigo mismo.
+  //
+  // ACÁ ESTABA EL BUG, y es la tercera vez que aparece el mismo en este
+  // proyecto. Se comparaba contra `"outbound"`, un literal que el proveedor no
+  // manda nunca: los suyos son `"incoming"` y `"outgoing"`. Verificado contra
+  // los tipos generados del SDK y contra 8 entregas reales del log de Zernio el
+  // 21/09/2026. La comparación nunca daba verdadero, así que este guard no
+  // filtraba nada desde que se escribió.
+  //
+  // Se compara contra `"outgoing"` y no contra `"incoming"` a propósito, igual
+  // que `traducirDireccion` en `lib/zernio-message-map.ts`, pero por el motivo
+  // opuesto: allá lo seguro es tratar lo desconocido como entrante para no
+  // atribuirle al negocio un mensaje que no escribió; acá lo seguro es NO
+  // descartarlo, porque descartar un mensaje de un lead lo pierde para siempre.
+  // Las dos elecciones dejan el literal desconocido del lado del contacto.
+  if (msg.direction === "outgoing") {
+    return NextResponse.json({ ok: true, skipped: true, reason: "outgoing" });
   }
 
   const supabase = await createServiceClient();
