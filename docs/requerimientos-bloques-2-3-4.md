@@ -335,6 +335,29 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 >
 > **Y hay un límite que conviene saber antes de prometer la importación:** el endpoint devuelve `message: ""` para buena parte de los mensajes históricos de Instagram, los que Zernio resume como `[Attachment]` en el listado. Medido: 22 de 24 en las primeras conversaciones revisadas. Ese contenido no está del lado del proveedor, así que ninguna importación lo puede recuperar. El historial que se importe va a tener huecos, y eso hay que decirlo antes y no después.
 
+> **Medición del 21 de septiembre de 2026: el webhook y el listado le ponen el mismo identificador al mismo mensaje. La restricción única de F27 funciona.**
+>
+> Era la pregunta que bloqueaba F27, porque los mensajes entran por dos caminos —el webhook empuja cada uno nuevo, la importación lee el historial del listado— y `platform_message_id` es lo único que impide duplicados. Si los dos caminos usaran identificadores distintos, la restricción no se dispararía nunca y la importación duplicaría el historial entero **sin un solo error a la vista**.
+>
+> **La pregunta era de tres vías, no de dos**, y así mal planteada no se podía contestar. El webhook trae DOS identificadores y el listado trae UNO: `message.id` es el interno de Zernio y `message.platformMessageId` es el de Meta, mientras que el listado devuelve un solo campo `id`. Lo que había que establecer no era "¿son iguales?" sino **a cuál de los dos equivale el del listado**.
+>
+> **Resultado: el `id` del listado es el `platformMessageId` del webhook.** Ocho mensajes entrantes, ocho veces la misma cadena. Las dos familias no se confunden ni por casualidad: el interno es un ObjectId de 24 hex y el de plataforma es un blob base64 de Meta de más de 150 caracteres.
+>
+> **El control positivo, que es lo que hace que esto signifique algo:** antes de comparar identificadores se estableció que se miraba el mismo mensaje, ubicándolo en el listado por marca de tiempo normalizada a epoch en milisegundos. Delta de 0 ms en los ocho. Sin ese paso, dos cadenas distintas de dos mensajes distintos sería el resultado esperado y no un hallazgo.
+>
+> **Los salientes también, y por otra puerta.** Lo que escribe `platform_message_id` en un saliente no es un aviso entrante sino la respuesta del propio envío, `response.data.data.messageId`, que hoy guardan `lib/flow-engine/engine.ts`, `lib/sequence-processor.ts` y `lib/flow-engine/nodes/ai-response.ts`. Cuatro de cuatro envíos propios guardan exactamente la cadena que devuelve el listado.
+>
+> **Qué NO cubre, que importa tanto como lo que cubre:**
+>
+> - **Nada sobre el historial viejo de Instagram.** La medición sale del log de entregas de Zernio, que retiene 30 días. Los mensajes de 2024 nunca pasaron por un webhook, así que por construcción no pueden estar en la muestra. Para ese tramo, que es justamente el que va a leer la importación, la coincidencia está **inferida, no medida**. Es menos peligroso de lo que suena: si esos mensajes no tienen contraparte en el webhook, no hay con qué duplicarlos.
+> - **Nada sobre los adjuntos salientes.** Ninguno de los cuatro envíos medidos llevaba adjunto.
+> - **Nada sobre WhatsApp.** Evolution es otro proveedor con otro esquema, y F27 ya tiene su propio criterio para eso: unicidad por chat, mensaje y dirección, porque el identificador de Evolution es único por conversación y no global.
+> - **Un mensaje entrante con `direction: "outgoing"` no se midió** porque no apareció ninguno en 30 días de entregas.
+>
+> La medición se repite con `node scripts/verify-id-mensaje-zernio.mjs`, y `--salientes` corre el otro recorrido. Es de solo lectura. `--autoprueba` verifica al verificador: ejercita las cuatro ramas de veredicto con casos fabricados, porque un verde uniforme se ve igual venga de una comparación que discrimina o de una que siempre da verdadero.
+>
+> **Un hallazgo lateral que conviene tener escrito antes de apoyarse en ese log:** `metadata.messageId` del log de actividad **no es un campo de familia uniforme**. Los envíos con `source=api`, que son los que hace nuestro código, registran el identificador de plataforma; los de `source=platform`, escritos por alguien desde la app de Instagram, registran el interno. Nuestro código nunca manda ni guarda los segundos, así que no afecta a F27, pero cualquier cosa futura que lea ese campo tiene que filtrar por origen o va a comparar peras con manzanas.
+
 #### F39: Detección de silencio del canal
 
 **Descripción:** que un canal que dejó de recibir mensajes se note, en lugar de parecer un día tranquilo. Va numerada aparte de F27 y no adentro: F27 guarda lo que llega, F39 avisa cuando deja de llegar, y son dos mecanismos con dos formas distintas de fallar.
@@ -349,7 +372,10 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 > **Por qué la marca de última ejecución no es un adorno.** F39 avisa por ausencia, así que su modo de falla es indistinguible de su modo de éxito: un canal sano y un detector muerto se ven exactamente igual desde la pantalla, que en los dos casos no muestra ninguna alerta. La marca de última ejecución es lo único que separa "no hay nada que avisar" de "nadie está mirando". Ver la regla transversal en la sección 14.
 
-**Sobre el modelo de datos:** la columna de la marca de último entrante **no se define todavía**. Se agrega junto con las demás columnas de F27, cuando se construya, y recién ahí entra en la sección 7.2.
+**Sobre el modelo de datos.** Son **dos marcas distintas** y conviene no confundirlas, porque una es el dato vigilado y la otra es la prueba de vida del vigilante:
+
+- La **marca del último evento entrante**, por canal, que es lo que el trabajo compara contra el umbral. **No se define todavía:** se agrega junto con las demás columnas de F27, cuando se construya, y recién ahí entra en la sección 7.2.
+- La **marca de última ejecución del propio trabajo**, que no depende de F27 y todavía no tiene lugar asignado. Por la regla transversal de la sección 14, esta no puede quedar como un detalle de implementación: es parte de lo que F39 entrega, así que necesita su columna y su criterio, y se define al construir F39.
 
 #### F28: Adjuntos
 
@@ -1128,9 +1154,19 @@ No es una precaución teórica: **es exactamente lo que encontramos en los 118 t
 
 **Por qué.** Un detector de silencio que depende de un trabajo periódico **falla igual que lo que vigila**. Si el trabajo muere, deja de abrir alertas, que es exactamente lo que hace cuando todo anda bien. El síntoma de la falla y el síntoma de la salud son el mismo símbolo en la misma pantalla: nada. Todo lo demás del sistema falla hacia afuera —una firma rechazada deja un rechazo, un envío fallido deja un mensaje en estado fallido—, y por eso un detector de ausencia es la única pieza que hay que verificar al revés, preguntando por su propia actividad en vez de por sus hallazgos.
 
-**Esta es una familia distinta de las dos reglas de verificación del CLAUDE.md, y por eso se escribe.** El control positivo dice cómo *probar* una comprobación negativa mientras uno la escribe. Esta dice qué tiene que traer *construido* el mecanismo para que alguien pueda confiar en él seis meses después, cuando ya nadie recuerda que existe. La prueba de vida no es un paso del plan de pruebas: es una funcionalidad, tiene que estar en los criterios de aceptación, y tiene que verse sin abrir la base.
+**Esta es una familia distinta de las dos reglas de verificación del CLAUDE.md, y por eso se escribe.** El control positivo dice cómo *probar* una comprobación negativa mientras uno la escribe. Esta dice qué tiene que traer *construido* el mecanismo para que alguien pueda confiar en él seis meses después, cuando ya nadie recuerda que existe.
 
-**Dónde aplica hoy.** En F39, la marca de última ejecución del trabajo periódico. En el chequeo periódico de sesión de F32, la misma idea: una sesión "conectada" que en realidad nadie verificó desde hace dos días es una pantalla mintiendo con confianza. Y aplica de antemano a cualquier vigilancia que se sume después.
+**Y de ahí sale la consecuencia práctica, que es la parte que se pierde si esto se lee como una recomendación.** Por ser funcionalidad y no verificación, la prueba de vida **tiene que aparecer en los criterios de aceptación y en el modelo de datos de la funcionalidad que la necesita**: una columna donde se escribe la marca, y un criterio que diga que se ve en pantalla. Si en cambio queda escrita como paso de un plan de pruebas, se corre una vez el día que se construye, nadie la vuelve a mirar, y desaparece sin dejar rastro justo en el momento en que empezaría a servir.
+
+### Los tres casos donde aplica
+
+**Uno, F39, por diseño.** La marca de última ejecución del trabajo periódico. Es el caso que originó la regla.
+
+**Dos, el chequeo periódico de sesión de F32.** F32 pide explícitamente "aviso por evento y chequeo periódico, los dos", así que hay un sondeo, y todo sondeo puede morirse sin avisar. Una sesión que la pantalla muestra como "conectada" porque así quedó guardada, y que en realidad nadie verificó desde hace dos días, es una pantalla mintiendo con confianza. **Esto está anotado como puntero, no como requisito:** los criterios de aceptación de F32 hoy no piden ninguna marca de vida, y agregarla cambia lo que F32 tiene que entregar. Esa decisión va en la entrada de F32 y la toma el dueño del proyecto, no se cuela desde acá.
+
+**Tres, el re-registro del webhook de Zernio, y este está verificado en el código.** `ensureWebhookRegistered` corre dentro de un `try/catch` que solo escribe en la consola, en los dos lugares que lo llaman: `app/api/v1/channels/sync/route.ts:141` y `app/api/v1/channels/test-key/route.ts:74`. Los dos comentarios dicen lo mismo, "best-effort: a failure must not block". Es una decisión razonable —que falle el registro no tiene por qué impedir guardar la clave— con una consecuencia que nadie eligió: **la pantalla informa que el canal se sincronizó bien mientras el webhook puede no haber quedado registrado**. A partir de ahí la bandeja deja de recibir y el síntoma es, otra vez, exactamente el mismo que el de un día tranquilo. El estado real del registro existe y es consultable —`GET /v1/webhooks/settings` lo devuelve— pero no se muestra en ningún lado.
+
+Este tercer caso es el que convierte la regla en transversal en vez de en una nota al pie de F39: no salió de diseñar una funcionalidad nueva, salió de leer código heredado que ya está corriendo en producción.
 
 ---
 
