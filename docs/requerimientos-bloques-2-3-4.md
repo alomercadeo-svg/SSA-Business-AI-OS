@@ -335,6 +335,22 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 >
 > **Y hay un límite que conviene saber antes de prometer la importación:** el endpoint devuelve `message: ""` para buena parte de los mensajes históricos de Instagram, los que Zernio resume como `[Attachment]` en el listado. Medido: 22 de 24 en las primeras conversaciones revisadas. Ese contenido no está del lado del proveedor, así que ninguna importación lo puede recuperar. El historial que se importe va a tener huecos, y eso hay que decirlo antes y no después.
 
+#### F39: Detección de silencio del canal
+
+**Descripción:** que un canal que dejó de recibir mensajes se note, en lugar de parecer un día tranquilo. Va numerada aparte de F27 y no adentro: F27 guarda lo que llega, F39 avisa cuando deja de llegar, y son dos mecanismos con dos formas distintas de fallar.
+
+**Criterios de aceptación:**
+
+- [ ] Cada canal guarda la marca de tiempo del último evento entrante recibido, actualizada por el receptor
+- [ ] Un trabajo periódico la compara contra un umbral configurable por canal, expresado en horas hábiles según la zona horaria del negocio, y abre una condición en `webhook_alerts` cuando se supera
+- [ ] El mismo trabajo escribe su propia marca de última ejecución, visible en la interfaz. Esa marca es el control positivo del chequeo: **sin ella, F39 no se puede dar por verde**
+- [ ] Con el canal activo y el receptor detenido a propósito, la condición se abre
+- [ ] Con el trabajo periódico detenido a propósito, la marca de última ejecución envejece y se ve en pantalla
+
+> **Por qué la marca de última ejecución no es un adorno.** F39 avisa por ausencia, así que su modo de falla es indistinguible de su modo de éxito: un canal sano y un detector muerto se ven exactamente igual desde la pantalla, que en los dos casos no muestra ninguna alerta. La marca de última ejecución es lo único que separa "no hay nada que avisar" de "nadie está mirando". Ver la regla transversal en la sección 14.
+
+**Sobre el modelo de datos:** la columna de la marca de último entrante **no se define todavía**. Se agrega junto con las demás columnas de F27, cuando se construya, y recién ahí entra en la sección 7.2.
+
 #### F28: Adjuntos
 
 **Descripción:** que las fotos, audios y documentos que mandan los leads queden guardados.
@@ -1089,6 +1105,7 @@ Si esa automatización sigue corriendo después de la migración, Pipedrive se s
 | Patrón de avisos entrantes | Control de duplicados con registro de eventos, acuse inmediato antes de procesar, procesamiento en segundo plano, y verificación de autenticidad obligatoria. En Zernio es firma criptográfica; en Evolution es un dato firmado que caduca |
 | Patrón de envíos masivos y límites | Lotes con separación aleatoria, cola de envío, corte automático ante silencio, y franja horaria. Se construye como configuración en el Bloque 4 y lo usa el motor de la Fase 2 |
 | Estado comercial heredado | Un solo par etapa y estado por contacto, en columnas con restricción de valores. Se verificó en los datos: ninguna persona tiene un trato abierto y además uno cerrado. El pipeline comercial completo es Etapa 4 |
+| Vigilancia por ausencia | Todo mecanismo que avisa porque algo **dejó** de pasar lleva su propia prueba de vida, visible en la interfaz. **Está desarrollado abajo**, y aplica a cualquier detector que se sume después, no solo a los que ya están escritos |
 
 ### Los identificadores que califican para deduplicar
 
@@ -1104,6 +1121,16 @@ Si esa automatización sigue corriendo después de la migración, Pipedrive se s
 **Lo que NO califica, y el caso concreto está a la vuelta de la esquina.** Para Instagram el identificador estable es el **identificador opaco del remitente**, no el nombre de usuario y mucho menos el nombre para mostrar. El nombre de usuario se cambia cuando uno quiere, y el nombre visible todavía más. Por eso F29 vincula solo *sugiriendo* cuando la única coincidencia es el nombre de usuario, y por eso F26 dice que nunca se deduplica por nombre.
 
 No es una precaución teórica: **es exactamente lo que encontramos en los 118 tratos "IG DM" de Pipedrive.** Traen el nombre visible del lead y nada más, ninguno tiene el usuario, y por eso no sirven para identificar a nadie y no se migran. Un identificador que parecía suficiente cuando alguien armó esa automatización dejó 118 registros que no corresponden con ninguna persona.
+
+### Un mecanismo que avisa por ausencia necesita su propia prueba de vida
+
+**La regla.** Todo mecanismo cuyo trabajo es avisar porque algo dejó de pasar tiene que exponer, en la interfaz, una señal propia de que él sí está funcionando. Sin esa señal, el mecanismo no se puede dar por verde: no hay forma de distinguir "no hay nada que avisar" de "nadie está mirando".
+
+**Por qué.** Un detector de silencio que depende de un trabajo periódico **falla igual que lo que vigila**. Si el trabajo muere, deja de abrir alertas, que es exactamente lo que hace cuando todo anda bien. El síntoma de la falla y el síntoma de la salud son el mismo símbolo en la misma pantalla: nada. Todo lo demás del sistema falla hacia afuera —una firma rechazada deja un rechazo, un envío fallido deja un mensaje en estado fallido—, y por eso un detector de ausencia es la única pieza que hay que verificar al revés, preguntando por su propia actividad en vez de por sus hallazgos.
+
+**Esta es una familia distinta de las dos reglas de verificación del CLAUDE.md, y por eso se escribe.** El control positivo dice cómo *probar* una comprobación negativa mientras uno la escribe. Esta dice qué tiene que traer *construido* el mecanismo para que alguien pueda confiar en él seis meses después, cuando ya nadie recuerda que existe. La prueba de vida no es un paso del plan de pruebas: es una funcionalidad, tiene que estar en los criterios de aceptación, y tiene que verse sin abrir la base.
+
+**Dónde aplica hoy.** En F39, la marca de última ejecución del trabajo periódico. En el chequeo periódico de sesión de F32, la misma idea: una sesión "conectada" que en realidad nadie verificó desde hace dos días es una pantalla mintiendo con confianza. Y aplica de antemano a cualquier vigilancia que se sume después.
 
 ---
 
