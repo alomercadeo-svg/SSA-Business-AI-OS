@@ -775,6 +775,85 @@ async function mainSalientes() {
   return 0;
 }
 
+/**
+ * Estado del registro del webhook.
+ *
+ * Es el paso 3.2 de `docs/purga-y-reconexion-instagram.md`: después de rotar el
+ * secreto hay que confirmar que el valor nuevo llegó a Zernio.
+ *
+ * **Lo que esto prueba y lo que no.** Prueba que el webhook figura registrado,
+ * contra qué URL, con qué eventos, y que el secreto guardado en `workspaces` es
+ * el mismo que tiene Zernio. **No prueba que las entregas lleguen ni que la
+ * firma verifique**: eso solo lo prueba un mensaje real, que es el paso 4 de ese
+ * documento. Un secreto que coincide y un webhook apuntando a una URL que no
+ * responde se ven igual desde acá.
+ *
+ * Ninguno de los dos secretos se imprime. Se comparan en memoria y sale un sí o
+ * un no, más longitud y últimos cuatro para poder distinguir cuál es cuál.
+ */
+async function mainRegistro() {
+  console.log("\nEstado del registro del webhook en Zernio.");
+  console.log("Solo lectura. Ningún secreto se imprime.\n");
+
+  const prep = await preparar();
+  if (!prep) return 3;
+  const { canal, clave, sumarSecreto } = prep;
+
+  const res = await zernio(clave, "/v1/webhooks/settings");
+  if (!res.ok) {
+    console.error(`La configuración respondió ${res.status}.`);
+    return 3;
+  }
+
+  const webhooks = res.cuerpo?.webhooks ?? [];
+  for (const w of webhooks) sumarSecreto(w?.secret);
+
+  if (webhooks.length === 0) {
+    console.log("NO HAY NINGÚN WEBHOOK REGISTRADO.");
+    console.log("La bandeja no va a recibir nada. Re-registrar desde la aplicación.");
+    return 1;
+  }
+
+  const guardado = await supa(
+    `/rest/v1/workspaces?select=webhook_secret&id=eq.${encodeURIComponent(canal.workspace_id)}`
+  );
+  const secretoLocal = guardado.ok ? (guardado.cuerpo?.[0]?.webhook_secret ?? null) : null;
+  if (secretoLocal) sumarSecreto(secretoLocal);
+
+  let fallos = 0;
+  for (const w of webhooks) {
+    console.log(`Webhook "${w.name ?? "(sin nombre)"}"`);
+    console.log(`  url             ${w.url ?? "(ausente)"}`);
+    console.log(`  activo          ${w.isActive === true ? "sí" : "NO"}`);
+    console.log(`  eventos         ${(w.events ?? []).join(", ") || "(ninguno)"}`);
+    console.log(`  fallos seguidos ${w.failureCount ?? 0}`);
+    console.log(`  última entrega  ${w.lastFiredAt ?? "(nunca)"}`);
+    console.log(`  secreto en Zernio ${redactar(w.secret)}`);
+
+    if (secretoLocal === null) {
+      console.log("  COINCIDENCIA    no concluyente: no se pudo leer el secreto guardado");
+      fallos++;
+    } else if (w.secret === secretoLocal) {
+      console.log(`  COINCIDENCIA    sí, con el guardado ${redactar(secretoLocal)}`);
+    } else {
+      console.log(`  COINCIDENCIA    NO. El guardado es ${redactar(secretoLocal)}`);
+      console.log("                  Toda entrega va a fallar la verificación de firma.");
+      fallos++;
+    }
+    if (w.isActive !== true) fallos++;
+    console.log("");
+  }
+
+  console.log("─".repeat(78));
+  if (fallos > 0) {
+    console.log("HAY PROBLEMAS EN EL REGISTRO. Ver arriba.");
+    return 1;
+  }
+  console.log("El registro está bien según Zernio.");
+  console.log("Falta el paso 4: un mensaje real, de ida y de vuelta. Esto no lo reemplaza.");
+  return 0;
+}
+
 async function main() {
   console.log("\n¿El id del listado es el id interno o el de plataforma?");
   console.log("Fuente: el log de entregas de Zernio. Solo lectura.\n");
@@ -937,8 +1016,15 @@ async function main() {
 
 const soloAutoprueba = process.argv.includes("--autoprueba");
 const salientes = process.argv.includes("--salientes");
+const registro = process.argv.includes("--registro");
 
-(soloAutoprueba ? Promise.resolve(autoprueba()) : salientes ? mainSalientes() : main())
+(soloAutoprueba
+  ? Promise.resolve(autoprueba())
+  : registro
+    ? mainRegistro()
+    : salientes
+      ? mainSalientes()
+      : main())
   .then((codigo) => process.exit(codigo))
   .catch((err) => {
     console.error("\nError inesperado:", err);

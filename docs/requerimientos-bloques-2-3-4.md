@@ -380,6 +380,21 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 >
 > Dicho al revés: un recorte que reduce el número de casos incómodos y además los hace desaparecer del reporte no es un recorte, es un borrado.
 
+> **Los mensajes escritos desde la app de Instagram son alcanzables aunque el webhook no los empuje. Esto acota el problema antes de medirlo, y por eso va escrito ahora.**
+>
+> El negocio responde desde el celular. Si esos mensajes no produjeran ningún evento, no llegarían a la base en tiempo real y el agente de IA leería conversaciones donde el lead pregunta y nadie contesta. Para un sistema cuya premisa es que la base local es la única fuente de verdad, eso no es un hueco de datos, es un hueco de sentido.
+>
+> **Pero existen, y ya los vimos.** Son exactamente los dos `source=platform` que produjeron los falsos rojos de la medición de salientes: aparecen en `GET /v1/logs` con su identificador y su conversación, y aparecen también en el listado de mensajes de la conversación. O sea que **hay un camino para traerlos aunque el webhook no los entregue**.
+>
+> La distinción que importa, porque cambia el tamaño del problema y no solo la respuesta:
+>
+> - **Si el echo llega por webhook**, F27 los recibe en vivo, por el mismo camino que todo lo demás, y no hay nada especial que construir.
+> - **Si no llega**, F27 necesita un sondeo periódico contra el listado o contra el log de actividad para alcanzarlos. Es más trabajo y agrega latencia, pero **no es un agujero: es una funcionalidad más**. Y ese sondeo cae de lleno bajo la regla de vigilancia de la sección 14, así que nace con su marca de última ejecución.
+>
+> El experimento decide **cómo** los recibe F27, no **si** son alcanzables. Tenerlo escrito de antemano evita que un resultado negativo se lea como una pared cuando es un desvío.
+>
+> **Estado al 21 de septiembre de 2026:** `message.sent` quedó suscrito para medirlo, con la lectura de vuelta confirmada. La decisión de qué hacer con cada resultado se tomó antes de medir, y el camino de vuelta está escrito en `scripts/suscribir-message-sent.mjs --revertir`. **Aviso para el que toque el código de registro:** la lista de eventos está cableada en los dos llamadores de `ensureWebhookRegistered`; un evento de más sobrevive a un sync normal, pero si un sync dispara un update por otro motivo reescribe la lista y se lleva puesto `message.sent` sin avisar. Si la suscripción se queda, hay que agregarlo en el código.
+
 #### F39: Detección de silencio del canal
 
 **Descripción:** que un canal que dejó de recibir mensajes se note, en lugar de parecer un día tranquilo. Va numerada aparte de F27 y no adentro: F27 guarda lo que llega, F39 avisa cuando deja de llegar, y son dos mecanismos con dos formas distintas de fallar.

@@ -137,6 +137,39 @@ describe("protegerSalida", () => {
  * script corra, así que falla en `npm test` el día que alguien agregue el
  * próximo script sin el filtro.
  */
+/**
+ * Una línea que imprime el campo `secret` sin pasarlo por `redactar`.
+ *
+ * Mostrar `redactar(w.secret)` es el uso correcto y tiene que pasar; imprimir
+ * `w.secret` pelado es la filtración. La primera versión de esta regla marcaba
+ * las dos y daba rojo sobre código correcto.
+ *
+ * **Aflojar una regla hasta que el código pase es exactamente lo que no hay que
+ * hacer**, así que la regla nueva se prueba con casos propios, abajo, en vez de
+ * confiar en que quedó bien porque el repo está en verde.
+ */
+function imprimeSecretoCrudo(linea: string): boolean {
+  if (!/console\.(log|error|warn|info)/.test(linea)) return false;
+  if (!/\.secret\b/.test(linea)) return false;
+  return !/redactar\s*\(/.test(linea);
+}
+
+describe("la regla que detecta secretos impresos", () => {
+  it("marca el campo impreso pelado", () => {
+    expect(imprimeSecretoCrudo("  console.log(`secreto: ${w.secret}`);")).toBe(true);
+    expect(imprimeSecretoCrudo("  console.error(mio.secret);")).toBe(true);
+  });
+
+  it("no marca el campo pasado por redactar", () => {
+    expect(imprimeSecretoCrudo("  console.log(`secreto ${redactar(w.secret)}`);")).toBe(false);
+  });
+
+  it("no marca líneas que no imprimen", () => {
+    expect(imprimeSecretoCrudo("  const s = mio.secret;")).toBe(false);
+    expect(imprimeSecretoCrudo("  if (despues.secret !== mio.secret) return 1;")).toBe(false);
+  });
+});
+
 describe("los scripts que leen la configuración de webhooks redactan su salida", () => {
   const ENDPOINTS_QUE_DEVUELVEN_SECRETOS = ["webhooks/settings"];
 
@@ -160,12 +193,8 @@ describe("los scripts que leen la configuración de webhooks redactan su salida"
       expect(fuente).toContain("protegerSalida");
     });
 
-    it(`${nombre} no imprime el campo secret de la respuesta`, () => {
-      // Busca un console.* que mencione `.secret` en la misma línea.
-      const sospechosas = fuente
-        .split("\n")
-        .filter((l) => /console\.(log|error|warn|info)/.test(l) && /\.secret\b/.test(l));
-      expect(sospechosas).toEqual([]);
+    it(`${nombre} no imprime el campo secret sin redactar`, () => {
+      expect(fuente.split("\n").filter(imprimeSecretoCrudo)).toEqual([]);
     });
   }
 });
