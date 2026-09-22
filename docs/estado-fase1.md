@@ -138,7 +138,28 @@ Las siete cosas de la lista vieja, dónde quedaron: el adaptador de Evolution en
 
 **`docs/purga-y-reconexion-instagram.md` está cerrado**, desde el 22 de septiembre de 2026, con el despliegue verificado. Railway despliega `bloque-1-foundation` con despliegue automático al subir, verificado ese día en la interfaz. Producción sirve `98aa3aa`.
 
-**Pendiente al cierre de esa sesión:** un test que falle si hay commits sin subir hace más de un día, con su línea en el `CLAUDE.md`, y un chequeo de tipos antes de subir. Son dos fallas del mismo día: 19 commits sin subir le borraron un evento a la suscripción en producción, y un error de tipos pasó dos días en la rama con la suite en verde.
+### Dos desincronizaciones entre producción y el repositorio, el 22 de septiembre de 2026
+
+**La primera no se notó durante días.** El último push había sido el 17. Desde el 21 había 19 commits sin subir, entre ellos `63834ac`, que suma `message.sent` a la lista de eventos del webhook. El 22, la rotación del secreto hizo que producción re-registrara el webhook con su lista vieja y le borrara ese evento. Detalle en el paso 3.2 de `docs/purga-y-reconexion-instagram.md`.
+
+**La segunda, al subirlos.** Estos son los hechos, en orden; las horas son de Costa Rica.
+
+1. **21/09 18:09.** `63834ac` suma el tercer evento a `WEBHOOK_EVENTS`, pero el tipo `WebhookEvent` (`lib/zernio-webhook.ts:53`, escrito a mano, que venía del fork) queda con dos. Eso es un error de tipos en `app/api/v1/channels/sync/route.ts:147` y en `app/api/v1/channels/test-key/route.ts:82`.
+2. **Por qué no lo vieron los 211 tests:** Vitest no chequea tipos. Verificado de hecho, no por documentación: con ese error presente, `npm test` daba 211 de 211 y `npm run build` fallaba. Desde el 21 nadie había corrido un build.
+3. **22/09 16:05.** Se suben los 21 commits (`69cfbc0..5f697e8`). **El build de Railway falló**, en "Build › Build image", con el error de `sync/route.ts:147`. El de `test-key/route.ts:82` no lo reportó porque el build corta en el primer error; apareció después, corriendo `tsc` sobre `5f697e8`. **No fue un error en ejecución: `5f697e8` nunca corrió en producción.**
+4. **Mientras tanto, producción siguió sirviendo `69cfbc0`**, el despliegue del 17/09 18:22. Lo confirmó Marcos en la interfaz de Railway, donde la tarjeta ACTIVE seguía en ese commit. `app.alomercadeo.com` respondió en **una sola** comprobación, hecha entre el fallo y el arreglo: `/login` dio HTTP 200 en medio segundo. **No hubo monitoreo continuo**, así que "respondió todo el rato" no está medido.
+5. **16:19.** `98aa3aa` es el arreglo: el tipo pasa a derivarse de la lista. Lo escribió Claude durante el despliegue, con la aprobación de Marcos, y lo verificó con `npm run build`, que falló antes del cambio y pasó después. Railway lo desplegó bien, y a las 16:24 ya estaba activo. Producción pasó de `69cfbc0` directamente a `98aa3aa`, así que sirvió la versión vieja desde el 17 hasta unos minutos después de las 16:19. La hora exacta del cambio está en Railway y no se anotó.
+
+**Lo que se construyó para que no vuelva a pasar**, con la regla en el `CLAUDE.md`, sección "Apertura y cierre de sesión":
+
+- **`scripts/compuerta-cierre.test.ts`** se pone en rojo si el commit sin subir más viejo tiene más de un día, y si `tsc` encuentra un error de tipos. **Los dos se vieron fallar antes de pasar:**
+  - el de commits, en un clon descartable con un commit sin subir fechado el 20/09;
+  - el de tipos, contra un error real que ya existía y que ningún build mira: una directiva `@ts-expect-error` sobrante en `scripts/redaccion.test.ts`. Además, `tsc` sobre `5f697e8` reproduce los dos errores de este incidente.
+
+  En un clon sin rama remota, el de commits queda **salteado** a la vista, no en verde.
+- **`node scripts/commits-sin-subir.mjs`** informa al abrir sesión cuántos commits hay sin subir y de cuándo es el más viejo.
+- **`npm run typecheck`.**
+- **Y el test débil del filtro de dirección**, `app/api/webhooks/late/route.test.ts`, ahora exige `reason: "outgoing"`. Se comprobó que con solo `skipped: true` seguía en verde aunque el descarte viniera de otro camino, y que reforzado se pone en rojo en ese caso. Es el único control que tiene `e65d37f`, porque ningún mensaje real llega a ese filtro.
 
 Después, el Bloque 3: modelo de contacto extendido (F25), identidad de canal y reconciliación de teléfonos (F26), y guardado de mensajes entrantes (F27), que es donde vive el riesgo real de la fase.
 

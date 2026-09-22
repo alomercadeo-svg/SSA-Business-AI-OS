@@ -382,12 +382,19 @@ describe("tipos de evento", () => {
    * no filtraba absolutamente nada.
    *
    * Los literales del proveedor son `"incoming"` y `"outgoing"`.
+   *
+   * Exige el motivo, no solo `skipped`. El 22/09/2026 se comprobó que con
+   * `skipped: true` a secas el test seguía en verde aunque el filtro de
+   * dirección no fuera el que descartaba: el handler tiene otros caminos que
+   * también devuelven `skipped`. Y es el único control que tiene ese filtro,
+   * porque un mensaje real no lo alcanza: `message.sent` se descarta antes, en
+   * el filtro por tipo de evento.
    */
   it("ignora los mensajes salientes para no hacer un bucle consigo mismo", async () => {
     const body = eventoMensaje({ plataforma: "instagram", direccion: "outgoing" });
 
     const res = await POST(pedido(body, { "x-late-signature": firmar(body) }));
-    await expect(res.json()).resolves.toMatchObject({ skipped: true });
+    await expect(res.json()).resolves.toMatchObject({ skipped: true, reason: "outgoing" });
     expect(pendientes).toHaveLength(0);
   });
 

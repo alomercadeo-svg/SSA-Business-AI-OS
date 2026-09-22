@@ -2,7 +2,9 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-// @ts-expect-error: módulo .mjs sin tipos, compartido con los scripts.
+// Sin `@ts-expect-error`: con `allowJs`, TypeScript infiere los tipos del
+// .mjs, y la directiva sobrante era un error que solo `tsc` veía. Lo encontró
+// la compuerta de tipos el 22/09/2026 (`scripts/compuerta-cierre.test.ts`).
 import { redactar, filtrarSalida, protegerSalida } from "./redaccion.mjs";
 
 /**

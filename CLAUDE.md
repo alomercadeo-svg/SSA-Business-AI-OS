@@ -105,8 +105,22 @@ npm install          # instalar dependencias
 npm run dev          # correr en desarrollo
 npm run build        # build de producción
 npm run lint         # linter
-npm test             # tests con Vitest
+npm test             # tests con Vitest, incluida la compuerta de cierre
+npm run typecheck    # tsc sobre todo el proyecto; Vitest no chequea tipos
+node scripts/commits-sin-subir.mjs   # cuántos commits hay sin subir y de cuándo es el más viejo
 ```
+
+---
+
+# Apertura y cierre de sesión
+
+**Al abrir sesión** se corre `node scripts/commits-sin-subir.mjs` y se informa cuántos commits hay sin subir y de qué fecha es el más viejo. Si dice "No medido", se dice así, no como "no hay nada sin subir".
+
+**Al cerrar sesión**, si `npm test` está verde, se sube y se verifica el despliegue en Railway: el despliegue activo tiene que mostrar el mensaje del commit subido, y `app.alomercadeo.com` tiene que responder. **Si no se sube, se escribe en `docs/estado-fase1.md` por qué y qué condición lo destraba.** Un "no subimos" sin condición de destrabe no se acepta.
+
+La suite hace cumplir las dos cosas desde `scripts/compuerta-cierre.test.ts`: se pone en rojo si el commit sin subir más viejo tiene más de un día, y si `tsc` encuentra un error de tipos. **Un día y no cero** a propósito: con cero falla apenas se commitea, es ruido en medio de la sesión y termina desactivado.
+
+**Por qué existe.** El 22 de septiembre de 2026, producción y el repositorio se desincronizaron dos veces. Hubo 19 commits sin subir desde el 21, y una rotación del secreto hizo que producción re-registrara el webhook con código viejo y le borrara un evento, sin error y sin aviso. Al subirlos, el build de Railway falló por un error de tipos que 211 tests en verde no habían visto. El relato está en `docs/estado-fase1.md`.
 
 ---
 
