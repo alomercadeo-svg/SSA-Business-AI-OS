@@ -343,20 +343,22 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 
 **Descripción:** dejar corriendo el servicio de WhatsApp, configurado de forma segura, sin vincular todavía ningún número.
 
-**Estado: pendiente.** Los dos servicios están creados en Railway pero el de Evolution todavía no se desplegó. El procedimiento reproducible, con las variables verificadas contra el archivo de ejemplo de la versión 2.3.7, está en `docs/despliegue-evolution.md`.
+**Estado: construido y verificado** (17 de septiembre de 2026, Evolution 2.3.7). Instancia `alomercadeo-ventas` creada, webhook registrado y leído de vuelta, **sin ningún número vinculado**. El procedimiento reproducible está en `docs/despliegue-evolution.md`, y `verify-evolution-deploy.mjs` pasa.
+
+**Lo que destrabó marcarla cumplida no fue el despliegue, que estaba hecho desde el 17, sino el criterio del log.** "Ningún log escribe el cuerpo crudo" se cumplía porque alguien lo había leído, y eso es de la misma familia que el secreto de firma de Zernio, que se imprimió en pantalla porque el endpoint lo devuelve sin avisar. Una defensa que depende de que alguien se acuerde ya falló una vez en este proyecto. Ahora lo sostiene `lib/evolution-log-crudo.test.ts`, probado en rojo con un log del cuerpo puesto a propósito.
 
 **Criterios de aceptación:**
 
-- [ ] Servicio desplegado con la imagen fijada en `evoapicloud/evolution-api:v2.3.7`, nunca en `latest`. El tag `latest` apunta hoy a una versión cuyo identificador no coincide con ninguna publicación oficial etiquetada
-- [ ] Dos servicios, no tres: Evolution y su PostgreSQL. Se configura `CACHE_LOCAL_ENABLED=true` y `CACHE_REDIS_ENABLED=false`. Redis es solo caché de rendimiento y no hace falta
-- [ ] `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false`. **Se pone igual, pero no protege nada: ver el hallazgo abajo.** La protección real del token de la instancia es la regla operativa de nunca registrar el cuerpo crudo de un aviso de Evolution
-- [ ] **Ningún log escribe el cuerpo crudo de un aviso de Evolution.** No es una recomendación de higiene: es la única defensa que existe para ese token, porque viaja en el cuerpo de cada aviso y no hay forma de apagarlo
-- [ ] `WEBHOOK_GLOBAL_ENABLED=false`. El aviso global no manda datos de autenticación, así que no se puede verificar
-- [ ] La clave de la instancia y el secreto de los avisos se guardan en Supabase Vault, nunca en variables de entorno de la aplicación
-- [ ] Instancia creada con sincronización de historial activada y grupos ignorados
-- [ ] Aviso de mensajes configurado por instancia, incluyendo el dato de autenticación
-- [ ] El archivo `.env.example` documenta cada variable nueva, con qué es y dónde se consigue
-- [ ] La documentación de despliegue queda en `docs/despliegue-evolution.md`, con pasos reproducibles
+- [x] Servicio desplegado con la imagen fijada en `evoapicloud/evolution-api:v2.3.7`, nunca en `latest`. El tag `latest` apunta hoy a una versión cuyo identificador no coincide con ninguna publicación oficial etiquetada
+- [x] Dos servicios, no tres: Evolution y su PostgreSQL. Se configura `CACHE_LOCAL_ENABLED=true` y `CACHE_REDIS_ENABLED=false`. Redis es solo caché de rendimiento y no hace falta
+- [x] `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false`. **Se pone igual, pero no protege nada: ver el hallazgo abajo.** La protección real del token de la instancia es la regla operativa de nunca registrar el cuerpo crudo de un aviso de Evolution
+- [x] **Ningún log escribe el cuerpo crudo de un aviso de Evolution.** No es una recomendación de higiene: es la única defensa que existe para ese token, porque viaja en el cuerpo de cada aviso y no hay forma de apagarlo
+- [x] `WEBHOOK_GLOBAL_ENABLED=false`. El aviso global no manda datos de autenticación, así que no se puede verificar
+- [x] La clave de la instancia y el secreto de los avisos se guardan en Supabase Vault, nunca en variables de entorno de la aplicación
+- [x] Instancia creada con sincronización de historial activada y grupos ignorados
+- [x] Aviso de mensajes configurado por instancia, incluyendo el dato de autenticación
+- [x] El archivo `.env.example` documenta cada variable nueva, con qué es y dónde se consigue
+- [x] La documentación de despliegue queda en `docs/despliegue-evolution.md`, con pasos reproducibles
 
 > **Hallazgo del 17 de septiembre de 2026: `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false` no hace lo que este criterio decía.**
 >

@@ -264,16 +264,58 @@ async function asegurarCanal(workspaceId) {
   return canal.id;
 }
 
-/** Crea la instancia. Devuelve el token, que NO se imprime. */
+/**
+ * Lee el token de una instancia existente, sin tocar nada.
+ *
+ * ── DE DÓNDE SALE ESTE CAMINO ───────────────────────────────────────────────
+ *
+ * Antes, encontrar la instancia ya creada era un callejón: el script decía que
+ * el token no se podía recuperar y mandaba a borrar la instancia y empezar de
+ * nuevo. Esa afirmación era falsa —`fetchInstances` devuelve el `token` con el
+ * valor real, medido el 17/09/2026— así que la salida propuesta era destructiva
+ * de más.
+ *
+ * ── SOBRE QUÉ SE APOYA ESTE CAMINO, Y POR QUÉ ES FRÁGIL ─────────────────────
+ *
+ * **Se apoya en que una variable siga sin funcionar como está documentada.**
+ * `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false` debería, según la
+ * documentación de Evolution, ocultar ese token; hoy no lo hace porque la
+ * variable se lee y no se consume en ese camino en la 2.3.7.
+ *
+ * Si una versión futura la arregla, `fetchInstances` va a dejar de traer el
+ * token y **esto se rompe**. Por eso devuelve `null` en vez de tirar, el camino
+ * destructivo se conserva abajo como respaldo explícito, y la dependencia está
+ * anotada en el bloque de `lib/evolution-version.mjs`, junto a la de `jwt_key`:
+ * las dos obligan a revisar algo antes de subir de versión.
+ */
+async function leerTokenDeInstanciaExistente(clave, instancias) {
+  const fila = instancias.find((i) => (i?.name ?? i?.instance?.instanceName) === nombre) ?? instancias[0];
+  const token = fila?.token ?? fila?.instance?.apikey ?? fila?.apikey ?? null;
+  return typeof token === "string" && token.length > 0 ? token : null;
+}
+
+/** Crea la instancia, o recupera la que ya existe. Devuelve el token, que NO se imprime. */
 async function crearInstancia(clave) {
   const yaExiste = await evolution(`/instance/fetchInstances?instanceName=${encodeURIComponent(nombre)}`, { clave });
   if (yaExiste.ok && Array.isArray(yaExiste.json) && yaExiste.json.length > 0) {
+    // Camino NO destructivo primero.
+    const token = await leerTokenDeInstanciaExistente(clave, yaExiste.json);
+    if (token) {
+      ok(`la instancia "${nombre}" ya existía y su token se recuperó sin recrearla`);
+      return token;
+    }
+
+    // Respaldo: solo si la lectura no lo trajo, que es lo que va a pasar el día
+    // que Evolution empiece a respetar EXPOSE_IN_FETCH_INSTANCES.
     throw new FalloDePaso(
-      `La instancia "${nombre}" ya existe en Evolution, así que no se puede volver a crear.\n` +
-      `Su token SÍ se puede leer con fetchInstances, pero este script todavía no lo\n` +
-      `recupera solo.\n` +
+      `La instancia "${nombre}" ya existe y su token NO se pudo leer con fetchInstances.\n` +
       `\n` +
-      `Si es de un intento anterior que falló, borrala y volvé a correr esto:\n` +
+      `Esto es esperable si Evolution empezó a respetar\n` +
+      `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: hasta la 2.3.7 esa variable se leía\n` +
+      `y no se consumía en ese camino, y la recuperación no destructiva se apoya en\n` +
+      `eso. Si es el caso, revisá lib/evolution-version.mjs antes de seguir.\n` +
+      `\n` +
+      `Salida de respaldo, que SÍ es destructiva: borrar la instancia y recrearla.\n` +
       `  node scripts/setup-evolution-channel.mjs ${nombre} --borrar-instancia\n` +
       `\n` +
       `Si en cambio ya está bien configurada y solo querés rehacer el webhook, usá --solo-webhook.`
