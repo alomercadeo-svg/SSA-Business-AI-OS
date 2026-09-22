@@ -791,6 +791,66 @@ async function mainSalientes() {
  * Ninguno de los dos secretos se imprime. Se comparan en memoria y sale un sí o
  * un no, más longitud y últimos cuatro para poder distinguir cuál es cuál.
  */
+/**
+ * Qué cuentas hay conectadas en Zernio.
+ *
+ * Es el paso 0 de `docs/purga-y-reconexion-instagram.md`. La pregunta que
+ * contesta es una sola y muy concreta: **¿queda más de una cuenta de Instagram
+ * conectada?**
+ *
+ * Importa porque conectar una cuenta no desconecta la anterior, y porque del
+ * lado nuestro nada lo impide: `channels` es único por `(workspace_id,
+ * late_account_id)`, así que dos cuentas conviven como dos canales activos, y
+ * `debeDesactivarseCanal` solo desactiva un canal cuando su cuenta **ya no
+ * existe** en Zernio. O sea que el estado de acá es el que manda.
+ */
+async function mainCuentas() {
+  console.log("\nCuentas conectadas en Zernio.\n");
+
+  const prep = await preparar();
+  if (!prep) return 3;
+  const { clave } = prep;
+
+  const res = await zernio(clave, "/v1/accounts");
+  if (!res.ok) {
+    console.error(`La lista de cuentas respondió ${res.status}.`);
+    return 3;
+  }
+
+  const cuentas = Array.isArray(res.cuerpo)
+    ? res.cuerpo
+    : (res.cuerpo?.accounts ?? res.cuerpo?.data ?? []);
+
+  for (const a of cuentas) {
+    console.log(`  ${String(a.platform).padEnd(10)} @${a.username ?? "?"}   id=${a._id ?? a.id}`);
+  }
+
+  const instagram = cuentas.filter((a) => a.platform === "instagram");
+  console.log(`\nTotal: ${cuentas.length}   de Instagram: ${instagram.length}`);
+
+  // El canal local, para contrastar. Dos canales activos de Instagram significa
+  // que hay dos cuentas recibiendo, y el webhook entrega a las dos.
+  const canales = await supa(
+    "/rest/v1/channels?select=username,late_account_id,is_active&platform=eq.instagram&is_active=eq.true"
+  );
+  const activos = canales.ok ? (canales.cuerpo ?? []) : [];
+  console.log(`Canales locales de Instagram activos: ${activos.length}`);
+  for (const c of activos) console.log(`  @${c.username ?? "?"}  ${c.late_account_id}`);
+
+  if (instagram.length > 1 || activos.length > 1) {
+    console.log("\nHAY MÁS DE UNA CUENTA DE INSTAGRAM. Las dos reciben mensajes.");
+    console.log("Si esto es a mitad del procedimiento de purga, la ventana está abierta.");
+    return 1;
+  }
+  if (instagram.length === 0) {
+    console.log("\nNo hay ninguna cuenta de Instagram conectada.");
+    console.log("Correcto si acabás de ejecutar el paso 0; no, en cualquier otro momento.");
+    return 0;
+  }
+  console.log("\nUna sola cuenta de Instagram. Sin ventana abierta.");
+  return 0;
+}
+
 async function mainRegistro() {
   console.log("\nEstado del registro del webhook en Zernio.");
   console.log("Solo lectura. Ningún secreto se imprime.\n");
@@ -1017,14 +1077,17 @@ async function main() {
 const soloAutoprueba = process.argv.includes("--autoprueba");
 const salientes = process.argv.includes("--salientes");
 const registro = process.argv.includes("--registro");
+const cuentas = process.argv.includes("--cuentas");
 
 (soloAutoprueba
   ? Promise.resolve(autoprueba())
-  : registro
-    ? mainRegistro()
-    : salientes
-      ? mainSalientes()
-      : main())
+  : cuentas
+    ? mainCuentas()
+    : registro
+      ? mainRegistro()
+      : salientes
+        ? mainSalientes()
+        : main())
   .then((codigo) => process.exit(codigo))
   .catch((err) => {
     console.error("\nError inesperado:", err);

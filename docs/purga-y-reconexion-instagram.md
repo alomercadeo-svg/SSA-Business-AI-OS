@@ -5,25 +5,73 @@ negocio, con la base limpia y el secreto de firma rotado.
 
 **Fecha:** 21 de septiembre de 2026. **Todavía no ejecutado.**
 
-**Qué deja:** el workspace sin los datos de prueba, el canal de Instagram conectado a la cuenta del
+**Qué deja:** la cuenta vieja desconectada, el workspace sin los datos de prueba, el canal de Instagram conectado a la cuenta del
 negocio, el secreto de firma del webhook rotado, y el re-registro **verificado con un mensaje real
 que entra de punta a punta**.
 
-**Por qué los cuatro pasos van juntos y no sueltos.** Cada uno de los tres primeros deja el sistema
-en un estado intermedio que el siguiente resuelve, y el cuarto es el único que comprueba que la
+**Por qué los cinco pasos van juntos y no sueltos.** Cada uno de los cuatro primeros deja el sistema
+en un estado intermedio que el siguiente resuelve, y el último es el único que comprueba que la
 cadena entera quedó bien. Ejecutados por separado, en días distintos, cada uno se ve exitoso y el
-conjunto puede quedar roto sin que nada lo muestre. El detalle está en la sección 0.
+conjunto puede quedar roto sin que nada lo muestre. El detalle está en la sección de orden.
 
 ---
 
-## 0. El orden, y por qué no es negociable
+## Orden de los pasos, y por qué no es negociable
 
 | Paso | Qué hace | Por qué va acá |
 |---|---|---|
-| 1 | Purgar los datos de prueba | Antes de reconectar: si se reconecta primero, el backfill vuelve a traer conversaciones y se mezclan con las que había que borrar |
+| **0** | **Desconectar `@theconsultour` en Zernio** | **Cierra la ventana del paso 1. Ver abajo: conectar no desconecta** |
+| 1 | Purgar los datos de prueba | Después de desconectar, para que no entre nada mientras se purga |
 | 2 | Reconectar Instagram con la cuenta del negocio | Antes de rotar: reconectar re-registra el webhook, y conviene que ese re-registro ocurra con el secreto viejo, que todavía es válido |
 | 3 | Rotar el secreto de firma | Después de reconectar, nunca antes. Ver abajo |
 | 4 | Verificar con un mensaje real, de ida y de vuelta | Es el control positivo de los pasos 2 y 3 |
+
+### Por qué hay un paso 0 que antes no estaba
+
+**Conectar una cuenta no desconecta la anterior.** Sin el paso 0, entre la purga y la reconexión hay
+una ventana abierta: cualquier DM que le llegue a `@theconsultour` en esos minutos vuelve a crear
+contacto y conversación, y el procedimiento termina con la purga a medias **sin ninguna señal de que
+eso pasó**.
+
+**Lo que está verificado, del lado nuestro:** `channels` tiene `unique (workspace_id,
+late_account_id)`, así que dos cuentas de Instagram distintas conviven como dos canales, los dos con
+`is_active = true`. Y el sync **no desactiva nada al conectar**: `debeDesactivarseCanal`
+(`lib/channel-rules.ts`) desactiva un canal de Zernio **solo cuando su cuenta ya no existe en
+Zernio**. O sea que nuestro código espeja a Zernio y no decide nada por su cuenta. La decisión está
+del lado del proveedor.
+
+**Lo que es inferencia fuerte y no medición, del lado de Zernio:** la API es multi-cuenta.
+`GET /v1/accounts` toma `platform` como **filtro**, cuenta las cuentas contra el límite del plan,
+existe `PATCH` para mover una cuenta de perfil, y existe una desconexión explícita. Nada en la
+documentación dice que conectar reemplace. **Pero no se midió**, y la única forma de medirlo sería
+conectar una segunda cuenta, que es justamente la acción que este procedimiento ordena.
+
+**Por qué el paso 0 va igual, sin esperar a medirlo.** La asimetría decide: si conectar reemplaza, el
+paso 0 sobra y cuesta un clic. Si conviven, el paso 0 es lo único que separa una purga completa de
+una purga a medias que nadie va a notar. Un paso de más contra una falla silenciosa no es una
+decisión difícil.
+
+### La llamada de desconexión existe
+
+`DELETE /v1/accounts/{accountId}`, en el SDK `zernio.accounts.deleteAccount`. La documentación dice
+*"Disconnects and removes a connected social account"*.
+
+> ## ⚠ El paso 0 es irreversible y hay que decidirlo antes, no durante
+>
+> Desconectar **remueve la cuenta** en Zernio. Las 33 conversaciones de `@theconsultour`, con
+> historial real desde junio de 2024, hoy son recuperables porque Zernio es el almacén y la bandeja
+> las lee de ahí. Después del paso 0 **dejan de ser alcanzables por la API**: los endpoints de
+> conversaciones y mensajes piden `accountId`, y esa cuenta ya no va a existir.
+>
+> La documentación **no dice** qué pasa con los datos de una cuenta desconectada. Hay un indicio de
+> que sobreviven internamente —las analíticas de bandeja muestran las cuentas que ya no existen como
+> "(disconnected)" para que la fila siga visible— pero eso es analítica agregada, no el hilo de
+> mensajes, y no alcanza para prometer nada.
+>
+> **Si hay algo en esas 33 conversaciones que valga la pena conservar, hay que exportarlo antes del
+> paso 0.** El paso 1 borra la copia local y el paso 0 corta el acceso a la del proveedor: juntos no
+> dejan de dónde recuperar. Esto no es una objeción al procedimiento, es la decisión que el
+> procedimiento obliga a tomar de forma explícita en vez de descubrirla después.
 
 ### Por qué rotar va después de reconectar y no antes
 
@@ -63,6 +111,34 @@ Y la ida y la vuelta son dos comprobaciones distintas, no una repetida:
 - **El mensaje de salida** prueba que la clave de API sigue sirviendo para escribir. Es el control
   positivo del de entrada: si el de entrada no llega y el de salida tampoco sale, el problema es la
   clave o la cuenta, no el webhook, y el diagnóstico es distinto.
+
+---
+
+## 0. Desconectar `@theconsultour` en Zernio
+
+Se hace desde el panel de Zernio, o con la llamada de desconexión. Después:
+
+```bash
+# Confirmar que quedó desconectada ANTES de purgar. Si sigue conectada, parar:
+# purgar con la cuenta viva deja la ventana abierta.
+node scripts/verify-id-mensaje-zernio.mjs --cuentas
+```
+
+Tiene que decir **"No hay ninguna cuenta de Instagram conectada"**. Lista las cuentas de Zernio y los
+canales locales activos por separado, y sale con error si hay más de una: dos cuentas conectadas
+significan dos canales recibiendo, porque el receptor busca el canal por `late_account_id` y encuentra
+los dos.
+
+Después del paso 0, el botón de sincronizar de la pantalla de canales desactiva el canal local, que
+es el comportamiento correcto de `debeDesactivarseCanal` y sirve de comprobación adicional de que
+Zernio ya no lista la cuenta.
+
+> **Nota sobre el orden interno de este paso.** Desactivar el canal local **no** reemplaza a
+> desconectar en Zernio. Un canal local inactivo no impide que Zernio entregue: el receptor busca el
+> canal por `late_account_id` **filtrando por `is_active = true`**, así que la entrega llega, no
+> encuentra canal activo y responde 404. El mensaje no se guarda, pero tampoco se pierde: sigue en
+> Zernio. Lo que cierra la ventana de verdad es que la cuenta deje de estar conectada del lado del
+> proveedor.
 
 ---
 
@@ -212,6 +288,39 @@ cuál eligió.
 Al conectar, el código llama a `ensureWebhookRegistered`, que registra el webhook con el secreto
 **actual**, el viejo, que todavía es válido. Eso es lo correcto en este punto del orden.
 
+### 2.1 Sincronizar de nuevo, porque el historial llega tarde
+
+**Una sola sincronización no alcanza, y el motivo no es obvio.** La documentación de Zernio dice que
+al conectar una cuenta de Instagram o Facebook, el proveedor **reproduce en segundo plano el
+historial de mensajes que la cuenta ya tiene en Meta**, hasta 500 conversaciones. Y avisa, con todas
+las letras, que esa reproducción *"puede terminar después de un listado que ya tomaste"*, y que quien
+espeje ese endpoint en su propio almacén debería *"repetir el barrido en vez de confiar en una sola
+pasada al momento de conectar"*.
+
+**Nuestro código hace exactamente la sola pasada.** `backfillInboxConversations` corre dentro del
+mismo request que la conexión. Si la reproducción todavía no terminó, importa lo que haya en ese
+instante y no vuelve nunca.
+
+**Qué hacer:** después de conectar, **tocar el botón de sincronizar unas cuantas veces, espaciadas**,
+hasta que la cantidad de conversaciones deje de subir. Diez minutos, media hora y una hora es una
+cadencia razonable para 500 conversaciones.
+
+```sql
+-- Repetir entre sincronizaciones. Cuando el número se estabiliza, terminó.
+select count(*) from conversations;
+```
+
+Repetir el barrido es seguro: el backfill es solo de inserción y saltea las conversaciones que ya
+conoce.
+
+**Dos consecuencias que conviene tener presentes:**
+
+- **La reproducción no emite webhooks.** Así que no sirve mirar el log de entregas para saber si
+  terminó, y tampoco va a mover la marca de último evento entrante de F39.
+- **Si la cuenta tiene el acceso a mensajes de "herramientas conectadas" de Instagram apagado, no se
+  reproduce nada.** Si después de varias sincronizaciones no aparece ninguna conversación vieja, ese
+  es el primer lugar donde mirar, antes de sospechar del código.
+
 ---
 
 ## 3. Rotación del secreto de firma
@@ -285,10 +394,21 @@ node scripts/verify-id-mensaje-zernio.mjs
 | No entra, pero sale | El webhook no quedó registrado o la firma no verifica. La clave de API está bien. Repetir el paso 3 |
 | No entra y no sale | La clave o la cuenta conectada. **No** es el webhook. Volver al paso 2 |
 | Entra con 401 en el log de entregas | El secreto de Zernio y el de la base no coinciden. Repetir el paso 3 completo |
+| Entra, pero además aparecen contactos que se habían purgado | **La ventana del paso 0 quedó abierta.** Alguien escribió a la cuenta vieja y sigue conectada, o el paso 0 no se ejecutó. Verificar `GET /v1/accounts` y volver al paso 0 |
+| Entra y sale, pero faltan conversaciones viejas | No es un fallo del webhook. Es la reproducción del historial, que todavía no terminó o no está habilitada. Ver 2.1 |
 
-**Ninguno de los tres fallos se ve en la pantalla de canales**, que va a seguir mostrando el canal
-como conectado en los cuatro casos. Por eso el veredicto sale de estas comprobaciones y no de mirar
-la interfaz.
+**Ninguno de estos fallos se ve en la pantalla de canales**, que va a seguir mostrando el canal como
+conectado en todos los casos. Por eso el veredicto sale de estas comprobaciones y no de mirar la
+interfaz.
+
+**Y uno que sí conviene comprobar aparte, porque su síntoma es "todo bien":**
+
+```sql
+-- ¿Quedó más de un canal de Instagram activo?
+-- Si devuelve más de una fila, conviven dos cuentas y el paso 0 no cerró nada.
+select id, username, late_account_id, is_active
+from channels where platform = 'instagram' and is_active = true;
+```
 
 ---
 
