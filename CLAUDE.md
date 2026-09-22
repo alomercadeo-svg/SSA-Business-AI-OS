@@ -50,8 +50,8 @@ El plano de la fase actual está en `docs/requerimientos-fase1.md`. Leelo antes 
 
 **Datos reales del fork, verificados en el código (los README dicen otra cosa):**
 
-- **24 tablas** en 16 archivos de migración
-- **16 tipos de nodo** en `lib/flow-engine/types.ts`, no 17 ni 18. Los otros conteos separan "Add Tag / Remove Tag" y "Subscribe / Unsubscribe", que en el código son un solo tipo con un parámetro
+- **24 tablas** en 16 archivos de migración. Ese es el conteo **del fork** y no cambia nunca. El conteo **de hoy** vive en un solo lugar, `docs/requerimientos-fase1.md` §14c, y un test lo comprueba contra el repo
+- **18 tipos de nodo**, en `lib/types/database.ts` y no en `lib/flow-engine/types.ts`. **Corregido el 22 de septiembre de 2026:** acá decía 16, y que los conteos mayores separaban "Add Tag / Remove Tag" y "Subscribe / Unsubscribe" que en el código serían un solo tipo con un parámetro. Es falso: `addTag` y `removeTag` son dos miembros distintos del tipo, y `subscribe` y `unsubscribe` también. El README decía 17 o 18; 18 era el correcto
 - Tailwind es **v4** (`^4.1.18`), no v3
 - El fork **no usa Zod**. Si hace falta validación de esquemas, adoptamos Zod 4
 
@@ -92,7 +92,7 @@ El plano de la fase actual está en `docs/requerimientos-fase1.md`. Leelo antes 
 
 **Dos bases de datos Postgres, y no son intercambiables:** Supabase guarda los datos del negocio; el PostgreSQL de Railway guarda el estado interno de Evolution, incluida la sesión de WhatsApp.
 
-**Abierto, a resolver antes de conectar el canal:** cómo autentica Evolution sus webhooks. La firma HMAC de Zernio ya falla cerrada; el webhook de Evolution necesita una garantía equivalente o se reabre la puerta que cerramos en el Bloque 1.
+**Resuelto en F22, el 17 de septiembre de 2026:** Evolution firma cada entrega con un JWT HS256 derivado del `jwt_key` de la instancia, y el receptor lo verifica y falla cerrado, igual que el de Zernio. El mecanismo está verificado en el código de la 2.3.7 pero **no documentado**, así que subir de versión obliga a re-verificarlo: el recordatorio vive en el recuadro de `lib/evolution-version.mjs`.
 
 ---
 
@@ -139,7 +139,7 @@ Reglas:
 - **Scope de leads (restricción dura):** un Member solo lee y edita los contactos y conversaciones donde es `setter_id`, `vendedor_id` o `assigned_to`. Owner y Admin ven todo. Se aplica **en la base con RLS**, no con un filtro en la interfaz. Se prueba con una consulta directa a la API usando el token de un Member, no solo mirando la pantalla.
 - **Realtime tiene que respetar el scope de leads.** Si la configuración no lo garantiza, filtrar del lado del servidor antes de emitir.
 - **Secrets en Supabase Vault**, nunca hardcodeados ni en variables de entorno del frontend.
-- **Problema heredado a corregir en el Bloque 1:** la columna `workspaces.late_api_key_encrypted` se llama "encrypted" pero **guarda la clave en texto plano**. El código la lee y la pasa directo al cliente de la API, sin desencriptar. Lo mismo con `ai_api_key`. Hay que migrar los valores a Vault, apuntar todas las lecturas a Vault, y eliminar las columnas.
+- **Problema heredado, CORREGIDO en el Bloque 1 (migración 00021).** El fork guardaba la clave de la API en `workspaces.late_api_key_encrypted`, una columna que decía "encrypted" y tenía el valor en texto plano, y lo mismo con `ai_api_key`. Los valores se migraron a Vault, las lecturas apuntan ahí, y **las dos columnas ya no existen**: verificado el 22 de septiembre de 2026 contra el esquema. Se conserva escrito porque explica por qué todas las claves pasan por `lib/vault.ts` y por qué no hay que volver a agregar una columna de clave a `workspaces`.
 - Validación en servidor, no solo en cliente.
 - Firma HMAC validada en todos los webhooks de Zernio antes de procesar.
 - Service Role Key solo en servidor.
@@ -147,7 +147,8 @@ Reglas:
 
 ## Datos
 
-- **Soft delete** en `contacts`, `contact_notes`, `conversations`, `response_templates`. Retención de 30 días, después purga por cron. El `audit_log` nunca se borra.
+- **Soft delete** en `contacts` y `conversations`, que existen hoy, y en `contact_notes` y `response_templates` **cuando se construyan en el Bloque 3** (F30 y F36). Retención de 30 días, después purga por cron.
+- **El `audit_log` nunca se borra.** Esa tabla tampoco existe todavía: se crea en F31, Bloque 3. La regla está escrita de antemano para que no se construya sin ella.
 - **Audit log** de todo cambio significativo: entidad, campos con valor anterior y nuevo, quién y cuándo.
 - **Teléfonos normalizados a E.164 en el servidor**, no solo en el formulario. Sin esto la deduplicación entre canales falla.
 - **Deduplicación de contactos** por teléfono normalizado o email. Nunca solo por nombre.
@@ -179,7 +180,7 @@ Cada canal tiene su propia configuración y se guarda **como configuración del 
 - Nunca commitear `.env` con valores reales.
 - Los datos de demo van en seeds separados de las migraciones de estructura.
 - **Fijar la versión exacta de `@zernio/node`** (sin `^`). Es una librería 0.x y puede romper compatibilidad entre versiones menores.
-- Agregar tests de lo nuevo y de lo que se toca. El fork tiene poca cobertura: 7 archivos de test para 23.000 líneas.
+- Agregar tests de lo nuevo y de lo que se toca. El fork traía poca cobertura: **7 archivos de test para 23.000 líneas al momento de forkear**. Hoy hay 21, y ese número sube con cada bloque: no lo copies acá, contalo.
 
 ## Verificación: toda comprobación negativa necesita un control positivo
 

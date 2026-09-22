@@ -429,7 +429,7 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 
 **Descripción:** el lugar donde se conectan todos los servicios externos.
 
-**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
+**Estado: parcial** (inspeccionado el 22 de septiembre de 2026). **El fork cubre:** `/dashboard/settings` con carga y prueba de la clave de Zernio (`settings-view.tsx`, contra `/api/v1/channels/test-key`). **Falta:** la pantalla en `/settings/integrations`, las secciones de Resend y de proveedores de IA, el registro por tipo de integración, y el estado del registro del webhook.
 
 **Criterios de aceptación:**
 
@@ -656,7 +656,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** reconocer que el que escribe por WhatsApp es el mismo que ya escribió por Instagram.
 
-**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
+**Estado: no construido** (inspeccionado el 22 de septiembre de 2026). `upsertContactForSender` en `lib/inbox-sync.ts` vincula por `platform_sender_id` y **no busca por teléfono ni por correo**. No hay nada de deduplicación entre canales.
 
 **Criterios de aceptación:**
 
@@ -705,7 +705,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** que se vea cuando WhatsApp dejó de estar conectado.
 
-**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
+**Estado: no construido** (inspeccionado el 22 de septiembre de 2026). `channels-view.tsx` no muestra estado de sesión, no tiene QR ni botón de reconectar.
 
 **Criterios de aceptación:**
 
@@ -720,7 +720,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción.** Reemplazan a la ventana de 24 horas en WhatsApp. Son configuración del canal y las hace cumplir el sistema, no el hábito de quien lo usa. Existen porque el seguimiento automático saliente es justamente el comportamiento que Meta busca para bloquear un número.
 
-**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
+**Estado: no construido** (inspeccionado el 22 de septiembre de 2026). `lib/sequence-processor.ts` solo cancela la inscripción si la secuencia se pausó o se borró. No hay corte por silencio, ni espaciado aleatorio, ni franja horaria, ni variación de texto: ninguna de las seis reglas existe.
 
 **Criterios de aceptación:**
 
@@ -737,7 +737,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** respetar a quien pidió no recibir más mensajes.
 
-**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
+**Estado: parcial, y es la más cubierta del Bloque 4** (inspeccionado el 22 de septiembre de 2026). **El fork cubre:** la columna `contacts.is_subscribed`, respetada por el listado de contactos (`/api/v1/contacts`) y por el envío de difusiones. **Falta:** el opt-out duro desde la bandeja, las frases de baja configurables, y que las secuencias lo respeten.
 
 **Criterios de aceptación:**
 
@@ -752,7 +752,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** el lugar donde el equipo trabaja todos los días.
 
-**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
+**Estado: parcial** (inspeccionado el 22 de septiembre de 2026). **El fork cubre:** `conversation-list.tsx` con búsqueda por texto y filtro por estado. **Falta:** filtros por canal, por asignado y por no leídas, y que el filtrado no sea sobre la página ya cargada en el cliente, que es como está hoy.
 
 **Criterios de aceptación:**
 
@@ -767,7 +767,15 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** textos reutilizables que el operador inserta escribiendo una barra.
 
-**Estado: no construido** (verificado el 22 de septiembre de 2026: la tabla `response_templates` no existe en la base).
+**Estado: no construido, y la tabla hay que crearla** (verificado el 22 de septiembre de 2026).
+
+> **`response_templates` no es una tabla del fork que el `CLAUDE.md` recordara mal: es un nombre que elegimos nosotros para una tabla que no existe.**
+>
+> Verificado listando cada `create table` de todas las migraciones, sin distinguir mayúsculas. El conteo vigente está en 14c; las tablas que existen son `analytics_events`, `broadcast_recipients`, `broadcasts`, `channels`, `comment_logs`, `contact_channels`, `contact_custom_fields`, `contact_tags`, `contacts`, `conversations`, `custom_field_definitions`, `flow_sessions`, `flow_versions`, `flows`, `messages`, `scheduled_jobs`, `sequence_enrollments`, `sequences`, `tags`, `triggers`, `webhook_alerts`, `webhook_events`, `workspace_invites`, `workspace_members` y `workspaces`. Ninguna es de respuestas rápidas, **ni con otro nombre**: se buscó también por `quick_repl`, `canned`, `saved_repl` y `snippet`, y los únicos aciertos son un tipo de disparador (`quick_reply`) y una columna de `messages` (`quick_reply_payload`), que son otra cosa.
+>
+> **Consecuencia para F36:** incluye crear la tabla, con su migración y su RLS. No es "conectar una pantalla a algo que ya está".
+>
+> **Consecuencia para la regla de nomenclatura de la sección 14:** ninguna. La regla distingue "Respuestas rápidas" de "Plantillas de WhatsApp" para que no se confundan en la interfaz, y sigue en pie. Lo que cambia es que `response_templates` pasa de ser un dato heredado a ser una decisión nuestra, y por eso el nombre se elige acá y no se hereda de nadie.
 
 **Criterios de aceptación:**
 
@@ -780,7 +788,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** cargar contactos que ya existen en otro lado.
 
-**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
+**Estado: no construido** (inspeccionado el 22 de septiembre de 2026). No existe ninguna pantalla de importación; los únicos usos de "import" en la interfaz son sentencias de JavaScript.
 
 **Criterios de aceptación:**
 
@@ -795,7 +803,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** traer al sistema los contactos y el estado comercial que hoy viven en Pipedrive, una sola vez, de forma verificable y repetible. Va después de F37 porque se apoya en el importador de planilla.
 
-**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
+**Estado: no construido** (22 de septiembre de 2026). **Inferido, no inspeccionado aparte:** depende de F37, que no existe, y de las columnas de F25, que no están aplicadas.
 
 Los números salen del análisis de los dos exports reales el 17 de septiembre de 2026: 526 personas y 517 tratos. No son estimaciones.
 
@@ -863,7 +871,7 @@ El argumento decisivo es la asimetría del error: **dejar afuera es irreversible
 
 **Descripción:** calcular, mostrar y respetar la ventana de mensajería de Instagram, que es una regla real de Meta y aplica hoy.
 
-**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
+**Estado: no construido** (inspeccionado el 22 de septiembre de 2026). `lib/channel-rules.ts` no tiene ninguna lógica de ventana de conversación.
 
 **Por qué es alcance actual y no plan B:** el canal de Instagram está conectado y operando. Sin esto, un operador escribe una respuesta fuera de la ventana, la envía, y falla con un error genérico. Es el error más común al operar cualquier canal de Meta, y el §0 de este documento ya promete que la ventana de Instagram se conserva completa.
 
