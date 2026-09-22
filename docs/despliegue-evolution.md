@@ -18,16 +18,25 @@ de vuelta desde Evolution. `verify-evolution-deploy.mjs` y `verify-evolution-web
 > No es una preferencia de orden: es una regla dura, y el motivo está en
 > `docs/requerimientos-fase1.md` §4.7.
 >
-> El receptor de webhooks autentica el aviso, controla que no esté repetido, responde 200 y
-> **descarta el contenido**, porque guardarlo es F27 y todavía no existe. Si el número se vincula
+> **La compuerta son dos funcionalidades, no una: F27 y F32.**
+>
+> **F27, el guardado.** El receptor autentica el aviso, controla que no esté repetido, responde 200
+> y **descarta el contenido**, porque guardarlo es F27 y todavía no existe. Si el número se vincula
 > antes, cada mensaje real de un lead se pierde de la peor forma posible: en silencio y con acuse
 > de éxito. El receptor responde que todo salió bien, Evolution da la entrega por buena y no
 > reintenta, no hay error y no se dispara ninguna alerta. El único síntoma serían conversaciones
 > que nunca existieron, descubiertas semanas después.
 >
+> **F32, el estado de sesión y la reconexión.** Aunque F27 estuviera, sin F32 una sesión caída se ve
+> igual que un día tranquilo y nadie puede volver a vincular desde la interfaz. F39 detecta el
+> silencio, pero detectar no es reconectar.
+>
+> **F32 está en el Bloque 4**, así que o se adelanta al Bloque 3 o el número espera al cierre del
+> Bloque 4. Las dos opciones, con su costo, están en `docs/requerimientos-fase1.md` §4.7.
+>
 > El canal se prueba entero con avisos firmados de prueba. No hace falta un número real para eso, y
-> el checklist de conexión (Flujo 4 del plano) tiene el paso de confirmar que F27 está construido
-> **antes** del escaneo del QR.
+> el checklist de conexión (Flujo 4 del plano) tiene el paso de confirmar que F27 **y F32** están
+> construidas **antes** del escaneo del QR.
 
 ---
 

@@ -48,12 +48,14 @@ El plano de la fase actual está en `docs/requerimientos-fase1.md`. Leelo antes 
 - Realtime en `conversations` y `messages`
 - Cliente de Zernio con webhooks y adaptadores por plataforma, con tests
 
-**Datos reales del fork, verificados en el código (los README dicen otra cosa):**
+**Datos reales del fork (los README dicen otra cosa).**
 
-- **24 tablas** en 16 archivos de migración. Ese es el conteo **del fork** y no cambia nunca. El conteo **de hoy** vive en un solo lugar, `docs/requerimientos-fase1.md` §14c, y un test lo comprueba contra el repo
-- **18 tipos de nodo**, en `lib/types/database.ts` y no en `lib/flow-engine/types.ts`. **Corregido el 22 de septiembre de 2026:** acá decía 16, y que los conteos mayores separaban "Add Tag / Remove Tag" y "Subscribe / Unsubscribe" que en el código serían un solo tipo con un parámetro. Es falso: `addTag` y `removeTag` son dos miembros distintos del tipo, y `subscribe` y `unsubscribe` también. El README decía 17 o 18; 18 era el correcto
-- Tailwind es **v4** (`^4.1.18`), no v3
-- El fork **no usa Zod**. Si hace falta validación de esquemas, adoptamos Zod 4
+**Toda afirmación de esta lista lleva contra qué se verificó y cuándo, y eso no es formalismo.** Acá decía "16 tipos de nodo, no 17 ni 18", marcado como verificado en el código, sin decir contra qué archivo. Era falso, corregía un dato del README que estaba bien, y **la marca de verificado impidió que alguien volviera a mirar durante seis días**. Un dato con fuente se refuta en diez segundos; un sello sin fuente solo se puede creer. Si no podés decir contra qué se verificó algo, sacale la marca en vez de inventarle una fuente.
+
+- **24 tablas** en 16 archivos de migración. *Contra `supabase/migrations/00001` a `00016`, 22/09/2026.* Ese es el conteo **del fork** y no cambia nunca. El conteo **de hoy** vive en un solo lugar, `docs/requerimientos-fase1.md` §14c, y un test lo comprueba contra el repo
+- **18 tipos de nodo.** *Contra el tipo `NodeType` de `lib/types/database.ts`, 22/09/2026.* **Corregido ese día. Antes decía 16**, y que los conteos mayores separaban "Add Tag / Remove Tag" y "Subscribe / Unsubscribe" que en el código serían un solo tipo con un parámetro. Es falso: `addTag` y `removeTag` son dos miembros distintos del tipo, y `subscribe` y `unsubscribe` también. El README decía 17 o 18; 18 era el correcto
+- Tailwind es **v4** (`^4.1.18`), no v3. *Contra `package.json`, 22/09/2026.*
+- El fork **no usa Zod**. *Contra `package.json`: cero apariciones, 22/09/2026.* Si hace falta validación de esquemas, adoptamos Zod 4
 
 **Patterns del fork que hay que respetar:**
 
@@ -92,7 +94,7 @@ El plano de la fase actual está en `docs/requerimientos-fase1.md`. Leelo antes 
 
 **Dos bases de datos Postgres, y no son intercambiables:** Supabase guarda los datos del negocio; el PostgreSQL de Railway guarda el estado interno de Evolution, incluida la sesión de WhatsApp.
 
-**Resuelto en F22, el 17 de septiembre de 2026:** Evolution firma cada entrega con un JWT HS256 derivado del `jwt_key` de la instancia, y el receptor lo verifica y falla cerrado, igual que el de Zernio. El mecanismo está verificado en el código de la 2.3.7 pero **no documentado**, así que subir de versión obliga a re-verificarlo: el recordatorio vive en el recuadro de `lib/evolution-version.mjs`.
+**Resuelto en F22, el 17 de septiembre de 2026:** Evolution firma cada entrega con un JWT HS256 derivado del `jwt_key` de la instancia, y el receptor lo verifica y falla cerrado, igual que el de Zernio. *Contra `webhook.controller.ts` de la 2.3.7, líneas 78 a 86 y 287 a 305; nuestro lado en `lib/evolution-webhook.ts`.* El mecanismo está en el código pero **no documentado**, así que subir de versión obliga a re-verificarlo: el recordatorio vive en el recuadro de `lib/evolution-version.mjs`.
 
 ---
 

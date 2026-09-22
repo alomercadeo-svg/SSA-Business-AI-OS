@@ -95,7 +95,7 @@ El motor de secuencias de la Fase 2 va a consumir las reglas de seguridad y el e
 
 ## 3. Usuarios y roles
 
-Construidos y verificados en el Bloque 1. Se documentan acá porque las funcionalidades nuevas los usan.
+Construidos en el Bloque 1 y verificados con `scripts/verify-lead-scope.mjs`, 24 comprobaciones contra la API real (última corrida: 22/09/2026, 24 pasaron, 0 fallaron). Se documentan acá porque las funcionalidades nuevas los usan.
 
 | Rol | Descripción | Puede hacer | No puede hacer |
 |---|---|---|---|
@@ -107,7 +107,7 @@ Construidos y verificados en el Bloque 1. Se documentan acá porque las funciona
 
 **Cómo se suman usuarios nuevos:** por invitación desde la pantalla de equipo. Hoy el link de invitación se copia a mano; con el envío de correo del Bloque 2 pasa a llegar por email.
 
-**Cómo se aplica el alcance por rol.** Un Member solo ve sus leads, y eso se hace cumplir en la base de datos, no con un filtro en la pantalla. En simple: aunque alguien consulte los datos por fuera de la interfaz, la base le devuelve solo lo suyo. Está construido y verificado con 24 comprobaciones automáticas.
+**Cómo se aplica el alcance por rol.** Un Member solo ve sus leads, y eso se hace cumplir en la base de datos, no con un filtro en la pantalla. En simple: aunque alguien consulte los datos por fuera de la interfaz, la base le devuelve solo lo suyo. Está construido y verificado con `scripts/verify-lead-scope.mjs`: 24 comprobaciones contra la API real, no contra la pantalla (última corrida: 22/09/2026).
 
 ---
 
@@ -179,11 +179,28 @@ Construidos y verificados en el Bloque 1. Se documentan acá porque las funciona
 
 **Dónde va lo que queda afuera:** la capacidad de importar historial queda diseñada para poder usarse más adelante, si alguna vez se conecta un número con conversaciones anteriores.
 
-> **Regla dura: el número no se vincula hasta que F27 esté construido y probado.**
+> **Regla dura: el número no se vincula hasta que F27 y F32 estén construidas y probadas.**
 >
 > No es una recomendación ni una preferencia de orden. El receptor del Bloque 2 autentica el aviso, controla que no esté repetido, responde el acuse y **descarta el contenido**, porque guardarlo es justamente lo que construye F27. Si el número se vincula antes, cada mensaje real que llegue se pierde: el receptor responde que todo salió bien, Evolution da la entrega por exitosa y no reintenta, no se registra ningún error y no se dispara ninguna alerta. El único síntoma serían conversaciones con leads que nunca existieron, descubiertas semanas después.
 >
 > Queda escrito con el motivo porque dentro de tres semanas, con el número ya en la mano, "probemos que ande" va a sonar razonable. La prueba de que el canal anda se hace con avisos de prueba firmados, que es exactamente lo que verifica el Bloque 2, y no necesita un número real.
+>
+> **Y F32 es la otra mitad de la compuerta, que faltaba hasta el 22 de septiembre de 2026.**
+>
+> F27 resuelve que el mensaje se guarde. F32 —estado de sesión y reconexión— resuelve que alguien se entere de que dejó de llegar y pueda volver a vincular. Sin ella queda una ventana con esta forma: la sesión de WhatsApp se cae, **la bandeja se ve exactamente igual que un día tranquilo**, y lo que entró mientras tanto no se recupera de ningún lado, porque Evolution no guarda lo que no pudo entregar.
+>
+> F39 ayuda y no alcanza: **detectar no es reconectar.** F39 abre una condición cuando el canal se queda callado; sin F32 no hay forma de volver a vincular desde la interfaz, así que la alerta avisa de algo que nadie puede arreglar sin entrar al servidor.
+>
+> **La consecuencia, dicha con todas las letras: F32 está en el Bloque 4, después de F27. O F32 se adelanta al Bloque 3, o el número no se vincula hasta que el Bloque 4 cierre.** Las dos opciones, con su costo:
+>
+> | Opción | Qué cuesta | Qué gana |
+> |---|---|---|
+> | **Adelantar F32 al Bloque 3** | El Bloque 3 ya es el más cargado de los tres y el plano recomienda partirlo. F32 le suma la pantalla de estado, el QR y la reconexión, más el sondeo periódico con su marca de vida | El número se puede vincular al cerrar el Bloque 3, unos días antes |
+> | **Vincular al cerrar el Bloque 4** | El canal de WhatsApp queda sin usar hasta el final de la fase, aunque Evolution esté desplegado y probado desde el Bloque 2 | No se toca el orden ni el tamaño de los bloques, y F32 se construye junto al resto de la pantalla de canales, que es donde vive |
+>
+> **La decisión es del dueño del proyecto y no se toma acá.** Lo que no es negociable es la compuerta: con una de las dos sin construir, vincular el número es aceptar perder mensajes sin enterarse.
+>
+> **F33 no entra en esta compuerta, y conviene que quede escrito para que nadie lo "arregle" moviéndola.** Las seis reglas de seguridad de secuencia protegen contra los envíos automáticos salientes, y el motor de secuencias es de la Fase 2, que va después del Bloque 4. Un número vinculado sin F33 no corre riesgo mientras nada mande secuencias. El orden actual ya es el correcto.
 
 ### 4.8 Reglas de seguridad de secuencia
 
@@ -1006,13 +1023,13 @@ Las dos funcionalidades conservan la numeración del documento original, F6b y F
 2. Crear la instancia y guardar sus credenciales en Vault.
 3. Configurar el aviso de mensajes con el secreto.
 4. Verificar que el receptor acepta un aviso de prueba firmado, **antes** de vincular el número.
-5. **Confirmar que F27 está construido y probado.** Si no lo está, el checklist se detiene acá. Ver la regla dura en 4.7.
+5. **Confirmar que F27 y F32 están construidas y probadas.** Si falta cualquiera de las dos, el checklist se detiene acá. Ver la regla dura en 4.7.
 6. Vincular el número escaneando el código.
 7. Mandar un mensaje de prueba desde otro teléfono y confirmar que aparece en la bandeja y en la base.
 
 **Resultado exitoso:** el canal queda conectado y el primer mensaje real queda guardado.
 
-**Casos de error, y son dos puertas distintas que se cierran en silencio.** Si se invierte el orden y se vincula el número antes de verificar el receptor, los primeros mensajes reales se **rechazan** y se pierden sin dejar rastro: ese es el motivo del paso 4. Si se vincula antes de que exista F27, los mensajes se **aceptan** y se descartan igual, que es peor todavía, porque el receptor responde que todo salió bien: ese es el motivo del paso 5. En los dos casos el resultado es el mismo, conversaciones perdidas sin ningún síntoma, y por eso los dos pasos son obligatorios y no intercambiables.
+**Casos de error, y son tres puertas distintas que se cierran en silencio.** Si se invierte el orden y se vincula el número antes de verificar el receptor, los primeros mensajes reales se **rechazan** y se pierden sin dejar rastro: ese es el motivo del paso 4. Si se vincula antes de que exista F27, los mensajes se **aceptan** y se descartan igual, que es peor todavía, porque el receptor responde que todo salió bien: ese es el motivo del paso 5. Y si se vincula con F27 pero sin F32, los mensajes se guardan bien hasta que la sesión se cae, y a partir de ahí no llega nada y **la bandeja se ve igual que un día tranquilo**: ese es el otro motivo del paso 5, y F39 no lo tapa, porque detectar el silencio no es poder reconectar. En los tres casos el resultado es el mismo, conversaciones perdidas sin ningún síntoma, y por eso los pasos son obligatorios y no intercambiables.
 
 ### Flujo 5: Mensaje entrante de Instagram
 
@@ -1579,7 +1596,7 @@ Dicho al revés: el resto del modelo del plan B se puede construir el día que s
 | Área | Definición para este proyecto |
 |---|---|
 | Autenticación | Supabase Auth con correo y contraseña, cookies seguras del lado del servidor. El registro público debe estar desactivado: los usuarios entran por invitación |
-| Seguridad por filas | Activada en **todas las tablas de hoy**, que son 25: las 24 del fork más `webhook_alerts` de la 00022. Ver el conteo vigente en 14c. Un Member solo accede a los contactos y conversaciones donde figura asignado, y eso lo decide la base de datos. Verificado con 24 comprobaciones automáticas contra la API |
+| Seguridad por filas | Activada en **todas las tablas de hoy**, que son 25: las 24 del fork más `webhook_alerts` de la 00022. Ver el conteo vigente en 14c. Un Member solo accede a los contactos y conversaciones donde figura asignado, y eso lo decide la base de datos. Verificado con `scripts/verify-lead-scope.mjs`, 24 comprobaciones contra la API (última corrida: 22/09/2026) |
 | Validación de datos | En el servidor siempre, no solo en el formulario. Teléfonos normalizados en servidor. Tipo real de archivo validado en servidor |
 | Protección de rutas de API | Sesión verificada en todas las rutas. Control de rol en el servidor para las pantallas y rutas de configuración |
 | Datos sensibles | Todas las claves de terceros en Vault. Ninguna clave viaja al navegador. Los logs nunca incluyen el contenido completo de un aviso entrante, porque incluye credenciales |
@@ -1612,7 +1629,7 @@ Dicho al revés: el resto del modelo del plan B se puede construir el día que s
 | Ya implementado, no reconstruir | Autenticación, motor de flujos visual, bandeja básica, CRM con etiquetas y campos personalizados, secuencias con pausa automática, gestión de equipo, difusiones, control de duplicados de avisos, versionado de flujos, actualización en vivo, cliente de Zernio con sus adaptadores |
 | Patrones a respetar | Componentes de servidor más hooks, sin almacén global. Avisos en rutas de API, mutaciones en acciones de servidor. Clave de servicio solo en servidor. Estilos con clases de Tailwind, sin módulos de CSS |
 | Dependencias críticas | `@zernio/node` fijado en versión exacta, sin prefijo, porque es una librería en versión 0.x y puede romper entre versiones menores |
-| Lo que el README dice mal | El README habla de 23 tablas y 17 o 18 tipos de nodo. En el código son 24 tablas y 16 tipos de nodo |
+| Lo que el README dice mal | El README habla de 23 tablas y de 17 o 18 tipos de nodo. En el código del fork son **24 tablas** (*contra `supabase/migrations/00001` a `00016`, 22/09/2026*) y **18 tipos de nodo** (*contra el tipo `NodeType` de `lib/types/database.ts`, 22/09/2026*). **Corregido el 22/09/2026: acá decía 16 tipos, y era el README el que tenía razón.** El dato falso venía del `CLAUDE.md` y se había copiado a este plano sin volver a mirarlo |
 
 ---
 

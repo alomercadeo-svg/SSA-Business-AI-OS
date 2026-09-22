@@ -4,9 +4,12 @@
  * `channels` (F21).
  *
  * NO VINCULA NINGÚN NÚMERO, y no es una omisión: el `create` va con la
- * generación de QR apagada. Mientras F27 no exista, el receptor autentica,
- * acusa con 200 y DESCARTA el contenido, así que un número real conectado
- * ahora significa mensajes de leads perdidos en silencio y con acuse de éxito.
+ * generación de QR apagada. La compuerta son DOS funcionalidades, F27 y F32.
+ * Mientras F27 no exista, el receptor autentica, acusa con 200 y DESCARTA el
+ * contenido, así que un número real conectado ahora significa mensajes de leads
+ * perdidos en silencio y con acuse de éxito. Y sin F32 no hay estado de sesión
+ * ni forma de reconectar desde la interfaz: una sesión caída se ve igual que un
+ * día tranquilo.
  * Ver docs/requerimientos-fase1.md §4.7.
  *
  * ── EL ORDEN DE LAS OPERACIONES ES EL CONTROL, NO UN DETALLE ────────────────

@@ -20,10 +20,15 @@
  * │ después de acusar 200. No es un error y no dispara ninguna alerta: para   │
  * │ Evolution la entrega salió bien y no la reintenta.                        │
  * │                                                                           │
- * │ Por eso el número de WhatsApp NO se vincula hasta que F27 esté construido │
- * │ y probado. Si se vincula antes, los mensajes reales de los leads se       │
- * │ pierden de la peor forma: en silencio y con acuse de éxito. El único      │
- * │ síntoma serían conversaciones que nunca existieron.                       │
+ * │ Por eso el número de WhatsApp NO se vincula hasta que F27 **y F32** estén │
+ * │ construidas y probadas. Si se vincula antes, los mensajes reales de los   │
+ * │ leads se pierden de la peor forma: en silencio y con acuse de éxito. El   │
+ * │ único síntoma serían conversaciones que nunca existieron.                 │
+ * │                                                                           │
+ * │ F32 es la otra mitad: sin estado de sesión ni reconexión, una sesión      │
+ * │ caída se ve igual que un día tranquilo y nadie puede volver a vincular    │
+ * │ desde la interfaz. F39 detecta el silencio, pero detectar no es           │
+ * │ reconectar.                                                               │
  * │                                                                           │
  * │ Ver docs/requerimientos-fase1.md §4.7 y el Flujo 4, paso 5.               │
  * └──────────────────────────────────────────────────────────────────────────┘
