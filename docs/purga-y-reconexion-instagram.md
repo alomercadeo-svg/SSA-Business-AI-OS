@@ -56,7 +56,7 @@ decisión difícil.
 `DELETE /v1/accounts/{accountId}`, en el SDK `zernio.accounts.deleteAccount`. La documentación dice
 *"Disconnects and removes a connected social account"*.
 
-> ## ⚠ El paso 0 es irreversible y hay que decidirlo antes, no durante
+> ## El paso 0 es irreversible del lado de Zernio, y qué significa eso exactamente
 >
 > Desconectar **remueve la cuenta** en Zernio. Las 33 conversaciones de `@theconsultour`, con
 > historial real desde junio de 2024, hoy son recuperables porque Zernio es el almacén y la bandeja
@@ -68,10 +68,20 @@ decisión difícil.
 > "(disconnected)" para que la fila siga visible— pero eso es analítica agregada, no el hilo de
 > mensajes, y no alcanza para prometer nada.
 >
-> **Si hay algo en esas 33 conversaciones que valga la pena conservar, hay que exportarlo antes del
-> paso 0.** El paso 1 borra la copia local y el paso 0 corta el acceso a la del proveedor: juntos no
-> dejan de dónde recuperar. Esto no es una objeción al procedimiento, es la decisión que el
-> procedimiento obliga a tomar de forma explícita en vez de descubrirla después.
+> **Decidido el 21 de septiembre de 2026: no se exporta nada.** Y el motivo se escribe acá para que
+> no se reabra.
+>
+> **Desconectar de Zernio no toca la cuenta de Instagram.** Las 33 conversaciones siguen donde
+> siempre estuvieron, que es Instagram. Zernio es el almacén **frente a nuestra base**, no frente a
+> Instagram: es un espejo de algo cuyo original no se toca. Y si alguna vez se quisiera
+> `@theconsultour` dentro de un sistema, reconectarla reproduce el historial desde Meta, que es
+> justamente el mecanismo descrito en el paso 2.1.
+>
+> **Corrección de una frase que estaba acá y era falsa.** Decía que el paso 0 y el paso 1 juntos "no
+> dejan de dónde recuperar". No es cierto: queda Instagram, que es el original. Escrita así, esa
+> frase empujaba a exportar conversaciones de 33 personas reales para protegerse de una pérdida que
+> no ocurre, y sin ningún uso nombrado para esos datos. Un respaldo que nadie pidió, de datos
+> personales, tomado por precaución mal calculada, es peor que no tenerlo.
 
 ### Por qué rotar va después de reconectar y no antes
 
@@ -301,17 +311,54 @@ pasada al momento de conectar"*.
 mismo request que la conexión. Si la reproducción todavía no terminó, importa lo que haya en ese
 instante y no vuelve nunca.
 
-**Qué hacer:** después de conectar, **tocar el botón de sincronizar unas cuantas veces, espaciadas**,
-hasta que la cantidad de conversaciones deje de subir. Diez minutos, media hora y una hora es una
-cadencia razonable para 500 conversaciones.
+### La condición de parada, y por qué "hasta que deje de subir" no sirve
+
+**Un conteo estable no significa que terminó.** Significa que no entró nada entre esta lectura y la
+anterior, y eso tiene dos causas que se ven idénticas: la reproducción **terminó**, o la
+reproducción **está pausada** —un límite de tasa de Meta, un lote lento, un reintento en espera—.
+Una sola lectura plana no las distingue, y es la misma falla que este proyecto viene persiguiendo:
+una ausencia leída como una confirmación.
+
+**La condición endurecida tiene dos partes y hacen falta las dos, no una u otra:**
+
+1. **Tres lecturas consecutivas con el mismo número**, con **quince minutos** entre lecturas.
+2. **Y** que hayan pasado al menos **dos horas desde la conexión**.
+
+La primera sola se cumple durante cualquier pausa larga. La segunda sola se cumple aunque la
+reproducción siga trabajando. Juntas, hay que estar tanto parado como haber esperado.
+
+**De dónde salen estos números, dicho con todas las letras: no están medidos.** El proveedor
+documenta el **alcance** de la reproducción —hasta 500 conversaciones por cuenta, y los 500 mensajes
+más recientes de cada una— pero **no dice cuánto tarda, no publica ningún límite de tasa para este
+proceso, y no expone ninguna señal de progreso ni de finalización**. No hay endpoint que conteste
+"¿terminó?". Así que estos márgenes son holgados a propósito, elegidos para que equivocarse cueste
+espera y no datos, y **no hay que citarlos como si fueran un dato del proveedor**. La primera
+ejecución real de este procedimiento es la oportunidad de reemplazarlos por números medidos: anotar
+en el paso 5 cuánto tardó de verdad.
 
 ```sql
--- Repetir entre sincronizaciones. Cuando el número se estabiliza, terminó.
-select count(*) from conversations;
+-- Una lectura cada quince minutos. Anotar las tres últimas y la hora de cada una.
+select count(*) as conversaciones, now() as leido_a_las from conversations;
 ```
 
-Repetir el barrido es seguro: el backfill es solo de inserción y saltea las conversaciones que ya
-conoce.
+Repetir el barrido entre lecturas es seguro: el backfill es solo de inserción y saltea las
+conversaciones que ya conoce.
+
+### Lo que esta condición sigue sin cubrir, y hay que nombrarlo
+
+**Si la reproducción se cortó de verdad a la mitad, ninguna espera lo va a revelar.** El conteo va a
+estar estable, las tres lecturas van a coincidir, las dos horas van a pasar, y la condición va a dar
+por terminado un trabajo que se murió con la mitad de las conversaciones traídas. Estable por el
+motivo equivocado.
+
+**No hay señal automática para eso**, porque la única forma de detectarlo sería comparar contra un
+total esperado que el proveedor no publica. Endurecer más la espera no ayuda: el problema no es el
+tiempo, es que la magnitud que se mide no distingue completo de incompleto.
+
+**La señal es humana y es la única que hay:** que falten conversaciones que el negocio sabe que
+existen. Por eso está en la tabla de lectura del paso 4 como comprobación a ojo, y no como consulta.
+Alguien que conoce las conversaciones del negocio tiene que abrir la bandeja y buscar tres o cuatro
+que espere encontrar. Es menos elegante que una consulta y es lo que hay.
 
 **Dos consecuencias que conviene tener presentes:**
 
@@ -397,6 +444,15 @@ node scripts/verify-id-mensaje-zernio.mjs
 | Entra, pero además aparecen contactos que se habían purgado | **La ventana del paso 0 quedó abierta.** Alguien escribió a la cuenta vieja y sigue conectada, o el paso 0 no se ejecutó. Verificar `GET /v1/accounts` y volver al paso 0 |
 | Entra y sale, pero faltan conversaciones viejas | No es un fallo del webhook. Es la reproducción del historial, que todavía no terminó o no está habilitada. Ver 2.1 |
 
+**Y una comprobación que no es una consulta, porque no puede serlo.** Después de que la condición de
+parada de 2.1 se haya cumplido, alguien que conozca las conversaciones del negocio tiene que **abrir
+la bandeja y buscar tres o cuatro que espere encontrar**, por nombre.
+
+Es la única señal de que la reproducción se cortó a la mitad. El conteo no la da: una reproducción
+muerta y una terminada dejan el número igual de quieto, y la condición de parada, por endurecida que
+esté, mide tiempo y quietud, no completitud. Si faltan conversaciones conocidas, volver a sincronizar
+y esperar otra ronda antes de dar el procedimiento por cerrado.
+
 **Ninguno de estos fallos se ve en la pantalla de canales**, que va a seguir mostrando el canal como
 conectado en todos los casos. Por eso el veredicto sale de estas comprobaciones y no de mirar la
 interfaz.
@@ -414,6 +470,10 @@ from channels where platform = 'instagram' and is_active = true;
 
 ## 5. Después
 
-- Anotar en `Claude outputs/estado-fase1.md` la fecha de ejecución y el resultado.
+- Anotar en `docs/estado-fase1.md` la fecha de ejecución y el resultado.
+- **Anotar cuánto tardó de verdad la reproducción del historial**, y con cuántas conversaciones
+  terminó. Los números de la condición de parada de 2.1 son márgenes elegidos sin dato, y esta es la
+  única oportunidad de reemplazarlos por uno medido. Con eso anotado, la próxima ejecución —o la de
+  quien clone este proyecto— deja de esperar dos horas por las dudas.
 - El estado del registro del webhook va a ser visible en pantalla cuando se construya F24, con lo
   que este procedimiento va a dejar de depender de correr scripts a mano para saber si quedó bien.
