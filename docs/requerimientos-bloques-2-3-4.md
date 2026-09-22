@@ -430,6 +430,18 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [ ] El mismo trabajo escribe su propia marca de última ejecución, visible en la interfaz. Esa marca es el control positivo del chequeo: **sin ella, F39 no se puede dar por verde**
 - [ ] Con el canal activo y el receptor detenido a propósito, la condición se abre
 - [ ] Con el trabajo periódico detenido a propósito, la marca de última ejecución envejece y se ve en pantalla
+- [ ] **El mismo trabajo consulta la lista de eventos registrada en el proveedor y la compara contra la constante esperada** (`WEBHOOK_EVENTS` de `lib/zernio-webhook.ts`). Si difieren, abre una condición en `webhook_alerts` **nombrando qué evento falta**, no un aviso genérico
+- [ ] Con un evento sacado a propósito de la suscripción, la condición se abre aunque el canal esté recibiendo mensajes con normalidad
+
+> **Por qué la verificación de la suscripción va acá y no es una funcionalidad aparte: F39, sin esto, no detectaría la falla que ella misma vuelve posible.**
+>
+> F39 mira la marca del último evento entrante por canal. Eso contesta **"¿llegó algo?"**. Pero la falla que importa acá es otra: **"¿dejó de llegar un tipo de cosa mientras las demás siguen?"**.
+>
+> El caso concreto, que ya es real desde el 21 de septiembre de 2026: la suscripción incluye `message.sent` porque las respuestas que el negocio escribe desde el celular llegan por ahí. Si ese evento desaparece de la suscripción —un registro que falló dentro del `try/catch` silencioso, un cambio hecho desde el panel de Zernio, un llamador que volvió a armar su propia lista— los leads siguen escribiendo, los `message.received` siguen llegando, **la marca del último entrante sigue fresca y F39 sigue callada**. Mientras tanto desaparece cada respuesta escrita desde el teléfono.
+>
+> Es una llamada y una comparación, contra una tabla que ya existe. La alternativa —llevar una marca de último evento **por tipo**— cuesta más, obliga a decidir un umbral por tipo, y encima no sirve: un evento que nunca llega no tiene marca que envejecer, tiene una marca que nunca existió.
+>
+> **El test de `lib/zernio-webhook.test.ts` no cubre esto y está bien que no lo cubra.** Ese test protege que nuestro código no vuelva a armar la lista en dos lugares. No dice nada sobre el estado real en el proveedor, que es lo único que decide qué se entrega.
 
 > **Por qué la marca de última ejecución no es un adorno.** F39 avisa por ausencia, así que su modo de falla es indistinguible de su modo de éxito: un canal sano y un detector muerto se ven exactamente igual desde la pantalla, que en los dos casos no muestra ninguna alerta. La marca de última ejecución es lo único que separa "no hay nada que avisar" de "nadie está mirando". Ver la regla transversal en la sección 14.
 
@@ -1232,6 +1244,23 @@ No es una precaución teórica: **es exactamente lo que encontramos en los 118 t
 **Tres, el re-registro del webhook de Zernio, y este está verificado en el código.** `ensureWebhookRegistered` corre dentro de un `try/catch` que solo escribe en la consola, en los dos lugares que lo llaman: `app/api/v1/channels/sync/route.ts:141` y `app/api/v1/channels/test-key/route.ts:74`. Los dos comentarios dicen lo mismo, "best-effort: a failure must not block". Es una decisión razonable —que falle el registro no tiene por qué impedir guardar la clave— con una consecuencia que nadie eligió: **la pantalla informa que el canal se sincronizó bien mientras el webhook puede no haber quedado registrado**. A partir de ahí la bandeja deja de recibir y el síntoma es, otra vez, exactamente el mismo que el de un día tranquilo. El estado real del registro existe y es consultable —`GET /v1/webhooks/settings` lo devuelve— pero no se muestra en ningún lado.
 
 Este tercer caso es el que convierte la regla en transversal en vez de en una nota al pie de F39: no salió de diseñar una funcionalidad nueva, salió de leer código heredado que ya está corriendo en producción.
+
+### Deriva de configuración y silencio de tráfico son dos fallas distintas con el mismo aspecto
+
+**La distinción.** Un vigilante puede preguntar dos cosas que parecen la misma:
+
+- **¿Está llegando tráfico?** Mide actividad. Detecta que algo se cortó del todo.
+- **¿La configuración sigue siendo la que pedimos?** Mide estado. Detecta que algo se cambió.
+
+**Por qué no son intercambiables, y por qué la primera sola es una trampa.** Una deriva de configuración casi nunca corta todo: saca una pieza. El tráfico que queda **disimula la falla**, y el vigilante que solo mide actividad ve movimiento y calla. Peor: cuanto más sano está el resto del sistema, más eficaz es el disimulo. Un canal muy activo esconde mejor una suscripción rota que uno muerto.
+
+Dicho de la forma más corta posible: **un vigilante que solo mide tráfico da por sana una configuración rota mientras el tráfico que sí queda la disimula.**
+
+**El caso que la produjo.** La suscripción del webhook de Zernio tiene tres eventos. Si pierde `message.sent`, los mensajes entrantes siguen llegando, el detector de silencio sigue en verde, y lo que desaparece son las respuestas que el negocio escribe desde el celular. Nadie lo ve hasta que alguien nota que una conversación no tiene las respuestas que recuerda haber escrito.
+
+**La consecuencia práctica.** Todo vigilante de un mecanismo que depende de una configuración externa —una suscripción de webhook, una lista de eventos, un conjunto de permisos, una regla de reenvío, una clave con alcance— tiene que **leer esa configuración y compararla contra lo que el código espera**, no solo medir si pasa tráfico. La comparación es casi siempre una llamada y un `every`, y es la diferencia entre un vigilante y un adorno.
+
+Y el corolario que conecta con la regla de arriba: esa comparación es a su vez un trabajo periódico, así que **también le corresponde su marca de última ejecución**. Un verificador de configuración muerto y una configuración correcta se ven igual.
 
 ### Un test escrito con el supuesto equivocado del código es un espejo, no una red
 

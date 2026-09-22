@@ -162,6 +162,42 @@ commit;
 
 ## 2. Reconexión de Instagram con la cuenta del negocio
 
+> ## El candado de "no conectar hasta que exista F27" es de WhatsApp, no de Instagram
+>
+> **Verificado el 21 de septiembre de 2026. Reconectar Instagram antes de F27 no pierde ningún mensaje.**
+>
+> Está escrito acá porque la regla del candado es correcta, es dura, y está escrita para el otro
+> canal en `docs/despliegue-evolution.md` con mucho énfasis. Aplicarla a Instagram por analogía
+> postergaría la reconexión durante todo el Bloque 3 sin ninguna razón.
+>
+> **Por qué en WhatsApp el candado existe.** El receptor autentica el aviso, responde 200 y
+> **descarta el contenido**, porque guardarlo es F27. Evolution da la entrega por buena y no
+> reintenta. El mensaje no queda en ningún lado: se perdió, con acuse de éxito.
+>
+> **Por qué en Instagram no.** El receptor también descarta, pero **Zernio es el almacén**. La
+> bandeja no muestra lo que guardamos: lee el historial del proveedor en cada apertura, con
+> `traerMensajesDeConversacion` desde `app/api/v1/messages/route.ts`. Lo que el receptor descarta ya
+> está guardado del otro lado.
+>
+> **Las tres cosas que se midieron, y el control positivo que las hace atribuibles:**
+>
+> 1. **Nada se guarda localmente.** La tabla `messages` tiene **0 filas** después de 9 entregas de
+>    webhook, incluida la prueba de hoy. Ni `route.ts` ni `lib/inbox-sync.ts` insertan ahí.
+> 2. **El control positivo, que es lo que impide leer ese 0 como "no llegó nada":** en la misma
+>    prueba, `webhook_events` pasó de 8 a 9 filas. O sea que el aviso **sí llegó y sí se procesó**;
+>    la tabla de mensajes está vacía porque nadie la escribe, no porque no haya pasado nada.
+> 3. **El proveedor conserva el historial.** Muestreadas 6 conversaciones: mensajes desde el
+>    **27 de junio de 2024**, con `hasMore=true`, ninguna vacía.
+>
+> **La consecuencia para el orden del procedimiento:** el paso 2 se puede ejecutar hoy. No hay que
+> esperar a F27, y esperar no protegería nada.
+>
+> **Una salvedad que no cambia la conclusión pero conviene saber:** si la cuenta del negocio es una
+> cuenta de Instagram **distinta** de `@theconsultour`, el historial que aparezca va a ser el de esa
+> otra cuenta. Las 33 conversaciones actuales son de `@theconsultour` y no se "migran" a otra cuenta:
+> no se pierden porque siguen en Zernio bajo su cuenta, pero no van a estar en la bandeja de la
+> cuenta nueva. Eso es esperado y es justamente para lo que sirve el paso 1.
+
 **El problema que resuelve:** la conexión OAuth de Meta usa la sesión del navegador. Si la sesión
 activa es la de una cuenta personal, se conecta esa y no la del negocio, sin preguntar y sin avisar
 cuál eligió.
