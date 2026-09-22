@@ -349,13 +349,28 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 
 - [ ] Servicio desplegado con la imagen fijada en `evoapicloud/evolution-api:v2.3.7`, nunca en `latest`. El tag `latest` apunta hoy a una versión cuyo identificador no coincide con ninguna publicación oficial etiquetada
 - [ ] Dos servicios, no tres: Evolution y su PostgreSQL. Se configura `CACHE_LOCAL_ENABLED=true` y `CACHE_REDIS_ENABLED=false`. Redis es solo caché de rendimiento y no hace falta
-- [ ] `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false`. Con el valor por defecto, Evolution incluye la clave de acceso de la instancia dentro de cada aviso que manda, y esa clave permite enviar mensajes y borrar la instancia
+- [ ] `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false`. **Se pone igual, pero no protege nada: ver el hallazgo abajo.** La protección real del token de la instancia es la regla operativa de nunca registrar el cuerpo crudo de un aviso de Evolution
+- [ ] **Ningún log escribe el cuerpo crudo de un aviso de Evolution.** No es una recomendación de higiene: es la única defensa que existe para ese token, porque viaja en el cuerpo de cada aviso y no hay forma de apagarlo
 - [ ] `WEBHOOK_GLOBAL_ENABLED=false`. El aviso global no manda datos de autenticación, así que no se puede verificar
 - [ ] La clave de la instancia y el secreto de los avisos se guardan en Supabase Vault, nunca en variables de entorno de la aplicación
 - [ ] Instancia creada con sincronización de historial activada y grupos ignorados
 - [ ] Aviso de mensajes configurado por instancia, incluyendo el dato de autenticación
 - [ ] El archivo `.env.example` documenta cada variable nueva, con qué es y dónde se consigue
 - [ ] La documentación de despliegue queda en `docs/despliegue-evolution.md`, con pasos reproducibles
+
+> **Hallazgo del 17 de septiembre de 2026: `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false` no hace lo que este criterio decía.**
+>
+> El criterio afirmaba que con el valor por defecto Evolution incluye la clave de la instancia en cada aviso, y que ponerla en `false` lo evitaba. **La primera mitad es cierta; la segunda es falsa.**
+>
+> **Medido contra nuestro propio despliegue, con la variable en `false`:** `GET /instance/fetchInstances` devuelve igual el campo `token` con el valor real. Y en el código de la 2.3.7, `emit()` arma el cuerpo del webhook con `apikey: apiKey` **sin ninguna condición**: no está atado a esta variable ni a ninguna otra. El token viaja en el cuerpo de cada aviso, se ponga lo que se ponga acá.
+>
+> **Con su control positivo**, porque sin él el resultado no era atribuible: se confirmó en Railway que la variable existe y dice `false`, escrita así. Eso descarta la otra explicación posible, que era que la variable nunca hubiera llegado al contenedor. Se lee en `env.config.ts` y no se consume en ese camino.
+>
+> **Por qué el criterio se corrige y no se borra.** Poner la variable en `false` cuesta cero, es lo que dice la documentación de Evolution, y una versión futura puede empezar a consumirla. Lo que no se puede es **contarla como defensa**, que es exactamente lo que hacía este criterio.
+>
+> **Por qué esto importa más que un error de redacción.** F21 está dada por cumplida, y un criterio de aceptación satisfecho sobre una premisa falsa es el que alguien relee el día que redespliega Evolution, para concluir que el token está protegido. El criterio decía la verdad sobre una variable y mentía sobre una defensa.
+>
+> El detalle completo, con las citas al código de la 2.3.7, está en `docs/despliegue-evolution.md` §3 y en `docs/investigacion-evolution-api.md`.
 
 #### F22: Receptor de mensajes entrantes, autenticado
 

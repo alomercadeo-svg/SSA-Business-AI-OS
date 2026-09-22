@@ -30,12 +30,21 @@
  * rechazan.
  *
  * EL ÚNICO PASO IRREVERSIBLE ES EL 3, y la ventana que importa es entre el 3 y
- * el 4. Si el token no llega a Vault, no se recupera: el despliegue va con
- * `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false`, así que `fetchInstances` no
- * lo devuelve. Eso es deliberado —ese token autoriza mandar mensajes, leer
- * conversaciones y borrar la instancia, y con el default viajaría dentro del
- * cuerpo de cada webhook—, pero implica que la salida de recuperación de ese
- * tramo es borrar la instancia y volver a empezar.
+ * el 4.
+ *
+ * **CORRECCIÓN DEL 17/09/2026.** Este comentario decía que si el token no llega
+ * a Vault no se recupera, porque con
+ * `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false` `fetchInstances` no lo
+ * devuelve. **Eso es falso y se midió:** con la variable en `false`,
+ * `fetchInstances` devuelve igual el campo `token` con el valor real. La
+ * variable se lee y no se consume en ese camino en la 2.3.7. Ver
+ * `docs/despliegue-evolution.md` §3.
+ *
+ * O sea que el token SÍ se puede recuperar, y la salida de "borrar la instancia
+ * y volver a empezar" que este script propone más abajo es más destructiva de lo
+ * necesario. **No se cambió el flujo todavía**: cambiar la recuperación es una
+ * decisión de diseño, no una corrección de comentario, y este archivo se limita
+ * a dejar de afirmar algo falso.
  *
  * Uso:
  *   node scripts/setup-evolution-channel.mjs <nombre-de-la-instancia>
@@ -260,8 +269,9 @@ async function crearInstancia(clave) {
   const yaExiste = await evolution(`/instance/fetchInstances?instanceName=${encodeURIComponent(nombre)}`, { clave });
   if (yaExiste.ok && Array.isArray(yaExiste.json) && yaExiste.json.length > 0) {
     throw new FalloDePaso(
-      `La instancia "${nombre}" ya existe en Evolution, así que no se puede volver a crear,\n` +
-      `y su token NO se puede recuperar (AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false).\n` +
+      `La instancia "${nombre}" ya existe en Evolution, así que no se puede volver a crear.\n` +
+      `Su token SÍ se puede leer con fetchInstances, pero este script todavía no lo\n` +
+      `recupera solo.\n` +
       `\n` +
       `Si es de un intento anterior que falló, borrala y volvé a correr esto:\n` +
       `  node scripts/setup-evolution-channel.mjs ${nombre} --borrar-instancia\n` +
@@ -548,9 +558,10 @@ main().catch((err) => {
   if (err instanceof FalloDePaso && err.instanciaCreada) {
     console.error(
       `\n── RECUPERACIÓN ─────────────────────────────────────────────────────\n` +
-      `La instancia "${nombre}" YA EXISTE en Evolution y su token no se puede\n` +
-      `recuperar: el despliegue va con AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false,\n` +
-      `así que fetchInstances no lo devuelve.\n` +
+      `La instancia "${nombre}" YA EXISTE en Evolution. Su token se puede leer con\n` +
+      `fetchInstances —devuelve el campo token pese a\n` +
+      `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false, medido el 17/09/2026— pero\n` +
+      `este script todavía no lo recupera solo.\n` +
       `\n` +
       `Borrala y volvé a correr este script. La fila de \`channels\` queda como está:\n` +
       `está inactiva y el reintento la vuelve a encontrar por el índice único.\n` +

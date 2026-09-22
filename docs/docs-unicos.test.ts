@@ -32,11 +32,25 @@ import { fileURLToPath } from "node:url";
  * ── QUÉ ATRAPA Y QUÉ NO ─────────────────────────────────────────────────────
  *
  * Atrapa el caso real: un archivo nuevo en `docs/` cuyo nombre arranca con
- * `requerimientos` o con `estado` y no es el path oficial. **No** atrapa un
- * duplicado con otro nombre —`plano-v2.md`, `alcance-bloque-3.md`— y eso no
- * tiene arreglo razonable: distinguir un plano de cualquier otro documento por
- * su contenido sería adivinar. La regla cubre la forma en que el problema
- * ocurrió, no todas las formas imaginables.
+ * `requerimientos` o con `estado` y no es el path oficial.
+ *
+ * **Límite 1: el nombre.** No atrapa un duplicado con otro nombre —`plano-v2.md`,
+ * `alcance-bloque-3.md`— y eso no tiene arreglo razonable: distinguir un plano
+ * de cualquier otro documento por su contenido sería adivinar. La regla cubre la
+ * forma en que el problema ocurrió, no todas las formas imaginables.
+ *
+ * **Límite 2: la carpeta, y este es por construcción y no por olvido.** Esto
+ * solo mira `docs/`, que está versionada. Una copia superada que viva en una
+ * carpeta ignorada por git —hoy `Claude outputs/`, que el `.gitignore` excluye—
+ * queda **fuera de su alcance para siempre**, y no hay forma de arreglarlo desde
+ * acá: un test que recorriera carpetas ignoradas fallaría distinto en cada
+ * máquina, porque justamente esas carpetas no se comparten.
+ *
+ * Eso importa porque el riesgo no baja por estar fuera de git: **sube**. Un
+ * archivo con nombre autoritativo en una carpeta que alguien abre a mano se lee
+ * igual que uno versionado, y encima nadie lo ve en un diff. La defensa ahí no
+ * es un test, es que esas carpetas no acumulen copias de documentos que tienen
+ * un original versionado.
  */
 
 const DOCS = resolve(dirname(fileURLToPath(import.meta.url)));

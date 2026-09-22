@@ -290,6 +290,22 @@ un caso concreto.
 cuerpo crudo. No usar ese campo como mecanismo de autenticación: es una credencial reutilizable
 que no caduca, lo opuesto a lo que queremos.
 
+> **Corrección del 17 de septiembre de 2026: el "incluido solo si está en `true`" de arriba es falso.**
+>
+> Esta sección se escribió leyendo `channel.service.ts`, donde la variable sí aparece. Pero el
+> cuerpo del webhook no se arma ahí: lo arma `emit()`, y `emit()` pone `apikey: apiKey` **sin
+> ninguna condición**. Leer la variable en un archivo no prueba que gobierne el camino que nos
+> importa.
+>
+> **Medido contra nuestro despliegue, con la variable en `false`:** `GET /instance/fetchInstances`
+> devuelve igual el campo `token` con el valor real. Con su control positivo: se confirmó en Railway
+> que la variable existe y dice `false`, lo que descarta que nunca hubiera llegado al contenedor.
+>
+> **Consecuencia para la lista de "qué hacer":** de las dos cosas que pide, **solo la segunda
+> protege**. "Nunca loguear el cuerpo crudo" deja de ser un refuerzo y pasa a ser la única defensa
+> que existe para ese token. La variable se deja en `false` porque cuesta cero y porque una versión
+> futura puede empezar a consumirla, no porque haga algo hoy.
+
 ---
 
 ## Pregunta 2 — Idempotencia y forma del mensaje entrante
@@ -807,8 +823,11 @@ contempla el caso, lo cual indica que ocurre.
 - Verificar el JWT fijando `algorithms: ['HS256']`. Rechazar con 401.
 - Procedimiento de rotación de secreto que acepte el viejo y el nuevo durante la ventana.
 - Alertar sobre cualquier 401: acá un 401 significa mensajes perdidos, no ruido de internet.
-- `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false`, para que la API key de la instancia deje de
-  viajar en el cuerpo de cada webhook. Y nunca loguear el cuerpo crudo.
+- `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false`. **No impide que la API key de la instancia viaje
+  en el cuerpo de cada webhook**, aunque esta lista lo afirmara: ver la corrección del 17/09/2026 en
+  la Pregunta 1. Se deja en `false` igual, porque cuesta cero.
+- **Nunca loguear el cuerpo crudo.** Esta es la defensa real del token, no un refuerzo de la
+  anterior.
 
 ### Pantalla de canales
 

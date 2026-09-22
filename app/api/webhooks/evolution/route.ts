@@ -53,11 +53,17 @@ import type { Database } from "@/lib/types/database";
  * Cuerpo de una entrega de Evolution.
  *
  * `apikey` está declarado para dejar constancia de que VIENE, no para usarlo:
- * es el token de la instancia, que autoriza mandar mensajes y borrarla. Por eso
- * el despliegue va con `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false` y por
- * eso ningún log de este archivo escribe el cuerpo crudo. Nunca se usa como
- * mecanismo de autenticación: es una credencial reutilizable que no caduca, o
- * sea lo contrario de lo que queremos.
+ * es el token de la instancia, que autoriza mandar mensajes y borrarla.
+ *
+ * **Viaja en el cuerpo de cada entrega y no hay forma de apagarlo.** Medido el
+ * 17/09/2026: `emit()` lo pone sin ninguna condición en la 2.3.7, y
+ * `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false` no lo impide, aunque este
+ * comentario decía que sí. Ver `docs/despliegue-evolution.md` §3.
+ *
+ * Por eso **ningún log de este archivo escribe el cuerpo crudo**, y eso dejó de
+ * ser una precaución de más para ser la única defensa que tiene ese token.
+ * Nunca se usa como mecanismo de autenticación: es una credencial reutilizable
+ * que no caduca, o sea lo contrario de lo que queremos.
  */
 interface EvolutionPayload {
   event?: string;

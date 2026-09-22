@@ -40,7 +40,7 @@ Evolution 2.3.7 citando archivo y línea.
 |---|---|
 | Imagen fijada en `evoapicloud/evolution-api:v2.3.7` | Ver abajo |
 | Dos servicios, no tres: sin Redis | El caché es de rendimiento, no de estado. La sesión de WhatsApp va al PostgreSQL, no a Redis |
-| `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false` | Con el valor por defecto, Evolution mete el token de la instancia en el cuerpo de cada webhook |
+| `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false` | Se pone porque lo dice la documentación de Evolution y cuesta cero. **No protege el token: ver la corrección en §3.** El token viaja igual en el cuerpo de cada webhook |
 | `WEBHOOK_GLOBAL_ENABLED=false` | El webhook global se construye sin headers, así que con él no hay nada que autenticar |
 | Credenciales en Supabase Vault | Nunca en variables de entorno de la app |
 
