@@ -393,7 +393,31 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 >
 > El experimento decide **cómo** los recibe F27, no **si** son alcanzables. Tenerlo escrito de antemano evita que un resultado negativo se lea como una pared cuando es un desvío.
 >
-> **Estado al 21 de septiembre de 2026:** `message.sent` quedó suscrito para medirlo, con la lectura de vuelta confirmada. La decisión de qué hacer con cada resultado se tomó antes de medir, y el camino de vuelta está escrito en `scripts/suscribir-message-sent.mjs --revertir`. **Aviso para el que toque el código de registro:** la lista de eventos está cableada en los dos llamadores de `ensureWebhookRegistered`; un evento de más sobrevive a un sync normal, pero si un sync dispara un update por otro motivo reescribe la lista y se lleva puesto `message.sent` sin avisar. Si la suscripción se queda, hay que agregarlo en el código.
+> **Medido el 21 de septiembre de 2026: Instagram SÍ manda echo, también para lo que se escribe desde la app.**
+>
+> Tres mensajes, en este orden: uno entrante desde otra cuenta, uno saliente desde la bandeja, y uno saliente escrito desde la app de Instagram como el negocio.
+>
+> **El control positivo primero, que es lo que hace atribuible el resultado.** El saliente de la bandeja es origen API, el caso documentado como seguro, y **dejó entrega de `message.sent`**. Sin esa entrega, la ausencia de la otra no se habría podido atribuir a Instagram: habría sido indistinguible de "la suscripción no quedó aplicada" o "la entrega falló", y el veredicto habría sido no concluyente.
+>
+> **El de la app también dejó entrega.** Las dos con HTTP 200.
+>
+> **La atribución no se hizo por orden de llegada, que habría sido una suposición**, sino cruzando cada entrega contra el log de actividad, que sí distingue el origen. Y ahí el hallazgo de la heterogeneidad de familias pagó solo: la entrega de la bandeja cruza por `platformMessageId` y la de la app cruza por `message.id`, porque el log de actividad registra una familia distinta según el origen. Cruzar por un solo identificador habría dejado una de las dos sin atribuir.
+>
+> **De qué familia viene el echo, que era la pregunta abierta porque `source` está ausente en Instagram:** el aviso trae **los dos identificadores**, `message.id` interno y `message.platformMessageId` de plataforma, igual que `message.received`. Y el de plataforma coincide con el `id` del listado, con delta de 0 ms, en las dos entregas. **La clave de idempotencia de F27 sirve para los echos venga el mensaje de donde venga.**
+>
+> **Consecuencia aplicada:** la suscripción se queda, y `message.sent` pasó a `WEBHOOK_EVENTS` en `lib/zernio-webhook.ts`, una constante única que reemplaza las dos listas que estaban copiadas en los llamadores de `ensureWebhookRegistered`. Esa duplicación era una trampa activa y no una fealdad: esa función **reescribe la lista completa** cuando actualiza, así que un llamador con la lista vieja le borraba eventos a la suscripción sin error y sin aviso. Hay un test que falla si alguna ruta vuelve a armar su propia lista.
+
+> **Por qué el sondeo de mensajes escritos desde la app sigue escrito acá aunque el echo haya llegado.**
+>
+> El razonamiento que lo justificaba **no dependía de que el echo faltara**, y conviene no borrarlo solo porque esta vez la respuesta fue la cómoda.
+>
+> **Hoy la bandeja lee del proveedor, así que un mensaje escrito desde la app se ve al refrescar el navegador.** Comprobado en esta misma prueba: apareció al refrescar, y eso no era evidencia sobre el echo, era evidencia de que Zernio lo tenía.
+>
+> **Cuando F27 haga que la base local sea la fuente de verdad, la bandeja va a leer de la base.** A partir de ahí, todo mensaje que no haya llegado a la base **deja de verse**, y refrescar no lo trae. O sea que cualquier clase de mensaje que F27 no capture **empeora con F27 en vez de mejorar**: hoy se ve tarde, después no se ve nunca.
+>
+> Esa es la forma exacta de regresión que nadie busca, porque la funcionalidad se presenta como una mejora y en el caso general lo es. La pregunta que hay que hacerse al construir F27 no es "¿qué mejora?" sino **"¿qué se veía antes que deje de verse?"**.
+>
+> Aplicado a este caso: como el echo llega, los mensajes escritos desde la app entran por el webhook y no hace falta sondeo. **Pero eso ahora es una dependencia, no una comodidad.** Si la suscripción se cae —y se cae sola si alguien vuelve a poner una lista literal en un llamador—, el síntoma no va a ser un error: va a ser que las respuestas del negocio desde el celular desaparecen de la bandeja. Un silencio más, de la familia de la sección 14.
 
 #### F39: Detección de silencio del canal
 

@@ -14,6 +14,41 @@ import type { Zernio } from "./zernio-client";
 /** Name used to identify Zernflow's webhook among a profile's webhooks. */
 export const WEBHOOK_NAME = "Zernflow";
 
+/**
+ * Los eventos a los que se suscribe el webhook.
+ *
+ * ── POR QUÉ ES UNA CONSTANTE Y NO UNA LISTA EN CADA LLAMADOR ────────────────
+ *
+ * Estaba cableada en los dos lugares que llaman a `ensureWebhookRegistered`,
+ * con el mismo contenido copiado. Eso es una trampa activa, no una fealdad:
+ * `ensureWebhookRegistered` **reescribe la lista completa** cuando decide
+ * actualizar, así que un llamador con una lista desactualizada le borra los
+ * eventos a la suscripción sin avisar y sin error, la próxima vez que un sync
+ * dispare un update por cualquier otro motivo.
+ *
+ * ── `message.sent`: POR QUÉ ESTÁ ACÁ, MEDIDO EL 21/09/2026 ──────────────────
+ *
+ * Porque el negocio responde desde el celular, y sin este evento esos mensajes
+ * no llegan a la base en tiempo real.
+ *
+ * Medido, no supuesto: se suscribió el evento y se mandaron dos mensajes
+ * salientes, uno desde la bandeja y otro escrito desde la app de Instagram.
+ * **Los dos produjeron entrega de webhook.** El de la bandeja es el control
+ * positivo: sin él, la ausencia del otro no se habría podido atribuir a
+ * Instagram.
+ *
+ * El aviso trae `message.id` (interno) y `message.platformMessageId` (de
+ * plataforma), igual que `message.received`, y el de plataforma coincide con el
+ * `id` del listado con delta de 0 ms. O sea que la clave de idempotencia de F27
+ * sirve también para los echos, venga el mensaje de donde venga.
+ *
+ * **Hoy el receptor descarta este evento** (`app/api/webhooks/late/route.ts`,
+ * el filtro por tipo). Se registra igual porque F27 lo va a necesitar, y porque
+ * descubrir la suscripción el día que se construya F27 es más caro que dejarla
+ * puesta ahora: las entregas quedan registradas en el log de Zernio desde ya.
+ */
+export const WEBHOOK_EVENTS = ["message.received", "comment.received", "message.sent"] as const;
+
 /** Events Zernflow needs delivered to its webhook. */
 export type WebhookEvent = "message.received" | "comment.received";
 

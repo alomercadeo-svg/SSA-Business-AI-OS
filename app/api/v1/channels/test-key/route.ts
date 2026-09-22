@@ -5,6 +5,7 @@ import { createZernioClient } from "@/lib/zernio-client";
 import {
   ensureWebhookRegistered,
   getOrCreateWorkspaceWebhookSecret,
+  WEBHOOK_EVENTS,
 } from "@/lib/zernio-webhook";
 import { backfillInboxConversations, canalesConCuentaDeZernio } from "@/lib/inbox-sync";
 import { isSupportedPlatform } from "@/lib/platforms";
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
     await ensureWebhookRegistered(zernio, {
       appUrl,
       secret,
-      events: ["message.received", "comment.received"],
+      events: [...WEBHOOK_EVENTS],
     });
   } catch (err) {
     console.error("[test-key] webhook auto-registration failed:", err);

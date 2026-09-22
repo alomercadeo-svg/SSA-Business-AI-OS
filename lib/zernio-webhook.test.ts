@@ -7,6 +7,7 @@ import {
   getOrCreateWorkspaceWebhookSecret,
   resolveWebhookSecret,
   verifyWebhookSignature,
+  WEBHOOK_EVENTS,
   WEBHOOK_NAME,
 } from "./zernio-webhook";
 
@@ -333,5 +334,48 @@ describe("resolveWebhookSecret (AC4)", () => {
       webhook_secret: null,
     });
     expect(secret).toBeNull();
+  });
+});
+
+/**
+ * La lista de eventos, que antes estaba copiada en dos rutas.
+ *
+ * El riesgo no es estético. `ensureWebhookRegistered` **reescribe la lista
+ * completa** cuando decide actualizar, así que un llamador con la lista vieja le
+ * borra eventos a la suscripción sin error y sin aviso, la próxima vez que un
+ * sync dispare un update por cualquier otro motivo. Con la lista en dos lugares,
+ * agregar un evento en uno solo era suficiente para armar esa trampa.
+ *
+ * Por eso el test mira el código fuente de las dos rutas: lo que hay que
+ * impedir es que alguien vuelva a escribir una lista literal ahí.
+ */
+describe("la lista de eventos vive en un solo lugar", () => {
+  const RUTAS = [
+    "app/api/v1/channels/sync/route.ts",
+    "app/api/v1/channels/test-key/route.ts",
+  ];
+
+  it("incluye message.sent, que se midió el 21/09/2026 y F27 necesita", () => {
+    expect(WEBHOOK_EVENTS).toContain("message.sent");
+    expect(WEBHOOK_EVENTS).toContain("message.received");
+    expect(WEBHOOK_EVENTS).toContain("comment.received");
+  });
+
+  it("ninguna ruta arma su propia lista literal", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+
+    // Control positivo del propio test: si las rutas se movieran, leerlas
+    // fallaría y esto pasaría trivialmente sobre archivos vacíos.
+    const fuentes = RUTAS.map((r) => readFileSync(resolve(process.cwd(), r), "utf8"));
+    for (const fuente of fuentes) expect(fuente).toContain("ensureWebhookRegistered");
+
+    for (const [i, fuente] of fuentes.entries()) {
+      const literales = fuente
+        .split("\n")
+        .filter((l) => /events:\s*\[/.test(l) && /["']message\.|["']comment\./.test(l));
+      expect(literales, `${RUTAS[i]} arma su propia lista de eventos`).toEqual([]);
+      expect(fuente).toContain("WEBHOOK_EVENTS");
+    }
   });
 });
