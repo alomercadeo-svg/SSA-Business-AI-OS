@@ -191,14 +191,19 @@ Construidos en el Bloque 1 y verificados con `scripts/verify-lead-scope.mjs`, 24
 >
 > F39 ayuda y no alcanza: **detectar no es reconectar.** F39 abre una condición cuando el canal se queda callado; sin F32 no hay forma de volver a vincular desde la interfaz, así que la alerta avisa de algo que nadie puede arreglar sin entrar al servidor.
 >
-> **La consecuencia, dicha con todas las letras: F32 está en el Bloque 4, después de F27. O F32 se adelanta al Bloque 3, o el número no se vincula hasta que el Bloque 4 cierre.** Las dos opciones, con su costo:
+> **La consecuencia: F32 está en el Bloque 4, después de F27.** O se adelantaba al Bloque 3, o el número no se vincula hasta que el Bloque 4 cierre.
 >
-> | Opción | Qué cuesta | Qué gana |
-> |---|---|---|
-> | **Adelantar F32 al Bloque 3** | El Bloque 3 ya es el más cargado de los tres y el plano recomienda partirlo. F32 le suma la pantalla de estado, el QR y la reconexión, más el sondeo periódico con su marca de vida | El número se puede vincular al cerrar el Bloque 3, unos días antes |
-> | **Vincular al cerrar el Bloque 4** | El canal de WhatsApp queda sin usar hasta el final de la fase, aunque Evolution esté desplegado y probado desde el Bloque 2 | No se toca el orden ni el tamaño de los bloques, y F32 se construye junto al resto de la pantalla de canales, que es donde vive |
+> ### Decidido el 22 de septiembre de 2026: F32 se queda en el Bloque 4
 >
-> **La decisión es del dueño del proyecto y no se toma acá.** Lo que no es negociable es la compuerta: con una de las dos sin construir, vincular el número es aceptar perder mensajes sin enterarse.
+> **El número se vincula cuando el Bloque 4 cierre.** Los dos motivos, y el segundo es el que decide:
+>
+> **Uno. Vincular el número no es prender un interruptor: es migrar el canal vivo del negocio.** Hay leads en curso con el número actual y la pauta apunta a alguno. Eso se hace una vez, y hacia una bandeja donde se pueda trabajar. Al cerrar el Bloque 3 esa bandeja no existe: F34 (no contactar), F35 (bandeja y filtros), F36 (respuestas rápidas) y F40 (ventana de conversación) son **todas del Bloque 4**. Adelantar F32 compraría vincular unos días antes hacia una lista pelada.
+>
+> **Dos, y este no estaba en ninguna de las dos opciones que se evaluaron: adelantar F32 destruye la medición del Bloque 3.** El Bloque 3 es el que se va a medir para tener un número real de ritmo en vez de la proyección de 1,5 días que hay hoy. No se pueden comparar dos días planificados contra un bloque al que se le acaba de sumar una funcionalidad. El costo de adelantar F32 no es solo el trabajo de F32: es perder la única medición limpia que va a haber en toda la fase.
+>
+> **El costo aceptado, sin maquillarlo:** Evolution queda desplegado y sin usar durante dos bloques. Es bajo porque Railway factura por consumo de recursos, no por servicio levantado. Lo que se paga es que **el canal esté listo antes que el sistema**, y ese es el orden correcto: lo contrario sería un sistema listo esperando un canal, que es la forma de que alguien vincule el número "para probar".
+>
+> Lo no negociable sigue siendo la compuerta: con F27 o F32 sin construir, vincular el número es aceptar perder mensajes sin enterarse.
 >
 > **F33 no entra en esta compuerta, y conviene que quede escrito para que nadie lo "arregle" moviéndola.** Las seis reglas de seguridad de secuencia protegen contra los envíos automáticos salientes, y el motor de secuencias es de la Fase 2, que va después del Bloque 4. Un número vinculado sin F33 no corre riesgo mientras nada mande secuencias. El orden actual ya es el correcto.
 

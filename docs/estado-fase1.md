@@ -33,7 +33,7 @@ Los procedimientos ejecutables no van en ninguno de los dos: van en `docs/`, uno
 
 ## Qué quedó construido
 
-**Migraciones aplicadas:** 00017 a 00021, todas idempotentes, sobre las 16 del fork.
+**Migraciones aplicadas en el Bloque 1:** 00017 a 00021, todas idempotentes, sobre las 16 del fork. El Bloque 2 sumó la 00022 y la 00023. **El conteo vigente vive en `docs/requerimientos-fase1.md` §14c y un test lo comprueba; no lo repitas acá.**
 
 - `00017` — columnas de asignación: `contacts.setter_id`, `contacts.vendedor_id`, y el flag `workspaces.unassigned_leads_visible_to_members`.
 - `00018` — Supabase Vault: `store_secret`, `read_secret`, `delete_secret` e `is_workspace_manager`, aislados por workspace.
@@ -51,7 +51,7 @@ Los procedimientos ejecutables no van en ninguno de los dos: van en `docs/`, uno
 
 **Verificadores:** `npm run verify:security` corre `verify-lead-scope.mjs` (24 comprobaciones) y `verify-realtime-scope.mjs` (7). No corren con `npm test`, a propósito: la suite puede estar en verde con el scope roto.
 
-**Tests:** 108 en 12 archivos. El fork traía 60 en 7.
+**Tests al cerrar el Bloque 1:** 108 en 12 archivos. El fork traía 60 en 7. **Ese número sube con cada bloque: no lo copies, contalo con `npm test`.**
 
 ---
 
@@ -96,9 +96,9 @@ Queda una decisión de segundo orden: los adjuntos. Las URL de medios de Meta ve
 
 ## Abierto
 
-- **Autenticación del webhook de Evolution.** Sin resolver, y hay que resolverlo antes de conectar el canal. La firma HMAC de Zernio ya falla cerrada; el webhook de Evolution necesita una garantía equivalente.
+- ~~**Autenticación del webhook de Evolution.**~~ **Resuelto en F22, el 17 de septiembre de 2026.** Evolution firma cada entrega con un JWT HS256 derivado del `jwt_key` de la instancia y el receptor lo verifica, fallando cerrado igual que el de Zernio. El mecanismo está en el código de la 2.3.7 pero no documentado, así que subir de versión obliga a re-verificarlo: el recordatorio está en `lib/evolution-version.mjs`.
 - **¿Redis es necesario?** La plantilla de Railway lo despliega, pero la documentación de Evolution v2 lo describe como caché de rendimiento y existe `CACHE_LOCAL_ENABLED`. Probable que se pueda prescindir. Sin verificar.
-- **La sesión de WhatsApp expira sin aviso visible.** Sobrevive a un redeploy porque se guarda en Postgres, pero al expirar la bandeja simplemente deja de recibir, igual que si no escribiera nadie. Hace falta estado de sesión visible en la pantalla de canales y forma de volver a escanear el QR.
+- **La sesión de WhatsApp expira sin aviso visible.** Es F32, y **decidido el 22 de septiembre de 2026 se queda en el Bloque 4**, lo que fija que el número no se vincule hasta que ese bloque cierre. Sobrevive a un redeploy porque se guarda en Postgres, pero al expirar la bandeja simplemente deja de recibir, igual que si no escribiera nadie. Hace falta estado de sesión visible en la pantalla de canales y forma de volver a escanear el QR.
 - **Verificación de negocio en Meta:** confirmada como no hecha. Prevista para la semana del 22 de septiembre. No bloquea nada; levanta el tope de 250.
 - **Cuatro preguntas para Zernio**, todavía sin respuesta, hoy menos urgentes: si absorben la verificación de negocio, si exponen gestión de plantillas por API, si el webhook de WhatsApp es en tiempo real, y la región y tipo de línea del número.
 - **Purga de datos de prueba, reconexión de Instagram y rotación del secreto de firma.** Pendiente, con procedimiento escrito y versionado en **`docs/purga-y-reconexion-instagram.md`**. Son cuatro pasos acoplados y el orden no es negociable. Incluye el motivo por el que la rotación no se hizo suelta: rotar obliga a re-registrar el webhook, y ese re-registro falla en silencio por un `try/catch`, así que el procedimiento de rotación pasa justo por el camino de falla que el propio hallazgo describe. La verificación de punta a punta que la rotación necesita ya está en ese documento, en vez de ser un paso que alguien tiene que acordarse de agregar.
@@ -139,4 +139,21 @@ Las siete cosas de la lista vieja, dónde quedaron: el adaptador de Evolution en
 
 Después, el Bloque 3: modelo de contacto extendido (F25), identidad de canal y reconciliación de teléfonos (F26), y guardado de mensajes entrantes (F27), que es donde vive el riesgo real de la fase.
 
-Sin fecha, y esperando el número dedicado: el Flujo 4 del plano, la conexión en vivo de WhatsApp. No se ejecuta hasta que F27 esté construido y probado, por el motivo que el propio Flujo 4 detalla en sus pasos 4 y 5.
+### El Bloque 3 se corre partido en dos, y se mide
+
+**Se parte en dos sesiones**, como el propio plano recomienda: una para el modelo de contacto y la identidad de canal (F25 y F26), otra para la ingesta, los adjuntos y la deduplicación (F27, F28, F29).
+
+**Y se anotan los días hábiles reales contra los planificados, al terminar cada sesión.** El plano proyecta 1,5 días para el Bloque 3. Eso es una proyección, no una medición: **nunca se midió un bloque de este proyecto contra su estimación.**
+
+| | Planificado | Real | Anotado el |
+|---|---|---|---|
+| Sesión 1 — F25, F26 | | | |
+| Sesión 2 — F27, F28, F29 | | | |
+
+**Por qué al terminar cada sesión y no al cerrar el bloque:** si se anota al final, lo que queda es un número agregado que no dice dónde se fue el tiempo, y la mitad del valor de medir es saber cuál de las dos partes se desbordó.
+
+**Para qué sirve, concretamente:** la próxima decisión de alcance —qué entra en la Fase 2, si el Bloque 4 se parte, cuánto dura la fase— se va a tomar con este dato o con otra proyección. Hoy todas las estimaciones del plano descienden de la misma suposición inicial y ninguna se contrastó nunca contra un bloque terminado.
+
+**Esta es también la razón por la que F32 no se adelantó al Bloque 3**, decidido el 22 de septiembre de 2026: sumarle una funcionalidad al bloque que se va a medir destruye la comparación, porque ya no serían los mismos dos días planificados. El razonamiento completo está en `docs/requerimientos-fase1.md` §4.7.
+
+Sin fecha: el Flujo 4 del plano, la conexión en vivo de WhatsApp. Espera el número dedicado **y el cierre del Bloque 4**, porque la compuerta son F27 y F32, y F32 se queda en el Bloque 4. Ver el Flujo 4, pasos 4 y 5.

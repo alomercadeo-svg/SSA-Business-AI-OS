@@ -31,8 +31,10 @@ de vuelta desde Evolution. `verify-evolution-deploy.mjs` y `verify-evolution-web
 > igual que un día tranquilo y nadie puede volver a vincular desde la interfaz. F39 detecta el
 > silencio, pero detectar no es reconectar.
 >
-> **F32 está en el Bloque 4**, así que o se adelanta al Bloque 3 o el número espera al cierre del
-> Bloque 4. Las dos opciones, con su costo, están en `docs/requerimientos-fase1.md` §4.7.
+> **Decidido el 22 de septiembre de 2026: F32 se queda en el Bloque 4 y el número se vincula cuando
+> ese bloque cierre.** Se evaluó adelantarla y se descartó: vincular el número es migrar el canal
+> vivo del negocio, y al cerrar el Bloque 3 la bandeja donde trabajarlo todavía no existe. El
+> razonamiento completo, con el costo aceptado, está en `docs/requerimientos-fase1.md` §4.7.
 >
 > El canal se prueba entero con avisos firmados de prueba. No hace falta un número real para eso, y
 > el checklist de conexión (Flujo 4 del plano) tiene el paso de confirmar que F27 **y F32** están
