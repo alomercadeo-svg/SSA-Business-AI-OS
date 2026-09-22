@@ -4,8 +4,8 @@ Procedimiento reproducible para dejar el canal de Instagram conectado a la cuent
 negocio, con la base limpia y el secreto de firma rotado.
 
 **Fecha:** 21 de septiembre de 2026. **Ejecutado por primera vez el 22 de septiembre de 2026.
-Veredicto: entra y sale.** Queda un pendiente, que se explica en el paso 5: la suscripción del webhook
-perdió `message.sent` en la rotación, y el arreglo espera un despliegue. El registro de esa ejecución
+Veredicto: entra y sale.** La rotación le había borrado `message.sent` a la suscripción del webhook.
+Se desplegó el arreglo y se repitieron los pasos 3.2 y 4 ese mismo día, con el mismo veredicto. El registro de esa ejecución
 está en el paso 5 y en `docs/estado-fase1.md`. Las correcciones que salieron de ella ya están
 aplicadas en cada paso.
 
@@ -699,14 +699,26 @@ Todas las horas son de Costa Rica.
 - **Relectura a las 15:04:** una hora y 22 minutos después, el estado seguía en `partial`, con la misma marca de hora de las 13:42. **Inferencia, no medición:** es un estado final, probablemente "terminó recortada por el tope". Zernio no documenta ese valor.
 - **Qué cambia para la próxima ejecución:** la espera de dos horas sobraba. Lo que decide si hay que seguir esperando es el conteo del lado de Zernio contra su tope de 500, y no nuestra tabla.
 
-**Pendiente, y hasta que se haga el procedimiento no está cerrado del todo:**
+**El pendiente de `message.sent`, cerrado el mismo día.**
 
-1. Subir los commits y desplegar.
-2. Sincronizar.
-3. Correr el paso 3.2 de nuevo: tres eventos, y el secreto **todavía** en `…85b1`. Si cambió, algo lo regeneró.
-4. Repetir el paso 4.
+1. **Primer despliegue: falló el build.** Los 21 commits se subieron a las 16:05 y Railway falló al construir `5f697e8`. El tipo `WebhookEvent` (`lib/zernio-webhook.ts`) seguía con dos eventos, cuando `63834ac` ya había sumado el tercero a la lista. `npm test` estaba en verde porque Vitest no chequea tipos, y desde el 21 nadie había corrido un build. Producción siguió en `69cfbc0`, sin cortes.
+2. **Arreglo y segundo despliegue.** El tipo pasó a derivarse de la lista (`98aa3aa`), con `npm run build` fallando antes del cambio y pasando después. Railway lo desplegó bien.
+3. **Registro, antes y después.** Antes de sincronizar, a las 16:24, `--registro` mostraba dos eventos: el despliegue solo no toca la suscripción. Marcos sincronizó, y a las 16:25 mostraba **tres eventos**, con `message.sent`, el secreto todavía en `…85b1` y coincidencia sí.
+4. **Canario y repetición del paso 4, con la cuenta de prueba:**
 
-El despliegue vuelve a registrar el webhook, y ese registro nuevo no está verificado por el paso 4 de este día.
+| Hora | Qué | Entrega | Base |
+|---|---|---|---|
+| 16:27:18 | Saliente desde la bandeja | `message.sent` 16:27:20, HTTP 200, `{"ok":true,"skipped":true}` | Sin cambios: 200 contactos, `unread_count` 0, eventos sin sumar |
+| 16:29:51 | Entrante desde el celular | `message.received` 16:29:54, HTTP 200, `{"ok":true,"queued":true}` | `last_message_at` a las 16:29:54 y un evento más en el registro: el receptor procesó |
+| 16:34:43 | Respuesta desde la bandeja a ese mensaje | `message.sent` 16:34:43, HTTP 200, `skipped` | Marcos confirmó que llegó al celular |
+
+**Veredicto de la repetición: entra y sale, con `message.sent` suscrito y entregando.**
+
+**Lo que esta verificación no prueba, dicho con todas las letras:**
+
+- **`e65d37f`, el arreglo del filtro de dirección, no tiene canario en vivo.** Un `message.sent` nunca llega a ese filtro: el receptor descarta antes todo evento que no sea `message.received` (`app/api/webhooks/late/route.ts:166-168`). Ese filtro solo actúa ante un `message.received` con dirección `outgoing`, y en 30 días de log no apareció ninguno. Lo cubre el test `route.test.ts:387-390`, que comprueba `skipped: true` pero no exige `reason: "outgoing"`.
+- **La lectura de `unread_count` del entrante es no concluyente.** Por el código tenía que quedar en 2, y a las 16:31 estaba en 0. La conversación tiene `updated_at` a las 16:30:23, sin cambio en `last_message_at`. Lo único del código que hace eso es la bandeja marcando como leída la conversación al seleccionarla (`app/(dashboard)/dashboard/inbox/inbox-view.tsx:109-119`). Inferencia: alguien la abrió en ese momento, y la interfaz alteró el estado que se estaba midiendo. El veredicto del entrante se apoya en la entrega y en `last_message_at`, no en este contador.
+- **Además, se corrigió una premisa del orden de despliegue.** Se temía que, al volver a suscribir `message.sent` con el filtro roto, los salientes se guardaran como entrantes. No podía pasar: por el mismo filtro por tipo, `message.sent` se descarta antes de llegar al filtro de dirección, en el código viejo y en el nuevo. Y el receptor tampoco guarda mensajes hasta F27.
 
 **Techos encontrados, ninguno de los cuales avisa:** Instagram, todas; Zernio, 500 desde el 3 de agosto; nuestra base, 200 desde el 3 de septiembre (`lib/inbox-sync.ts:15-16`, lo resuelve F27); la lista de contactos, 100 desde el 13 (`app/(dashboard)/dashboard/contacts/page.tsx:13`); la bandeja, 50 desde el 16 (`app/(dashboard)/dashboard/inbox/page.tsx:12`). Los dos últimos están desarrollados en F35 del plano.
 - El estado del registro del webhook va a ser visible en pantalla cuando se construya F24, con lo
