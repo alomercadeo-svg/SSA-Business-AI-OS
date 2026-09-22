@@ -487,12 +487,19 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 
 **Criterios de aceptación:**
 
-- [ ] Se agregan a `contacts`: `phone`, `secondary_email`, `country`, `instagram_username`, `whatsapp_phone`, `next_followup_date`, `do_not_contact`, `do_not_contact_reason`, `do_not_contact_at`, `ai_conversation_summary`, `lead_temperature`, `attribution`, `deleted_at`. Los campos de asignación ya existen desde el Bloque 1
+- [ ] Se agregan a `contacts`: `phone`, `secondary_email`, `country`, `whatsapp_phone`, `next_followup_date`, `do_not_contact`, `do_not_contact_reason`, `do_not_contact_at`, `ai_conversation_summary`, `lead_temperature`, `attribution`, `deleted_at`, `display_name_source`. Los campos de asignación ya existen desde el Bloque 1. **`instagram_username` estaba en esta lista y se sacó el 22 de septiembre de 2026:** el handle es por canal, no por contacto. Un contacto va a tener más de uno, y ya existe dónde guardarlo: `contact_channels.platform_username`
 - [ ] El teléfono se normaliza a formato internacional en el servidor, no solo en el formulario. Sin esto la deduplicación entre canales falla, y arreglarlo después implica limpiar datos sucios
 - [ ] El teléfono NO es obligatorio. Un contacto de WhatsApp puede existir sin teléfono conocido
 - [ ] Campo `phone_resolved` que marca si el teléfono ya se conoce o sigue pendiente
-- [ ] Índices en teléfono, correo, usuario de Instagram y marca de borrado, y compuestos por espacio de trabajo con teléfono y con correo
+- [ ] Índices en teléfono, correo, `contact_channels.platform_username` y marca de borrado, y compuestos por espacio de trabajo con teléfono y con correo
 - [ ] Los campos personalizados que ya existen se conservan sin modificar
+
+**Criterios del nombre y del handle.** Agregados el 22 de septiembre de 2026, después de medir qué manda Zernio. El razonamiento está en la nota de abajo.
+
+- [ ] `contact_channels.platform_username` se escribe con el handle que trae el proveedor cuando lo trae: `participantUsername` en el listado y en `getInboxConversation`, `sender.username` en el webhook. Si ya tenía un valor, se reemplaza por el que trae el proveedor. **Si no lo trae, queda nulo. Nunca se deduce de la forma de otro campo**, aunque `participantName` tenga pinta de handle: hay nombres reales sin espacio, y un dato decidido por heurística falla en silencio. La identidad del canal no depende de esto: la resuelve F26 con `platformUserId`, y el handle es dato de presentación
+- [ ] `contacts.display_name_source` registra de dónde salió el nombre: `provider` o `manual`. **Un nombre de origen `manual` no lo pisa nunca ningún camino automático**: ni la importación, ni el webhook, ni el relleno de F27
+
+> **Por qué, medido el 22 de septiembre de 2026.** Zernio manda el handle en el campo del nombre, tanto en el listado de conversaciones como en el webhook. De las 500 conversaciones reproducidas, solo 2 traían un nombre real, y eran exactamente las 2 que traían `instagramProfile`: el perfil que Zernio completa, en la muestra de ese día, justo después de un mensaje entrante. En nuestra base, los 200 contactos importados quedaron con el handle como nombre y sin `platform_username`, porque la importación no lee `participantUsername` (la interfaz de `lib/inbox-sync.ts:42-51` ni siquiera lo declara). Ningún camino reescribe un nombre existente, así que sin F27 se quedan así para siempre. El relleno está en F27.
 
 **Criterios del campo de atribución.** Venían de F10 del documento anterior y no estaban especificados acá: la columna aparecía en la lista pero sin decir qué guarda ni con qué reglas.
 
@@ -554,6 +561,22 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [ ] La base pasa a ser la fuente de verdad de la bandeja. Después de esta funcionalidad, la bandeja no consulta más al proveedor para mostrar mensajes
 - [ ] El camino de entrada es el mismo para Instagram y WhatsApp, sin condicionales por plataforma más allá del adaptador
 - [ ] **Importación del historial de Instagram que ya existe.** Ver abajo: sin esto, el criterio anterior hace que la bandeja pierda las conversaciones viejas el día que se migre
+- [ ] **Relleno oportunista del nombre y el handle, con techo.** Al procesar un `message.received` de Instagram, si el remitente tiene `contact_channels.profile_status = 'pending'`, se relee esa sola conversación con `zernio.messages.getInboxConversation` (`GET /v1/inbox/conversations/{conversationId}`, con `accountId` obligatorio). Va en el procesamiento en segundo plano, **después** del acuse de recibo, nunca antes. Si la respuesta trae `instagramProfile`:
+    - se escribe `platform_username` con `participantUsername`;
+    - se escribe `contacts.display_name` con `participantName`, **solo si** `display_name_source` es `provider`;
+    - `profile_status` pasa a `complete`.
+
+  Si no lo trae, se suma uno a `profile_attempts`, y **a los 3 intentos `profile_status` pasa a `unavailable` y no se reintenta más**. La señal de "ya tiene nombre real" es que venga `instagramProfile`, **no la forma del nombre**. Rendirse cuesta cero: el contacto se queda con el handle, que es donde está hoy. Sin el techo, cada contacto cuyo perfil nunca se complete dispararía una llamada extra a la API en cada mensaje entrante, para siempre. Con los datos de hoy, eso serían 498 de 500
+- [ ] **Control positivo del relleno, determinista.** Se prueba con la respuesta de `getInboxConversation` **simulada**, no contra Zernio en vivo. Tres casos:
+    1. Un contacto con nombre de origen `provider` y `profile_status = 'pending'` **recibe** nombre y handle cuando la respuesta simulada trae `instagramProfile`.
+    2. **No cambia nada** cuando no lo trae, salvo `profile_attempts`.
+    3. Un nombre de origen `manual` no se pisa aunque la respuesta traiga perfil.
+
+  **Probar solo el tercer caso no alcanza:** no distingue entre "está bien hecho" y "está todo congelado". **Y no va contra la API real** porque, en lo medido, el perfil aparece alrededor de un segundo antes de la entrega del webhook. Un test que dependa de ganar esa carrera falla de vez en cuando, y un test así termina desactivado, que es perder el control positivo entero
+
+> **Lo que sostiene el relleno, medido el 22 de septiembre de 2026, y lo que no.** En los dos casos observados, Zernio completó el perfil 2 o 3 segundos después de un mensaje entrante, y alrededor de un segundo antes de entregarnos el webhook: Marcos, entrante a las 14:27:00, perfil a las 14:27:03, entrega a las 14:27:04; otra conversación, entrante a las 15:02:27, perfil a las 15:02:29, entrega a las 15:02:30. El control negativo fue una conversación con actividad a las 15:17 **sin perfil**, y su única actividad era un mensaje **saliente**: el disparador es el mensaje entrante, no cualquier actividad. **Lo que no cubre:** son 2 casos positivos y 1 negativo; no apareció ningún entrante sin perfil después, que sería lo que refuta la inferencia; y no se sabe si Zernio vuelve a buscar el perfil en cada mensaje o solo la primera vez. El techo de 3 intentos es lo que hace que equivocarse en esto no cueste nada.
+
+> **Tarea aparte, no es criterio: los 200 contactos que ya existen.** Quedaron con el handle como nombre, `platform_username` nulo y, cuando exista la columna, `profile_status = 'pending'`. **Un relleno masivo no sirve:** releer el listado hoy le daría nombre real a 2 de 200, que son justo los dos casos de arriba. Lo que los arregla es el uso: cada uno recibe su nombre la próxima vez que escriba, por el criterio del relleno oportunista. Los que no vuelvan a escribir se quedan con el handle. Eso es un límite de Zernio, y la pregunta para levantarlo está en `docs/contingencia-whatsapp.md` §6, pregunta 5.
 
 > **Hallazgo del 16 de septiembre de 2026: no existe ninguna importación de mensajes, y F27 la necesita.**
 >
@@ -1116,7 +1139,7 @@ Las dos funcionalidades conservan la numeración del documento original, F6b y F
 | contacts | phone_resolved | boolean | Sí | Marca si el teléfono ya se conoce |
 | contacts | secondary_email | text | No | Correo alternativo |
 | contacts | country | text | No | País del lead |
-| contacts | instagram_username | text | No | Usuario de Instagram |
+| contacts | display_name_source | text | Sí | `provider` o `manual`, con restricción de valores. Un nombre `manual` no lo pisa ningún camino automático. Ver F25. **Acá había una fila `instagram_username`, que se sacó el 22 de septiembre de 2026:** el handle es por canal y va en `contact_channels.platform_username`, que ya existe |
 | contacts | whatsapp_phone | text | No | Teléfono de WhatsApp si difiere del principal |
 | contacts | next_followup_date | date | No | Próximo seguimiento programado |
 | contacts | do_not_contact | boolean | Sí | Pidió no ser contactado |
@@ -1138,6 +1161,8 @@ Las dos funcionalidades conservan la numeración del documento original, F6b y F
 | contacts | booking_external_id | text | No | Identificador de la reserva en el proveedor de agenda. Lo escribe la Fase 2 |
 | contact_channels | raw_jid | text | Sí | Identificador tal como llegó, sin transformar |
 | contact_channels | addressing_mode | text | No | Cómo se direccionó el mensaje |
+| contact_channels | profile_status | text | Sí | `pending`, `complete` o `unavailable`, con restricción de valores y default `pending`. Si el proveedor ya completó el perfil del remitente en ese canal. Ver F27 |
+| contact_channels | profile_attempts | smallint | Sí | Intentos de completar el perfil, default 0. A los 3 sin perfil, `profile_status` pasa a `unavailable` y no se reintenta más. Ver F27 |
 | messages | platform_message_id | text | Sí | Identificador del proveedor |
 | messages | remote_jid | text | Sí | Conversación a la que pertenece |
 | messages | from_me | boolean | Sí | Dirección del mensaje |
@@ -1147,7 +1172,8 @@ Las dos funcionalidades conservan la numeración del documento original, F6b y F
 | messages | media_status | text | Sí | Pendiente, descargado, fallido o no disponible |
 | channels | provider | text | Sí | `zernio` o `evolution` |
 | channels | instance_name | text | No | Nombre de la instancia de Evolution |
-| channels | late_account_id | text | **Pasa a No** | Identificador de cuenta de Zernio. Era obligatorio; ahora es opcional |
+| channels | late_account_id | text | **Pasa a No** | Identificador de cuenta de Zernio. Era obligatorio; ahora es opcional. **No identifica una cuenta de Instagram:** Zernio lo reusó para otra cuenta el 22 de septiembre de 2026. Ver F26 |
+| channels | platform_account_id | text | No | Identificador de la cuenta en la plataforma (`platformUserId` en Zernio). Es la identidad del canal, según el criterio de F26 agregado el 22 de septiembre de 2026. Vacío en los canales de Evolution |
 | channels | session_state | text | No | Estado de conexión conocido |
 | channels | session_checked_at | timestamptz | No | Última verificación |
 | channels | safety_config | jsonb | Sí | Las seis reglas de seguridad de secuencia |

@@ -170,6 +170,8 @@ Ninguna de estas es un supuesto de este documento. Están sin responder y las re
 
 **4. ¿El nombre visible de un número nuevo dentro de una WABA existente necesita aprobación aparte?** No verificado. Afecta cuánto tarda el paso 4 del escenario C.
 
+**5. ¿Hay manera de forzar que Zernio complete el perfil de una conversación, o de suscribirse a un evento de perfil completado? Hoy solo 2 de 500 conversaciones traen `instagramProfile`.** Dueño: Marcos, preguntando a Zernio. Es de Instagram, no de WhatsApp: está acá porque esta es la lista de preguntas abiertas a Zernio. **La restricción que la origina, medida el 22 de septiembre de 2026:** Zernio manda el handle en el campo del nombre, tanto en el listado de conversaciones como en el webhook, y el nombre real aparece recién cuando completó el perfil. En la muestra de ese día eso pasó justo después de un mensaje entrante. Así que la bandeja va a mostrar handles donde la app de Instagram muestra nombres, y **es un límite de Zernio, no nuestro**. Si la respuesta es sí, los contactos que nunca vuelven a escribir también pueden recibir su nombre real.
+
 ---
 
 ## 7. Fuentes
