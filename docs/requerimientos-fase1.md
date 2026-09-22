@@ -89,7 +89,7 @@ El motor de secuencias de la Fase 2 va a consumir las reglas de seguridad y el e
 
 **Nota sobre el tamaño del Bloque 3.** Es el más cargado de los tres. En el Bloque 1 aprendimos que un bloque demasiado grande obliga a partirlo a mitad de camino, con la memoria de la sesión ya gastada justo en el paso más delicado. Conviene planificar el Bloque 3 partido desde el principio: una sesión para el modelo de contacto y la identidad de canal, otra para la ingesta, los adjuntos y la deduplicación.
 
-**Nota sobre el número de WhatsApp.** Al momento de escribir esto el número dedicado sigue en trámite. El plano está escrito para que el despliegue de Evolution y toda la ingesta se construyan y se prueben sin el número, con mensajes de prueba. La conexión del canal en vivo es un paso aparte, con su propio checklist, que se ejecuta cuando el número llegue.
+**Nota sobre el número de WhatsApp.** El número dedicado no está conectado: no hay canal de WhatsApp con cuenta asociada, y eso se comprueba mirando la tabla `channels`, no el calendario. El plano está escrito para que el despliegue de Evolution y toda la ingesta se construyan y se prueben sin el número, con mensajes de prueba. La conexión del canal en vivo es un paso aparte, con su propio checklist, que se ejecuta cuando el número llegue.
 
 ---
 
@@ -224,8 +224,8 @@ Este tramo no es alcance por construir: es lo que ya está hecho y no hay que re
 
 #### 4.12.1 Fork y deploy de ZernFlow
 
-- **Qué hace**: forkear el repositorio, ejecutar las 16 migraciones SQL en un proyecto de Supabase, desplegar en Railway y verificar que todo funcione.
-- **Hasta dónde llega**: app corriendo en Railway con HTTPS, base de datos con las **24 tablas** existentes, autenticación funcional, pantallas cargando.
+- **Qué hace**: forkear el repositorio, ejecutar las **16 migraciones que trae el fork** en un proyecto de Supabase, desplegar en Railway y verificar que todo funcione.
+- **Hasta dónde llega**: app corriendo en Railway con HTTPS, base de datos con las **24 tablas que trae el fork**, autenticación funcional, pantallas cargando.
 - **Qué NO hace**: no se modifican las pantallas existentes (eso es de los bloques siguientes). No hay optimizaciones de performance.
 
 #### 4.12.2 Supabase Vault y migración de claves en texto plano
@@ -262,14 +262,16 @@ Este tramo no es alcance por construir: es lo que ya está hecho y no hay que re
 
 #### F1: Fork y deploy de ZernFlow
 
-**Descripción**: forkear el repositorio, configurar Railway y Supabase, ejecutar las 16 migraciones y verificar que la aplicación arranca.
+**Descripción**: forkear el repositorio, configurar Railway y Supabase, ejecutar las **16 migraciones del fork** y verificar que la aplicación arranca.
+
+**Estado: construido y publicado** (Bloque 1, 16 de septiembre de 2026).
 
 **Criterios de aceptación**:
 
 - [ ] Repositorio forkeado desde `https://github.com/zernio-dev/zernflow` y clonado
 - [ ] Proyecto Railway creado con **un solo servicio**: la app Next.js
 - [ ] Proyecto Supabase creado con plan Pro
-- [ ] Las 16 migraciones ejecutadas sin errores, **24 tablas creadas**
+- [ ] Las **16 migraciones del fork** ejecutadas sin errores, **24 tablas creadas**
 - [ ] Variables de entorno configuradas: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `NEXT_PUBLIC_APP_URL`
 - [ ] **La versión de `@zernio/node` está fijada exacta** (no con `^`): una librería 0.x puede romper compatibilidad entre versiones menores
 - [ ] La app carga y permite registrarse
@@ -279,6 +281,8 @@ Este tramo no es alcance por construir: es lo que ya está hecho y no hay que re
 #### F2: Supabase Vault y migración de claves
 
 **Descripción**: habilitar Vault, crear las funciones helper, y mover a Vault las claves que hoy están en texto plano.
+
+**Estado: construido y publicado** (Bloque 1, 16 de septiembre de 2026).
 
 **Criterios de aceptación**:
 
@@ -296,6 +300,8 @@ Este tramo no es alcance por construir: es lo que ya está hecho y no hay que re
 #### F3: Roles, workspaces y scope de leads
 
 **Descripción**: verificar el sistema de roles de ZernFlow y agregar el scope duro de leads por RLS.
+
+**Estado: construido y publicado** (Bloque 1, 16 de septiembre de 2026).
 
 **Criterios de aceptación de roles**:
 
@@ -322,6 +328,8 @@ Este tramo no es alcance por construir: es lo que ya está hecho y no hay que re
 
 **Descripción**: verificar que la integración con Zernio funciona para Instagram: DMs, comentarios y story replies.
 
+**Estado: construido y publicado** (Bloque 1, 16 de septiembre de 2026).
+
 **Criterios de aceptación**:
 
 - [ ] Se puede conectar una cuenta de Instagram desde la UI con la API key de Zernio
@@ -334,6 +342,8 @@ Este tramo no es alcance por construir: es lo que ya está hecho y no hay que re
 - [ ] Los mensajes se almacenan en `messages` con la referencia correcta a conversación y canal
 
 #### F5: TikTok — eliminado de la Fase 1
+
+**Estado: eliminado de la Fase 1** (decidido el 16 de septiembre de 2026). No se construye. El motivo está abajo.
 
 TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comentarios por webhook, y la API de mensajes de TikTok no permite que el negocio inicie conversaciones. No hay criterios de aceptación de TikTok en esta fase. Entra en Etapa 2 como canal de publicación, usando la **3ª cuenta de Zernio ($6/mes)**, porque la 2ª la ocupa WhatsApp.
 
@@ -404,6 +414,8 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 
 **Descripción:** correo transaccional para invitaciones y notificaciones del sistema.
 
+**Estado: no construido** (verificado el 22 de septiembre de 2026: no hay dependencia de Resend en `package.json` ni código que la use).
+
 **Criterios de aceptación:**
 
 - [ ] La clave de Resend se guarda en Vault desde `/settings/integrations`
@@ -416,6 +428,8 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 #### F24: Pantalla de integraciones y claves de IA
 
 **Descripción:** el lugar donde se conectan todos los servicios externos.
+
+**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
 
 **Criterios de aceptación:**
 
@@ -447,6 +461,8 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 
 **Descripción:** el contacto con todos los datos que el negocio necesita para trabajarlo.
 
+**Estado: no construido** (verificado el 22 de septiembre de 2026: `contacts` solo tiene las columnas del fork más `setter_id` y `vendedor_id` de la 00017).
+
 **Criterios de aceptación:**
 
 - [ ] Se agregan a `contacts`: `phone`, `secondary_email`, `country`, `instagram_username`, `whatsapp_phone`, `next_followup_date`, `do_not_contact`, `do_not_contact_reason`, `do_not_contact_at`, `ai_conversation_summary`, `lead_temperature`, `attribution`, `deleted_at`. Los campos de asignación ya existen desde el Bloque 1
@@ -468,6 +484,8 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 
 **Descripción.** WhatsApp está migrando a un esquema donde el identificador del contacto puede ser un código opaco en lugar del número de teléfono. Evolution reemplaza ese código por el número antes de avisarnos, pero solo cuando tiene el dato para hacerlo. Cuando no lo tiene, el mensaje llega sin número por ningún lado, y no existe forma de averiguarlo.
 
+**Estado: no construido** (verificado el 22 de septiembre de 2026: depende de columnas de F25, que no están aplicadas).
+
 Como el número todavía no está conectado, no sabemos con qué frecuencia pasa. El diseño tiene que funcionar bien en los dos escenarios.
 
 **Criterios de aceptación:**
@@ -487,6 +505,8 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 #### F27: Guardado de mensajes entrantes
 
 **Descripción:** que las conversaciones con los leads vivan en la base del negocio y no en un proveedor.
+
+**Estado: no construido** (verificado el 22 de septiembre de 2026: `messages` tiene 0 filas después de 9 entregas de webhook, y nada en el código inserta entrantes).
 
 **Criterios de aceptación:**
 
@@ -588,6 +608,8 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** que un canal que dejó de recibir mensajes se note, en lugar de parecer un día tranquilo. Va numerada aparte de F27 y no adentro: F27 guarda lo que llega, F39 avisa cuando deja de llegar, y son dos mecanismos con dos formas distintas de fallar.
 
+**Estado: no construido** (verificado el 22 de septiembre de 2026: se especificó el 21 de septiembre de 2026 y no se empezó).
+
 **Criterios de aceptación:**
 
 - [ ] Cada canal guarda la marca de tiempo del último evento entrante recibido, actualizada por el receptor
@@ -619,6 +641,8 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** que las fotos, audios y documentos que mandan los leads queden guardados.
 
+**Estado: no construido** (verificado el 22 de septiembre de 2026: depende de F27).
+
 **Criterios de aceptación:**
 
 - [ ] El archivo se descarga al recibirlo y se guarda en Supabase Storage. Ninguna dirección que entrega el proveedor sirve a largo plazo: la de WhatsApp está cifrada y la del almacenamiento intermedio caduca a los 7 días
@@ -631,6 +655,8 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 #### F29: Detección de contacto entre canales
 
 **Descripción:** reconocer que el que escribe por WhatsApp es el mismo que ya escribió por Instagram.
+
+**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
 
 **Criterios de aceptación:**
 
@@ -646,6 +672,8 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** la vista completa del lead y la posibilidad de deshacer un borrado.
 
+**Estado: no construido** (verificado el 22 de septiembre de 2026: la tabla `contact_notes` no existe en la base).
+
 **Criterios de aceptación:**
 
 - [ ] Tabla `contact_notes` con lista cronológica en la ficha. Cualquier miembro con acceso al contacto crea notas; solo el autor, un Admin o el Owner edita o elimina
@@ -659,6 +687,8 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 #### F31: Historial de auditoría
 
 **Descripción:** saber quién hizo qué y cuándo.
+
+**Estado: no construido** (verificado el 22 de septiembre de 2026: la tabla `audit_log` no existe en la base).
 
 **Criterios de aceptación:**
 
@@ -675,6 +705,8 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** que se vea cuando WhatsApp dejó de estar conectado.
 
+**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
+
 **Criterios de aceptación:**
 
 - [ ] La pantalla de canales muestra el estado de la sesión de WhatsApp
@@ -687,6 +719,8 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 #### F33: Reglas de seguridad de secuencia
 
 **Descripción.** Reemplazan a la ventana de 24 horas en WhatsApp. Son configuración del canal y las hace cumplir el sistema, no el hábito de quien lo usa. Existen porque el seguimiento automático saliente es justamente el comportamiento que Meta busca para bloquear un número.
+
+**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
 
 **Criterios de aceptación:**
 
@@ -703,6 +737,8 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** respetar a quien pidió no recibir más mensajes.
 
+**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
+
 **Criterios de aceptación:**
 
 - [ ] Lista de frases de baja configurable por espacio de trabajo
@@ -715,6 +751,8 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 #### F35: Bandeja y filtros
 
 **Descripción:** el lugar donde el equipo trabaja todos los días.
+
+**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
 
 **Criterios de aceptación:**
 
@@ -729,6 +767,8 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** textos reutilizables que el operador inserta escribiendo una barra.
 
+**Estado: no construido** (verificado el 22 de septiembre de 2026: la tabla `response_templates` no existe en la base).
+
 **Criterios de aceptación:**
 
 - [ ] Tabla `response_templates` con alta, baja y modificación en `/settings/response-templates`
@@ -739,6 +779,8 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 #### F37: Importación de contactos desde planilla
 
 **Descripción:** cargar contactos que ya existen en otro lado.
+
+**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
 
 **Criterios de aceptación:**
 
@@ -752,6 +794,8 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 #### F38: Migración desde Pipedrive
 
 **Descripción:** traer al sistema los contactos y el estado comercial que hoy viven en Pipedrive, una sola vez, de forma verificable y repetible. Va después de F37 porque se apoya en el importador de planilla.
+
+**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
 
 Los números salen del análisis de los dos exports reales el 17 de septiembre de 2026: 526 personas y 517 tratos. No son estimaciones.
 
@@ -819,6 +863,8 @@ El argumento decisivo es la asimetría del error: **dejar afuera es irreversible
 
 **Descripción:** calcular, mostrar y respetar la ventana de mensajería de Instagram, que es una regla real de Meta y aplica hoy.
 
+**Estado: no verificado** (22 de septiembre de 2026). No se comprobó contra el repo en esta revisión, y decirlo es deliberado: un "pendiente" inventado se lee igual que uno verificado.
+
 **Por qué es alcance actual y no plan B:** el canal de Instagram está conectado y operando. Sin esto, un operador escribe una respuesta fuera de la ventana, la envía, y falla con un error genérico. Es el error más común al operar cualquier canal de Meta, y el §0 de este documento ya promete que la ventana de Instagram se conserva completa.
 
 **Criterios de aceptación:**
@@ -844,6 +890,8 @@ Las dos funcionalidades conservan la numeración del documento original, F6b y F
 
 **Descripción**: modelar las plantillas de Meta como entidad, con su ciclo de vida.
 
+**Estado: escrito y sin construir** (decidido el 16 de septiembre de 2026). Vive en el apéndice del plan B.
+
 **Criterios de aceptación**:
 
 - [ ] Nueva tabla `whatsapp_templates` (ver 7.3)
@@ -860,6 +908,8 @@ Las dos funcionalidades conservan la numeración del documento original, F6b y F
 #### F6c: Ventana de conversación
 
 **Descripción**: calcular, mostrar y respetar la ventana de mensajería de cada conversación.
+
+**Estado: escrito y sin construir** (decidido el 16 de septiembre de 2026). Vive en el apéndice del plan B.
 
 **Criterios de aceptación**:
 
@@ -1521,7 +1571,7 @@ Dicho al revés: el resto del modelo del plan B se puede construir el día que s
 | Área | Definición para este proyecto |
 |---|---|
 | Autenticación | Supabase Auth con correo y contraseña, cookies seguras del lado del servidor. El registro público debe estar desactivado: los usuarios entran por invitación |
-| Seguridad por filas | Activada en las 24 tablas. Un Member solo accede a los contactos y conversaciones donde figura asignado, y eso lo decide la base de datos. Verificado con 24 comprobaciones automáticas contra la API |
+| Seguridad por filas | Activada en **todas las tablas de hoy**, que son 25: las 24 del fork más `webhook_alerts` de la 00022. Ver el conteo vigente en 14c. Un Member solo accede a los contactos y conversaciones donde figura asignado, y eso lo decide la base de datos. Verificado con 24 comprobaciones automáticas contra la API |
 | Validación de datos | En el servidor siempre, no solo en el formulario. Teléfonos normalizados en servidor. Tipo real de archivo validado en servidor |
 | Protección de rutas de API | Sesión verificada en todas las rutas. Control de rol en el servidor para las pantallas y rutas de configuración |
 | Datos sensibles | Todas las claves de terceros en Vault. Ninguna clave viaja al navegador. Los logs nunca incluyen el contenido completo de un aviso entrante, porque incluye credenciales |
@@ -1550,7 +1600,7 @@ Dicho al revés: el resto del modelo del plan B se puede construir el día que s
 |---|---|
 | Proyecto base | [ZernFlow](https://github.com/zernio-dev/zernflow), licencia MIT |
 | Framework | Next.js 16.1.6, React 19.2.4, Tailwind CSS 4.1.18. Atención: Tailwind es v4, no v3 |
-| Tablas existentes | 24 tablas en 16 migraciones, más las 5 migraciones del Bloque 1 |
+| Tablas existentes | **Conteo vigente, y es el único lugar donde vive: 25 tablas y 23 migraciones aplicadas.** El fork trae 24 tablas en 16 migraciones; las propias van de la 00017 a la 00023, siete en total, y agregan una tabla, `webhook_alerts`. Si este número aparece en otro lado del documento sin la palabra "fork" al lado, está mal |
 | Ya implementado, no reconstruir | Autenticación, motor de flujos visual, bandeja básica, CRM con etiquetas y campos personalizados, secuencias con pausa automática, gestión de equipo, difusiones, control de duplicados de avisos, versionado de flujos, actualización en vivo, cliente de Zernio con sus adaptadores |
 | Patrones a respetar | Componentes de servidor más hooks, sin almacén global. Avisos en rutas de API, mutaciones en acciones de servidor. Clave de servicio solo en servidor. Estilos con clases de Tailwind, sin módulos de CSS |
 | Dependencias críticas | `@zernio/node` fijado en versión exacta, sin prefijo, porque es una librería en versión 0.x y puede romper entre versiones menores |
@@ -1626,13 +1676,13 @@ No se deciden leyendo documentación. Se instrumentan y se miran.
 
 - **La pantalla de importación no está especificada, ni para F37 ni para F38.** La sección 11 no la tiene: el Bloque 4 documenta bandeja, canales y configuración del canal de WhatsApp, y ninguna pantalla de importación. El hueco es anterior a F38, pero F38 lo vuelve urgente, porque pide que esa pantalla permita cambiar el código de país por defecto para una importación puntual. **Hay que especificarla antes de construir el Bloque 4**, o esa decisión se va a tomar mientras se escribe el código, que es exactamente donde termina siendo una constante cableada.
 - El número dedicado de WhatsApp, todavía en trámite. No bloquea el Bloque 2 ni el 3, pero sí la conexión en vivo.
-- Verificación del negocio en Meta, prevista para la semana del 22 de septiembre. No bloquea nada del camino principal; sirve para el plan B.
+- Verificación del negocio en Meta: **no hecha**. No bloquea nada del camino principal; sirve para el plan B, donde levanta el tope de 250 contactos únicos cada 24 horas. Se comprueba en Business Manager.
 
 ### Cambios que convendría reflejar en documentos anteriores
 
 El documento de **alcance** todavía tiene la Decisión 29 escrita a favor de la API oficial de WhatsApp, y el **anexo de integración de WhatsApp** sigue redactado como si fuera el camino principal en lugar del manual del plan B. Ninguno bloquea la construcción, pero los dos se leen distinto ahora, y si en algún momento se arma la propuesta comercial con `06-propuesta`, esos sí llegan al cliente.
 
-Mi recomendación es actualizarlos recién antes de la propuesta, no ahora: hoy no cambian ninguna decisión y el esfuerzo rinde más cuando el destinatario es alguien de afuera del proyecto.
+Mi recomendación es actualizarlos recién cuando se arme la propuesta: mientras el destinatario sea el equipo que construye, no cambian ninguna decisión, y el esfuerzo rinde más cuando el destinatario es alguien de afuera del proyecto.
 
 El análisis de los exports de Pipedrive agregó dos más, y el segundo pesa:
 
