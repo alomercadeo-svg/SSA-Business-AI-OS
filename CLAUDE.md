@@ -26,6 +26,8 @@
 
 El plano de la fase actual está en `docs/requerimientos-fase1.md`. Leelo antes de construir.
 
+**Ese es el ÚNICO documento de requerimientos del proyecto.** No hay un plano por bloque ni por etapa: F1 a F39 viven ahí, con una sola numeración. Si aparece otro archivo de requerimientos en `docs/`, **está superado: hay que borrarlo, no consultarlo.** Hasta el 21 de septiembre de 2026 convivieron dos, con numeraciones distintas que no se podían comparar, y durante una semana se actualizó el equivocado. Hay un test que falla si aparece un segundo.
+
 ---
 
 # Base del proyecto
@@ -81,6 +83,8 @@ El plano de la fase actual está en `docs/requerimientos-fase1.md`. Leelo antes 
 ## Decisión de canal para WhatsApp (16 de septiembre de 2026)
 
 **Camino principal: Evolution API.** El motivo es el modelo de seguimiento del negocio: los leads llegan por pauta y escriben primero, se califican, algunos llegan a una reunión, y después reciben seguimiento semanal o quincenal. Ese seguimiento cae fuera de la ventana de 24 horas de Meta, así que en la API oficial serían plantillas aprobadas con costo por mensaje y por lead.
+
+**El procedimiento está en `docs/contingencia-whatsapp.md`.** Esta sección describe el riesgo y la decisión; qué hacer el día que el canal se caiga, en cualquiera de sus formas, está ahí y no acá.
 
 **Plan B: API oficial de Meta vía Zernio.** Se activa si Meta bloquea el número. La verificación de negocio en Meta **no es requisito para arrancar**: un negocio sin verificar puede conectar un número y operar con un tope de 250 contactos únicos cada 24 horas, que para este negocio sobra. La migración son días, no semanas.
 

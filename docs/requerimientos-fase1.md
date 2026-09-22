@@ -1,243 +1,260 @@
-# Requerimientos — Sistema Operativo para Negocios de Servicios Digitales
-## Fase 1, Etapa 1
+# Requerimientos, Sistema Operativo para Negocios de Servicios Digitales
 
-**Versión:** 2 (WhatsApp por API oficial sobre número dedicado; once discrepancias corregidas)
-**Fecha:** 15 de septiembre de 2026
+## Etapa 1, Fase 1: Foundation, Canales y CRM. Bloques 1 a 4
 
----
+**Este es el único documento de requerimientos del proyecto.** Si aparece otro plano en `docs/`, en `Claude outputs/` o en cualquier otro lado, está superado por este y hay que borrarlo, no consultarlo. Las versiones anteriores las guarda git.
 
-> ## ⚠ Documento parcialmente reemplazado
->
-> **Las secciones de Bloques 2, 3 y 4 de este documento quedaron reemplazadas por
-> [`requerimientos-bloques-2-3-4.md`](requerimientos-bloques-2-3-4.md), del 16 de septiembre de
-> 2026.** Para esos tres bloques manda el documento nuevo. Lo que se lea acá sobre ellos está
-> desactualizado.
->
-> **Este archivo se conserva como el registro del Bloque 1**, que está construido, probado y
-> publicado en la rama `bloque-1-foundation`. Sus criterios de aceptación F1 a F6, el modelo de
-> datos del Bloque 1, y la regla de verificación del control positivo siguen siendo la referencia
-> de lo que se hizo y por qué.
->
-> **Qué cambió, en una línea:** WhatsApp dejó de ir por la API oficial de Meta y pasa a Evolution
-> API autoalojado, con Meta vía Zernio como plan B. Eso arrastra el historial de mensajes a la
-> base local, y reemplaza la ventana de 24 horas de WhatsApp por seis reglas de seguridad de
-> secuencia. El motivo y el detalle están en la sección 0 del documento nuevo, y la investigación
-> que lo respalda en [`investigacion-evolution-api.md`](investigacion-evolution-api.md).
->
-> **Cuidado con dos secciones de acá que ahora se leen distinto:** la Decisión 29 del documento de
-> alcance y el anexo de integración de WhatsApp siguen redactados como si la API oficial fuera el
-> camino principal. Hoy son el manual del plan B.
+**Versión:** 2.0, regenerada tras el cambio de canal de WhatsApp
+**Fecha:** 16 de septiembre de 2026
+**Revisión:** 17 de septiembre de 2026, migración desde Pipedrive y decisión de Calendly
+**Cliente:** negocio de servicios digitales (single-tenant)
+
+> Este documento cubre la Fase 1 completa, de los bloques 1 a 4, y reemplaza a los dos planos que convivían hasta el 21 de septiembre de 2026. El Bloque 1 está construido, probado y publicado, y se conserva acá especificado porque el plano tiene que describir la fase entera y no solo lo que falta. El registro de lo construido está en `docs/estado-fase1.md`, y las decisiones con su razonamiento en los documentos del proyecto.
 
 ---
 
-## 0. Registro de cambios respecto del BRD de clase
+## 0. Qué cambió respecto de la versión anterior
 
-### Cambio mayor: WhatsApp
+Tres cosas, y ninguna es cosmética.
 
-| Qué decía | Qué dice ahora | Por qué |
-| --- | --- | --- |
-| WhatsApp vía Evolution API (Baileys), servicio aparte en Railway, conexión por QR | **WhatsApp por API oficial de Meta vía Zernio, sobre un número nuevo dedicado** | El número disponible es personal de la dueña y la coexistencia apagaría la ubicación en tiempo real, que usa como protocolo de seguridad. Baileys arriesga un ban permanente del número. Ver el anexo de integración de WhatsApp |
+**WhatsApp ya no va por la API oficial de Meta.** Va por [Evolution API](https://github.com/EvolutionAPI/evolution-api) autoalojado en [Railway](https://railway.com). El motivo es el modelo de seguimiento del negocio: los leads llegan por pauta y escriben primero, se califican, algunos llegan a una reunión, y después reciben seguimiento semanal o quincenal. Ese seguimiento cae fuera de la ventana de 24 horas de Meta, así que en la API oficial serían plantillas aprobadas con costo por mensaje y por lead, todas las semanas. La API oficial vía [Zernio](https://zernio.com) queda como plan B, y se activa si Meta bloquea el número.
 
-Esto arrastra cambios en: arquitectura de hosting, variables de entorno, `integration_configs`, flujo de mensaje entrante, casos borde, stack, seguridad, README, y **dos funcionalidades nuevas** (plantillas y ventana de conversación).
+**El historial de mensajes pasa a vivir en la base local.** El fork solo guarda los mensajes que salen y lee los que entran desde la API del proveedor, cada vez. Eso se invierte: los entrantes se guardan, y la base pasa a ser la única fuente de verdad. Sin esto no hay migración posible al plan B, ni agente de IA, ni analíticas, ni búsqueda dentro de las conversaciones.
 
-### Otras once correcciones
+**La ventana de 24 horas deja de aplicar a WhatsApp.** Se conserva completa para Instagram, donde es una regla real de Meta. Para WhatsApp la reemplazan seis reglas de seguridad de secuencia, que protegen el número sin prohibir el trabajo. El modelo de ventana y plantillas no se borra: queda escrito y sin construir, para el plan B.
 
-| # | Discrepancia | Corrección |
-| --- | --- | --- |
-| 1 | "23 tablas" en el encabezado, pero la propia tabla 7.1 lista 24 filas | **24 tablas** en 16 migraciones |
-| 2 | "17 tipos de nodo" acá, 18 en el alcance de clase | **16 componentes de nodo** en el código. Ver nota en 13c |
-| 3 | La pantalla es `/settings/integrations` en 4.8 y F8, pero `/settings/channels` en la sección 10 | **`/settings/integrations`** en todos lados |
-| 4 | F9 pide `youtube_channel_id` y `linkedin_profile_url`; la tabla 7.2 los omite | Se agregan a 7.2 |
-| 5 | El README dice "migraciones 00001 a 00023", pero solo se definen hasta 00022 | **00001 a 00023**, con la nueva migración de WhatsApp |
-| 6 | La migración de `late_api_key_encrypted` y `ai_api_key` a Vault se difiere a Fase 2 | **Se hace en Fase 1, Bloque 1.** Esas columnas guardan las claves en texto plano pese al nombre |
-| 7 | F3 no tiene ningún criterio de aceptación para el scope de leads, pese a ser "restricción dura" | Se agregan criterios explícitos de scope, incluida la prueba por API |
-| 8 | Realtime está habilitado en `conversations` y `messages` sin mencionar su interacción con el scope de leads | Se agrega criterio: Realtime respeta RLS |
-| 9 | "No contactar" solo muestra advertencia al enviar | **Bloquea el envío de plantillas de WhatsApp.** Ver F18 |
-| 10 | No hay modelo de la ventana de conversación | Se agrega (F6c y campos en `conversations`) |
-| 11 | La URL del repo dice `github.com/zernio/zernflow` | **`github.com/zernio-dev/zernflow`** |
+Todo lo que sigue se apoya en `docs/investigacion-evolution-api.md`, que respondió cinco preguntas contra el código fuente de Evolution 2.3.7, citando archivo y línea.
+
+### Y qué cambió el 17 de septiembre
+
+El proyecto arrancó como ejercicio de curso con un cliente de ejemplo. El cliente real usa dos herramientas que este plano no contemplaba: **Pipedrive** como CRM actual, con contactos y tratos que hay que migrar, y **Calendly** para agendar reuniones, sin ninguna conexión con el CRM.
+
+Los dos exports se analizaron contra los datos reales, 526 personas y 517 tratos, y de ahí salieron tres cosas: **F38**, la migración desde Pipedrive, al final del Bloque 4; **diez columnas nuevas en `contacts`**, siete de estado comercial heredado y tres de estado de agenda; y la decisión de construir una **integración de solo lectura con Calendly en la Fase 2**, con una de sus definiciones tomada desde ahora porque condiciona cómo se arma el flujo. Todos los números que aparecen en esas secciones salen del análisis, no de estimaciones.
 
 ---
+
+
+### Y qué cambió el 21 de septiembre
+
+**Este documento pasó a ser el único plano del proyecto.** Hasta hoy convivían dos: `docs/requerimientos-fase1.md`, con las funcionalidades F1 a F20 de toda la Fase 1, congelado desde el 15 de septiembre; y `docs/requerimientos-bloques-2-3-4.md`, con F21 a F39, que era el que se venía actualizando. Los dos numeraban distinto, así que no se podían comparar, y nadie verificaba que el segundo contuviera todo lo que el primero diseñaba.
+
+El `CLAUDE.md` del repo apuntaba al primero. O sea que la instrucción de "leé el plano antes de construir" señalaba el documento que no se estaba actualizando. Eso explica cómo se separaron.
+
+**Lo que se hizo:** conciliar los dos en este archivo, que conserva el path `docs/requerimientos-fase1.md` porque es el que el `CLAUDE.md` ya nombra. El otro se borró en el mismo commit; git conserva su historia. Se trajo el Bloque 1 completo, que existía solo en el viejo, el modelo de ventana y plantillas, y la especificación del campo de atribución. La numeración F21 a F39 se conservó porque ya está citada en commits, tests y los otros documentos de `docs/`; renumerar habría invalidado todas esas referencias. La tabla de correspondencia de los números jubilados está en §16.
+
+**La regla que sale de esto, y vale para todo el proyecto:** un solo documento por artefacto, en un solo path, siempre el mismo. Las versiones las guarda git, no el nombre del archivo. Un `-v2` en el nombre es una copia manual de algo que el repo ya hace bien, y es el mecanismo por el cual se actualizó el equivocado.
+
+### La objeción a Evolution, y por qué ya no aplica
+
+El documento anterior argumentaba explícitamente **a favor** de la API oficial y **en contra** de Baileys, con dos motivos: que el número disponible era el personal de la dueña, y que la coexistencia apagaría la ubicación en tiempo real que ella usa como protocolo de seguridad.
+
+**Los dos motivos se resolvieron con un número nuevo y dedicado.** No hay coexistencia con la línea personal y no hay conflicto con la ubicación en tiempo real. Queda escrito acá para que la objeción no vuelva a leerse como si estuviera sin responder.
+
+El riesgo que sí se asumió —que WhatsApp bloquee el número— tiene su procedimiento en `docs/contingencia-whatsapp.md`, con tres escenarios, sus disparadores y las citas textuales de la documentación de Meta. Ese documento contiene un hallazgo que cambia el planteo y que hay que conocer antes de tomar cualquier decisión sobre este canal: **Meta sanciona al nivel de la cuenta y no del número**, así que conseguir otro número funciona hoy, cuando no existe ninguna WABA, y deja de funcionar el día que exista una.
 
 ## 1. Mapa de ruta de fases
 
-| Etapa | Fase | Duración estimada | Estado |
-| --- | --- | --- | --- |
-| **Etapa 1:** Sistema Operativo Base | **Fase 1: Foundation, Canales y CRM** | ~1 semana (4 bloques) | **← ACTUAL** |
-|  | Fase 2: Comunicación y Automatizaciones | ~1 semana (3-4 bloques) | Siguiente |
-|  | Fase 3: Agente IA, Analytics y Pulido | 3-5 días (2-3 bloques + testing integral) | Pendiente |
-| **Etapa 2:** Publicación + Email + Roles + Ads | Fases 1-3 | Por definir | Futura |
-| **Etapa 3:** Agente IA Integral + Fathom + MCP | Fases 1-3 | Por definir | Futura |
-| **Etapa 4 (opcional):** Agendamiento + Ventas + Pipeline | Fases 1-3 | Por definir | Futura |
+| Etapa | Fase | Contenido | Estado |
+|---|---|---|---|
+| Etapa 1 | Fase 1 | Foundation, canales y CRM | **Actual.** Bloque 1 cerrado |
+| Etapa 1 | Fase 2 | Comunicación y automatizaciones: secuencias, agente de respuesta, difusiones | Siguiente |
+| Etapa 1 | Fase 3 | Agente de IA, analíticas y pulido | Después |
+| Etapa 2 | | Publicación de contenido, email bidireccional, roles custom, Meta Ads | Propuesta aparte |
+| Etapa 3 | | Agente de IA integral, Fathom, conector MCP | Propuesta aparte |
+| Etapa 4 | | Agendamiento, ventas, pipeline comercial | Opcional |
 
-**Qué NO se construye ahora pero SÍ está contemplado en el diseño:**
+**Lo que no se construye ahora pero el diseño ya contempla:**
 
-- El modelo de datos incluye campos y relaciones preparados para: roles custom con permisos granulares (Etapa 2), email bidireccional (Etapa 2), publicación de contenido (Etapa 2), YouTube y LinkedIn (Etapa 2), agendamiento con Google Calendar (Etapa 4), ventas y pagos (Etapa 4), sistema de tareas (Extra A), form builder (Extra C).
-- `contacts` incluye `ai_conversation_summary` (memoria acumulativa del agente, Fase 3) y `next_followup_date` (seguimientos, base del agendamiento de Etapa 4).
-- `channels` abstrae la fuente de conexión para que el inbox unificado no dependa del mecanismo.
-- `integration_configs` es genérica y extensible: soporta canales, proveedores de IA, email y cualquier integración futura sin nuevas tablas.
-- **`whatsapp_templates` se crea en Fase 1 aunque las secuencias que la usan llegan en Fase 2.** Si el paso de secuencia guardara el texto como string libre, habría que rehacer el módulo.
-- El flow builder mantiene su arquitectura extensible para que módulos futuros registren triggers, acciones y condiciones.
+El motor de secuencias de la Fase 2 va a consumir las reglas de seguridad y el estado de conversación que se definen acá. El agente de IA de la Fase 3 va a leer el historial de mensajes que se empieza a guardar en el Bloque 3. Y el plan B de WhatsApp reutiliza el modelo de ventana y plantillas que queda escrito sin construirse, sin necesidad de rediseñarlo.
 
 ---
 
 ## 2. Objetivo de esta fase y mapa de bloques
 
-**Objetivo:** levantar el sistema desde el fork de ZernFlow, conectar los dos canales de mensajería de la Etapa 1 (Instagram y WhatsApp, ambos por API oficial vía Zernio), configurar el email saliente con Resend, y construir un CRM completo con modelo de contacto extendido, detección cross-canal, scope de leads, herramientas de gestión y audit log. Todo single-tenant.
+**Objetivo:** que un mensaje de un lead entre por Instagram o WhatsApp, cree o encuentre su contacto sin duplicarlo, quede guardado en la base del negocio, y sea gestionable desde una bandeja con las herramientas mínimas de CRM.
 
-**Por qué esta fase va primero:** sin infraestructura base, canales conectados y un CRM funcional, no hay sobre qué construir automatizaciones (Fase 2) ni agente de IA (Fase 3).
+**Qué problema resuelve.** Hoy los mensajes de los leads viven repartidos entre dos aplicaciones distintas, nadie sabe quién atiende a quién, y los que no agendan no reciben seguimiento porque no hay sistema que lo recuerde. Esta fase construye el lugar donde esa información existe.
 
-**Dependencia externa de calendario:** la conexión de WhatsApp requiere un número dedicado que está en trámite, más la aprobación del nombre para mostrar por parte de Meta. **El desarrollo del canal no espera:** se construye y se prueba contra Instagram, y la conexión se ejecuta cuando el número esté disponible. Ver el anexo de integración de WhatsApp.
+**Por qué va en este orden.** El Bloque 2 deja la cañería: sin un receptor de mensajes autenticado no hay nada que guardar. El Bloque 3 construye el camino de entrada completo, que es donde vive el riesgo real del proyecto. El Bloque 4 es la capa de uso diario, que solo tiene sentido cuando hay datos que mostrar.
 
 ### Bloques de ejecución
 
 | Bloque | Día | Qué se construye | Contexto compartido |
-| --- | --- | --- | --- |
-| Bloque 1: Fork, deploy y foundation | 1 | Fork de ZernFlow, deploy en Railway, Supabase Vault y **migración de las claves en texto plano**, verificación de roles/workspaces, **scope de leads por RLS**, conexión de Instagram y adaptador de WhatsApp (ambos Zernio) | `workspaces`, `workspace_members`, `channels`, `contacts`, `contact_channels`. Vault. Config de Railway |
-| Bloque 2: Email, configuración de integraciones y BYOK IA | 2 | Resend, pantalla `/settings/integrations`, BYOK IA | `channels`, `integration_configs` (nueva). Vault |
-| Bloque 3: Modelo de contacto y CRM | 3-4 | Extensión del contacto (atribución como JSONB), setter/vendedor, detección cross-canal, notas, ficha, soft delete | `contacts` (extendida), `contact_notes`, `audit_log` (nuevas) |
-| Bloque 4: Bandeja, filtros, herramientas CRM y **ventana de conversación** | 4-5 | Filtros de inbox, templates de respuesta, "no contactar", importación CSV, audit log, **estado de ventana en la bandeja**, **plantillas de WhatsApp** | `response_templates`, `csv_imports`, `whatsapp_templates` (nuevas), `conversations` (extendida) |
-| Testing de fase | 5 (medio día) | Testing funcional, correcciones, colchón | — |
+|---|---|---|---|
+| Bloque 1: Fork, despliegue y base | **Construido** | Fork y despliegue, migraciones 00017 a 00021, Supabase Vault, scope de leads por RLS, canal de Instagram | `workspaces`, `workspace_members`, `channels`, Vault |
+| Bloque 2: Infraestructura de canal, email e integraciones | 1 a 2 | Despliegue de Evolution, receptor de webhook autenticado, email por Resend, pantalla de integraciones y BYOK de IA | `integration_configs`, Vault, Railway, `/settings/integrations` |
+| Bloque 3: Modelo de contacto, ingesta y CRM | 3 a 4 | Modelo de contacto, identidad de canal, guardado de mensajes, adjuntos, deduplicación cross-canal, notas, ficha, borrado suave, registro de auditoría | `contacts`, `contact_channels`, `messages`, `conversations`, Supabase Storage |
+| Bloque 4: Bandeja, herramientas y reglas de seguridad | 5 a 6 | Bandeja, filtros, respuestas rápidas, no contactar, reglas de seguridad de secuencia, importación CSV, migración desde Pipedrive, estado de sesión | Bandeja, `response_templates`, `channels` |
+| Testing de fase | 7 | Testing completo, correcciones y colchón | |
 
-Cada bloque es una unidad autocontenida que se ejecuta como un solo prompt (o serie de prompts) a Claude Code.
+**Nota sobre el tamaño del Bloque 3.** Es el más cargado de los tres. En el Bloque 1 aprendimos que un bloque demasiado grande obliga a partirlo a mitad de camino, con la memoria de la sesión ya gastada justo en el paso más delicado. Conviene planificar el Bloque 3 partido desde el principio: una sesión para el modelo de contacto y la identidad de canal, otra para la ingesta, los adjuntos y la deduplicación.
+
+**Nota sobre el número de WhatsApp.** Al momento de escribir esto el número dedicado sigue en trámite. El plano está escrito para que el despliegue de Evolution y toda la ingesta se construyan y se prueben sin el número, con mensajes de prueba. La conexión del canal en vivo es un paso aparte, con su propio checklist, que se ejecuta cuando el número llegue.
 
 ---
 
 ## 3. Usuarios y roles
 
+Construidos y verificados en el Bloque 1. Se documentan acá porque las funcionalidades nuevas los usan.
+
 | Rol | Descripción | Puede hacer | No puede hacer |
-| --- | --- | --- | --- |
-| Owner | Dueño del workspace. Se asigna al primer usuario que se registra | Todo: workspace, canales, equipo, contactos, conversaciones, configuración, eliminar workspace | — |
-| Admin | Administrador con permisos amplios | Todo excepto eliminar el workspace | Eliminar workspace |
-| Member | Operador del equipo (setter/closer) | Ver y responder **solo sus** conversaciones y gestionar **solo sus** contactos asignados (donde figura como setter, vendedor o agente), usar templates, importar CSV | Ver leads de otros, configurar canales, invitar o remover miembros, cambiar configuración del workspace, acceder a IA/Vault |
+|---|---|---|---|
+| Owner | Dueño del negocio | Todo | |
+| Admin | Encargado o socio | Todo lo operativo, configuración, integraciones, invitar, revocar y cambiar roles | Remover miembros, tocar el rol de un Owner, ascender a alguien a Owner |
+| Member | Setter o vendedor | Ver y editar solo los contactos y conversaciones donde figura como setter, vendedor o agente asignado | Entrar a configuración, integraciones o equipo, y ver cualquier lead ajeno |
 
-**Rol por defecto del primer usuario:** Owner, con el workspace creado automáticamente al registrarse.
+**Rol por defecto del primer usuario:** el primero que se registra queda como Owner de su propio espacio de trabajo, por un mecanismo automático que ya trae el proyecto base.
 
-**Invitaciones:** el Owner o Admin invita desde `/settings/team`. ZernFlow ya trae `workspace_invites` con expiración de 7 días. El invitado recibe un email por Resend con un link. Al aceptar se le asigna Member por defecto.
+**Cómo se suman usuarios nuevos:** por invitación desde la pantalla de equipo. Hoy el link de invitación se copia a mano; con el envío de correo del Bloque 2 pasa a llegar por email.
 
-**Scope de leads (restricción dura por RLS):** un Member solo lee y edita los contactos y conversaciones donde es `setter_id`, `vendedor_id` o `assigned_to`. Se aplica en la base, no solo en la interfaz. Owner y Admin ven todo. Configurable por workspace: si un lead está sin asignar, el workspace decide si lo ven todos los Members o solo Owner y Admin (por defecto, solo Owner y Admin).
-
-**Single-tenant:** el sistema opera con un solo workspace. La infraestructura de workspaces de ZernFlow se conserva intacta, así que la puerta a multi-negocio queda abierta sin costo, pero no se construye gestión multi-workspace.
-
-**Nota para Etapa 2:** los roles se van a poder crear y personalizar con permisos granulares por módulo. `workspace_members.role` migrará a un modelo más flexible.
+**Cómo se aplica el alcance por rol.** Un Member solo ve sus leads, y eso se hace cumplir en la base de datos, no con un filtro en la pantalla. En simple: aunque alguien consulte los datos por fuera de la interfaz, la base le devuelve solo lo suyo. Está construido y verificado con 24 comprobaciones automáticas.
 
 ---
 
 ## 4. Alcance específico de esta fase
 
-### 4.1. Fork y deploy de ZernFlow
+### 4.1 Despliegue de Evolution API
+
+**Qué hace:** deja corriendo en Railway el servicio que va a manejar WhatsApp, con su base de datos propia, configurado de forma segura y con la versión fijada.
+
+**Hasta dónde llega:** el servicio desplegado y accesible desde la aplicación, con una instancia creada y sin número vinculado, y con el aviso de mensajes nuevos apuntando a nuestro receptor.
+
+**Qué NO hace en esta fase:** no vincula el número, no escanea ningún código QR, no manda ni recibe mensajes reales.
+
+**Dónde va lo que queda afuera:** la conexión del número es un checklist operativo, ejecutable en cualquier momento después del Bloque 2, cuando el número esté disponible.
+
+### 4.2 Receptor de mensajes entrantes de WhatsApp
+
+**Qué hace:** recibe los avisos que manda Evolution cada vez que llega un mensaje, comprueba que vengan de nuestra instancia y no de un impostor, contesta rápido y deja el trabajo pesado para después.
+
+**Hasta dónde llega:** autenticación, control de duplicados, acuse inmediato y encolado.
+
+**Qué NO hace en esta fase:** no interpreta el contenido del mensaje ni toca los contactos.
+
+**Dónde va lo que queda afuera:** el procesamiento del contenido es del Bloque 3.
+
+### 4.3 Email saliente
+
+**Qué hace:** manda los correos que el sistema necesita enviar, empezando por las invitaciones de equipo, usando [Resend](https://resend.com).
+
+**Hasta dónde llega:** correos transaccionales, es decir, los que salen como consecuencia de una acción puntual.
+
+**Qué NO hace en esta fase:** no manda secuencias ni campañas.
+
+**Dónde va lo que queda afuera:** Fase 2.
+
+### 4.4 Pantalla de configuración de integraciones y claves de IA
+
+**Qué hace:** un solo lugar donde se conectan todos los servicios externos: los canales de mensajería, el correo, y los proveedores de inteligencia artificial.
+
+**Hasta dónde llega:** guardar las claves de forma segura, mostrar el estado de cada conexión, y permitir conectar y desconectar.
+
+**Qué NO hace en esta fase:** no configura TikTok, YouTube ni LinkedIn.
+
+**Dónde va lo que queda afuera:** Etapa 2. La estructura queda preparada para que agregarlos sea cargar un registro, no cambiar la base de datos.
+
+### 4.5 Modelo de contacto extendido
+
+**Qué hace:** agrega al contacto todos los datos que el negocio necesita: teléfono, país, redes, temperatura del lead, fecha del próximo seguimiento, atribución de dónde vino.
+
+**Hasta dónde llega:** los campos, su normalización y sus índices.
+
+**Qué cambia respecto del plano anterior:** el teléfono deja de ser obligatorio. WhatsApp está migrando a un esquema donde el identificador del contacto puede no contener el número, y si el modelo lo exige, esos leads se pierden o entran con datos inventados.
+
+### 4.6 Identidad de canal y reconciliación de teléfonos
+
+**Qué hace:** guarda cómo llegó cada contacto por cada canal, y resuelve después el teléfono de los que entraron sin él.
+
+**Hasta dónde llega:** la marca visible, las tres vías de reconciliación y la fusión con confirmación humana.
+
+**Qué NO hace en esta fase:** no fusiona contactos automáticamente. La fusión siempre la confirma una persona, porque deshacerla es caro.
+
+### 4.7 Guardado de mensajes entrantes
+
+**Qué hace:** cada mensaje que llega queda guardado en la base del negocio, con su archivo adjunto descargado.
+
+**Hasta dónde llega:** guardar lo que entra de ahora en más.
+
+**Qué NO hace en esta fase:** no importa el historial previo del número, porque el número es nuevo y no tiene historial.
+
+**Dónde va lo que queda afuera:** la capacidad de importar historial queda diseñada para poder usarse más adelante, si alguna vez se conecta un número con conversaciones anteriores.
+
+> **Regla dura: el número no se vincula hasta que F27 esté construido y probado.**
+>
+> No es una recomendación ni una preferencia de orden. El receptor del Bloque 2 autentica el aviso, controla que no esté repetido, responde el acuse y **descarta el contenido**, porque guardarlo es justamente lo que construye F27. Si el número se vincula antes, cada mensaje real que llegue se pierde: el receptor responde que todo salió bien, Evolution da la entrega por exitosa y no reintenta, no se registra ningún error y no se dispara ninguna alerta. El único síntoma serían conversaciones con leads que nunca existieron, descubiertas semanas después.
+>
+> Queda escrito con el motivo porque dentro de tres semanas, con el número ya en la mano, "probemos que ande" va a sonar razonable. La prueba de que el canal anda se hace con avisos de prueba firmados, que es exactamente lo que verifica el Bloque 2, y no necesita un número real.
+
+### 4.8 Reglas de seguridad de secuencia
+
+**Qué hace:** deja configuradas y aplicadas por el sistema las seis reglas que protegen el número de WhatsApp de un bloqueo.
+
+**Hasta dónde llega:** la configuración y los mecanismos que la hacen cumplir.
+
+**Qué NO hace en esta fase:** no construye las secuencias en sí.
+
+**Dónde va lo que queda afuera:** el motor de secuencias es Fase 2. Acá se construyen las barandas que ese motor va a respetar.
+
+### 4.9 Ventana de conversación
+
+**Instagram:** se construye completa. 24 horas desde el último mensaje del lead, con la excepción de la respuesta privada a un comentario, que llega hasta 7 días y una sola vez por comentario.
+
+**WhatsApp:** no aplica en el camino principal. El modelo queda escrito para el plan B.
+
+### 4.10 Estado de sesión del canal
+
+**Qué hace:** muestra si WhatsApp está realmente conectado, y permite volver a vincularlo.
+
+**Por qué existe:** cuando la sesión se cae, la bandeja deja de recibir mensajes y no hay ningún síntoma. Se ve exactamente igual que un día tranquilo.
+
+### 4.11 Herramientas de CRM en la bandeja
+
+**Qué hace:** filtros, respuestas rápidas reutilizables, marca de "no contactar" e importación de contactos desde una planilla.
+
+**Qué NO hace en esta fase:** no incluye respuestas automáticas ni agente de IA.
+
+**Dónde va lo que queda afuera:** Fases 2 y 3.
+
+---
+
+
+### 4.12 Base ya construida en el Bloque 1
+
+Este tramo no es alcance por construir: es lo que ya está hecho y no hay que reconstruir. Se conserva acá porque hasta hoy vivía solo en el documento viejo, y sin él el plano no describe la fase completa.
+
+#### 4.12.1 Fork y deploy de ZernFlow
 
 - **Qué hace**: forkear el repositorio, ejecutar las 16 migraciones SQL en un proyecto de Supabase, desplegar en Railway y verificar que todo funcione.
 - **Hasta dónde llega**: app corriendo en Railway con HTTPS, base de datos con las **24 tablas** existentes, autenticación funcional, pantallas cargando.
 - **Qué NO hace**: no se modifican las pantallas existentes (eso es de los bloques siguientes). No hay optimizaciones de performance.
 
-### 4.2. Supabase Vault y migración de claves en texto plano
+#### 4.12.2 Supabase Vault y migración de claves en texto plano
 
 - **Qué hace**: habilitar la extensión Vault para almacenar API keys con AES-256, crear las funciones helper, **y migrar las claves que el fork guarda en texto plano**.
 - **Hasta dónde llega**: Vault funcional con `store_secret`, `read_secret` y `delete_secret`. Acceso restringido por RLS. Las columnas `workspaces.late_api_key_encrypted` y `workspaces.ai_api_key` vaciadas y eliminadas, con sus valores movidos a Vault y todas las lecturas del código apuntando a Vault.
 - **Por qué es Fase 1 y no Fase 2**: la columna se llama `late_api_key_encrypted` pero el valor **no está encriptado**: el código la lee y la pasa directo al cliente de la API, sin desencriptar. Dejarla así mientras el sistema opera con datos reales es una exposición innecesaria.
 - **Qué NO hace**: no hay rotación automática de keys (es manual desde la UI).
 
-### 4.3. Roles, workspaces y scope de leads
+#### 4.12.3 Roles, workspaces y scope de leads
 
 - **Qué hace**: verificar que roles y workspaces de ZernFlow funcionan. **Agregar el scope duro de leads por RLS**: un Member solo ve y edita los contactos y conversaciones donde es setter, vendedor o agente asignado.
 - **Hasta dónde llega**: roles funcionales, workspace creado al registrarse, invitaciones con expiración de 7 días, RLS de scope aplicada en `contacts` y `conversations`, **y respetada también por las suscripciones de Realtime**.
 - **Qué NO hace**: no se crean roles custom configurables ni gestión multi-workspace.
 
-### 4.4. Instagram vía Zernio
+#### 4.12.4 Instagram vía Zernio
 
 - **Qué hace**: verificar y asegurar que la integración existente con Zernio funciona: DMs, comentarios y story replies. Usa la 1ª de las 2 cuentas gratuitas de Zernio.
 - **Hasta dónde llega**: mensajes entrantes y salientes funcionando, vinculados al contacto y la conversación correctos.
 - **Qué NO hace**: no detecta nuevos seguidores (limitación de la API de Instagram). No implementa lógica proactiva de ventana más allá de mostrar el estado (ver 4.6c).
 
-### 4.5. TikTok — fuera de la Etapa 1
 
-- TikTok **no** se conecta como canal de bandeja. Zernio no entrega sus DMs ni comentarios por webhook, y la API de mensajes de TikTok, aunque existe, no permite que el negocio inicie conversaciones: no hay comment-to-DM ni secuencias posibles.
-- **Dónde va**: Etapa 2, como canal de **publicación de contenido y métricas**.
-- **Nota de cuentas de Zernio:** con WhatsApp ocupando la 2ª cuenta gratuita, **TikTok pasa a ser la 3ª cuenta, a $6/mes** desde la Etapa 2. Es un cambio respecto del BRD de clase, que reservaba la 2ª para TikTok.
+### 4.12b Modelo de ventana y plantillas de WhatsApp, escrito y sin construir
 
-### 4.6. WhatsApp por API oficial vía Zernio
+**Qué es:** el modelo que hace ejecutable el plan B. No se construye en esta fase, porque con Evolution no hay ventana ni plantillas. Se conserva especificado para que migrar sea configurar y no rediseñar.
 
-- **Qué hace**: conectar WhatsApp usando la API oficial de Meta a través de Zernio, sobre un **número nuevo dedicado al negocio**. Usa la 2ª de las 2 cuentas gratuitas de Zernio.
-- **Hasta dónde llega**: número dado de alta y verificado, mensajes entrantes recibidos por webhook, respuestas enviadas desde la bandeja dentro de la ventana de 24 horas, estado de conexión visible.
-- **Qué NO hace**: no usa Baileys ni Evolution API. No implementa difusiones. No envía plantillas de forma automatizada (eso es Fase 2, con las secuencias); en Fase 1 solo se modelan y se sincroniza su estado.
-- **Requisito del número, y es bloqueante si se hace mal**: [Cierta] el número debe poder recibir un SMS o llamada para la verificación, y **no debe tener ninguna cuenta de WhatsApp registrada**. Un número libre se registra directo; uno que ya tiene WhatsApp hay que darlo de baja primero. **No instalar WhatsApp ni WhatsApp Business en el número nuevo.**
-- **Por qué no se usa el número existente del negocio**: conectarlo con coexistencia apagaría la ubicación en tiempo real en chats individuales, que la dueña usa como protocolo de seguridad personal. Ver el anexo de integración.
+**Por qué no se borra:** todo el riesgo aceptado al elegir Evolution descansa en que el plan B sea ejecutable. Un plan B sin modelo de datos no es un plan. Y hay una parte que **no se puede postergar**: ver la decisión transversal sobre plantillas en §14, porque si el paso de secuencia de la Fase 2 guarda el cuerpo del mensaje como texto libre, migrar obliga a reescribir el motor de secuencias en vez de agregar una tabla.
 
-### 4.6b. Plantillas de WhatsApp (nuevo)
-
-- **Qué hace**: modelar las plantillas de mensaje de Meta como entidad del sistema: alta, categoría, idioma, estado de aprobación, versión, motivo de rechazo y calificación de calidad.
-- **Hasta dónde llega**: tabla `whatsapp_templates`, pantalla de gestión con listado y estado, sincronización del estado desde Zernio. Los pasos de secuencia de la Fase 2 **referencian una plantilla, nunca guardan el texto**.
-- **Por qué se construye en Fase 1 aunque se use en Fase 2**: una plantilla tiene ciclo de vida propio, y Meta tarda de 24 a 48 horas en aprobar cada una. Si el modelo llega tarde, hay que rehacer el módulo de secuencias y además se pierde el tiempo de aprobación.
-- **Qué NO hace**: no crea plantillas desde el sistema si Zernio no expone esa API (a confirmar). En ese caso la creación es manual desde Meta Business Manager y el sistema solo refleja el estado.
-
-### 4.6c. Ventana de conversación (nuevo)
-
-- **Qué hace**: calcular y mostrar si la ventana de mensajería de cada conversación está abierta, y cuánto le queda.
-- **Hasta dónde llega**: campo derivado en la conversación, badge en la bandeja, y comportamiento del campo de respuesta según el estado.
-- **Por qué es necesario en Fase 1**: sin esto, un operador escribe una respuesta, la envía, y falla sin entender por qué. Es el error más común al operar cualquier canal de Meta.
-
-**Reglas por canal:**
-
-| Canal | Ventana | Fuera de la ventana |
-| --- | --- | --- |
-| Instagram | 24 horas desde el último mensaje entrante | No se puede enviar. Excepción: respuesta privada a un comentario, hasta 7 días, una sola vez por comentario |
-| WhatsApp | 24 horas desde el último mensaje entrante. 72 horas si el contacto llegó por un anuncio click-to-WhatsApp | Solo plantillas aprobadas, con costo |
-
-### 4.7. Email saliente vía Resend
-
-- **Qué hace**: conectar Resend para emails transaccionales (invitaciones, notificaciones) y, en Fase 2, marketing.
-- **Hasta dónde llega**: API key en Vault, emails de invitación funcionales, infraestructura lista para Fase 2.
-- **Qué NO hace**: no recibe emails (bidireccional es Etapa 2).
-
-### 4.8. Pantalla de configuración de integraciones
-
-- **Qué hace**: UI unificada en **`/settings/integrations`** para conectar canales, email y proveedores de IA (BYOK). Usa `integration_configs`.
-- **Hasta dónde llega**: pantalla funcional con estado por integración, acciones de conectar y desconectar, sección de IA, y estructura extensible.
-- **Qué NO hace**: no incluye test automático de conexión para todas las integraciones. No incluye YouTube ni LinkedIn (Etapa 2).
-
-### 4.9. Modelo de contacto extendido
-
-- **Qué hace**: extender `contacts` (que solo tiene `display_name`, `email`, `avatar_url`, `is_subscribed`, `metadata`) con teléfono, redes sociales, país, setter, vendedor, atribución, seguimiento, resumen de IA y flag de no contactar.
-- **Qué NO hace**: no implementa merge automático de duplicados (solo detección y alerta).
-
-### 4.10. Detección cross-canal
-
-- **Qué hace**: al llegar un mensaje de un canal nuevo, detectar si el contacto ya existe (por teléfono, email o handle) y vincularlo. Cada conversación queda separada por canal.
-- **Hasta dónde llega**: vinculación automática con match exacto de teléfono o email, sugerencia manual con match solo por username.
-- **Qué NO hace**: no hace merge destructivo de dos contactos.
-
-### 4.11. Soft delete
-
-- **Qué hace**: borrado lógico con retención de 30 días para contactos, notas, conversaciones y templates. Purga por cron.
-- **Qué NO hace**: no hay UI de papelera.
-
-### 4.12. Filtros de inbox
-
-- **Qué hace**: filtrar por tags, asignación, canal, fecha de último mensaje **y estado de ventana**.
-- **Qué NO hace**: no hay filtros guardados ni vistas personalizadas.
-
-### 4.13. Templates de respuesta rápida
-
-- **Qué hace**: respuestas predefinidas con variables interpolables, para usar dentro de la ventana.
-- **Nota:** son distintos de las plantillas de WhatsApp (4.6b). Los templates de respuesta son texto libre interno; las plantillas de WhatsApp son un recurso aprobado por Meta para escribir fuera de la ventana. **Nombrarlos distinto en la UI para que nadie los confunda.**
-
-### 4.14. Marca "no contactar"
-
-- **Qué hace**: detectar frases de opt-out y marcar al contacto. También marcado manual.
-- **Hasta dónde llega**: detección automática, badge visible, pausa de secuencias activas, reversión por un admin.
-- **Cambio respecto del BRD de clase**: al intentar enviar, **para texto libre dentro de la ventana muestra advertencia con confirmación; para plantillas de WhatsApp bloquea el envío**. Enviar plantillas a alguien que pidió no ser contactado es la vía rápida a que Meta baje la calificación de calidad del número y con ella el límite de mensajería.
-
-### 4.15. Importación CSV
-
-- **Qué hace**: importación masiva con mapeo de columnas, validación y deduplicación.
-- **Qué NO hace**: no implementa exportación.
-
-### 4.16. Audit log global
-
-- **Qué hace**: registrar todo cambio significativo: entidad, campos, valores anterior y nuevo, autor, momento.
-- **Qué NO hace**: no hay UI de exploración del audit log.
-
----
+**Dónde está la especificación:** §5, apéndice del plan B, al final de las funcionalidades.
 
 ## 5. Funcionalidades y criterios de aceptación
 
@@ -320,31 +337,491 @@ Cada bloque es una unidad autocontenida que se ejecuta como un solo prompt (o se
 
 TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comentarios por webhook, y la API de mensajes de TikTok no permite que el negocio inicie conversaciones. No hay criterios de aceptación de TikTok en esta fase. Entra en Etapa 2 como canal de publicación, usando la **3ª cuenta de Zernio ($6/mes)**, porque la 2ª la ocupa WhatsApp.
 
-#### F6: WhatsApp por API oficial vía Zernio
+### Bloque 2: Infraestructura de canal, email e integraciones
 
-**Descripción**: conectar WhatsApp por la API oficial de Meta a través de Zernio, sobre el número dedicado.
+#### F21: Despliegue de Evolution API en Railway
 
-**Criterios de aceptación de construcción** (no dependen del número, se pueden cumplir ya):
+**Descripción:** dejar corriendo el servicio de WhatsApp, configurado de forma segura, sin vincular todavía ningún número.
 
-- [ ] El adaptador de WhatsApp usa el mismo contrato de canal que Instagram, sin condicionales por plataforma en el camino de entrada
-- [ ] La plataforma `whatsapp` ya está habilitada en el CHECK constraint de `channels` desde la migración 16: **no hace falta migración nueva para esto**
-- [ ] `integration_configs` soporta un registro `type='channel', provider='whatsapp_zernio'`
-- [ ] El webhook entrante de Zernio procesa mensajes de WhatsApp con la misma ruta que los de Instagram
-- [ ] La idempotencia por `webhook_events` funciona igual para los dos canales
+**Estado: pendiente.** Los dos servicios están creados en Railway pero el de Evolution todavía no se desplegó. El procedimiento reproducible, con las variables verificadas contra el archivo de ejemplo de la versión 2.3.7, está en `docs/despliegue-evolution.md`.
 
-**Criterios de aceptación de conexión** (se verifican el día que llegue el número):
+**Criterios de aceptación:**
 
-- [ ] El número no tiene ninguna cuenta de WhatsApp registrada antes del alta
-- [ ] El número está dado de alta en la cuenta de WhatsApp Business (WABA) y la propiedad está verificada
-- [ ] El PIN de verificación en dos pasos de 6 dígitos está configurado y guardado en un lugar seguro
-- [ ] El nombre para mostrar está aprobado por Meta
-- [ ] Desde la UI se puede conectar el canal con la API key de Zernio
-- [ ] Los mensajes entrantes se reciben por webhook y se almacenan en `messages`
-- [ ] Se pueden enviar respuestas de texto libre desde la bandeja **cuando la ventana está abierta**
-- [ ] El contacto se busca y se vincula por teléfono normalizado a E.164
-- [ ] El estado de la conexión es visible en `/settings/integrations`
+- [ ] Servicio desplegado con la imagen fijada en `evoapicloud/evolution-api:v2.3.7`, nunca en `latest`. El tag `latest` apunta hoy a una versión cuyo identificador no coincide con ninguna publicación oficial etiquetada
+- [ ] Dos servicios, no tres: Evolution y su PostgreSQL. Se configura `CACHE_LOCAL_ENABLED=true` y `CACHE_REDIS_ENABLED=false`. Redis es solo caché de rendimiento y no hace falta
+- [ ] `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false`. Con el valor por defecto, Evolution incluye la clave de acceso de la instancia dentro de cada aviso que manda, y esa clave permite enviar mensajes y borrar la instancia
+- [ ] `WEBHOOK_GLOBAL_ENABLED=false`. El aviso global no manda datos de autenticación, así que no se puede verificar
+- [ ] La clave de la instancia y el secreto de los avisos se guardan en Supabase Vault, nunca en variables de entorno de la aplicación
+- [ ] Instancia creada con sincronización de historial activada y grupos ignorados
+- [ ] Aviso de mensajes configurado por instancia, incluyendo el dato de autenticación
+- [ ] El archivo `.env.example` documenta cada variable nueva, con qué es y dónde se consigue
+- [ ] La documentación de despliegue queda en `docs/despliegue-evolution.md`, con pasos reproducibles
 
-**Lo que ya no aplica** (era propio de Baileys): flujo de QR, servicio de Evolution API en Railway, detección de desconexión con reconexión manual, pérdida de mensajes durante una caída. Con API oficial no hay sesión que se caiga.
+#### F22: Receptor de mensajes entrantes, autenticado
+
+**Descripción:** la puerta por donde entran los mensajes de WhatsApp al sistema.
+
+**Estado: construido y probado** (16 y 17 de septiembre de 2026). 28 tests.
+
+**Criterios de aceptación:**
+
+- [x] Ruta nueva en `app/api/webhooks/evolution/`
+- [x] Verificación del dato de autenticación que manda Evolution, fijando el algoritmo esperado y usando el secreto guardado en Vault. Sin autenticación válida, se rechaza
+- [x] Procedimiento de cambio de secreto documentado y soportado: durante el cambio se aceptan el secreto viejo y el nuevo. Un rechazo de autenticación cancela los reintentos de Evolution y el mensaje se pierde para siempre, así que un cambio mal hecho pierde mensajes en silencio
+- [x] Alerta ante cualquier rechazo, con lo que significa cada una escrito en la pantalla: en el rechazo de autenticación, cada ocurrencia es un mensaje de un lead que se perdió; en la instancia desconocida todavía no se perdió ninguno, y lo que se muestra es el plazo que queda para corregir
+- [x] Nunca se registra en los logs el contenido completo del aviso, porque incluye credenciales
+- [x] Control de duplicados reusando el registro de eventos que ya existe
+- [x] Responde con acuse inmediato antes de procesar. El mecanismo de reintentos de Evolution queda bloqueado mientras espera
+- [x] Tests: autenticación válida, inválida, ausente, vencida, con algoritmo distinto, y evento repetido
+
+**Criterios que salieron de la revisión del 17 de septiembre**, y que no estaban en la versión original de esta funcionalidad:
+
+- [x] Un aviso para una instancia que no conocemos responde **servicio no disponible**, no un rechazo definitivo. La diferencia son los mensajes de una ventana de unos veinte minutos de reintentos, que es el tiempo que hay para corregir el nombre. El rechazo de autenticación **sí** sigue siendo definitivo, y a propósito: darle reintentos a algo indistinguible de una falsificación sería regalarle diez entregas por evento a quien esté probando
+- [x] La condición de instancia desconocida **no se cierra sola**, solo a mano. El motivo está en 7.2 y no es una omisión
+- [x] Esa condición no se actualiza más de una vez por minuto, porque se alcanza antes de autenticar y cualquiera puede provocar la escritura
+- [x] El nombre de instancia se acota al guardarlo y se muestra delimitado: lo elige quien manda el aviso y termina en el dashboard
+- [x] Las alertas sin espacio de trabajo no son legibles por la vía normal de permisos. Las muestra la pantalla comprobando el rol en el servidor
+- [x] La versión de Evolution que el código espera vive en el repositorio, y hay una comprobación automática que falla si lo desplegado no coincide. Reemplaza al procedimiento escrito que dependía de que alguien leyera un documento antes de cambiar una versión
+
+#### F23: Email saliente vía Resend
+
+**Descripción:** correo transaccional para invitaciones y notificaciones del sistema.
+
+**Criterios de aceptación:**
+
+- [ ] La clave de Resend se guarda en Vault desde `/settings/integrations`
+- [ ] Se envían las invitaciones de equipo y las notificaciones del sistema
+- [ ] El remitente es el dominio verificado por el negocio en Resend
+- [ ] Si falla un envío, se registra el error y se reintenta hasta 3 veces
+- [ ] Los correos enviados quedan registrados para poder consultarlos
+- [ ] Cierra una deuda del Bloque 1: la invitación deja de depender de copiar un link a mano
+
+#### F24: Pantalla de integraciones y claves de IA
+
+**Descripción:** el lugar donde se conectan todos los servicios externos.
+
+**Criterios de aceptación:**
+
+- [ ] Pantalla en `/settings/integrations`, solo para Owner y Admin, con el control de rol hecho en el servidor
+- [ ] Sección de canales de mensajería, con Instagram vía Zernio, WhatsApp vía Evolution con su estado de sesión, y Facebook y X como opcionales
+- [ ] Sección de correo, con Resend y su dominio verificado
+- [ ] Sección de proveedores de IA, con OpenAI, Anthropic y Google, cada uno con su clave y su modelo por defecto
+- [ ] Todas las claves van a Vault. Ninguna viaja al navegador: la pantalla muestra "configurada" o "sin configurar" según exista el secreto, nunca su valor
+- [ ] Cada integración es un registro con su tipo. Agregar una nueva en la Etapa 2 no requiere cambiar la base de datos
+- [ ] Al guardar una clave se valida el formato, con largo mínimo y prefijo esperado donde corresponda
+- [ ] **Estado del registro del webhook de Zernio, visible en la sección de canales:** si está registrado, contra qué URL, y cuándo se verificó por última vez. Se lee de `GET /v1/webhooks/settings`, que ya devuelve todo eso
+- [ ] Ese estado nunca muestra el secreto de firma, que esa misma respuesta trae en texto plano. A lo sumo longitud y últimos cuatro caracteres, igual que el resto de las claves
+
+> **De dónde sale este criterio, y por qué el arreglo es mostrar y no hacer explotar.**
+>
+> `ensureWebhookRegistered` corre dentro de un `try/catch` que solo escribe en la consola, en los dos lugares que lo llaman: `app/api/v1/channels/sync/route.ts:141` y `app/api/v1/channels/test-key/route.ts:74`. Los dos comentarios dicen "best-effort: a failure must not block". Verificado leyendo el código, no supuesto.
+>
+> Esa decisión es correcta y **no hay que revertirla**: que falle el registro del webhook no tiene por qué impedir guardar la clave ni sincronizar los canales. Hacer que el `try/catch` explote cambiaría una falla silenciosa por una pantalla rota, que es peor.
+>
+> El problema no es que no falle: es que **la pantalla informa que el canal se sincronizó bien mientras el webhook puede no haber quedado registrado**. A partir de ahí la bandeja deja de recibir y el síntoma es, otra vez, el mismo que el de un día tranquilo. El estado real existe y es consultable; simplemente no se muestra en ningún lado.
+>
+> Por eso el arreglo es mostrarlo. Es el tercer caso de la regla de la sección 14, el de la vigilancia por ausencia, y es el único de los tres que se corrige sin construir ningún mecanismo nuevo: el dato ya está, falta la pantalla.
+
+---
+
+### Bloque 3: Modelo de contacto, ingesta y CRM
+
+#### F25: Modelo de contacto extendido
+
+**Descripción:** el contacto con todos los datos que el negocio necesita para trabajarlo.
+
+**Criterios de aceptación:**
+
+- [ ] Se agregan a `contacts`: `phone`, `secondary_email`, `country`, `instagram_username`, `whatsapp_phone`, `next_followup_date`, `do_not_contact`, `do_not_contact_reason`, `do_not_contact_at`, `ai_conversation_summary`, `lead_temperature`, `attribution`, `deleted_at`. Los campos de asignación ya existen desde el Bloque 1
+- [ ] El teléfono se normaliza a formato internacional en el servidor, no solo en el formulario. Sin esto la deduplicación entre canales falla, y arreglarlo después implica limpiar datos sucios
+- [ ] El teléfono NO es obligatorio. Un contacto de WhatsApp puede existir sin teléfono conocido
+- [ ] Campo `phone_resolved` que marca si el teléfono ya se conoce o sigue pendiente
+- [ ] Índices en teléfono, correo, usuario de Instagram y marca de borrado, y compuestos por espacio de trabajo con teléfono y con correo
+- [ ] Los campos personalizados que ya existen se conservan sin modificar
+
+**Criterios del campo de atribución.** Venían de F10 del documento anterior y no estaban especificados acá: la columna aparecía en la lista pero sin decir qué guarda ni con qué reglas.
+
+- [ ] `attribution` es `jsonb` con default `'{}'`, con estructura de `first_click` y `last_click`
+- [ ] `first_click` se escribe una sola vez y no se modifica nunca más. Es el dato que dice de dónde salió el lead, y se pierde para siempre si se sobreescribe
+- [ ] `last_click` se actualiza en cada interacción nueva que traiga parámetros de seguimiento
+- [ ] No requiere política de acceso adicional: hereda la de `contacts`
+- [ ] Para contactos que lleguen por un anuncio de click-to-WhatsApp se registra el origen. La marca de ventana de 72 horas que eso habilita es del plan B: ver el apéndice
+
+#### F26: Identidad de canal y reconciliación de teléfonos
+
+**Descripción.** WhatsApp está migrando a un esquema donde el identificador del contacto puede ser un código opaco en lugar del número de teléfono. Evolution reemplaza ese código por el número antes de avisarnos, pero solo cuando tiene el dato para hacerlo. Cuando no lo tiene, el mensaje llega sin número por ningún lado, y no existe forma de averiguarlo.
+
+Como el número todavía no está conectado, no sabemos con qué frecuencia pasa. El diseño tiene que funcionar bien en los dos escenarios.
+
+**Criterios de aceptación:**
+
+- [ ] `contact_channels` guarda el identificador crudo tal como llegó y el modo de direccionamiento, además del teléfono derivado
+- [ ] Cada mensaje guarda el identificador con el que llegó, sin sobrescribirlo
+- [ ] Un contacto sin teléfono conocido entra como contacto nuevo, con marca visible de "teléfono sin resolver"
+- [ ] Nunca se deduplica por nombre. Un duplicado visible y reconciliable es preferible a una fusión incorrecta, que es destructiva y difícil de deshacer
+- [ ] Reconciliación posterior por tres vías, todas con registro en el historial de auditoría:
+    1. Un mensaje posterior de la misma conversación que sí traiga el teléfono
+    2. El aviso de actualización de contacto que manda Evolution, que aplica el mismo criterio
+    3. Carga manual del teléfono por el operador desde la ficha. Esta es la que garantiza que el caso nunca queda trabado, y es barata de construir
+- [ ] Al reconciliar, si ya existe otro contacto con ese teléfono, se propone la fusión mostrando los dos lados. La fusión la confirma una persona, nunca es automática
+- [ ] Al fusionar se unifican conversaciones, notas, etiquetas y atribución
+- [ ] Instrumentación obligatoria: contador de cuántos mensajes entrantes llegan sin teléfono resuelto, visible para el Owner. Es el dato que decide si esto es marginal o si hay que invertir más
+
+#### F27: Guardado de mensajes entrantes
+
+**Descripción:** que las conversaciones con los leads vivan en la base del negocio y no en un proveedor.
+
+**Criterios de aceptación:**
+
+- [ ] Los mensajes entrantes se guardan en `messages`. Hoy solo se guardan los salientes
+- [ ] Restricción de unicidad sobre la combinación de chat, identificador de mensaje y dirección, no sobre el identificador solo: ese identificador lo genera el teléfono que envía y es único por conversación, no en todo el sistema. La propia base de Evolution no deduplica, así que los duplicados son esperables
+- [ ] La fecha del proveedor viene en segundos y se convierte al guardar
+- [ ] Se contemplan las dos formas del aviso: el de mensaje individual trae un objeto, el de sincronización trae una lista
+- [ ] Se guarda la referencia al mensaje citado, para poder reconstruir hilos, aunque ese mensaje todavía no exista de nuestro lado
+- [ ] Tipos soportados: texto, imagen, audio, documento, video, sticker, ubicación y respuesta a otro mensaje
+- [ ] La base pasa a ser la fuente de verdad de la bandeja. Después de esta funcionalidad, la bandeja no consulta más al proveedor para mostrar mensajes
+- [ ] El camino de entrada es el mismo para Instagram y WhatsApp, sin condicionales por plataforma más allá del adaptador
+- [ ] **Importación del historial de Instagram que ya existe.** Ver abajo: sin esto, el criterio anterior hace que la bandeja pierda las conversaciones viejas el día que se migre
+
+> **Hallazgo del 16 de septiembre de 2026: no existe ninguna importación de mensajes, y F27 la necesita.**
+>
+> El backfill que ya trae el proyecto, `backfillInboxConversations`, escribe en `contacts`, `contact_channels` y `conversations`. **Nunca escribe en `messages`.** Verificado leyendo el archivo, no supuesto.
+>
+> Eso choca de frente con el criterio de que la base pase a ser la fuente de verdad. F27 guarda lo que llega por aviso **de ahí en adelante**, así que el día que la bandeja deje de consultar al proveedor, el historial anterior desaparece de la pantalla. En Instagram eso no es hipotético: hoy hay 33 conversaciones con historial real, y una sola de ellas tiene 111 mensajes que arrancan en junio de 2024.
+>
+> Dicho de otra forma: migrar al guardado local **sin** una importación previa sería un retroceso visible para el usuario, no una mejora. Es el mismo principio que el CLAUDE.md ya fija para WhatsApp, "migrar sin historial no es migrar", aplicado al canal que ya está conectado.
+>
+> **El trabajo de paginar la API ya está hecho y es reutilizable.** `lib/zernio-message-map.ts` tiene el bucle contra el endpoint de mensajes de Zernio, con lo que hace falta saber medido contra la API real: el tamaño de página es 100 y está topeado ahí, `offset` no existe, se pagina con `cursor` desde `pagination.nextCursor`, y `sortOrder` acepta `asc` y `desc`. La importación de F27 necesita exactamente ese bucle, recorriendo hacia atrás en vez de traer una sola página.
+>
+> **Y hay un límite que conviene saber antes de prometer la importación:** el endpoint devuelve `message: ""` para buena parte de los mensajes históricos de Instagram, los que Zernio resume como `[Attachment]` en el listado. Medido: 22 de 24 en las primeras conversaciones revisadas. Ese contenido no está del lado del proveedor, así que ninguna importación lo puede recuperar. El historial que se importe va a tener huecos, y eso hay que decirlo antes y no después.
+
+> **Medición del 21 de septiembre de 2026: el webhook y el listado le ponen el mismo identificador al mismo mensaje. La restricción única de F27 funciona.**
+>
+> Era la pregunta que bloqueaba F27, porque los mensajes entran por dos caminos —el webhook empuja cada uno nuevo, la importación lee el historial del listado— y `platform_message_id` es lo único que impide duplicados. Si los dos caminos usaran identificadores distintos, la restricción no se dispararía nunca y la importación duplicaría el historial entero **sin un solo error a la vista**.
+>
+> **La pregunta era de tres vías, no de dos**, y así mal planteada no se podía contestar. El webhook trae DOS identificadores y el listado trae UNO: `message.id` es el interno de Zernio y `message.platformMessageId` es el de Meta, mientras que el listado devuelve un solo campo `id`. Lo que había que establecer no era "¿son iguales?" sino **a cuál de los dos equivale el del listado**.
+>
+> **Resultado: el `id` del listado es el `platformMessageId` del webhook.** Ocho mensajes entrantes, ocho veces la misma cadena. Las dos familias no se confunden ni por casualidad: el interno es un ObjectId de 24 hex y el de plataforma es un blob base64 de Meta de más de 150 caracteres.
+>
+> **El control positivo, que es lo que hace que esto signifique algo:** antes de comparar identificadores se estableció que se miraba el mismo mensaje, ubicándolo en el listado por marca de tiempo normalizada a epoch en milisegundos. Delta de 0 ms en los ocho. Sin ese paso, dos cadenas distintas de dos mensajes distintos sería el resultado esperado y no un hallazgo.
+>
+> **Los salientes también, y por otra puerta.** Lo que escribe `platform_message_id` en un saliente no es un aviso entrante sino la respuesta del propio envío, `response.data.data.messageId`, que hoy guardan `lib/flow-engine/engine.ts`, `lib/sequence-processor.ts` y `lib/flow-engine/nodes/ai-response.ts`. Cuatro de cuatro envíos propios guardan exactamente la cadena que devuelve el listado.
+>
+> **Qué NO cubre, que importa tanto como lo que cubre:**
+>
+> - **Nada sobre el historial viejo de Instagram.** La medición sale del log de entregas de Zernio, que retiene 30 días. Los mensajes de 2024 nunca pasaron por un webhook, así que por construcción no pueden estar en la muestra. Para ese tramo, que es justamente el que va a leer la importación, la coincidencia está **inferida, no medida**. Es menos peligroso de lo que suena: si esos mensajes no tienen contraparte en el webhook, no hay con qué duplicarlos.
+> - **Nada sobre los adjuntos salientes.** Ninguno de los cuatro envíos medidos llevaba adjunto.
+> - **Nada sobre WhatsApp.** Evolution es otro proveedor con otro esquema, y F27 ya tiene su propio criterio para eso: unicidad por chat, mensaje y dirección, porque el identificador de Evolution es único por conversación y no global.
+> - **Un mensaje entrante con `direction: "outgoing"` no se midió** porque no apareció ninguno en 30 días de entregas.
+>
+> La medición se repite con `node scripts/verify-id-mensaje-zernio.mjs`, y `--salientes` corre el otro recorrido. Es de solo lectura. `--autoprueba` verifica al verificador: ejercita las cuatro ramas de veredicto con casos fabricados, porque un verde uniforme se ve igual venga de una comparación que discrimina o de una que siempre da verdadero.
+>
+> **Un hallazgo lateral que conviene tener escrito antes de apoyarse en ese log:** `metadata.messageId` del log de actividad **no es un campo de familia uniforme**. Los envíos con `source=api`, que son los que hace nuestro código, registran el identificador de plataforma; los de `source=platform`, escritos por alguien desde la app de Instagram, registran el interno. Nuestro código nunca manda ni guarda los segundos, así que no afecta a F27, pero cualquier cosa futura que lea ese campo tiene que filtrar por origen o va a comparar peras con manzanas.
+>
+> **Y cómo apareció ese hallazgo es método, no anécdota, así que va acá.** La primera corrida de los salientes dio dos rojos junto a cuatro verdes. Los dos rojos eran los mensajes escritos desde la app: no eran envíos nuestros, y un mensaje que nuestro código nunca escribe no puede decir nada sobre lo que nuestro código escribe. La población estaba mal, no el resultado.
+>
+> Recortarla fue correcto, pero **recortar la población después de ver los resultados es exactamente lo que hace un número conveniente**, y la diferencia entre una cosa y la otra no está en el recorte: está en tres condiciones, y las tres tienen que cumplirse.
+>
+> 1. **El criterio del recorte es anterior a los datos y es independiente del resultado.** "Solo los envíos que hace nuestro código" sale de la pregunta, no de qué filas daban verde. Si el criterio hubiera sido "los que coinciden", sería fraude.
+> 2. **Lo recortado no se descarta: se reporta aparte, con su veredicto y su motivo.** Los dos casos ajenos siguen saliendo en la salida del script, en su propia sección. Callarlos habría escondido la única evidencia de que el campo cambia de familia según el origen, que terminó siendo el hallazgo más útil de la corrida.
+> 3. **El recorte queda escrito donde vive la medición**, con el razonamiento completo, para que el que lea el verde vea también de qué población salió.
+>
+> Dicho al revés: un recorte que reduce el número de casos incómodos y además los hace desaparecer del reporte no es un recorte, es un borrado.
+
+> **Los mensajes escritos desde la app de Instagram son alcanzables aunque el webhook no los empuje. Esto acota el problema antes de medirlo, y por eso va escrito ahora.**
+>
+> El negocio responde desde el celular. Si esos mensajes no produjeran ningún evento, no llegarían a la base en tiempo real y el agente de IA leería conversaciones donde el lead pregunta y nadie contesta. Para un sistema cuya premisa es que la base local es la única fuente de verdad, eso no es un hueco de datos, es un hueco de sentido.
+>
+> **Pero existen, y ya los vimos.** Son exactamente los dos `source=platform` que produjeron los falsos rojos de la medición de salientes: aparecen en `GET /v1/logs` con su identificador y su conversación, y aparecen también en el listado de mensajes de la conversación. O sea que **hay un camino para traerlos aunque el webhook no los entregue**.
+>
+> La distinción que importa, porque cambia el tamaño del problema y no solo la respuesta:
+>
+> - **Si el echo llega por webhook**, F27 los recibe en vivo, por el mismo camino que todo lo demás, y no hay nada especial que construir.
+> - **Si no llega**, F27 necesita un sondeo periódico contra el listado o contra el log de actividad para alcanzarlos. Es más trabajo y agrega latencia, pero **no es un agujero: es una funcionalidad más**. Y ese sondeo cae de lleno bajo la regla de vigilancia de la sección 14, así que nace con su marca de última ejecución.
+>
+> El experimento decide **cómo** los recibe F27, no **si** son alcanzables. Tenerlo escrito de antemano evita que un resultado negativo se lea como una pared cuando es un desvío.
+>
+> **Medido el 21 de septiembre de 2026: Instagram SÍ manda echo, también para lo que se escribe desde la app.**
+>
+> Tres mensajes, en este orden: uno entrante desde otra cuenta, uno saliente desde la bandeja, y uno saliente escrito desde la app de Instagram como el negocio.
+>
+> **El control positivo primero, que es lo que hace atribuible el resultado.** El saliente de la bandeja es origen API, el caso documentado como seguro, y **dejó entrega de `message.sent`**. Sin esa entrega, la ausencia de la otra no se habría podido atribuir a Instagram: habría sido indistinguible de "la suscripción no quedó aplicada" o "la entrega falló", y el veredicto habría sido no concluyente.
+>
+> **El de la app también dejó entrega.** Las dos con HTTP 200.
+>
+> **La atribución no se hizo por orden de llegada, que habría sido una suposición**, sino cruzando cada entrega contra el log de actividad, que sí distingue el origen. Y ahí el hallazgo de la heterogeneidad de familias pagó solo: la entrega de la bandeja cruza por `platformMessageId` y la de la app cruza por `message.id`, porque el log de actividad registra una familia distinta según el origen. Cruzar por un solo identificador habría dejado una de las dos sin atribuir.
+>
+> **De qué familia viene el echo, que era la pregunta abierta porque `source` está ausente en Instagram:** el aviso trae **los dos identificadores**, `message.id` interno y `message.platformMessageId` de plataforma, igual que `message.received`. Y el de plataforma coincide con el `id` del listado, con delta de 0 ms, en las dos entregas. **La clave de idempotencia de F27 sirve para los echos venga el mensaje de donde venga.**
+>
+> **Consecuencia aplicada:** la suscripción se queda, y `message.sent` pasó a `WEBHOOK_EVENTS` en `lib/zernio-webhook.ts`, una constante única que reemplaza las dos listas que estaban copiadas en los llamadores de `ensureWebhookRegistered`. Esa duplicación era una trampa activa y no una fealdad: esa función **reescribe la lista completa** cuando actualiza, así que un llamador con la lista vieja le borraba eventos a la suscripción sin error y sin aviso. Hay un test que falla si alguna ruta vuelve a armar su propia lista.
+
+> **Por qué el sondeo de mensajes escritos desde la app sigue escrito acá aunque el echo haya llegado.**
+>
+> El razonamiento que lo justificaba **no dependía de que el echo faltara**, y conviene no borrarlo solo porque esta vez la respuesta fue la cómoda.
+>
+> **Hoy la bandeja lee del proveedor, así que un mensaje escrito desde la app se ve al refrescar el navegador.** Comprobado en esta misma prueba: apareció al refrescar, y eso no era evidencia sobre el echo, era evidencia de que Zernio lo tenía.
+>
+> **Cuando F27 haga que la base local sea la fuente de verdad, la bandeja va a leer de la base.** A partir de ahí, todo mensaje que no haya llegado a la base **deja de verse**, y refrescar no lo trae. O sea que cualquier clase de mensaje que F27 no capture **empeora con F27 en vez de mejorar**: hoy se ve tarde, después no se ve nunca.
+>
+> Esa es la forma exacta de regresión que nadie busca, porque la funcionalidad se presenta como una mejora y en el caso general lo es. La pregunta que hay que hacerse al construir F27 no es "¿qué mejora?" sino **"¿qué se veía antes que deje de verse?"**.
+>
+> Aplicado a este caso: como el echo llega, los mensajes escritos desde la app entran por el webhook y no hace falta sondeo. **Pero eso ahora es una dependencia, no una comodidad.** Si la suscripción se cae —y se cae sola si alguien vuelve a poner una lista literal en un llamador—, el síntoma no va a ser un error: va a ser que las respuestas del negocio desde el celular desaparecen de la bandeja. Un silencio más, de la familia de la sección 14.
+
+#### F39: Detección de silencio del canal
+
+**Descripción:** que un canal que dejó de recibir mensajes se note, en lugar de parecer un día tranquilo. Va numerada aparte de F27 y no adentro: F27 guarda lo que llega, F39 avisa cuando deja de llegar, y son dos mecanismos con dos formas distintas de fallar.
+
+**Criterios de aceptación:**
+
+- [ ] Cada canal guarda la marca de tiempo del último evento entrante recibido, actualizada por el receptor
+- [ ] Un trabajo periódico la compara contra un umbral configurable por canal, expresado en horas hábiles según la zona horaria del negocio, y abre una condición en `webhook_alerts` cuando se supera
+- [ ] El mismo trabajo escribe su propia marca de última ejecución, visible en la interfaz. Esa marca es el control positivo del chequeo: **sin ella, F39 no se puede dar por verde**
+- [ ] Con el canal activo y el receptor detenido a propósito, la condición se abre
+- [ ] Con el trabajo periódico detenido a propósito, la marca de última ejecución envejece y se ve en pantalla
+- [ ] **El mismo trabajo consulta la lista de eventos registrada en el proveedor y la compara contra la constante esperada** (`WEBHOOK_EVENTS` de `lib/zernio-webhook.ts`). Si difieren, abre una condición en `webhook_alerts` **nombrando qué evento falta**, no un aviso genérico
+- [ ] Con un evento sacado a propósito de la suscripción, la condición se abre aunque el canal esté recibiendo mensajes con normalidad
+
+> **Por qué la verificación de la suscripción va acá y no es una funcionalidad aparte: F39, sin esto, no detectaría la falla que ella misma vuelve posible.**
+>
+> F39 mira la marca del último evento entrante por canal. Eso contesta **"¿llegó algo?"**. Pero la falla que importa acá es otra: **"¿dejó de llegar un tipo de cosa mientras las demás siguen?"**.
+>
+> El caso concreto, que ya es real desde el 21 de septiembre de 2026: la suscripción incluye `message.sent` porque las respuestas que el negocio escribe desde el celular llegan por ahí. Si ese evento desaparece de la suscripción —un registro que falló dentro del `try/catch` silencioso, un cambio hecho desde el panel de Zernio, un llamador que volvió a armar su propia lista— los leads siguen escribiendo, los `message.received` siguen llegando, **la marca del último entrante sigue fresca y F39 sigue callada**. Mientras tanto desaparece cada respuesta escrita desde el teléfono.
+>
+> Es una llamada y una comparación, contra una tabla que ya existe. La alternativa —llevar una marca de último evento **por tipo**— cuesta más, obliga a decidir un umbral por tipo, y encima no sirve: un evento que nunca llega no tiene marca que envejecer, tiene una marca que nunca existió.
+>
+> **El test de `lib/zernio-webhook.test.ts` no cubre esto y está bien que no lo cubra.** Ese test protege que nuestro código no vuelva a armar la lista en dos lugares. No dice nada sobre el estado real en el proveedor, que es lo único que decide qué se entrega.
+
+> **Por qué la marca de última ejecución no es un adorno.** F39 avisa por ausencia, así que su modo de falla es indistinguible de su modo de éxito: un canal sano y un detector muerto se ven exactamente igual desde la pantalla, que en los dos casos no muestra ninguna alerta. La marca de última ejecución es lo único que separa "no hay nada que avisar" de "nadie está mirando". Ver la regla transversal en la sección 14.
+
+**Sobre el modelo de datos.** Son **dos marcas distintas** y conviene no confundirlas, porque una es el dato vigilado y la otra es la prueba de vida del vigilante:
+
+- La **marca del último evento entrante**, por canal, que es lo que el trabajo compara contra el umbral. **No se define todavía:** se agrega junto con las demás columnas de F27, cuando se construya, y recién ahí entra en la sección 7.2.
+- La **marca de última ejecución del propio trabajo**, que no depende de F27 y todavía no tiene lugar asignado. Por la regla transversal de la sección 14, esta no puede quedar como un detalle de implementación: es parte de lo que F39 entrega, así que necesita su columna y su criterio, y se define al construir F39.
+
+#### F28: Adjuntos
+
+**Descripción:** que las fotos, audios y documentos que mandan los leads queden guardados.
+
+**Criterios de aceptación:**
+
+- [ ] El archivo se descarga al recibirlo y se guarda en Supabase Storage. Ninguna dirección que entrega el proveedor sirve a largo plazo: la de WhatsApp está cifrada y la del almacenamiento intermedio caduca a los 7 días
+- [ ] Bucket privado, con direcciones firmadas de vida corta para mostrar en la bandeja
+- [ ] Estructura de carpetas por espacio de trabajo, conversación y mensaje
+- [ ] Validación del tipo de archivo real, no de la extensión. Tamaño máximo configurable
+- [ ] Si la descarga falla, el mensaje se guarda igual con marca de "adjunto no disponible" y se reintenta
+- [ ] La descarga no bloquea el acuse del aviso
+
+#### F29: Detección de contacto entre canales
+
+**Descripción:** reconocer que el que escribe por WhatsApp es el mismo que ya escribió por Instagram.
+
+**Criterios de aceptación:**
+
+- [ ] Al llegar un mensaje de un canal nuevo, se busca contacto por teléfono normalizado, correo o nombre de usuario
+- [ ] Coincidencia exacta de teléfono o correo vincula automáticamente
+- [ ] Coincidencia solo por nombre de usuario sugiere la vinculación al operador, no la hace sola
+- [ ] Se crea el registro de canal para el contacto
+- [ ] Cada conversación queda separada por canal, los hilos no se mezclan
+- [ ] La ficha muestra todas las conversaciones agrupadas por canal
+- [ ] Las vinculaciones automáticas y manuales quedan en el historial de auditoría
+
+#### F30: Notas, ficha de contacto y borrado suave
+
+**Descripción:** la vista completa del lead y la posibilidad de deshacer un borrado.
+
+**Criterios de aceptación:**
+
+- [ ] Tabla `contact_notes` con lista cronológica en la ficha. Cualquier miembro con acceso al contacto crea notas; solo el autor, un Admin o el Owner edita o elimina
+- [ ] Ficha completa con datos, conversaciones por canal, notas, etiquetas, campos personalizados, historial y atribución
+- [ ] Marca visible si el contacto pidió no ser contactado, y marca si el teléfono está sin resolver
+- [ ] Campo `deleted_at` en contactos, notas, conversaciones y respuestas rápidas. Eliminar marca la fecha, no borra
+- [ ] Los listados y las reglas de seguridad excluyen lo eliminado
+- [ ] Tarea diaria que borra definitivamente lo que lleva más de 30 días eliminado, en cascada
+- [ ] El historial de auditoría no se purga nunca
+
+#### F31: Historial de auditoría
+
+**Descripción:** saber quién hizo qué y cuándo.
+
+**Criterios de aceptación:**
+
+- [ ] Tabla `audit_log` con índices por espacio de trabajo, por entidad y por fecha
+- [ ] Registran entrada: contacto creado, editado, eliminado, restaurado, asignado, marcado como no contactar y reconciliado por teléfono; canal conectado, desconectado o con error; cambios de configuración; importaciones; movimientos de equipo
+- [ ] Owner y Admin ven todo; un Member solo sus propias acciones
+- [ ] Nunca se elimina ni tiene borrado suave
+
+---
+
+### Bloque 4: Bandeja, herramientas y reglas de seguridad
+
+#### F32: Estado de sesión del canal y reconexión
+
+**Descripción:** que se vea cuando WhatsApp dejó de estar conectado.
+
+**Criterios de aceptación:**
+
+- [ ] La pantalla de canales muestra el estado de la sesión de WhatsApp
+- [ ] Aviso por evento y chequeo periódico, los dos. Ante una caída pasajera Evolution reconecta solo y no avisa, así que el aviso por sí solo no alcanza para mostrar el estado real
+- [ ] Un estado desconocido se muestra como "no se pudo verificar", nunca como "desconectado"
+- [ ] Se contempla el estado de "se agotaron los intentos de vinculación", que significa empezar de nuevo
+- [ ] Botón de reconectar que muestra el código QR cuando corresponde. No siempre puede entregarlo, porque depende del estado actual, y eso se explica en pantalla
+- [ ] Si la sesión está caída, la bandeja lo indica de forma visible. Una bandeja silenciosa no puede parecer un día tranquilo
+
+#### F33: Reglas de seguridad de secuencia
+
+**Descripción.** Reemplazan a la ventana de 24 horas en WhatsApp. Son configuración del canal y las hace cumplir el sistema, no el hábito de quien lo usa. Existen porque el seguimiento automático saliente es justamente el comportamiento que Meta busca para bloquear un número.
+
+**Criterios de aceptación:**
+
+- [ ] Corte con el silencio: después de una cantidad configurable de seguimientos sin respuesta, por defecto 3, la secuencia se detiene sola y lo registra. Es la protección más importante, porque el que nunca contesta y sigue recibiendo mensajes es el que denuncia
+- [ ] Texto variable: el sistema interpola datos del contacto y rota entre variantes. Se advierte si un paso manda texto idéntico a muchos destinatarios, porque eso es una huella de envío masivo
+- [ ] Envíos espaciados: separación aleatoria configurable entre mensajes de un mismo grupo. Nunca todo junto
+- [ ] Horario comercial: franja horaria configurable, respetando la zona horaria del contacto. Fuera de ella el envío se pospone, no se cancela
+- [ ] Opt-out duro: un pedido de no contacto corta para siempre, sin opción de forzarlo desde ninguna pantalla
+- [ ] Proporción de respuesta como señal de salud: se calcula y se muestra qué porcentaje de los seguimientos recibe respuesta. Si cae por debajo de un umbral configurable, se avisa. Es mejor que un tope arbitrario de mensajes, porque mide si lo que mandás le sirve a alguien
+- [ ] Todo es configuración por canal, no condicionales en el código
+- [ ] La Fase 2 construye el motor que las consume
+
+#### F34: Marca de no contactar
+
+**Descripción:** respetar a quien pidió no recibir más mensajes.
+
+**Criterios de aceptación:**
+
+- [ ] Lista de frases de baja configurable por espacio de trabajo
+- [ ] Al detectar una: se marca el contacto, se registra el motivo y la fecha, se pausan las secuencias activas y queda en el historial de auditoría
+- [ ] Marca roja visible en la bandeja y en la ficha
+- [ ] Un Admin o el Owner puede revertirla, con registro
+- [ ] Al intentar enviar a un contacto marcado se bloquea el envío, sin opción de forzarlo. Con Evolution una denuncia pesa más que cien mensajes
+- [ ] Un contacto marcado nunca entra a una secuencia
+
+#### F35: Bandeja y filtros
+
+**Descripción:** el lugar donde el equipo trabaja todos los días.
+
+**Criterios de aceptación:**
+
+- [ ] La bandeja lee los mensajes de la base, no del proveedor
+- [ ] Filtro por etiquetas, por asignación, por canal y por fecha del último mensaje
+- [ ] Filtro por estado de ventana solo para Instagram, que es donde la ventana existe
+- [ ] Filtro por "teléfono sin resolver", para poder trabajar esa cola
+- [ ] Filtros combinables, reflejados en la dirección de la página para poder compartirla, con contador y botón de limpiar
+- [ ] Búsqueda de texto dentro de los mensajes, que ahora es posible porque están guardados
+
+#### F36: Respuestas rápidas
+
+**Descripción:** textos reutilizables que el operador inserta escribiendo una barra.
+
+**Criterios de aceptación:**
+
+- [ ] Tabla `response_templates` con alta, baja y modificación en `/settings/response-templates`
+- [ ] Selector con "/" en la bandeja, con búsqueda por nombre o atajo
+- [ ] Interpolación de datos del contacto; si un dato falta, queda vacío
+- [ ] En la interfaz se llaman "respuestas rápidas", nunca "plantillas", para no confundirlas con las plantillas de WhatsApp del plan B
+
+#### F37: Importación de contactos desde planilla
+
+**Descripción:** cargar contactos que ya existen en otro lado.
+
+**Criterios de aceptación:**
+
+- [ ] Archivo de hasta 10 MB y 10.000 filas, con vista previa y asignación de columnas
+- [ ] **Cada fila necesita al menos un identificador que permita deduplicar, de los enumerados en la sección 14.** El correo se valida con formato y el teléfono se normaliza, pero los dos son ejemplos, no la lista: un identificador único del sistema de origen sirve igual, y de hecho sirve mejor, porque allá ya se garantizó que es único. Una fila sin ningún identificador no se puede deduplicar y se rechaza con su motivo
+- [ ] Deduplicación por cualquiera de los identificadores que traiga la fila: identificador de origen, correo o teléfono, en ese orden de confianza. Si ya existe, actualiza en vez de duplicar. **El importador no decide qué cuenta como identificador:** la lista está en la sección 14 y admitir uno nuevo se escribe ahí primero
+- [ ] Más de 500 filas se procesan en segundo plano, no en el momento
+- [ ] Barra de progreso y resumen final con importados, actualizados y errores con detalle
+- [ ] Todo queda en el historial de auditoría
+
+#### F38: Migración desde Pipedrive
+
+**Descripción:** traer al sistema los contactos y el estado comercial que hoy viven en Pipedrive, una sola vez, de forma verificable y repetible. Va después de F37 porque se apoya en el importador de planilla.
+
+Los números salen del análisis de los dos exports reales el 17 de septiembre de 2026: 526 personas y 517 tratos. No son estimaciones.
+
+**Qué entra y qué no:**
+
+| Qué | Cuántos | Cómo entra |
+|---|---|---|
+| Personas de Pipedrive | 526 | Importación de planilla, todas |
+| Tratos que no son "IG DM" | 399 | Aplanados en el contacto: etapa, estado, valor, moneda, fecha de cierre |
+| Tratos "IG DM" | 118 | **No se migran.** Los trae la conexión de Instagram |
+| Los 30 "IG DM" calificados | 30 | Marcado manual en la bandeja, después de conectar el canal |
+| Motivo de pérdida | 401 | Como nota en el contacto |
+
+**Por qué los leads de Instagram no se migran.** 118 de los 517 tratos tienen "IG DM" en el título y ninguno corresponde a una persona del CRM: son conversaciones de Instagram anotadas como tratos, y explican 116 de los 119 tratos sin contacto. **Ninguno tiene el usuario de Instagram**: se revisaron los 118 títulos y cero contienen una arroba. La forma es "IG DM - Nombre Apellido", varios con emoji y tipografías decorativas, que es como se ve un nombre para mostrar, no un usuario. El nombre para mostrar no sirve como identificador: se cambia cuando uno quiere y no es único, y el canal de Instagram identifica por usuario.
+
+Al conectar la cuenta, el proveedor reproduce el historial de mensajes directos y esas conversaciones crean los contactos solas, con el usuario real, el nombre real y el hilo completo. Pipedrive tiene un nombre visible y una etapa; Instagram tiene la conversación entera. Se comprobó empíricamente el 16 de septiembre: al conectar una cuenta entraron 33 conversaciones con sus contactos, en segundos.
+
+Lo único que se pierde es la etapa, y vale poco: de los 118, 81 están en "1. Nuevo contacto" o "2. Le escribí", que significan "no hice nada" y "le escribí", y se recuperan abriendo la conversación. Los que tienen criterio propio son unos 30, repartidos en "4. ¿Es mi cliente?" (19), "3. Respondió" (5), "11. Seguimiento intensivo" (3) y "5. Le ofrecí una cita" (2). Esos se marcan a mano en la bandeja, una vez.
+
+**Por qué se migran las 526 personas y no solo las activas:**
+
+| Segmento | Con teléfono o correo | Sin ninguno | Total |
+|---|---|---|---|
+| Con trato abierto | 2 | 6 | 8 |
+| Con trato ganado, o sea clientes | 31 | 13 | 44 |
+| Solo con tratos perdidos | 209 | 118 | 327 |
+| Sin ningún trato | 139 | 8 | 147 |
+
+Migrar solo los activos dejaría 8 contactos y tiraría 44 clientes. Y sobre todo tiraría los 327 de tratos perdidos, de los cuales 209 son contactables: ese es exactamente el grupo que el sistema existe para trabajar. El negocio ya lo sabe, tiene una etapa llamada "14. Repesca" y otra llamada "11. Seguimiento intensivo".
+
+El argumento decisivo es la asimetría del error: **dejar afuera es irreversible en la práctica, traer de más se corrige mirando.** Si se filtra ahora y en un mes alguien busca un nombre y no aparece, no va a poder distinguir entre "esa persona nunca fue lead" y "la dejamos afuera en la migración". Y 526 filas no cuestan nada. Lo que sí se hace es marcar, no descartar: una etiqueta de origen con la fecha de la migración, más la columna `deal_status`, y con eso la bandeja filtra lo que no quiere ver sin que haya que borrar nada.
+
+**Los dos teléfonos de Pipedrive son un solo campo partido en dos.** Ninguna de las 526 personas tiene los dos cargados, ninguna: no son principal y secundario, la persona que carga usa uno o el otro. "Móvil" tiene 153 valores, limpios, con código de país en 149. "Trabajo" tiene 190, de los cuales 132 son ocho dígitos pelados **sin código de país**. Y hay basura que rompe la normalización en silencio: varios valores traen un apóstrofe inicial, artefacto de planilla de cálculo, y once traen caracteres Unicode invisibles de dirección de texto.
+
+**El campo "Whatsapp chat link" no sirve como fuente de teléfono.** Se verificó contra los teléfonos de las 185 personas que lo tienen: cero coincidencias. Es un identificador interno de la herramienta que lo genera, no un número. Y las 185 que lo tienen ya tienen teléfono, así que tampoco aporta cobertura.
+
+**Criterios de aceptación:**
+
+- [ ] El importador de F37 mapea columnas a `pipeline_stage`, `deal_status`, `deal_value`, `deal_currency`, `deal_closed_at`, `pipedrive_person_id` y `pipedrive_deal_id`. Hoy solo mapea a las columnas centrales del contacto
+- [ ] La unión de personas y tratos se hace **fuera del sistema**, en una planilla, produciendo un solo archivo con una fila por contacto. El importador no resuelve la unión
+- [ ] Limpieza del teléfono antes de normalizar: se quitan el apóstrofe inicial y los caracteres Unicode invisibles de dirección de texto
+- [ ] El teléfono sale de "Móvil" y, si está vacío, de "Trabajo"
+- [ ] Los números que ya traen código de país se usan tal como vienen
+- [ ] **El código de país por defecto es configuración, no una constante en el código.** Vive como ajuste del espacio de trabajo, y la pantalla de importación permite cambiarlo para esa importación puntual. Hoy el 99 por ciento de los leads es de Costa Rica, pero la pauta puede dirigirse a otros países de la región, y ahí un `+506` cableado convertiría un número panameño de ocho dígitos en un número costarricense **válido y equivocado**, que es peor que un error. Es el mismo criterio que el proyecto ya aplica a las ventanas de mensajería: configuración del canal, no condicionales en el código
+- [ ] Cada fila que se normalizó usando el valor por defecto queda marcada en el resumen de la importación, para poder revisar cuáles fueron
+- [ ] **La normalización nunca adivina en silencio:** si un número no se puede normalizar, la fila queda con el error en el resumen, no con un valor inventado
+- [ ] Todos los contactos migrados reciben una etiqueta de origen con la fecha
+- [ ] `pipeline_stage` y `deal_status` rechazan cualquier valor fuera de su lista, en la base de datos
+- [ ] **Control de la migración, afirmativo:** la cantidad de filas con `pipedrive_deal_id` no nulo coincide con la cantidad de tratos no "IG DM" del export. Si no coinciden, falta algo y se sabe cuánto. Sin esta comprobación, "el importador dijo 399 filas" no distingue entre 399 de 399 y 399 de 412
+- [ ] La importación es repetible: correrla dos veces actualiza en vez de duplicar, y el conteo de control da lo mismo
+- [ ] Cada motivo de pérdida entra como una nota en `contact_notes`, con una marca de que vino de la migración. Son 401 tratos con 78 valores distintos de texto libre: **no se crea una columna para esto**, porque 78 valores de texto libre no son un vocabulario. Es la única fuente que el negocio tiene de *por qué* los leads no convierten, y es justo lo que el agente de IA de la Fase 3 va a querer leer
+- [ ] **Se escribe explícito y se prueba:** un contacto sin ningún canal no puede darse de alta en una secuencia. Son 145 de las 526, que no tienen ni teléfono ni correo: nunca van a corresponder con un mensaje entrante y no se les puede escribir. Estructuralmente ya no debería poder, porque una secuencia necesita un canal, pero eso es una suposición sobre el motor y el requerimiento no se apoya en suposiciones
+- [ ] La prueba lleva su control afirmativo al lado: un contacto **con** canal sí se da de alta
+
+> **Las 145 personas sin correo ni teléfono entran por `pipedrive_person_id`, y no hace falta ninguna excepción.**
+>
+> Son parte de los 526 que se decidió traer enteros, y traen el identificador de persona de Pipedrive, que es un identificador de deduplicación como cualquier otro: único en el sistema del que vienen, estable, y mejor que un correo escrito a mano. La regla de F37 pide **al menos un identificador que permita deduplicar**, no correo o teléfono en particular, así que estas filas la cumplen sin que nadie tenga que marcar nada.
+>
+> Que la regla se enuncie así y no como "correo o teléfono" no es una preferencia de redacción. Una casilla que apaga una validación se termina marcando siempre, y "esto es una migración" es una afirmación de quien importa, no un hecho que el sistema pueda verificar.
+>
+> **Y el modo de falla que esto evita es de los invisibles.** Con la regla mal enunciada, la migración perdería esas 145 filas y el control de conteo daría bien igual, porque cuenta tratos con `pipedrive_deal_id` y estas personas en su mayoría no tienen trato. Un control que dice "si falta algo, se sabe cuánto" y no lo sabe es peor que no tenerlo.
+
+
+#### F40: Ventana de conversación de Instagram
+
+**Descripción:** calcular, mostrar y respetar la ventana de mensajería de Instagram, que es una regla real de Meta y aplica hoy.
+
+**Por qué es alcance actual y no plan B:** el canal de Instagram está conectado y operando. Sin esto, un operador escribe una respuesta fuera de la ventana, la envía, y falla con un error genérico. Es el error más común al operar cualquier canal de Meta, y el §0 de este documento ya promete que la ventana de Instagram se conserva completa.
+
+**Criterios de aceptación:**
+
+- [ ] Campos `window_expires_at` y `window_source` agregados a `conversations`
+- [ ] `window_expires_at` se recalcula con cada mensaje entrante: 24 horas desde el mensaje
+- [ ] En la bandeja, cada conversación muestra un indicador del estado de la ventana: abierta con el tiempo restante, o cerrada
+- [ ] Con la ventana abierta, el campo de respuesta acepta texto libre normalmente
+- [ ] Con la ventana cerrada, el campo se deshabilita y se explica por qué, sin ofrecer alternativa, porque en Instagram no hay plantillas
+- [ ] Un mensaje que falla por ventana expirada muestra un error claro en la interfaz, no un error genérico
+- [ ] La respuesta privada a un comentario se permite hasta 7 días desde el comentario, una sola vez por comentario, y el sistema lo controla con `comment_logs`
+- [ ] **Control positivo:** con una conversación cuya ventana está abierta, el envío funciona. Probar solo el bloqueo no distingue entre estar bien implementado y estar todo deshabilitado
+- [ ] Los campos se agregan igual para WhatsApp aunque no se usen, porque son los mismos que necesita el plan B. Ver el apéndice del plan B
+
+
+### Apéndice: plan B, escrito y sin construir
+
+Nada de lo que sigue se construye en esta fase. Se conserva especificado porque es lo que hace que la migración a la API oficial sea configuración y no rediseño. El procedimiento de migración, con sus disparadores y sus fuentes, está en `docs/contingencia-whatsapp.md`.
+
+Las dos funcionalidades conservan la numeración del documento original, F6b y F6c, para que se las reconozca como lo que son: especificación heredada que quedó en suspenso, no funcionalidades nuevas.
 
 #### F6b: Plantillas de WhatsApp
 
@@ -378,1290 +855,805 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 - [ ] Un mensaje que falla por ventana expirada muestra un error claro en la interfaz, no un error genérico
 - [ ] La respuesta privada a un comentario de Instagram se permite hasta 7 días desde el comentario, una sola vez por comentario, y el sistema lo controla con `comment_logs`
 
-### Bloque 2: Email, configuración de integraciones y BYOK IA
+### Funcionalidades de fases siguientes, que no se construyen ahora
 
-#### F7: Email saliente vía Resend
-
-**Criterios de aceptación**:
-
-- [ ] La API key de Resend se guarda en Vault desde `/settings/integrations`
-- [ ] Se envían emails transaccionales: invitaciones de equipo y notificaciones del sistema
-- [ ] El remitente es el dominio verificado por el usuario en Resend
-- [ ] Si falla el envío, se registra el error y se reintenta hasta 3 veces
-- [ ] Los emails enviados quedan registrados para referencia
-- [ ] La infraestructura queda lista para que Fase 2 la use en secuencias
-
-#### F8: Pantalla de configuración de integraciones y BYOK IA
-
-**Descripción**: UI unificada en **`/settings/integrations`**.
-
-**Criterios de aceptación**:
-
-- [ ] Pantalla accesible desde el sidebar, solo para Owner y Admin
-- [ ] Sección "Canales de mensajería":
-    - Instagram (Zernio): API key, estado, conectar y desconectar
-    - **WhatsApp (Zernio, API oficial): API key, número conectado, estado, nombre para mostrar y su estado de aprobación**
-    - Facebook (Zernio, opcional): API key, nota "$6/mes extra"
-    - X/Twitter (Zernio, opcional): API key, nota "$6/mes extra"
-    - *(TikTok, YouTube y LinkedIn se agregan en Etapa 2; la estructura es extensible)*
-- [ ] Sección "Email": Resend con API key, dominio verificado y estado
-- [ ] Sección "Proveedores de IA (BYOK)": OpenAI, Anthropic y Google, cada uno con API key y modelo por defecto
-- [ ] Todas las API keys se guardan en Supabase Vault, nunca en texto plano
-- [ ] Al guardar una key se valida el formato: longitud mínima y prefijo esperado donde aplique
-- [ ] Cada integración es un registro en `integration_configs` con su `type`
-- [ ] El estado de cada integración se actualiza en tiempo real
-- [ ] Agregar una integración nueva en Etapa 2 no requiere cambios en la tabla, solo un registro
-
-### Bloque 3: Modelo de contacto y CRM
-
-#### F9: Modelo de contacto extendido
-
-**Criterios de aceptación**:
-
-- [ ] Migración que agrega a `contacts`: `phone`, `secondary_email`, `country`, `instagram_username`, `tiktok_username`, **`youtube_channel_id`**, **`linkedin_profile_url`**, `whatsapp_phone`, `twitter_username`, `facebook_id`, `setter_id`, `vendedor_id`, `next_followup_date`, `do_not_contact`, `do_not_contact_reason`, `do_not_contact_at`, `ai_conversation_summary`, `lead_temperature`, `attribution`, `deleted_at`
-- [ ] **El teléfono se normaliza a E.164 antes de guardarse**, en el servidor, no solo en el formulario. Sin esto, la deduplicación entre WhatsApp e Instagram falla y arreglarlo después implica migrar datos sucios
-- [ ] Índices en: `phone`, `email`, `instagram_username`, `whatsapp_phone`, `setter_id`, `vendedor_id`, `deleted_at`
-- [ ] Índice compuesto en `(workspace_id, phone)` y `(workspace_id, email)` para que la deduplicación sea eficiente
-- [ ] RLS actualizada con la lógica de scope de leads de F3
-- [ ] Los custom fields existentes (6 tipos: text, number, boolean, date, url, email) se conservan sin modificar
-
-#### F10: Datos de atribución
-
-**Criterios de aceptación**:
-
-- [ ] Campo `attribution` (jsonb, default `'{}'`) en `contacts` con estructura de `first_click` y `last_click`
-- [ ] `first_click` se escribe una sola vez y no se modifica
-- [ ] `last_click` se actualiza en cada nueva interacción con parámetros de tracking
-- [ ] **Para contactos que llegan por click-to-WhatsApp, se registra el origen y se marca `conversations.window_source = 'ctwa'`**, que es lo que habilita la ventana de 72 horas
-- [ ] No requiere RLS adicional: hereda la política de `contacts`
-
-#### F11: Asignación setter y vendedor
-
-**Criterios de aceptación**:
-
-- [ ] `setter_id` y `vendedor_id` aparecen en la ficha del contacto
-- [ ] Se asignan desde un dropdown con los miembros del workspace
-- [ ] Ambos son opcionales e independientes
-- [ ] Los cambios quedan en el audit log
-- [ ] Se puede filtrar la lista de contactos por cada uno
-- [ ] **Cambiar una asignación cambia el scope de visibilidad de inmediato** (consecuencia de F3)
-
-#### F12: Detección cross-canal
-
-**Criterios de aceptación**:
-
-- [ ] Al recibir un mensaje de un canal nuevo, el sistema busca contacto por teléfono normalizado, email o username de red social
-- [ ] Con match exacto de teléfono o email, se vincula automáticamente al contacto existente
-- [ ] Se crea una entrada en `contact_channels` vinculando el canal nuevo
-- [ ] La conversación del canal nuevo se crea separada, no se mezcla con las de otros canales
-- [ ] Con match solo por username, se sugiere la vinculación al operador en vez de hacerla automática
-- [ ] La ficha del contacto muestra todas las conversaciones agrupadas por canal, **cada una con su propio estado de ventana**
-- [ ] El audit log registra las vinculaciones automáticas y manuales
-
-#### F13: Notas en el contacto
-
-**Criterios de aceptación**:
-
-- [ ] Nueva tabla `contact_notes` (ver 7.3)
-- [ ] Sección "Notas" en la ficha del contacto, con lista cronológica
-- [ ] Cualquier miembro con acceso al contacto puede crear notas
-- [ ] Solo el autor, un Admin o el Owner puede editar o eliminar una nota
-- [ ] RLS: hereda el scope del contacto asociado
-
-#### F14: Ficha de contacto completa
-
-**Criterios de aceptación**:
-
-- [ ] Muestra todos los datos: nombre, email, teléfono, redes, país, setter, vendedor, temperatura, fecha de seguimiento
-- [ ] Sección "Conversaciones": lista por canal con preview y **estado de ventana**
-- [ ] Sección "Notas", "Tags", "Custom Fields", "Historial de cambios" y "Atribución"
-- [ ] Badge visible si el contacto está marcado como "no contactar"
-- [ ] Botón para editar todos los datos
-- [ ] Clic en una conversación navega al hilo en la bandeja
-
-#### F15: Soft delete
-
-**Criterios de aceptación**:
-
-- [ ] Campo `deleted_at` en `contacts`, `contact_notes`, `conversations`, `response_templates`
-- [ ] Eliminar setea `deleted_at = now()` en vez de hacer DELETE
-- [ ] Las queries de listado filtran `WHERE deleted_at IS NULL`
-- [ ] Las RLS excluyen registros con `deleted_at IS NOT NULL`
-- [ ] Cron diario en `/api/cron/purge-deleted` elimina permanentemente lo que tenga más de 30 días
-- [ ] La purga elimina en cascada notas, conversaciones y mensajes del contacto
-- [ ] **El `audit_log` no se purga**: sus registros sobreviven al contacto eliminado
-
-### Bloque 4: Bandeja, filtros, herramientas CRM y ventana
-
-#### F16: Filtros de inbox
-
-**Criterios de aceptación**:
-
-- [ ] Filtro por tags: multi-select
-- [ ] Filtro por asignación: "Todas", "Sin asignar", "Agente IA", y miembros del equipo
-- [ ] Filtro por canal: multi-select de canales activos (Instagram, WhatsApp)
-- [ ] Filtro por fecha de último mensaje: presets y rango personalizado
-- [ ] **Filtro por estado de ventana: abierta, cerrada, o por vencer en menos de 2 horas**
-- [ ] Los filtros son combinables (AND entre categorías)
-- [ ] Los filtros se reflejan en la URL para poder compartirlos
-- [ ] Badge con la cantidad de filtros activos, y botón "Limpiar filtros"
-
-#### F17: Templates de respuesta rápida
-
-**Criterios de aceptación**:
-
-- [ ] Nueva tabla `response_templates` (ver 7.3)
-- [ ] Pantalla de gestión en `/settings/response-templates` con CRUD completo
-- [ ] En la bandeja, al escribir "/" aparece el selector de templates
-- [ ] Búsqueda por nombre o atajo
-- [ ] Al seleccionar, se inserta el contenido con las variables interpoladas: `{{contact.display_name}}`, `{{contact.email}}`, `{{contact.phone}}`, `{{workspace.name}}`
-- [ ] Si una variable no tiene valor, se deja vacía
-- [ ] **En la UI se llaman "respuestas rápidas", nunca "plantillas"**, para no confundirlas con las plantillas de WhatsApp
-- [ ] RLS: scoped por workspace
-
-#### F18: Marca "no contactar"
-
-**Criterios de aceptación**:
-
-- [ ] Lista de frases de opt-out configurable por workspace: "no me escribas más", "dejá de mandar mensajes", "no quiero recibir mensajes", "stop", "unsubscribe", "basta", "no me contactes"
-- [ ] Al detectar una frase en un mensaje entrante: se marca `do_not_contact = true`, se registra razón y fecha, se pausan todas las secuencias activas del contacto y se registra en el audit log
-- [ ] Badge rojo "No contactar" visible en la bandeja y en la ficha
-- [ ] Un Admin u Owner puede revertir la marca, con registro en el audit log
-- [ ] **Al enviar texto libre dentro de la ventana a un contacto marcado: advertencia con confirmación**
-- [ ] **Al enviar una plantilla de WhatsApp a un contacto marcado: se bloquea el envío, sin opción de forzar.** Enviar plantillas a quien pidió no ser contactado degrada la calificación de calidad del número y baja el límite de mensajería de todo el negocio
-- [ ] La misma regla aplica al motor de secuencias en Fase 2: un contacto marcado nunca entra a una secuencia
-
-#### F19: Importación CSV
-
-**Criterios de aceptación**:
-
-- [ ] Botón "Importar CSV" en `/contacts`
-- [ ] Archivo de hasta 10MB y 10.000 filas
-- [ ] Preview con las primeras 5 filas y mapeo de columnas sugerido
-- [ ] El usuario ajusta el mapeo, incluyendo setter, vendedor, tags y custom fields
-- [ ] Validación: email con formato válido, teléfono normalizado a E.164, al menos uno de los dos presente
-- [ ] Deduplicación por email o teléfono: si existe, actualiza los campos no vacíos en vez de duplicar
-- [ ] **Importaciones de más de 500 filas se encolan como trabajo en `scheduled_jobs`**, no corren en el request. El usuario recibe una notificación al terminar
-- [ ] Barra de progreso y resumen final: importados, actualizados, errores con detalle
-- [ ] Todo queda en el audit log y en `csv_imports`
-
-#### F20: Audit log global
-
-**Criterios de aceptación**:
-
-- [ ] Nueva tabla `audit_log` (ver 7.3)
-- [ ] Índices en `workspace_id`, `(entity_type, entity_id)` y `performed_at`
-- [ ] Generan entrada: contacto creado, editado, eliminado, restaurado, asignado, marcado como no contactar; canal conectado, desconectado o con error; cambios de configuración; importaciones CSV; equipo (invitado, rol cambiado, removido); **plantilla de WhatsApp enviada a aprobación, aprobada o rechazada**
-- [ ] RLS: solo miembros del workspace leen. Owner y Admin ven todo; un Member solo sus propias acciones
-- [ ] El audit log nunca se elimina ni tiene soft delete
+| Funcionalidad | Destino |
+|---|---|
+| Motor de secuencias de seguimiento | Fase 2 |
+| Agente de respuesta automática | Fase 2 |
+| Difusiones y envíos masivos | Fase 2 |
+| Integración de solo lectura con Calendly: estado de agenda en el contacto y condición en las secuencias | Fase 2 |
+| Email bidireccional | Etapa 2 |
+| Agente de IA integral con base de conocimiento | Fase 3 |
+| Analíticas y tablero de métricas | Fase 3 |
+| Publicación de contenido en redes | Etapa 2 |
+| TikTok, YouTube y LinkedIn como canales | Etapa 2 |
+| Roles personalizados con permisos granulares | Etapa 2 |
+| Plantillas de WhatsApp aprobadas por Meta | Plan B, sin fecha |
 
 ---
 
 ## 6. Flujos principales
 
-### Flujo 1: Primer setup del sistema
+### Flujo 1: Mensaje entrante de WhatsApp
 
-1. El usuario entra a la app y se registra con email y contraseña (Supabase Auth).
-2. El trigger `on_auth_user_created` crea el workspace con el usuario como Owner.
-3. Llega al dashboard vacío con un wizard de onboarding.
-4. El wizard lo lleva paso a paso:
-   a. Nombre del negocio y datos del workspace.
-   b. Conectar Instagram (API key de Zernio).
-   c. **Conectar WhatsApp (API key de Zernio y número dado de alta).** Si el número todavía no está disponible, se puede saltar y conectar después.
-   d. Configurar email saliente (API key de Resend).
-   e. Configurar proveedores de IA (opcional, se puede hacer después).
-5. Al completar el wizard, el sistema está listo para recibir mensajes.
+**Descripción:** el camino completo desde que un lead escribe hasta que aparece en la bandeja.
 
-**Resultado exitoso**: workspace creado, al menos un canal conectado, usuario en el dashboard.
-**Casos de error**: si falla la creación del workspace, mostrar error y permitir reintentar. Si falla la conexión de un canal, permitir saltar y conectar después desde Settings.
+1. El lead escribe al número del negocio.
+2. Evolution recibe el mensaje y avisa a nuestro receptor, con un dato de autenticación firmado.
+3. El receptor verifica ese dato. Si no es válido, rechaza y dispara una alerta, porque ese mensaje se pierde.
+4. Verifica que no sea un aviso repetido. Si lo es, acusa y descarta.
+5. Responde el acuse de inmediato y encola el procesamiento.
+6. El procesamiento busca el contacto: primero por el identificador de canal, después por teléfono normalizado. Si el identificador es opaco y no hay teléfono, crea el contacto con la marca de "sin resolver".
+7. Guarda el mensaje con su control de duplicados.
+8. Si hay adjunto, lo descarga y lo sube al almacenamiento. Si falla, lo marca y reintenta.
+9. Actualiza la conversación y avisa a las pantallas abiertas, respetando el alcance por rol.
 
-### Flujo 2: Mensaje entrante de Instagram
+**Resultado exitoso:** el mensaje aparece en la bandeja de quien corresponde, con su adjunto, asociado al contacto correcto.
 
-1. El lead envía un DM.
-2. Zernio lo entrega al sistema por webhook.
-3. El sistema valida la firma HMAC del webhook.
-4. Verifica idempotencia en `webhook_events`.
-5. Busca contacto por `instagram_username`.
-6. Si no existe: crea contacto, entrada en `contact_channels` y conversación nueva.
-7. Si existe: vincula y busca la conversación activa de Instagram, o crea una.
-8. Almacena el mensaje en `messages`.
-9. **Recalcula `window_expires_at` de la conversación: 24 horas desde ahora.**
-10. Actualiza `last_message_at`, `last_message_preview` y `unread_count` de la conversación, y `last_interaction_at` del contacto.
-11. En Fase 2 se evalúan triggers de flows. En Fase 3 responde el agente si está activo.
-12. El operador ve la conversación en la bandeja, con la ventana abierta.
+**Casos de error:** si la autenticación falla, se alerta y el mensaje se pierde, por eso el cambio de secreto tiene procedimiento. Si la descarga del adjunto falla, el mensaje igual queda guardado con el texto y una marca. Si el procesamiento falla después del acuse, queda en la cola para reintentar.
 
-**Casos de error**: webhook duplicado, se ignora por idempotencia. Falla de la API de Zernio, se registra y se reintenta.
+### Flujo 2: Reconciliación de un contacto sin teléfono
 
-### Flujo 3: Mensaje entrante de WhatsApp
+**Descripción:** cómo se resuelve un lead que entró sin número identificable.
 
-1. El lead envía un mensaje al número del negocio.
-2. **Zernio lo entrega al sistema por webhook**, igual que Instagram.
-3. Validación de firma HMAC y verificación de idempotencia.
-4. Busca contacto por teléfono normalizado a E.164 (`whatsapp_phone` o `phone`).
-5. Si no existe: crea contacto con `display_name` (nombre de perfil de WhatsApp), `whatsapp_phone` y `phone`.
-6. Si existe y ya tiene conversaciones por otro canal, se vincula al mismo contacto con conversación separada de WhatsApp.
-7. Almacena el mensaje y actualiza conversación y contacto.
-8. **Recalcula `window_expires_at`: 24 horas, o 72 si `window_source = 'ctwa'`.**
-9. El operador ve la conversación con el tiempo restante de ventana.
+1. Existe un contacto con la marca de "teléfono sin resolver".
+2. Llega un mensaje posterior que sí trae el teléfono, o el operador lo carga a mano desde la ficha.
+3. El sistema busca si ya existe otro contacto con ese teléfono.
+4. Si existe, propone la fusión mostrando los dos lados con sus datos.
+5. Una persona confirma. Al confirmar se unifican conversaciones, notas, etiquetas y atribución.
+6. Si no existe otro contacto, simplemente se completa el teléfono y se saca la marca.
 
-**Casos de error**: webhook duplicado, se ignora. **Ya no existe el caso "WhatsApp desconectado con pérdida de mensajes"**: con API oficial no hay sesión que se caiga, y Meta reintenta la entrega del webhook.
+**Resultado exitoso:** un solo contacto con todo su historial junto, y el registro de la fusión en la auditoría.
 
-### Flujo 4: Respuesta con la ventana cerrada (nuevo)
+**Casos de error:** si la fusión se confirma por equivocación, el historial de auditoría permite reconstruir qué se unió. Por eso la fusión nunca es automática.
 
-1. El operador abre una conversación de WhatsApp cuya ventana venció.
-2. El campo de texto libre aparece deshabilitado, con la explicación: "La ventana de 24 horas se cerró. Solo se pueden enviar plantillas aprobadas".
-3. Se ofrece un selector con las plantillas **aprobadas** para ese idioma, con la categoría y el costo estimado de cada una.
-4. El operador elige una y completa las variables.
-5. Si el contacto está marcado como "no contactar", **el envío se bloquea** y se explica por qué.
-6. Se envía la plantilla por Zernio y se registra en `messages` con referencia a la plantilla usada.
-7. Cuando el contacto responde, se abre una ventana nueva de 24 horas y el campo de texto libre se habilita.
+### Flujo 3: La sesión de WhatsApp se cae
 
-**Casos de error**: si no hay ninguna plantilla aprobada, se indica y se enlaza a `/settings/whatsapp-templates`. Si Meta rechaza el envío, se muestra el motivo devuelto.
+**Descripción:** qué pasa y cómo se detecta cuando el número se desconecta.
 
-### Flujo 5: Detección cross-canal
+1. La sesión expira o WhatsApp cierra el vínculo.
+2. Si la caída es definitiva, Evolution avisa y el sistema marca el canal como caído.
+3. Si es pasajera, Evolution reconecta solo y no avisa: el chequeo periódico es el que lo detecta.
+4. La pantalla de canales muestra el estado, y la bandeja indica que WhatsApp no está recibiendo.
+5. El Owner o un Admin pide reconectar y escanea el código.
+6. Todo el ciclo queda en el historial de auditoría.
 
-1. El lead ya tiene contacto creado por su DM de Instagram.
-2. Escribe por WhatsApp con un número no registrado.
-3. El sistema crea el mensaje y la conversación de WhatsApp.
-4. Al no encontrar match por teléfono, crea un contacto nuevo.
-5. Si más adelante alguien agrega el teléfono al contacto de Instagram, el sistema detecta dos contactos con el mismo dato y sugiere vincularlos.
-6. Si se acepta, se mueve `contact_channels` del duplicado al contacto principal. Las conversaciones quedan separadas por canal, **cada una con su ventana independiente**.
-7. La detección automática funciona al crear el contacto: si el teléfono o email ya existe en el workspace, se vincula en vez de duplicar.
+**Resultado exitoso:** el canal vuelve a recibir y nadie pasó días creyendo que no había mensajes.
 
-### Flujo 6: Importación CSV de contactos
+**Casos de error:** si se agotaron los intentos de vinculación, el botón de reconectar no puede entregar un código y la pantalla explica que hay que empezar de nuevo.
 
-1. El usuario va a `/contacts` y hace clic en "Importar CSV".
-2. Sube el archivo; el sistema parsea y muestra preview de 5 filas.
-3. Muestra el mapeo sugerido, detectando columnas por nombre.
-4. El usuario ajusta el mapeo y puede asignar setter, vendedor y tags para todos.
-5. Hace clic en "Importar".
-6. **Con más de 500 filas, el trabajo se encola y el usuario recibe una notificación al terminar.** Con menos, se procesa en línea con barra de progreso.
-7. Por cada fila: valida, normaliza el teléfono, busca duplicado por email o teléfono, actualiza o crea.
-8. Resumen final con contadores y detalle de errores.
+### Flujo 4: Primer setup de WhatsApp, cuando llegue el número
 
-### Flujo 7: Operador gestiona la bandeja
+**Descripción:** el orden correcto para conectar el canal.
 
-1. Entra a `/inbox` y ve las conversaciones ordenadas por `last_message_at`, **limitadas por su scope**.
-2. Filtra por tag, asignación, canal, fecha **o estado de ventana**.
-3. Selecciona una conversación y ve el hilo, con burbujas diferenciadas (lead, operador, bot).
-4. En el panel lateral: datos del contacto, tags, notas, campos custom, asignaciones.
-5. **Un indicador muestra el estado de la ventana de esa conversación.**
-6. Responde con texto libre (ventana abierta) o con una plantilla (ventana cerrada en WhatsApp).
-7. Puede usar "/" para insertar una respuesta rápida.
-8. Al responder, se asigna automáticamente a la conversación.
-9. Puede agregar notas, cambiar tags, editar campos y asignar setter o vendedor.
-10. Todos los cambios quedan en el audit log.
+1. Desplegar Evolution, si no está desplegado.
+2. Crear la instancia y guardar sus credenciales en Vault.
+3. Configurar el aviso de mensajes con el secreto.
+4. Verificar que el receptor acepta un aviso de prueba firmado, **antes** de vincular el número.
+5. **Confirmar que F27 está construido y probado.** Si no lo está, el checklist se detiene acá. Ver la regla dura en 4.7.
+6. Vincular el número escaneando el código.
+7. Mandar un mensaje de prueba desde otro teléfono y confirmar que aparece en la bandeja y en la base.
 
-**Casos de error**: si el envío falla, error visible con opción de reintentar. Si el canal está desconectado, mensaje claro indicando reconectar.
+**Resultado exitoso:** el canal queda conectado y el primer mensaje real queda guardado.
+
+**Casos de error, y son dos puertas distintas que se cierran en silencio.** Si se invierte el orden y se vincula el número antes de verificar el receptor, los primeros mensajes reales se **rechazan** y se pierden sin dejar rastro: ese es el motivo del paso 4. Si se vincula antes de que exista F27, los mensajes se **aceptan** y se descartan igual, que es peor todavía, porque el receptor responde que todo salió bien: ese es el motivo del paso 5. En los dos casos el resultado es el mismo, conversaciones perdidas sin ningún síntoma, y por eso los dos pasos son obligatorios y no intercambiables.
+
+### Flujo 5: Mensaje entrante de Instagram
+
+**Descripción:** el mismo camino que WhatsApp, por otro proveedor.
+
+1. El lead escribe o responde una historia.
+2. Zernio avisa a nuestro receptor con firma criptográfica.
+3. Se verifica la firma, se controla el duplicado, se acusa y se encola.
+4. Se resuelve el contacto y se guarda el mensaje.
+5. Se recalcula la ventana de 24 horas de la conversación.
+
+**Resultado exitoso:** el mensaje aparece en la misma bandeja que los de WhatsApp, con su estado de ventana visible.
+
+**Casos de error:** sin firma válida se rechaza. Fuera de la ventana, la bandeja no deja escribir texto libre y lo explica.
+
+### Flujo 6: Migración desde Pipedrive
+
+**Descripción:** el camino completo de la migración, una sola vez. Corresponde a F38.
+
+1. El negocio exporta desde Pipedrive dos archivos, personas y tratos.
+2. Fuera del sistema, en una planilla, se unen por identificador de persona y se descartan los tratos con "IG DM" en el título. Queda un solo archivo con una fila por contacto.
+3. Se revisa esa planilla con los ojos antes de tocar la base de datos.
+4. Se importa con el flujo de F37, mapeando también las columnas comerciales.
+5. El sistema normaliza teléfonos, deduplica por teléfono o correo, y crea o actualiza.
+6. Se corre el control de la migración: cantidad de filas con identificador de trato contra cantidad de tratos del export.
+7. Se conecta el canal de Instagram. El proveedor reproduce el historial y crea los contactos de los leads de Instagram, con su usuario real.
+8. El negocio marca a mano en la bandeja los treinta leads de Instagram que estaban calificados.
+
+**Resultado exitoso:** los 526 contactos con su estado comercial, los leads de Instagram con su conversación completa, y los conteos que cuadran.
+
+**Casos de error:** si el conteo del paso 6 no cuadra, la migración no se da por buena y se revisa la planilla del paso 2. Si un teléfono no se puede normalizar, la fila entra con el error listado, no con un número inventado.
 
 ---
 
 ## 7. Modelo de datos
 
-### 7.1 Tablas existentes de ZernFlow (se conservan)
+### 7.1 Extensiones a tablas existentes
 
-**Son 24 tablas en 16 archivos de migración.** (El BRD de clase decía 23, pero su propia tabla listaba 24.)
+| Entidad | Campo | Tipo | Requerido | Descripción |
+|---|---|---|---|---|
+| contacts | phone | text | No | Teléfono en formato internacional, normalizado en servidor. Puede no existir |
+| contacts | phone_resolved | boolean | Sí | Marca si el teléfono ya se conoce |
+| contacts | secondary_email | text | No | Correo alternativo |
+| contacts | country | text | No | País del lead |
+| contacts | instagram_username | text | No | Usuario de Instagram |
+| contacts | whatsapp_phone | text | No | Teléfono de WhatsApp si difiere del principal |
+| contacts | next_followup_date | date | No | Próximo seguimiento programado |
+| contacts | do_not_contact | boolean | Sí | Pidió no ser contactado |
+| contacts | do_not_contact_reason | text | No | Motivo registrado |
+| contacts | do_not_contact_at | timestamptz | No | Cuándo lo pidió |
+| contacts | lead_temperature | text | No | Frío, tibio o caliente |
+| contacts | ai_conversation_summary | text | No | Resumen generado, se usa en Fase 3 |
+| contacts | attribution | jsonb | Sí | Primer y último clic de origen |
+| contacts | deleted_at | timestamptz | No | Marca de borrado suave |
+| contacts | pipeline_stage | text | No | Etapa del embudo heredado, con restricción de valores. Solo se llena en contactos migrados |
+| contacts | deal_status | text | No | `abierto`, `ganado` o `perdido`, con restricción de valores |
+| contacts | deal_value | numeric | No | Valor del trato |
+| contacts | deal_currency | text | No | Moneda del valor: en los datos migrados, `USD` o `CRC`. Sin esto el valor no significa nada |
+| contacts | deal_closed_at | date | No | Fecha de cierre, ganado o perdido |
+| contacts | pipedrive_person_id | text | No | Identificador de origen. Es el control de la migración, ver F38 |
+| contacts | pipedrive_deal_id | text | No | Identificador del trato de origen |
+| contacts | booking_status | text | No | `sin_agendar`, `agendada`, `asistio`, `no_asistio`, `cancelada`. Lo escribe la Fase 2 |
+| contacts | booking_at | timestamptz | No | Fecha y hora de la reunión agendada. Lo escribe la Fase 2 |
+| contacts | booking_external_id | text | No | Identificador de la reserva en el proveedor de agenda. Lo escribe la Fase 2 |
+| contact_channels | raw_jid | text | Sí | Identificador tal como llegó, sin transformar |
+| contact_channels | addressing_mode | text | No | Cómo se direccionó el mensaje |
+| messages | platform_message_id | text | Sí | Identificador del proveedor |
+| messages | remote_jid | text | Sí | Conversación a la que pertenece |
+| messages | from_me | boolean | Sí | Dirección del mensaje |
+| messages | message_type | text | Sí | Texto, imagen, audio, documento, video, sticker o ubicación |
+| messages | quoted_message_id | text | No | Mensaje citado, para reconstruir hilos |
+| messages | media_path | text | No | Ruta del archivo en el almacenamiento |
+| messages | media_status | text | Sí | Pendiente, descargado, fallido o no disponible |
+| channels | provider | text | Sí | `zernio` o `evolution` |
+| channels | instance_name | text | No | Nombre de la instancia de Evolution |
+| channels | late_account_id | text | **Pasa a No** | Identificador de cuenta de Zernio. Era obligatorio; ahora es opcional |
+| channels | session_state | text | No | Estado de conexión conocido |
+| channels | session_checked_at | timestamptz | No | Última verificación |
+| channels | safety_config | jsonb | Sí | Las seis reglas de seguridad de secuencia |
 
-| Tabla | Notas |
-| --- | --- |
-| `workspaces` | **Se modifica**: se eliminan `late_api_key_encrypted` y `ai_api_key` tras migrar los valores a Vault |
-| `workspace_members` | Se conserva. Roles: owner, admin, member |
-| `channels` | Etapa 1 usa `'instagram'` y `'whatsapp'`, ambos ya en el constraint tras la migración 16. **No requiere migración nueva** |
-| `contacts` | **Se extiende** (ver 7.2) |
-| `contact_channels` | Se conserva |
-| `tags`, `contact_tags` | Se conservan |
-| `custom_field_definitions`, `contact_custom_fields` | Se conservan. 6 tipos reales: text, number, boolean, date, url, email |
-| `flows`, `triggers`, `flow_sessions`, `flow_versions` | Se conservan |
-| `conversations` | **Se extiende** con los campos de ventana (ver 7.2) |
-| `messages` | **Se extiende** con la referencia a plantilla (ver 7.2) |
-| `broadcasts`, `broadcast_recipients` | Se conservan, no se usan en Etapa 1 |
-| `scheduled_jobs` | Se conserva. Se usa para importaciones grandes y la purga |
-| `analytics_events` | Se conserva |
-| `comment_logs` | Se conserva. Controla la regla de una respuesta privada por comentario |
-| `sequences`, `sequence_enrollments` | Se conservan, se extienden en Fase 2 |
-| `workspace_invites` | Se conserva |
-| `webhook_events` | Se conserva. Ledger de idempotencia |
+**Restricción de unicidad en `messages`:** la combinación de `remote_jid`, `platform_message_id` y `from_me`.
 
-### 7.2 Extensiones a tablas existentes
+**`channels.instance_name` lleva un índice único global, no por espacio de trabajo.** La búsqueda va de nombre de instancia a canal a espacio de trabajo, y está en el camino que autentica cada mensaje entrante: si dos canales pudieran compartir nombre, esa búsqueda sería ambigua. Además los nombres de instancia son globales del lado de Evolution.
 
-**`contacts` — campos nuevos:**
+**Por qué `late_account_id` pasa a opcional.** Un canal de Evolution no tiene cuenta de Zernio. El valor correcto es vacío, no el nombre de la instancia metido en una columna que dice otra cosa: esa clase de atajo es la que produjo `late_api_key_encrypted`, una columna que decía "encrypted" y guardaba texto plano, y costó dos sesiones deshacerla.
 
-| Campo | Tipo | Descripción |
-| --- | --- | --- |
-| phone | text | Teléfono principal, **normalizado a E.164** |
-| secondary_email | text | Email secundario |
-| country | text | País del contacto |
-| instagram_username | text | @ de Instagram, sin @ |
-| tiktok_username | text | @ de TikTok, sin @ |
-| **youtube_channel_id** | text | ID del canal de YouTube (preparado para Etapa 2) |
-| **linkedin_profile_url** | text | URL del perfil (preparado para Etapa 2) |
-| whatsapp_phone | text | Teléfono de WhatsApp, puede diferir del principal |
-| twitter_username | text | @ de X/Twitter |
-| facebook_id | text | ID de Facebook |
-| setter_id | uuid | FK → auth.users |
-| vendedor_id | uuid | FK → auth.users |
-| next_followup_date | timestamptz | Próximo seguimiento |
-| do_not_contact | boolean | Default false |
-| do_not_contact_reason | text | Razón del marcado |
-| do_not_contact_at | timestamptz | Cuándo se marcó |
-| ai_conversation_summary | text | Resumen acumulativo del agente (Fase 3) |
-| lead_temperature | text | CHECK ('cold','warm','hot') |
-| attribution | jsonb | Default `'{}'`. first_click y last_click |
-| deleted_at | timestamptz | Soft delete |
+Sacarle el `NOT NULL` destapó un error que ya estaba latente en el código heredado. El bucle que desactiva canales cuyas cuentas de Zernio dejaron de existir compara contra un conjunto de identificadores: con el valor en nulo la comparación da negativa siempre, así que **cada vez que alguien apretara "Sincronizar" en la pantalla de canales, el canal de WhatsApp quedaría desactivado**, y a partir de ahí todos los mensajes entrantes se rechazarían sin síntoma. Se corrige salteando los canales que no son de Zernio en ese bucle, con su prueba afirmativa al lado: un canal de Zernio cuya cuenta ya no existe **tiene** que seguir desactivándose, porque si la guarda queda mal escrita la sincronización deja de limpiar y nadie se entera.
 
-**`conversations` — campos nuevos (sección nueva):**
+**Alcance de lo que se construye en el Bloque 2:** del bloque de columnas de `channels` de esta tabla, el Bloque 2 agrega solamente `provider`, `instance_name` y el cambio de `late_account_id`, que es lo mínimo para resolver instancia → canal → espacio de trabajo y poder leer el secreto. `session_state`, `session_checked_at` y `safety_config` van en el Bloque 4, con las funcionalidades que las usan.
 
-| Campo | Tipo | Descripción |
-| --- | --- | --- |
-| window_expires_at | timestamptz | Cuándo se cierra la ventana de mensajería. Se recalcula con cada mensaje entrante |
-| window_source | text | CHECK ('standard','ctwa'). `'ctwa'` cuando el contacto llegó por un anuncio click-to-WhatsApp, que da 72 horas en vez de 24 |
+#### El estado comercial heredado: por qué son columnas y no campos personalizados
 
-**`messages` — campo nuevo:**
+Las siete columnas que van de `pipeline_stage` a `pipedrive_deal_id` guardan el estado comercial que hoy vive en Pipedrive, el CRM actual del negocio. Se llenan solo en los contactos que entran por la migración de F38.
 
-| Campo | Tipo | Descripción |
-| --- | --- | --- |
-| whatsapp_template_id | uuid | FK → whatsapp_templates, nullable. Se completa cuando el mensaje se envió como plantilla fuera de la ventana |
+**La etapa es una columna con restricción de valores, no un campo personalizado ni una etiqueta.** Los campos personalizados del sistema tienen seis tipos (texto, número, booleano, fecha, url, correo) y **ninguno es de lista**: la etapa quedaría como texto libre y en dos semanas habría "Negociación", "negociacion" y "En negociación" como tres etapas distintas. Las etiquetas tampoco sirven, porque permiten dos etapas a la vez y un contacto está en exactamente una. Con una columna y su restricción, la exclusividad y el vocabulario los garantiza la base de datos, no la disciplina de nadie.
 
-**Estructura del campo `attribution`:**
+**Los trece valores de `pipeline_stage`**, tal como los escribe el negocio:
 
-```json
-{
-  "first_click": {
-    "utm_source": "instagram", "utm_medium": "organic", "utm_campaign": "",
-    "utm_term": null, "utm_content": null,
-    "fbclid": "", "gclid": null,
-    "ad_id": "", "campaign_id": "", "adset_id": "",
-    "referrer_url": "", "landing_page": "", "captured_at": "2026-01-15T10:30:00Z"
-  },
-  "last_click": { "utm_source": "facebook", "utm_medium": "cpc", "captured_at": "2026-02-20T14:00:00Z" }
-}
+```
+1. Nuevo contacto
+2. Le escribí
+3. Respondió
+4. ¿Es mi cliente?
+5. Le ofrecí una cita
+6. Agendó
+7. Confirmó asistencia
+8. No llegó
+9. Reagendó
+11. Seguimiento intensivo
+12. En espera de pago
+13. ¡Cerrada!
+14. Repesca
 ```
 
-- `first_click` se escribe una sola vez; `last_click` se sobrescribe con cada interacción atribuible.
+La numeración salta del 9 al 11: el embudo no tiene etapa 10. Se transcribe como está, con la numeración adentro del texto, para que coincida carácter por carácter con el export y la importación no falle por una tilde.
 
-### 7.3 Tablas nuevas
+**La etapa y el estado son dos cosas independientes, y por eso son dos columnas.** El cruce de los 517 tratos del export lo muestra sin lugar a dudas: **253 están en "1. Nuevo contacto" y a la vez perdidos.** La etapa dice dónde quedó la conversación; el estado dice qué pasó con el trato. Con una sola columna, esos 253 contactos parecerían leads nuevos sin trabajar.
 
-**`whatsapp_templates`** (nueva respecto del BRD de clase)
+**`deal_currency` no es opcional en la práctica.** De los 517 tratos, 363 están en dólares y 154 en colones. Un valor sin moneda es un número sin significado. El 87 por ciento de los tratos tiene valor cero, así que la columna va a venir casi vacía de todos modos: se agrega para que los 68 que sí tienen valor sean legibles. **No lleva restricción de valores en la base**, a diferencia de `pipeline_stage` y `deal_status`, y la diferencia no es de rigor sino de qué clase de vocabulario es cada uno. Las etapas son un vocabulario **arbitrario y propio del negocio**: los inventó alguien, no existen fuera de acá, y por eso la base tiene que ser la que garantice que nadie escriba una decimocuarta. Los códigos de moneda son un **estándar**, definido afuera y completo desde antes que este proyecto. Enumerar los dos que hay hoy en los datos no protege de nada y garantiza una sola cosa: que el día que haya una campaña en México, la importación se caiga por algo que no es un error.
 
-| Campo | Tipo | Requerido | Descripción |
-| --- | --- | --- | --- |
-| id | uuid | Sí (PK) | — |
-| workspace_id | uuid | Sí | FK → workspaces |
-| internal_name | text | Sí | Cómo la llama el equipo |
-| meta_name | text | Sí | Identificador con el que se envía a Meta |
-| category | text | Sí | CHECK ('marketing','utility','authentication'). Determina el costo |
-| language | text | Sí | Código de idioma (es, es_AR, en) |
-| body | text | Sí | Cuerpo con variables `{{1}}`, `{{2}}` |
-| variables | jsonb | No | Mapeo de cada variable a un campo del contacto |
-| status | text | Sí | CHECK ('draft','submitted','approved','rejected','paused') |
-| rejection_reason | text | No | Motivo devuelto por Meta |
-| quality_rating | text | No | Calificación de calidad, cuando Zernio la expone |
-| version | integer | Sí (default 1) | Editar una aprobada crea versión nueva |
-| submitted_at | timestamptz | No | — |
-| approved_at | timestamptz | No | — |
-| created_by | uuid | Sí | FK → auth.users |
-| created_at / updated_at | timestamptz | Sí | — |
+Esto no contradice la regla de que una normalización nunca adivina en silencio. Un valor por defecto adivina; una restricción rechaza a los gritos, y rechazar a los gritos es seguro. Lo que se evita acá no es el rechazo, es rechazar un dato correcto.
 
-**`contact_notes`**
+**No se agrega fecha esperada de cierre:** solo 3 de los 517 tratos la tienen.
 
-| Campo | Tipo | Requerido |
-| --- | --- | --- |
-| id | uuid | Sí (PK) |
-| contact_id | uuid | Sí (FK → contacts) |
-| workspace_id | uuid | Sí (FK → workspaces) |
-| content | text | Sí |
-| created_by | uuid | Sí (FK → auth.users) |
-| created_at / updated_at | timestamptz | Sí |
-| deleted_at | timestamptz | No |
+#### Las tres columnas de agenda se agregan ahora y las escribe la Fase 2
 
-**`response_templates`**
+`booking_status`, `booking_at` y `booking_external_id` no las escribe nada de esta fase. Se agregan igual, por la misma razón que `ai_conversation_summary` y `lead_temperature`: el modelo contempla lo que viene para no migrar datos después. Las llena la integración de solo lectura con Calendly de la Fase 2, y el día que exista el agendador propio de la Etapa 4 las escribe él, sin cambio de esquema. El detalle está en la sección 13.
 
-| Campo | Tipo | Requerido |
-| --- | --- | --- |
-| id | uuid | Sí (PK) |
-| workspace_id | uuid | Sí (FK → workspaces) |
-| name | text | Sí |
-| content | text | Sí |
-| shortcut | text | No |
-| created_by | uuid | Sí (FK → auth.users) |
-| created_at / updated_at | timestamptz | Sí |
-| deleted_at | timestamptz | No |
+#### Estas columnas van en una migración nueva
 
-**`csv_imports`**
+Ninguna de las columnas de `contacts` de esta sección está aplicada todavía: hoy la tabla tiene las del fork más `setter_id` y `vendedor_id` de la 00017. Las diez columnas nuevas de este bloque se aplican **en el mismo lote que el resto de las extensiones de `contacts` del Bloque 3**, en una migración numerada propia, idempotente, sin tocar ninguna migración ya aplicada.
 
-| Campo | Tipo | Requerido |
-| --- | --- | --- |
-| id | uuid | Sí (PK) |
-| workspace_id | uuid | Sí (FK → workspaces) |
-| file_name | text | Sí |
-| total_rows / imported / updated / errors | integer | Sí |
-| error_details | jsonb | No |
-| status | text | Sí. CHECK ('queued','processing','completed','failed') |
-| imported_by | uuid | Sí (FK → auth.users) |
-| created_at | timestamptz | Sí |
+### 7.2 Tablas nuevas
 
-**`audit_log`**
+| Tabla | Para qué |
+|---|---|
+| contact_notes | Notas internas sobre el contacto |
+| response_templates | Respuestas rápidas reutilizables |
+| audit_log | Quién hizo qué y cuándo |
+| integration_configs | Configuración de cada servicio externo conectado |
+| csv_imports | Registro de cada importación de planilla |
+| webhook_alerts | Condiciones abiertas del receptor de avisos: rechazos de autenticación e instancias desconocidas |
 
-| Campo | Tipo | Requerido |
-| --- | --- | --- |
-| id | uuid | Sí (PK) |
-| workspace_id | uuid | Sí (FK → workspaces) |
-| entity_type | text | Sí |
-| entity_id | uuid | Sí |
-| action | text | Sí |
-| changes | jsonb | No. `{ field: { old, new } }` |
-| metadata | jsonb | No |
-| performed_by | uuid | No (null = sistema) |
-| performed_at | timestamptz | Sí (default now()) |
+**Columnas, tal como quedaron en las migraciones 00022 y 00023 ya aplicadas.** Los nombres son los reales del esquema, no los del borrador:
 
-**`integration_configs`**
+| Columna | Para qué |
+|---|---|
+| `workspace_id`, `channel_id` | A quién le pasa. **Las dos pueden ser nulas** |
+| `source` | El proveedor del aviso. Hoy solo `evolution` |
+| `alert_condition` | `webhook_auth_failed` o `webhook_unknown_instance` |
+| `detail` | Motivo corto, acotado a 200 caracteres. Nunca el cuerpo del aviso ni credenciales |
+| `occurrences`, `first_seen_at`, `last_seen_at` | El contador y las dos marcas de tiempo |
+| `resolved_at` | Nulo mientras la condición está abierta |
 
-| Campo | Tipo | Requerido | Descripción |
-| --- | --- | --- | --- |
-| id | uuid | Sí (PK) | — |
-| workspace_id | uuid | Sí | FK → workspaces |
-| type | text | Sí | CHECK ('channel','ai_provider','email_provider') |
-| provider | text | Sí | `'instagram_zernio'`, **`'whatsapp_zernio'`**, `'resend'`, `'openai'`, `'anthropic'`, `'google_ai'`. En Etapa 2: `'tiktok_zernio'`, `'youtube_api'`, `'linkedin_api'` |
-| display_name | text | No | Nombre en la UI |
-| vault_secret_name | text | No | Nombre del secret en Vault |
-| oauth_data | jsonb | No | Datos de OAuth cuando aplique |
-| config | jsonb | No | Configuración específica del proveedor |
-| is_active | boolean | Sí (default false) | — |
-| connected_at | timestamptz | No | — |
-| last_error | text | No | — |
-| created_at / updated_at | timestamptz | Sí | — |
+Se llama `alert_condition` y no `condition` porque `CONDITION` es una palabra reservada del lenguaje de procedimientos de PostgreSQL, y las funciones que escriben esta tabla están escritas en ese lenguaje. El nombre feo evita una ambigüedad que no se ve al leer y que rompería al aplicar.
 
-### 7.4 Notas de optimización
+**Agrupa por condición, no por evento.** Un rechazo nunca viene solo: los tres escenarios donde ocurre (un cambio de secreto mal hecho, el mecanismo de autenticación que desaparece en una actualización de Evolution, una configuración equivocada) hacen que fallen **todos** los avisos hasta que alguien intervenga. Si entran quinientos en una hora, eso es una fila con un contador en quinientos, no quinientas filas ni quinientos avisos.
 
-- **Sin tabla de roles separada**: los roles se manejan en `workspace_members.role`. En Etapa 2 se migra a un modelo con tabla propia para soportar roles custom.
-- **`workspace_id` desnormalizado en `contact_notes`**: simplifica las RLS y evita JOINs.
-- **`attribution` como JSONB**: relación 1:1 con el contacto; evita una tabla extra y permite agregar campos sin migraciones.
-- **`ai_conversation_summary` desde ahora**: se usa en Fase 3, pero agregarlo ahora evita una migración futura.
-- **`integration_configs` genérica**: una sola tabla para canales, IA y email, diferenciados por `type`.
-- **Ventana como campo derivado en `conversations`**: se podría calcular en cada consulta a partir del último mensaje entrante, pero guardarla permite indexar y filtrar la bandeja por estado de ventana sin recorrer `messages`.
+**Dos condiciones distintas, y no se comportan igual en nada.** La tabla de abajo es el resumen, y cada diferencia tiene su motivo:
 
-### 7.5 Políticas de datos
+| | Rechazo de autenticación | Instancia desconocida |
+|---|---|---|
+| Qué responde el receptor | Rechazo definitivo | **Servicio no disponible**, que sí se reintenta |
+| ¿Se perdió el mensaje? | **Sí**, el proveedor no reintenta | **Todavía no**: hay unos 20 minutos de reintentos |
+| Qué cuenta el contador | Mensajes perdidos | Intentos de entrega, con un tope de uno por minuto |
+| Espacio de trabajo | Sí, sabe de qué canal viene | **No**, no hay canal al que atribuirlo |
+| Cómo se cierra | Sola, con el primer aviso válido | **Solo a mano** |
 
-**Soft delete:** `contacts`, `contact_notes`, `conversations`, `response_templates`. Retención 30 días, purga por cron diario.
+**Por qué la instancia desconocida no responde un rechazo definitivo.** El caso que importa no es una sonda de internet: es que alguien renombre la instancia en Evolution, o que se edite la fila del canal. A partir de ese momento cada mensaje real cae ahí. Si se respondiera un rechazo definitivo, el proveedor cancelaría los reintentos y se perderían todos; respondiendo "servicio no disponible" los reintenta durante unos veinte minutos, así que corregir el nombre dentro de esa ventana los recupera. El rechazo de autenticación **no** se trata igual, y a propósito: un dato de autenticación que no verifica es indistinguible de una falsificación, y darle reintentos sería regalarle diez entregas por evento a quien esté probando.
 
-**Auditoría:** `created_at` y `updated_at` en todas las tablas principales (triggers existentes). Los cambios significativos van al `audit_log`, que nunca se elimina.
+**Por qué la instancia desconocida no se cierra sola.** Se intentó y se descartó, porque se contradecía con la propia decisión de agrupación. La idea era cerrarla cuando llegara un aviso válido de la instancia que figura en el detalle, pero el detalle guarda el nombre de la **última** instancia desconocida, no el de la que causó el problema: con tres nombres distintos, arreglar el que rompía de verdad no cerraría nada. Y peor, cualquier nombre inventado posterior al arreglo pisa el detalle y desactiva el cierre para siempre; como ese nombre lo elige quien manda el aviso, eso queda al alcance de cualquiera que conozca la dirección. Una alerta que a veces se limpia sola y a veces no enseña a no creerle.
 
-**Snapshots:** no aplica en esta fase. En Etapa 4 los precios se guardan al momento de la transacción.
+**Por qué el nombre de la instancia no entra en la agrupación, y por qué se acota.** Lo controla quien llama. Si se agrupara por él, cualquiera llenaría la tabla mandando nombres al azar; por eso **todas** las instancias desconocidas van a una sola condición, con el nombre únicamente en el detalle de la última. Y como ese texto se muestra en el dashboard, se corta a 200 caracteres al guardarlo y se muestra delimitado, para que no pueda romper la pantalla ni hacerse pasar por un mensaje del sistema.
+
+**El tope de escritura.** La condición de instancia desconocida se alcanza **antes** de verificar la autenticación, porque para verificarla hay que saber de qué canal se trata. Eso significa que cualquiera puede provocar una escritura mandando un aviso bien formado con un nombre inventado. Por eso esa condición no se actualiza más de una vez por minuto. El contador pierde precisión y no importa, porque ahí ya no cuenta mensajes.
+
+**Quién puede leerlas.** Las condiciones que tienen espacio de trabajo las leen su Owner y sus Admin, y eso lo decide la base de datos. La condición de instancia desconocida **no la lee nadie por esa vía**: no es atribuible a ningún espacio de trabajo, así que su permiso no puede colgarse de pertenecer a uno. La lee la pantalla de canales, en el servidor, comprobando el rol antes de consultarla. Es la misma decisión que el resto del sistema toma al revés, y la excepción está justificada: una regla que dijera "cualquier Owner de cualquier espacio de trabajo" mostraría a un negocio el nombre de la instancia de otro.
+
+**Por qué no se reusa el historial de auditoría,** que es la alternativa obvia: ese historial responde *quién hizo qué*, y un rechazo de autenticación no tiene autor. Y además nunca se purga, así que un cambio de secreto mal hecho lo llenaría para siempre con el mismo evento repetido.
+
+**Una alerta que nadie consulta es un diario.** La pantalla de canales muestra un indicador de condiciones sin resolver, que es donde alguien va a mirar cuando sospeche que algo no está entrando. Incluye el botón de cierre manual, que para la condición de instancia desconocida es el único cierre que existe.
+
+### 7.3 Notas de optimización
+
+**Tablas que se evitaron.** No se crea una tabla separada para el estado de sesión del canal: es un campo en `channels`, porque siempre hay exactamente un estado por canal y no hace falta historial. No se crea tabla de adjuntos: el archivo es un campo del mensaje, porque un mensaje tiene como máximo un adjunto en estos canales. No se crea tabla de reglas de seguridad: son configuración de un canal y viven como un campo estructurado.
+
+**Campos agregados para etapas futuras.** `ai_conversation_summary` se agrega ahora aunque el agente de IA es Fase 3, para no migrar datos después. `lead_temperature` y `next_followup_date` se agregan ahora aunque el pipeline comercial es Etapa 4. El campo `provider` en `channels` existe para que agregar un canal de otro proveedor no requiera cambios de esquema.
+
+**Lo que queda especificado y sin construir.** La tabla de plantillas de WhatsApp y los campos de ventana de conversación para WhatsApp quedan escritos para el plan B. Si alguna vez se migra a la API oficial, esa parte se activa sin rediseñarla.
+
+### 7.4 Políticas de datos
+
+| Política | Definición |
+|---|---|
+| Borrado suave | Contactos, notas, conversaciones y respuestas rápidas. Retención de 30 días y después purga |
+| Auditoría | Todas las entidades principales registran quién y cuándo. El historial de auditoría nunca se borra |
+| Snapshot | No aplica todavía: los precios son de la Etapa 4 |
+| Deduplicación | Por un identificador único y estable, nunca solo por nombre ni por nombre de usuario. Cuáles califican está enumerado en la sección 14, y la lista es cerrada: sumar uno es una decisión que se escribe |
 
 ---
 
 ## 8. Arquitectura del sistema
 
-### Frontend
+**Frontend.** [Next.js](https://nextjs.org) 16 con React 19 y App Router. Componentes de servidor más hooks, sin almacén global de estado. Estilos con [Tailwind CSS](https://tailwindcss.com) v4.
 
-- **Next.js 16** con React 19 y App Router
-- **Tailwind CSS v4** (el fork ya usa v4)
-- **@xyflow/react** para el flow builder
-- **Supabase SSR** para autenticación del lado del servidor
-- Server Components por defecto, Client Components donde haga falta interactividad
+**Backend.** Rutas de API dentro de la misma aplicación para recibir los avisos de los proveedores, y acciones de servidor para las operaciones de la interfaz.
 
-### Backend
+**Base de datos.** [Supabase](https://supabase.com) con seguridad por filas activada en todas las tablas. En simple: la base decide qué puede ver cada persona, no la pantalla.
 
-- **Next.js API Routes** para webhooks y endpoints REST
-- **Server Actions** para mutaciones desde componentes
-- **Supabase JS Client** con RLS
-- **Service Role Key** solo en servidor, para cron jobs y webhooks
+**Integraciones externas.**
 
-### Base de datos
+| Servicio | Para qué | Cómo se conecta |
+|---|---|---|
+| Zernio | Instagram | API oficial de Meta, con firma criptográfica en los avisos |
+| Evolution API | WhatsApp | Servicio propio en Railway, con aviso autenticado |
+| Resend | Correo saliente | Clave guardada en Vault |
+| OpenAI, Anthropic, Google | IA | Claves del propio negocio, guardadas en Vault |
 
-- **Supabase (PostgreSQL)**, plan Pro
-- **RLS** habilitado en todas las tablas, con políticas por workspace **y scope de leads**
-- **Supabase Vault** para secrets con AES-256
-- **Realtime** en `conversations` y `messages`, **respetando el scope de leads**
+**Autenticación.** Supabase Auth con cookies seguras del lado del servidor.
 
-### Integraciones externas
+**Almacenamiento de archivos.** Supabase Storage, bucket privado.
 
-| Servicio | Protocolo | Uso |
-| --- | --- | --- |
-| Zernio | Webhooks entrantes con firma HMAC + API REST | **Instagram** (1ª cuenta free) y **WhatsApp por API oficial** (2ª cuenta free) |
-| Resend | API REST | Emails transaccionales |
-| *(Etapa 2)* Zernio | API REST | TikTok para publicación, 3ª cuenta ($6/mes) |
-| *(Etapa 2)* Google Cloud / YouTube | OAuth 2.0 + REST | Comentarios y metadata |
-| *(Etapa 2)* LinkedIn | OAuth 2.0 + REST | Publicación en perfil |
+### Despliegue
 
-### Autenticación
+Un proyecto de Railway con tres servicios:
 
-- **Supabase Auth** con email y contraseña
-- Trigger `on_auth_user_created` crea el workspace automáticamente
-- Sesiones con Supabase SSR y cookies httpOnly
+| Servicio | Qué es | Dominio público |
+|---|---|---|
+| Aplicación Next.js | Dashboard y receptores de avisos | Sí |
+| Evolution API | Motor de WhatsApp, versión fijada | No |
+| PostgreSQL de Evolution | Estado interno de Evolution, incluida la sesión | No |
 
-### Hosting
+Railway factura por consumo de recursos, no por cantidad de servicios.
 
-```
-┌──────────── Railway (un proyecto, un servicio) ────────────┐
-│                                                             │
-│   ┌──────────────────────────────────┐                      │
-│   │  App Next.js (fork de ZernFlow)  │                      │
-│   │  Puerto público HTTPS            │                      │
-│   └──────────────┬───────────────────┘                      │
-│                  │                                          │
-└──────────────────┼──────────────────────────────────────────┘
-                   │ HTTPS
-        ┌──────────┴───────────┐
-        ▼                      ▼
-┌──────────────────┐   ┌──────────────────────┐
-│  Supabase        │   │  Zernio (SaaS)       │
-│  - PostgreSQL    │   │  - Instagram         │
-│  - Auth          │   │  - WhatsApp oficial  │
-│  - Vault         │   │  - Webhooks firmados │
-│  - Realtime      │   └──────────────────────┘
-│  - Storage       │
-└──────────────────┘
-```
+**Dos bases de datos PostgreSQL, y no son intercambiables.** Supabase guarda los datos del negocio. La de Railway guarda el estado interno de Evolution. Ninguna consulta de la aplicación toca la segunda.
 
-**Cambio respecto del BRD de clase:** desaparece el segundo servicio de Railway (Evolution API) y con él la red privada interna. La Etapa 1 corre con **un solo servicio**.
+**Una aclaración de seguridad que conviene dejar escrita.** La red privada de Railway no es una capa de defensa en esta arquitectura. El receptor de avisos es una ruta de la aplicación, y la aplicación tiene dominio público porque es el dashboard. Que Evolution entre por la puerta privada no cierra la pública. Para que lo fuera habría que sacar el receptor a un servicio sin dominio propio, y eso es un cambio de arquitectura que hoy no está presupuestado.
 
 ---
 
-## 9. Stack y decisiones técnicas
+## 9. Almacenamiento de archivos
 
-| Componente | Tecnología | Versión | Justificación |
-| --- | --- | --- | --- |
-| Frontend | Next.js + React | 16.1.6 + 19.2.4 | Viene en ZernFlow. App Router con Server Components |
-| Estilos | Tailwind CSS | 4.1.18 | Viene en ZernFlow |
-| Flow Builder | @xyflow/react | 12.10 | Viene en ZernFlow |
-| Base de datos | Supabase (PostgreSQL) | — | RLS, Vault, Auth, Realtime |
-| Auth | Supabase Auth | — | Email/password con trigger de auto-creación de workspace |
-| Client | @supabase/supabase-js + @supabase/ssr | 2.95 + 0.8 | Acceso con RLS automático |
-| Hosting | Railway | — | Un solo servicio en Etapa 1 |
-| **Instagram y WhatsApp** | **Zernio (API oficial de Meta)** | SDK `@zernio/node` 0.2.519, **versión fijada exacta** | Infraestructura oficial, sin riesgo de ban. Cliente ya escrito y con tests en el fork |
-| Email | Resend | — | Solo saliente en Fase 1 |
-| IA (SDK) | Vercel AI SDK | v6 | Viene en ZernFlow. Soporta ToolLoopAgent |
-| Secrets | Supabase Vault | — | AES-256, nativo de Supabase |
-| Testing | Vitest | 3.x | Viene en ZernFlow |
-| TypeScript | TypeScript | 5.9 | Viene en ZernFlow |
-
-**Ya no forma parte del stack:** Evolution API y Baileys.
+| Aspecto | Definición |
+|---|---|
+| Dónde | Supabase Storage, plan Pro, 100 GB incluidos |
+| Bucket | `message-media`, privado, con direcciones firmadas de vida corta |
+| Estructura | Por espacio de trabajo, conversación y mensaje |
+| Límites | Tamaño máximo configurable. Validación del tipo real de archivo en el servidor, no de la extensión |
+| Temporales | La descarga ocurre en segundo plano; si falla, el mensaje queda marcado y se reintenta |
+| Retención | Los adjuntos siguen la retención del mensaje. Si el contacto se purga a los 30 días de eliminado, sus archivos también |
+| Cuándo revisar | Si el volumen mensual de archivos supera unos pocos gigabytes, evaluar un almacenamiento de objetos más barato. No es una preocupación de esta fase |
 
 ---
 
-## 10. Pantallas principales
+## 10. Stack y decisiones técnicas
 
-### 10.1 Convenciones globales
+| Componente | Tecnología | Justificación |
+|---|---|---|
+| Base del proyecto | Fork de [ZernFlow](https://github.com/zernio-dev/zernflow), licencia MIT | Resuelve bandeja, CRM básico, motor de flujos y conexión con Zernio. Construir eso de cero eran semanas |
+| Frontend | Next.js 16.1.6 con React 19.2.4 | Viene del fork. Cambiarlo implicaría reescribirlo entero |
+| Estilos | Tailwind CSS 4.1.18 | Viene del fork. Atención: es v4, no v3, y la sintaxis difiere |
+| Base de datos y auth | Supabase, plan Pro | Constante del método. El plan Pro hace falta por el almacenamiento y por Vault |
+| Secretos | Supabase Vault | Las claves de terceros nunca en variables de entorno de la aplicación ni en texto plano |
+| Instagram | Zernio sobre API oficial de Meta | Es el único de los dos proveedores que soporta Instagram |
+| WhatsApp | Evolution API autoalojado | El seguimiento del negocio es semanal y cae fuera de la ventana de Meta. En la API oficial cada seguimiento sería un mensaje de plantilla con costo |
+| Correo | Resend | Constante del método |
+| IA | Vercel AI SDK v6 con claves del propio negocio | El negocio paga su propio uso; el sistema no cobra por intermediar |
+| Hosting | Railway | Control total, costos por consumo, y Evolution necesita un servicio propio de todos modos |
+| Versionado | GitHub | Constante del método |
+| Testing | Vitest | Viene del fork |
 
-**Navegación:** sidebar colapsable con Dashboard, Inbox, Contacts, Flows, Sequences, Growth y Settings. En mobile colapsa a bottom navigation. Breadcrumbs arriba del contenido.
-
-**Sistema visual:** tipografía Inter. Paleta heredada de ZernFlow: neutros con un acento. Componentes reutilizables: botones (primary, secondary, ghost, destructive), inputs con validación, cards, tablas con sorting y paginación, modales, dropdowns, toasts.
-
-**Estados estándar:**
-- **Vacío**: ícono + texto explicativo + CTA principal
-- **Cargando**: skeleton loaders para listas, spinner para acciones puntuales
-- **Error**: banner con mensaje claro y acción sugerida
-- **Éxito**: toast que se cierra solo a los 4 segundos
-
-**Responsive:** mobile (<768px), tablet (768-1024px), desktop (>1024px). En mobile el inbox muestra primero la lista y al tocar abre el hilo a pantalla completa.
-
-### 10.2 Detalle por pantalla
-
-#### Dashboard (`/dashboard`)
-
-- **Propósito**: vista general. Wizard de onboarding si no hay canales; cards de resumen si los hay.
-- **Componentes**: wizard de setup, cards (total de contactos, conversaciones abiertas, canales activos), actividad reciente.
-- **Estados**: sin canales (wizard), con canales sin datos (ceros y "Esperando mensajes"), con datos.
-
-#### Inbox (`/inbox`)
-
-- **Propósito**: ver y responder conversaciones de todos los canales.
-- **Layout**: tres columnas en desktop (lista, hilo, panel del contacto). En mobile, lista y hilo son pantallas separadas.
-- **Componentes**:
-    - Lista: avatar, nombre, preview, ícono de canal, timestamp, unread badge, badge "no contactar", **indicador de ventana**
-    - Hilo: burbujas diferenciadas, timestamps, estado del mensaje, **marca visual en los mensajes enviados como plantilla**
-    - Panel del contacto: datos, tags, asignaciones, notas, campos custom
-    - Campo de respuesta con selector de respuestas rápidas ("/")
-    - Toggle de agente IA (visible pero no funcional hasta Fase 3)
-    - **Barra de filtros**: canal, tags, asignación, fecha, **estado de ventana**
-- **Reglas**:
-    - Owner y Admin ven todas las conversaciones; un Member solo las suyas (scope por RLS)
-    - Al responder, el operador se asigna automáticamente
-    - **El campo de respuesta cambia según el estado de la ventana** (ver F6c)
-    - Mensajes a contacto "no contactar": advertencia en texto libre, bloqueo en plantillas
-
-#### Configuración de integraciones (`/settings/integrations`)
-
-- **Propósito**: conectar y gestionar canales, email y proveedores de IA.
-- **Componentes**: card por integración con ícono, nombre, estado (badge verde o rojo), cuenta conectada y botón de acción. Para WhatsApp, además: número conectado y estado del nombre para mostrar.
-- **Reglas**: solo Owner y Admin.
-
-#### Plantillas de WhatsApp (`/settings/whatsapp-templates`) — pantalla nueva
-
-- **Propósito**: gestionar las plantillas aprobadas por Meta.
-- **Componentes**: tabla con nombre interno, nombre en Meta, categoría, idioma, estado (badge por color), calificación de calidad, acciones. Formulario de alta con cuerpo, variables y categoría. Vista del motivo de rechazo cuando aplique.
-- **Estados**: borrador, enviada (con aviso de 24 a 48 horas de revisión), aprobada, rechazada (con motivo), pausada por calidad.
-- **Reglas**: solo Owner y Admin.
-
-#### Respuestas rápidas (`/settings/response-templates`)
-
-- **Propósito**: CRUD de respuestas predefinidas para usar dentro de la ventana.
-- **Componentes**: tabla con nombre, atajo, preview, autor y acciones. Formulario con guía de variables disponibles y preview en vivo.
-- **Reglas**: Owner y Admin crean y editan; Member usa.
-
-#### Lista de contactos (`/contacts`)
-
-- **Propósito**: ver todos los contactos con filtros y acciones.
-- **Componentes**: búsqueda, filtros (tags, setter, vendedor, temperatura, canal), tabla paginada de 25, botones "Importar CSV" y "Nuevo contacto".
-- **Reglas**: Owner y Admin ven todos; un Member solo los suyos. Eliminar solo Admin y Owner.
-
-#### Ficha de contacto (`/contacts/[id]`)
-
-- **Propósito**: vista completa del contacto.
-- **Componentes**: header con datos principales y badges, sidebar con asignaciones y datos, secciones de Conversaciones (**con estado de ventana por canal**), Notas, Tags, Custom Fields, Historial y Atribución.
-- **Reglas**: Owner y Admin ven cualquier ficha; un Member solo las suyas.
-
-#### Modal de importación CSV
-
-- **Propósito**: importar contactos.
-- **Layout**: cuatro pasos (upload, preview y mapeo, opciones, resultado).
-- **Estados**: subiendo, mapeando, **encolado** (más de 500 filas), importando, completado, error con descarga de detalle.
+**Una decisión técnica que conviene explicar.** El fork no usa [Zod](https://zod.dev) para validar datos. Si en algún momento hace falta validación de estructuras, se adopta Zod 4, no la versión 3, para evitar mezclar dos formas distintas de escribir lo mismo.
 
 ---
 
-## 11. Guías de UI, marca y diseño
+## 11. Pantallas principales
 
-- **Colores**: diseño neutro y profesional, grises con un acento azul por defecto, heredado de ZernFlow.
-- **Tipografía**: Inter. h1 (2rem), h2 (1.5rem), h3 (1.25rem), body (14px), small (0.875rem).
-- **Tono de los textos**: profesional y cercano, en español rioplatense. Sin jerga técnica en la interfaz. Errores claros y con acción sugerida.
-- **Lineamientos de UX**:
-    - Acciones en un clic, sin enterrarlas en menús
-    - Modales solo para confirmaciones y formularios cortos
-    - Feedback inmediato: toasts, spinners, skeletons
-    - Deshacer donde se pueda, especialmente en eliminaciones (5 segundos antes del soft delete)
-    - Teclado: "/" para respuestas rápidas, Ctrl+Enter para enviar, Escape para cerrar modales
-- **Nomenclatura obligatoria**: "respuestas rápidas" para los templates internos, "plantillas de WhatsApp" para las de Meta. Nunca usar "plantilla" a secas.
+### 11.1 Convenciones globales
+
+**Navegación.** Barra lateral fija en escritorio con las secciones principales: bandeja, contactos, canales, flujos, secuencias y configuración. En móvil la barra se colapsa en un menú.
+
+**Sistema visual.** Tipografía del sistema, espaciado consistente, y los componentes reutilizables que ya trae el fork: botones, campos, tarjetas, tablas y ventanas modales. No se introduce una librería de componentes nueva.
+
+**Estados estándar, obligatorios en todas las pantallas.**
+
+| Estado | Qué se muestra |
+|---|---|
+| Vacío | Explicación de qué va a aparecer ahí y un botón que lleva a la acción que lo llena. Nunca una pantalla en blanco |
+| Cargando | Esqueleto de la estructura, no un círculo girando sobre la nada |
+| Error | Mensaje en lenguaje claro y una acción sugerida. Nunca el error técnico crudo |
+| Éxito | Confirmación breve que desaparece sola |
+
+**Responsive.** Todas las pantallas funcionan en teléfono. La bandeja en móvil muestra la lista de conversaciones o el hilo, no las dos cosas a la vez.
+
+### 11.2 Detalle por pantalla
+
+#### Bloque 2
+
+##### Pantalla: Configuración de integraciones
+
+- **Propósito:** conectar los servicios externos en un solo lugar.
+- **URL:** `/settings/integrations`
+- **Layout:** una columna con secciones plegables, una por tipo de servicio.
+- **Componentes:**
+    - Sección de canales, con una tarjeta por canal: nombre, estado, campos de conexión y botones de conectar y desconectar. La tarjeta de WhatsApp muestra además el estado de sesión y un botón de reconectar.
+    - Sección de correo, con la clave de Resend y el dominio verificado.
+    - Sección de IA, con una fila por proveedor: clave y modelo por defecto.
+- **Estados:** con servicios conectados se ve el estado de cada uno; sin nada conectado, cada tarjeta explica para qué sirve ese servicio y qué se gana conectándolo.
+- **Interacciones:** al guardar una clave se valida el formato y se prueba la conexión. El campo de clave nunca muestra el valor guardado, solo si está configurada o no.
+- **Reglas:** solo Owner y Admin. Un Member que intente entrar es redirigido, y el control está en el servidor, no en la pantalla.
+- **Responsive:** las secciones se apilan.
+
+#### Bloque 3
+
+##### Pantalla: Ficha de contacto
+
+- **Propósito:** la vista completa de un lead.
+- **URL:** `/contacts/[id]`
+- **Layout:** dos columnas en escritorio. Izquierda con los datos, derecha con conversaciones y notas.
+- **Componentes:** datos personales y de contacto, asignaciones de setter y vendedor, temperatura, próximo seguimiento, atribución de origen, etiquetas, campos personalizados, lista de conversaciones por canal, notas cronológicas e historial de cambios.
+- **Estados:** si el teléfono está sin resolver, se muestra una marca con un campo para cargarlo a mano. Si el contacto pidió no ser contactado, se muestra una marca roja.
+- **Interacciones:** al cargar un teléfono a mano, si ya existe otro contacto con ese número, se abre la propuesta de fusión mostrando los dos lados. La fusión la confirma la persona.
+- **Reglas:** un Member solo abre la ficha de sus propios leads. Si le sacan la asignación mientras la tiene abierta, ve un mensaje claro, no un error de permisos.
+- **Responsive:** las columnas se apilan, con los datos arriba.
+
+#### Bloque 4
+
+##### Pantalla: Bandeja
+
+- **Propósito:** donde el equipo trabaja todos los días.
+- **URL:** `/inbox`
+- **Layout:** tres zonas en escritorio: filtros y lista de conversaciones a la izquierda, hilo en el centro, datos del contacto a la derecha.
+- **Componentes:** barra de filtros con contador de filtros activos, lista de conversaciones con vista previa y canal, hilo de mensajes con sus adjuntos, campo de respuesta con selector de respuestas rápidas.
+- **Estados:** sin conversaciones, explica que ahí van a aparecer los mensajes cuando se conecte un canal. Si un canal está caído, un aviso visible lo indica, porque si no una bandeja sin mensajes parece un día tranquilo.
+- **Interacciones:** escribir "/" abre el selector de respuestas rápidas. En Instagram, con la ventana cerrada, el campo se deshabilita y explica por qué. Con un contacto marcado como no contactar, el envío se bloquea.
+- **Reglas:** un Member ve solo sus conversaciones, y eso lo garantiza la base.
+- **Responsive:** en móvil se ve la lista o el hilo, con navegación entre los dos.
+
+##### Pantalla: Canales
+
+- **Propósito:** ver y administrar el estado de las conexiones.
+- **URL:** `/dashboard/channels`
+- **Layout:** una tarjeta por canal.
+- **Componentes:** nombre del canal, cuenta conectada, estado de sesión con su fecha de verificación, y botón de reconectar con el código QR cuando corresponde.
+- **Estados:** conectado, caído, sin verificar y "se agotaron los intentos", cada uno con su explicación en lenguaje claro.
+- **Interacciones:** el botón de reconectar no siempre puede entregar un código, y cuando no puede lo dice en lugar de fallar en silencio.
+- **Reglas:** solo Owner y Admin.
+
+##### Pantalla: Configuración del canal de WhatsApp
+
+- **Propósito:** ajustar las seis reglas que protegen el número.
+- **URL:** `/settings/channels/whatsapp`
+- **Componentes:** un control por regla, con su valor por defecto y una explicación de una línea de para qué sirve y qué pasa si se desactiva.
+- **Reglas:** solo Owner y Admin. La regla de opt-out no se puede desactivar.
 
 ---
 
-## 12. Fuera del alcance de esta fase
+## 12. Guías de interfaz, marca y diseño
+
+El negocio tiene identidad visual propia, pero el sistema es una herramienta interna, no una pieza de marca. Se usa el diseño neutro y profesional que trae el fork, con estas pautas:
+
+- **Tono de los textos:** claro y directo, sin jerga técnica. Un mensaje de error dice qué pasó y qué hacer, no un código.
+- **Prioridad a las acciones de un clic.** Lo que se hace todos los días, como responder o asignar, no debería requerir abrir una ventana.
+- **Nada de ventanas modales para formularios largos.** La ficha de contacto se edita en su propia pantalla.
+- **Densidad de información alta en la bandeja.** Es una herramienta de trabajo, no una página de marketing: más conversaciones visibles sin desplazarse es mejor.
+- **Colores con significado consistente.** El rojo se reserva para bloqueos y advertencias reales, como "no contactar" o "canal caído". Si todo es rojo, nada lo es.
+
+La personalización de marca del negocio, si en algún momento hace falta, se configura desde la interfaz, no tocando código.
+
+---
+
+## 13. Fuera del alcance de esta fase
 
 ### Para fases siguientes de esta etapa
 
-| Funcionalidad | Fase | Nota |
-| --- | --- | --- |
-| Flow builder con triggers extendidos | Fase 2 | Los triggers básicos ya existen |
-| BYOK multi-proveedor en el nodo AI Response | Fase 2 | La UI de BYOK se construye en Fase 1 |
-| **Secuencias que envían plantillas de WhatsApp** | Fase 2 | El modelo de plantillas se construye en Fase 1 |
-| **Validación de ventana al dar de alta una secuencia** | Fase 2 | Marca en rojo los pasos que van a fallar |
-| Base de conocimiento con pgvector | Fase 2 | — |
-| Notificaciones para admins por derivación a humano | Fase 2 | — |
-| Agente IA conversacional con tool calling | Fase 3 | — |
-| Memoria acumulativa del agente | Fase 3 | El campo ya existe |
-| Clasificación automática post-conversación | Fase 3 | — |
-| Toggle de agente IA funcional | Fase 3 | Se muestra en Fase 1 sin activar nada |
-| Dashboards de analytics | Fase 3 | — |
+| Funcionalidad | Fase destino | Nota |
+|---|---|---|
+| Motor de secuencias de seguimiento | Fase 2 | Consume las reglas de seguridad que se definen acá |
+| Agente de respuesta automática | Fase 2 | |
+| Difusiones y envíos masivos | Fase 2 | La tabla ya existe en el fork y se conserva |
+| Agente de IA integral | Fase 3 | Lee el historial que se empieza a guardar en el Bloque 3 |
+| Analíticas y tablero de métricas | Fase 3 | Solo son posibles porque los mensajes se guardan |
+| Integración de solo lectura con Calendly | Fase 2 | Escribe las tres columnas de agenda que esta fase agrega al contacto. Ver abajo: una de sus decisiones se toma ahora |
 
 ### Para etapas futuras
 
-| Funcionalidad | Etapa | Nota |
-| --- | --- | --- |
-| TikTok (publicación y métricas) | Etapa 2 | **3ª cuenta de Zernio, $6/mes**, porque WhatsApp ocupa la 2ª |
-| YouTube y LinkedIn | Etapa 2 | No son canales de chat |
-| Publicación de contenido (LateWiz) | Etapa 2 | Componentes de UI adaptados |
-| Email bidireccional | Etapa 2 | — |
-| Roles custom con permisos por módulo | Etapa 2 | El scope de leads ya está en Etapa 1 |
-| Meta Ads dashboard | Etapa 2 | — |
-| Agente asistente integral, Fathom, MCP | Etapa 3 | — |
-| Agendamiento, ventas y pipeline | Etapa 4 (opcional) | — |
+| Funcionalidad | Etapa destino | Nota |
+|---|---|---|
+| Publicación de contenido en redes | Etapa 2 | |
+| TikTok, YouTube y LinkedIn como canales | Etapa 2 | La estructura de integraciones ya lo contempla |
+| Email bidireccional | Etapa 2 | Acá solo sale correo, no entra |
+| Roles personalizados con permisos granulares | Etapa 2 | Hoy son tres roles fijos |
+| Meta Ads | Etapa 2 | |
+| Fathom y conector MCP | Etapa 3 | |
+| Agendamiento y pipeline comercial | Etapa 4 | Opcional |
 
-### Fuera del proyecto completo
+### Lo que la migración desde Pipedrive deja afuera
+
+| Funcionalidad | Destino | Nota |
+|---|---|---|
+| Los 118 tratos "IG DM" de Pipedrive | No se migran nunca | Los trae la conexión de Instagram, con mejores datos. Ver F38 |
+| El historial de tratos cerrados más allá del último | Fuera del proyecto | 15 personas tienen más de un trato, todos cerrados. El modelo aplanado guarda el último; el resto queda en Pipedrive como archivo |
+| Reemplazo de Calendly por un agendador propio | Etapa 4, Fase 1 | La integración de la Fase 2 es de solo lectura y no lo adelanta |
+
+### Calendly: se construye en la Fase 2, pero una decisión se toma ahora
+
+**El problema no es de integración, es de secuencia.** La descripción del proyecto dice que el sistema da seguimiento automático *a los leads que no agendan*. Para saber quién no agendó, el sistema tiene que saber quién sí. Y agendar pasa en Calendly, que el brief lista explícitamente como "sin integración al CRM".
+
+El agendador propio es Etapa 4. Las secuencias de seguimiento son Fase 2. Entre esos dos momentos hay meses donde las secuencias correrían sin saber quién agendó, y el modo de falla es concreto: un lead agenda por Calendly y no responde el mensaje. Las secuencias se pausan cuando el contacto **responde**, no cuando agenda. La secuencia sigue y el sistema le manda "¿querés que agendemos?" a alguien que tiene la reunión confirmada para el martes.
+
+**La decisión: se construye una integración de solo lectura con Calendly en la Fase 2.** No reemplaza nada, y el agendador propio sigue siendo Etapa 4 sin cambios. Su alcance son tres cosas: un receptor de avisos para reserva creada y reserva cancelada, la escritura de `booking_status` y `booking_at` en el contacto, y una condición en las secuencias que excluya a los contactos con reunión agendada.
+
+**El 80 por ciento de ese trabajo sobrevive a la Etapa 4.** Las columnas de estado de agenda y la condición de las secuencias son exactamente lo que el agendador propio va a escribir y leer cuando exista. Lo único que se borra el día de la migración es el receptor de avisos.
+
+> #### Lo que no se puede postergar, aunque la integración sea de Fase 2
+>
+> **El enlace de Calendly que manda el flujo tiene que generarse por contacto, con el identificador del contacto en un parámetro de seguimiento.** El receptor lo lee de vuelta y hace la correspondencia por ahí.
+>
+> El motivo: Calendly entrega correo, y teléfono si el formulario lo pide. La deduplicación del sistema es por teléfono normalizado o correo. **Un lead que llegó por Instagram no tiene ninguno de los dos** hasta que los da. Una reserva de ese lead no corresponde con ningún contacto: crea uno nuevo, duplicado, y el contacto de Instagram sigue marcado como que no agendó.
+>
+> Esto define cómo se arma el nodo del flujo en la Fase 2, así que se decide ahora o se rehace después.
+
+### Especificado pero no construido, para el plan B
 
 | Funcionalidad | Motivo |
-| --- | --- |
-| Detección de nuevos seguidores de Instagram | Limitación de la API |
-| **Comment-to-DM y secuencias en TikTok** | La plataforma no permite que el negocio inicie conversaciones |
-| App móvil nativa | PWA responsive es suficiente |
-| Integración con CRMs externos | El sistema ES el CRM |
-| Facturación y cobros automáticos | No es el core |
-| Rotación automática de API keys | La manual alcanza |
-| Merge automático de contactos duplicados | La detección y vinculación manual alcanzan |
+|---|---|
+| Plantillas de WhatsApp aprobadas por Meta | Solo aplican en la API oficial |
+| Ventana de 24 y 72 horas para WhatsApp | Solo aplica en la API oficial |
+| Alta de cuenta de WhatsApp Business en Meta | Solo si se migra |
+
+### Deuda que se arrastra del Bloque 1
+
+| Tema | Nota |
+|---|---|
+| `comment_logs` sin alcance por lead | Se correlaciona con un lead por el usuario del autor. Exige decidir antes si un comentario pertenece a un lead o al espacio de trabajo |
+| Medición de rendimiento de la bandeja | Solo tiene sentido con datos reales |
+| Políticas de escritura de `broadcast_recipients` | Siguen autorizando por membresía |
+| Los verificadores corren contra la base de producción | Tolerable mientras está vacía |
+
+### Deuda que abre el Bloque 2
+
+| Tema | Nota |
+|---|---|
+| Las conversaciones existen en dos bases | Evolution se despliega con el guardado de historial activado, así que copia cada mensaje a su propio PostgreSQL de Railway, además de Supabase, que es la fuente de verdad. Hoy se justifica por dos motivos: habilita el endpoint de historial, que es la vía limpia para una importación inicial, y mientras F27 no exista es la única red de contención si el receptor falla. **Punto de revisión: cuando F27 esté construido y probado, esa copia deja de ser red de contención y pasa a ser redundancia.** Ahí se decide si se apaga el guardado o si se le define una retención a la base de Evolution. Son conversaciones con clientes creciendo en un lugar donde nadie definió por cuánto tiempo, y eso no puede quedar sin decidir por omisión |
+
+### Una decisión operativa que queda abierta, fuera del sistema
+
+**La automatización que alimenta Pipedrive desde Instagram queda redundante y conviene apagarla.** Hoy hay una automatización por API que crea un trato por cada conversación nueva de Instagram, con el nombre para mostrar. Una vez conectado el canal, el sistema recibe esas mismas conversaciones por su propia vía, con el usuario real y el hilo completo.
+
+Si esa automatización sigue corriendo después de la migración, Pipedrive se sigue llenando de tratos que nadie va a leer, y aparece la duda de cuál de los dos sistemas tiene el dato bueno. Apagarla es parte de dar por terminada la migración, no un detalle posterior.
 
 ---
 
-## 13. Decisiones transversales
+## 14. Decisiones transversales
 
-| Decisión | Definición |
-| --- | --- |
-| **Historial y auditoría** | `audit_log` global. Registra contactos, asignaciones, importaciones, canales, equipo y **ciclo de vida de plantillas**. No se elimina nunca |
-| **Soft delete** | `deleted_at` en contactos, notas, conversaciones y respuestas rápidas. Retención 30 días, purga por cron. Cascada al purgar; el audit log sobrevive |
-| **Deduplicación de contactos** | Por teléfono normalizado a E.164 y email. Match exacto vincula; match solo por username sugiere |
-| **Estados y ciclo de vida** | Conversación: open → closed. Contacto: active → do_not_contact. **Plantilla: draft → submitted → approved / rejected → paused.** Enrollment y flow session: ya existen en ZernFlow. Invitación: pending → accepted → expired |
-| **Ventanas de mensajería** | Guardadas como configuración del canal, no cableadas. Instagram 24h más respuesta privada de 7 días; WhatsApp 24h, o 72h si vino de click-to-WhatsApp. El motor valida antes de enviar y, en Fase 2, al dar de alta la secuencia |
-| **Casos borde** | Webhook duplicado: verificar `webhook_events`. CSV inválido: abortar con error. API key inválida: error visible al usarla. Dos operadores responden a la vez: gana el último, Realtime actualiza a ambos. **Ventana cerrada: el sistema lo impide antes de intentar el envío** |
-| **Zona horaria e idioma** | Fechas en UTC, el frontend convierte a la zona del navegador. UI en español rioplatense |
-| **Motor de automatización** | Flow builder de ZernFlow. En Fase 1 se verifica; en Fase 2 se extiende. Las secuencias son independientes pero se activan desde flows |
-| **Modelo de asignación** | Doble: setter y vendedor, opcionales e independientes. Asignación manual en Fase 1. Las conversaciones se auto-asignan a quien responde. **La asignación define el scope de visibilidad por RLS** |
-| **Contacto cross-canal** | Identificador principal: teléfono > email > username. Vinculación automática con los dos primeros, sugerida con el tercero. Cada conversación separada por canal, **con su propia ventana** |
-| **BYOK y secrets** | Supabase Vault con AES-256, aislado por workspace. **Las columnas de claves en texto plano del fork se migran y se eliminan en Fase 1** |
-| **Patrón de webhooks** | Idempotencia con `webhook_events`. Ack inmediato con 200 antes de procesar. Procesamiento async en `scheduled_jobs` cuando sea pesado. **Validación HMAC obligatoria para todos los webhooks de Zernio**, que ahora incluyen WhatsApp |
-| **Difusiones y rate limiting** | No aplican en Fase 1. Instagram: 200 mensajes automatizados por hora. **WhatsApp: el límite de mensajería cuenta contactos únicos por día fuera de la ventana; arranca en 250 y sube a 2.000 con los pasos de escalado de Meta.** Con el volumen previsto (~23 por día) no es restrictivo |
+| Decisión | Definición para este proyecto |
+|---|---|
+| Historial y auditoría | Todas las entidades principales registran quién, qué y cuándo. El historial nunca se borra |
+| Borrado suave | Contactos, notas, conversaciones y respuestas rápidas. Retención de 30 días, después purga por tarea programada |
+| Deduplicación de contactos | Por un identificador único y estable, nunca solo por nombre. **Cuáles califican está enumerado abajo, y sumar uno nuevo es una decisión que se escribe acá**, no algo que cada importador o cada canal resuelva por su cuenta. Un contacto sin teléfono resuelto no se deduplica: se marca y se reconcilia después, con confirmación humana |
+| Snapshot de precios | No aplica en esta etapa. Se contempla en Etapa 4 |
+| Estados y ciclo de vida | Conversación: abierta, archivada. Contacto: activo, no contactar, eliminado. Canal: conectado, caído, sin verificar, agotado. Mensaje: pendiente, enviado, fallido |
+| Casos borde | Si el operador cierra la ventana a mitad de una importación, el trabajo sigue en segundo plano. Si le sacan un lead que tenía abierto, ve un mensaje claro y no un error. Si la sesión de WhatsApp se cae, la bandeja lo indica en lugar de parecer vacía |
+| Zona horaria e idioma | Español rioplatense en toda la interfaz. La zona horaria del negocio es la de Costa Rica. Los envíos de secuencia respetan la zona horaria del contacto cuando se conoce |
+| Motor de automatización | El fork trae un motor de flujos visual que se conserva. Las secuencias de la Fase 2 se apoyan en él |
+| Precios variables | No aplica en esta etapa |
+| Modelo de asignación | Doble asignación independiente: setter, quien contacta, y vendedor, quien cierra. Asignación manual. La conversación además tiene un agente asignado |
+| Contacto entre canales | El identificador principal es el teléfono normalizado, después el correo, después el nombre de usuario de la red. Coincidencia exacta de los dos primeros vincula sola; por nombre de usuario solo sugiere. Al unificar, el historial de los dos contactos se junta y queda registrado |
+| Claves de terceros | Supabase Vault. Rotación manual desde la interfaz. Si una clave vence, el sistema avisa y degrada esa integración sin romper el resto |
+| Patrón de avisos entrantes | Control de duplicados con registro de eventos, acuse inmediato antes de procesar, procesamiento en segundo plano, y verificación de autenticidad obligatoria. En Zernio es firma criptográfica; en Evolution es un dato firmado que caduca |
+| Patrón de envíos masivos y límites | Lotes con separación aleatoria, cola de envío, corte automático ante silencio, y franja horaria. Se construye como configuración en el Bloque 4 y lo usa el motor de la Fase 2 |
+| Estado comercial heredado | Un solo par etapa y estado por contacto, en columnas con restricción de valores. Se verificó en los datos: ninguna persona tiene un trato abierto y además uno cerrado. El pipeline comercial completo es Etapa 4 |
+| Vigilancia por ausencia | Todo mecanismo que avisa porque algo **dejó** de pasar lleva su propia prueba de vida, visible en la interfaz. **Está desarrollado abajo**, y aplica a cualquier detector que se sume después, no solo a los que ya están escritos |
+| Una plantilla de WhatsApp es una entidad, no un texto | **Está desarrollado abajo.** Es la única parte del plan B que no se puede postergar, porque lo que compromete no es una tabla: es la forma del paso de secuencia que se diseña en la Fase 2 |
+
+### Los identificadores que califican para deduplicar
+
+**La lista es esta y es cerrada.** Agregar uno es una decisión que se escribe acá, con su motivo, no un criterio que cada importador o cada canal nuevo resuelva por su cuenta. **"Estable" es un juicio, y ahí es donde se cuelan los errores:** todo identificador le parece estable a quien lo está mirando en el momento.
+
+| Identificador | Dónde vive | Vincula |
+|---|---|---|
+| Teléfono normalizado a E.164 | `contacts.phone` | Solo con coincidencia exacta |
+| Correo | `contacts.email` | Solo con coincidencia exacta |
+| Identificador opaco del remitente que entrega el proveedor | `contact_channels.platform_sender_id`, con el valor crudo en `raw_jid` | Es la identidad del contacto en ese canal |
+| Identificador único del sistema de origen de una importación | La columna que corresponda, hoy `contacts.pipedrive_person_id` | Solo con coincidencia exacta |
+
+**Lo que NO califica, y el caso concreto está a la vuelta de la esquina.** Para Instagram el identificador estable es el **identificador opaco del remitente**, no el nombre de usuario y mucho menos el nombre para mostrar. El nombre de usuario se cambia cuando uno quiere, y el nombre visible todavía más. Por eso F29 vincula solo *sugiriendo* cuando la única coincidencia es el nombre de usuario, y por eso F26 dice que nunca se deduplica por nombre.
+
+No es una precaución teórica: **es exactamente lo que encontramos en los 118 tratos "IG DM" de Pipedrive.** Traen el nombre visible del lead y nada más, ninguno tiene el usuario, y por eso no sirven para identificar a nadie y no se migran. Un identificador que parecía suficiente cuando alguien armó esa automatización dejó 118 registros que no corresponden con ninguna persona.
+
+### Un mecanismo que avisa por ausencia necesita su propia prueba de vida
+
+**La regla, y se aplica sola.** **Todo trabajo periódico del que dependa algo que se muestre en pantalla escribe su marca de última ejecución y la muestra.** No hace falta decidirlo funcionalidad por funcionalidad: si algo de la interfaz depende de que un trabajo haya corrido, ese trabajo trae su marca, y punto. F32 la hereda, F39 la hereda, y el próximo trabajo periódico que alguien escriba también.
+
+**Por qué se redactó así y no como un criterio a evaluar caso por caso.** Una regla que necesita una decisión en cada caso es una regla que se va a saltear en el cuarto caso. Los tres primeros los discute alguien que se acuerda de por qué existe; el cuarto lo escribe otra persona, con apuro, y la pregunta "¿esto necesita marca de vida?" no se le ocurre porque nada se la hace. Aplicada sola, la pregunta no hay que acordarse de hacerla: la respuesta ya está.
+
+**Lo que la regla obliga a exponer.** Una señal propia de que el mecanismo sí está funcionando, visible en la interfaz. Sin esa señal, el mecanismo no se puede dar por verde: no hay forma de distinguir "no hay nada que avisar" de "nadie está mirando".
+
+**Por qué.** Un detector de silencio que depende de un trabajo periódico **falla igual que lo que vigila**. Si el trabajo muere, deja de abrir alertas, que es exactamente lo que hace cuando todo anda bien. El síntoma de la falla y el síntoma de la salud son el mismo símbolo en la misma pantalla: nada. Todo lo demás del sistema falla hacia afuera —una firma rechazada deja un rechazo, un envío fallido deja un mensaje en estado fallido—, y por eso un detector de ausencia es la única pieza que hay que verificar al revés, preguntando por su propia actividad en vez de por sus hallazgos.
+
+**Esta es una familia distinta de las dos reglas de verificación del CLAUDE.md, y por eso se escribe.** El control positivo dice cómo *probar* una comprobación negativa mientras uno la escribe. Esta dice qué tiene que traer *construido* el mecanismo para que alguien pueda confiar en él seis meses después, cuando ya nadie recuerda que existe.
+
+**Y de ahí sale la consecuencia práctica, que es la parte que se pierde si esto se lee como una recomendación.** Por ser funcionalidad y no verificación, la prueba de vida **tiene que aparecer en los criterios de aceptación y en el modelo de datos de la funcionalidad que la necesita**: una columna donde se escribe la marca, y un criterio que diga que se ve en pantalla. Si en cambio queda escrita como paso de un plan de pruebas, se corre una vez el día que se construye, nadie la vuelve a mirar, y desaparece sin dejar rastro justo en el momento en que empezaría a servir.
+
+### Los tres casos donde aplica
+
+**Uno, F39, por diseño.** La marca de última ejecución del trabajo periódico. Es el caso que originó la regla.
+
+**Dos, el chequeo periódico de sesión de F32, por herencia.** F32 pide explícitamente "aviso por evento y chequeo periódico, los dos", así que hay un sondeo del que depende lo que muestra la pantalla de canales, y todo sondeo puede morirse sin avisar. Una sesión que la pantalla muestra como "conectada" porque así quedó guardada, y que en realidad nadie verificó desde hace dos días, es una pantalla mintiendo con confianza. **No hace falta agregarle nada a la entrada de F32: la regla lo alcanza sola**, que es justamente para lo que está escrita de esta forma.
+
+**Tres, el re-registro del webhook de Zernio, y este está verificado en el código.** `ensureWebhookRegistered` corre dentro de un `try/catch` que solo escribe en la consola, en los dos lugares que lo llaman: `app/api/v1/channels/sync/route.ts:141` y `app/api/v1/channels/test-key/route.ts:74`. Los dos comentarios dicen lo mismo, "best-effort: a failure must not block". Es una decisión razonable —que falle el registro no tiene por qué impedir guardar la clave— con una consecuencia que nadie eligió: **la pantalla informa que el canal se sincronizó bien mientras el webhook puede no haber quedado registrado**. A partir de ahí la bandeja deja de recibir y el síntoma es, otra vez, exactamente el mismo que el de un día tranquilo. El estado real del registro existe y es consultable —`GET /v1/webhooks/settings` lo devuelve— pero no se muestra en ningún lado.
+
+Este tercer caso es el que convierte la regla en transversal en vez de en una nota al pie de F39: no salió de diseñar una funcionalidad nueva, salió de leer código heredado que ya está corriendo en producción.
+
+### Deriva de configuración y silencio de tráfico son dos fallas distintas con el mismo aspecto
+
+**La distinción.** Un vigilante puede preguntar dos cosas que parecen la misma:
+
+- **¿Está llegando tráfico?** Mide actividad. Detecta que algo se cortó del todo.
+- **¿La configuración sigue siendo la que pedimos?** Mide estado. Detecta que algo se cambió.
+
+**Por qué no son intercambiables, y por qué la primera sola es una trampa.** Una deriva de configuración casi nunca corta todo: saca una pieza. El tráfico que queda **disimula la falla**, y el vigilante que solo mide actividad ve movimiento y calla. Peor: cuanto más sano está el resto del sistema, más eficaz es el disimulo. Un canal muy activo esconde mejor una suscripción rota que uno muerto.
+
+Dicho de la forma más corta posible: **un vigilante que solo mide tráfico da por sana una configuración rota mientras el tráfico que sí queda la disimula.**
+
+**El caso que la produjo.** La suscripción del webhook de Zernio tiene tres eventos. Si pierde `message.sent`, los mensajes entrantes siguen llegando, el detector de silencio sigue en verde, y lo que desaparece son las respuestas que el negocio escribe desde el celular. Nadie lo ve hasta que alguien nota que una conversación no tiene las respuestas que recuerda haber escrito.
+
+**La consecuencia práctica.** Todo vigilante de un mecanismo que depende de una configuración externa —una suscripción de webhook, una lista de eventos, un conjunto de permisos, una regla de reenvío, una clave con alcance— tiene que **leer esa configuración y compararla contra lo que el código espera**, no solo medir si pasa tráfico. La comparación es casi siempre una llamada y un `every`, y es la diferencia entre un vigilante y un adorno.
+
+Y el corolario que conecta con la regla de arriba: esa comparación es a su vez un trabajo periódico, así que **también le corresponde su marca de última ejecución**. Un verificador de configuración muerto y una configuración correcta se ven igual.
+
+### Un test escrito con el supuesto equivocado del código es un espejo, no una red
+
+**El caso, del 21 de septiembre de 2026.** El receptor de Zernio descartaba los mensajes salientes comparando `direction === "outbound"`. El proveedor no manda nunca ese literal: los suyos son `"incoming"` y `"outgoing"`. La comparación no dio verdadero jamás, así que el guard no filtró nada desde el día que se escribió.
+
+Había un test que cubría exactamente eso, y estaba en verde. Mandaba `direction: "outbound"` — **el mismo literal inventado que comparaba el código**— y comprobaba que el mensaje se descartara. Como el fixture y el código compartían el error, el test confirmaba el bug en vez de atraparlo.
+
+**Es la cuarta aparición del mismo error de literal en el proyecto**, y la primera adentro de la red que tenía que detectarlo. Las tres anteriores están documentadas en `lib/zernio-message-map.ts`.
+
+**Por qué ningún control positivo lo habría encontrado.** El test tenía su contraparte afirmativa y las dos pasaban, porque las dos usaban el fixture equivocado. Un control positivo prueba que el camino de éxito funciona; no prueba que el dato de entrada se parezca al real. Cuando el fixture es ficción, el test entero mide una conversación entre el código y sí mismo.
+
+**La regla que sale de acá:** **los fixtures salen de una respuesta real del proveedor, no de lo que el código espera.** Copiada de un payload observado, con la fecha y el origen anotados al lado. Cuando no hay forma de conseguir una respuesta real, el fixture se marca como inventado, con esas palabras, para que el que venga sepa que esa parte no está verificada.
+
+El corolario incómodo, que conviene aceptar de entrada: **un test verde sobre un fixture inventado vale menos que no tener test**, porque ocupa el lugar donde alguien habría mirado.
 
 ---
 
-## 13b. Seguridad
+### Una plantilla de WhatsApp es una entidad, no un texto
 
-### Autenticación y sesiones
+**La regla.** Un paso de secuencia **referencia una plantilla por identificador**. Nunca guarda el cuerpo del mensaje como texto libre. Vale desde el momento en que se diseñe el paso de secuencia, en la Fase 2, aunque en esta fase no exista ninguna plantilla y con Evolution no haga falta ninguna.
 
-| Área | Definición |
-| --- | --- |
-| Método | Email y contraseña vía Supabase Auth |
-| Contraseñas | Mínimo 8 caracteres (default de Supabase) |
-| Sesiones | Supabase SSR con cookies httpOnly. Access token 1 hora, refresh 7 días |
-| Fuerza bruta | Rate limiting nativo de Supabase Auth |
-| Recuperación | Flujo de reset nativo con token de tiempo limitado |
+**Por qué no se puede postergar, aunque todo lo demás del plan B sí.** Con Evolution se escribe texto libre, así que guardar el cuerpo en el paso de secuencia es lo natural y lo correcto. El problema aparece el día de la migración: si el paso contiene un texto, migrar no es agregar la tabla `whatsapp_templates` y llenarla, es **reescribir el motor de secuencias** para que el paso apunte a una entidad en vez de contenerla. Eso convierte una migración de configuración en una migración de arquitectura, con el canal de WhatsApp caído mientras pasa.
 
-### Row Level Security
+Dicho al revés: el resto del modelo del plan B se puede construir el día que se necesite. Esta parte no, porque no es una funcionalidad que falte sino una decisión de forma que ya se habrá tomado.
 
-Todas las tablas con RLS. La función `is_workspace_member(ws_id)` ya existe en ZernFlow. Se agrega `can_see_contact(contact_row)` para el scope de leads.
+**Qué implica en concreto para la Fase 2.** El paso de secuencia guarda una referencia y un conjunto de variables para interpolar. En Evolution la referencia apunta a un texto propio del sistema; en el plan B apunta a una plantilla aprobada por Meta. El motor no cambia: cambia a qué apunta la referencia.
 
-| Tabla | SELECT | INSERT | UPDATE | DELETE |
-| --- | --- | --- | --- | --- |
-| `contacts` | **Owner/Admin todo; Member solo asignados** | Miembros | Igual que SELECT | Owner, Admin |
-| `conversations` | **Igual que contacts** | Sistema | Igual que SELECT | Owner, Admin |
-| `contact_notes` | Hereda el scope del contacto | Miembros con acceso al contacto | Autor, Admin, Owner | Autor, Admin, Owner |
-| `response_templates` | Miembros | Owner, Admin | Owner, Admin | Owner, Admin |
-| **`whatsapp_templates`** | Miembros | Owner, Admin | Owner, Admin | Owner, Admin |
-| `csv_imports` | Miembros | Miembros | — (inmutable) | — |
-| `audit_log` | Member solo sus acciones; Admin y Owner todo | Solo service role | — | — (nunca) |
-| `integration_configs` | Owner, Admin | Owner, Admin | Owner, Admin | Owner, Admin |
+**Y la nomenclatura es obligatoria, porque son dos cosas distintas que se llamarían igual.** "Respuestas rápidas" son los textos internos reutilizables que el operador inserta con "/" dentro de la ventana, en `response_templates`. "Plantillas de WhatsApp" son los mensajes aprobados por Meta para escribir fuera de la ventana, en `whatsapp_templates`. Nunca usar "plantilla" a secas en la interfaz.
 
-**Verificaciones obligatorias:**
+---
 
-- Todos los SELECT en tablas con `deleted_at` filtran `WHERE deleted_at IS NULL`
-- **El scope se evalúa en la base, no en la interfaz**: con el token de un Member, una consulta directa a la API de Supabase de un lead ajeno devuelve vacío
-- **Realtime respeta el scope**: un Member no recibe eventos de conversaciones que no le corresponden. Si la configuración de Realtime no lo garantiza, se filtra del lado del servidor antes de emitir
+## 14b. Seguridad
 
-### Validación de inputs
-
-- Validación en cliente **y en servidor**
-- Email con formato válido; **teléfono normalizado a E.164 en el servidor**; URLs con formato válido
-- API keys: longitud mínima y prefijo esperado donde aplique
-- CSV: formato, máximo 10MB y 10.000 filas
-- Sanitización contra XSS en todos los campos de texto
-
-### Protección de API
-
-- Verificación de JWT de Supabase en todas las API routes y Server Actions
-- Rate limiting en los endpoints de webhooks
-- CORS solo con el dominio de la app, sin wildcard
-- Headers: Content-Security-Policy, X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Strict-Transport-Security
-
-### Datos sensibles
-
-- API keys de terceros en Supabase Vault, nunca en variables de entorno del frontend
-- Service Role Key solo en servidor
-- Logs sin tokens, contraseñas ni claves
-- `.env` en `.gitignore`, con `.env.example` de placeholders
-- **Ninguna clave de API queda en columnas de `workspaces` al terminar el Bloque 1**
-
-### Comunicaciones
-
-- HTTPS obligatorio en producción
-- **Todos los webhooks de Zernio (Instagram y WhatsApp) validan firma HMAC antes de procesar**
+| Área | Definición para este proyecto |
+|---|---|
+| Autenticación | Supabase Auth con correo y contraseña, cookies seguras del lado del servidor. El registro público debe estar desactivado: los usuarios entran por invitación |
+| Seguridad por filas | Activada en las 24 tablas. Un Member solo accede a los contactos y conversaciones donde figura asignado, y eso lo decide la base de datos. Verificado con 24 comprobaciones automáticas contra la API |
+| Validación de datos | En el servidor siempre, no solo en el formulario. Teléfonos normalizados en servidor. Tipo real de archivo validado en servidor |
+| Protección de rutas de API | Sesión verificada en todas las rutas. Control de rol en el servidor para las pantallas y rutas de configuración |
+| Datos sensibles | Todas las claves de terceros en Vault. Ninguna clave viaja al navegador. Los logs nunca incluyen el contenido completo de un aviso entrante, porque incluye credenciales |
+| Protección contra ataques comunes | Las direcciones de redirección se validan comparando el origen, no con una lista de prohibiciones. Un test estático impide que una columna con nombre de secreto llegue al navegador |
+| Comunicaciones | HTTPS en producción. Avisos entrantes verificados antes de procesar, en los dos proveedores |
 
 ### Checklist para la IA constructora
 
-- [ ] RLS habilitado en todas las tablas, existentes y nuevas
-- [ ] Políticas de scope de leads escritas y probadas **por API, no solo por UI**
-- [ ] Realtime verificado contra el scope de leads
-- [ ] JWT verificado en todas las API routes y Server Actions
-- [ ] Rate limiting en webhooks
-- [ ] Validación en servidor, no solo en cliente
-- [ ] Teléfonos normalizados a E.164 en el servidor
-- [ ] CORS con dominio específico
-- [ ] Headers de seguridad en `next.config.js`
-- [ ] Secrets en Vault; **columnas de claves en texto plano eliminadas**
-- [ ] Service Role Key solo en servidor
-- [ ] HTTPS en producción
-- [ ] Logs sin datos sensibles
-- [ ] `.env` en `.gitignore`
-- [ ] Firmas HMAC validadas en todos los webhooks de Zernio
-- [ ] Versión de `@zernio/node` fijada exacta
+- [ ] Seguridad por filas activada en todas las tablas de Supabase
+- [ ] Políticas escritas y probadas para cada tabla nueva
+- [ ] Sesión verificada en todas las rutas de API
+- [ ] Control de rol en el servidor, no solo escondiendo botones
+- [ ] Validación de datos en el servidor, no solo en el cliente
+- [ ] Secretos en Vault, no en variables de entorno de la aplicación
+- [ ] Los logs no incluyen credenciales ni cuerpos completos de avisos entrantes
+- [ ] Verificación de autenticidad en los dos receptores de avisos
+- [ ] Alerta configurada ante rechazos del receptor de Evolution
+- [ ] Bucket de archivos privado, con direcciones firmadas de vida corta
+- [ ] `npm run verify:security` en verde antes de cerrar cada bloque
 
 ---
 
-## 13c. Base técnica heredada (fork de ZernFlow)
+## 14c. Base técnica heredada
 
-- **Proyecto base**: [ZernFlow](https://github.com/zernio-dev/zernflow), licencia MIT
-- **Framework y versiones**: Next.js 16.1.6, React 19.2.4, Tailwind CSS 4.1.18, TypeScript 5.9.3, Vitest 3.2.4
-- **Base de datos**: **24 tablas en 16 archivos de migración**
-    - Migración 1: workspaces, workspace_members, channels, contacts, contact_channels, tags, contact_tags, custom_field_definitions, contact_custom_fields, flows, triggers, flow_sessions, conversations, messages, broadcasts, broadcast_recipients, scheduled_jobs, analytics_events (18)
-    - Migración 4: comment_logs (19)
-    - Migración 5: sequences, sequence_enrollments (21)
-    - Migración 6: workspace_invites (22)
-    - Migración 10: flow_versions (23)
-    - Migración 12: webhook_events (24)
-    - Migración 16: agrega `'whatsapp'` al CHECK constraint de `channels.platform`, sin crear tabla
-
-**Sobre el conteo de nodos del flow builder:** `lib/flow-engine/types.ts` define **16 tipos de `NodeData`**: Trigger, Send Message, Condition, Delay, Smart Delay, Tag, Set Field, HTTP Request, Go To Flow, Human Takeover, A/B Split, Subscribe, Comment Reply, Private Reply, AI Response, Enroll Sequence. Los documentos previos dicen 17 y 18 porque cuentan por separado "Add Tag / Remove Tag" y "Subscribe / Unsubscribe", que en el código son un solo tipo con un parámetro. **Se implementan 16 componentes de nodo.**
-
-- **Ya implementado, no reconstruir**: autenticación con trigger de auto-creación de workspace; flow builder visual con motor recursivo de profundidad máxima 50; inbox con lista y panel de mensajes; CRM con tags y custom fields (6 tipos); secuencias con auto-pausa en respuesta; team management con invitaciones de 7 días; difusiones (tabla y UI, sin uso en Etapa 1); ledger de idempotencia de webhooks; versionado de flows; Realtime en conversaciones y mensajes; **cliente de Zernio con webhooks y adaptadores por plataforma, con tests**
-- **Patterns a seguir**: Supabase SSR con cookies httpOnly; Server Components más hooks, sin store global; webhooks en API Routes y mutaciones en Server Actions; `@supabase/supabase-js` con RLS, Service Role solo cuando hace falta bypass; Tailwind v4 sin CSS modules; motor de flujos en `lib/flow-engine/engine.ts`, nodos en `lib/flow-engine/nodes/`, abstracción de plataforma en `lib/flow-engine/platform-adapter.ts`
-- **Dependencias críticas**: `@supabase/supabase-js: ^2.95.3`, `@supabase/ssr: ^0.8.0`, `@xyflow/react: ^12.10.0`, **`@zernio/node: 0.2.519` (fijar exacta)**, `ai: ^6.0.85`, `next: ^16.1.6`, `react: ^19.2.4`, `tailwindcss: ^4.1.18`
-
-**Problema de seguridad heredado, a corregir en el Bloque 1:** la columna `workspaces.late_api_key_encrypted` **no está encriptada**. El código la lee y la pasa directo al cliente de la API, sin ninguna función de desencriptado. Lo mismo con `ai_api_key`. Ver F2.
+| Aspecto | Detalle |
+|---|---|
+| Proyecto base | [ZernFlow](https://github.com/zernio-dev/zernflow), licencia MIT |
+| Framework | Next.js 16.1.6, React 19.2.4, Tailwind CSS 4.1.18. Atención: Tailwind es v4, no v3 |
+| Tablas existentes | 24 tablas en 16 migraciones, más las 5 migraciones del Bloque 1 |
+| Ya implementado, no reconstruir | Autenticación, motor de flujos visual, bandeja básica, CRM con etiquetas y campos personalizados, secuencias con pausa automática, gestión de equipo, difusiones, control de duplicados de avisos, versionado de flujos, actualización en vivo, cliente de Zernio con sus adaptadores |
+| Patrones a respetar | Componentes de servidor más hooks, sin almacén global. Avisos en rutas de API, mutaciones en acciones de servidor. Clave de servicio solo en servidor. Estilos con clases de Tailwind, sin módulos de CSS |
+| Dependencias críticas | `@zernio/node` fijado en versión exacta, sin prefijo, porque es una librería en versión 0.x y puede romper entre versiones menores |
+| Lo que el README dice mal | El README habla de 23 tablas y 17 o 18 tipos de nodo. En el código son 24 tablas y 16 tipos de nodo |
 
 ---
 
-## 13d. Proyecto como template clonable
+## 14d. Proyecto como template clonable
+
+El proyecto va a servir de base para clonar y personalizar, así que estas reglas aplican.
 
 ### Migraciones
 
-Formato `000NN_nombre.sql`, idempotentes con `IF NOT EXISTS` y bloques `DO $$`. Las nuevas continúan desde `00017`:
-
-- `00017_extend_contacts.sql`: campos nuevos en contacts, incluida atribución y soft delete
-- `00018_vault_setup.sql`: extensión vault, funciones RPC, **migración de las claves en texto plano y eliminación de las columnas viejas**
-- `00019_crm_tables.sql`: contact_notes, response_templates, csv_imports, audit_log, integration_configs
-- `00020_whatsapp_templates.sql`: **tabla de plantillas y campos de ventana en conversations, más `whatsapp_template_id` en messages**
-- `00021_crm_indexes.sql`: índices para tablas y campos nuevos, incluidos los compuestos de deduplicación
-- `00022_crm_rls.sql`: políticas RLS de las tablas nuevas **y scope de leads con `can_see_contact`**
-- `00023_soft_delete_cron.sql`: función y configuración del cron de purga
-
-*No hace falta migración del CHECK constraint de `channels`: `'instagram'` y `'whatsapp'` ya están tras la migración 16. `'tiktok'`, `'youtube'`, `'linkedin'` y `'email'` se agregan en Etapa 2.*
-
-#### Renumeración real (se actualiza al crear cada migración)
-
-La lista de arriba es la planificada. La construcción del Bloque 1 necesitó dos migraciones que no
-estaban previstas, así que la numeración efectiva se corre. Esta es la lista real:
-
-| Archivo real | Bloque | Qué hace | Estado |
-| --- | --- | --- | --- |
-| `00017_lead_scope_columns.sql` | 1 | `contacts.setter_id`, `contacts.vendedor_id`, `workspaces.unassigned_leads_visible_to_members` e índices | **Aplicada** |
-| `00018_vault_setup.sql` | 1 | Extensión, funciones RPC y **copia** de las claves en texto plano. No borra columnas | **Aplicada** |
-| `00019_lead_scope_rls.sql` | 1 | `can_see_contact`, `can_see_conversation`, reemplazo de las policies del fork en 13 tablas y borrado sin reemplazo de las de `scheduled_jobs` | **Aplicada** |
-| `00020_workspace_members_manager_select.sql` | 1 | Un manager ve las membresías de su workspace. Sin esto la policy de UPDATE de la 00019 era letra muerta | **Aplicada** |
-| `signup_respects_invite` | 1 | Que `handle_new_user` no le cree workspace propio al invitado. **No hizo falta**: el invitado aterriza en el workspace correcto por la heurística de membresía más reciente. Si alguna vez se hace, toma el número libre que corresponda | Condicional, no aplicada |
-| `00021_drop_plaintext_key_columns.sql` | 1 | Borra `late_api_key_encrypted` y `ai_api_key`. Cierra el expandir-y-contraer de la 00018 y con él el criterio de F2 | **Aplicada** |
-| `00022_extend_contacts.sql` y siguientes | 3 y 4 | La lista planificada de arriba, corrida cinco números | Pendiente |
-
-**`00018` no borra las columnas: expandir y contraer.** El plan original juntaba en una sola
-migración la creación de los RPC, la copia de los valores y el `drop` de las columnas. Entre ese
-push y la reescritura de las 16 lecturas del código la app queda rota, y si la reescritura sale mal
-no hay camino de vuelta porque el dato viejo ya no existe. Ahora `00018` solo copia, los dos
-mecanismos conviven mientras se reescribe y se prueba el código, y `00021` borra las columnas
-cuando Vault ya está probado en todos los caminos. Consecuencia: el criterio de F2
-"`select * from workspaces` no devuelve ninguna clave" se cumple al aplicar `00021`, no `00018`.
-
-**Fuga encontrada al verificar F2, más grave que el problema documentado.** El documento describe
-las claves "en texto plano en una columna". Además de eso, seis consultas mandaban secretos al
-navegador o los devolvían en una respuesta de API:
-
-| Dónde | Cómo salía |
-| --- | --- |
-| `app/(dashboard)/layout.tsx` | fila completa del workspace a `<Sidebar>` (Client Component) |
-| `.../dashboard/channels/page.tsx` | filas completas de canales a `<ChannelsView>` |
-| `.../dashboard/growth/page.tsx` | filas completas de canales a `<GrowthView>` |
-| `GET /api/v1/channels` | filas de canales como JSON |
-| `POST /api/v1/channels/sync` | devuelve la lista de canales en la respuesta |
-| `/api/v1/messages` y `/api/cron/jobs` | `channels(*)` relacional, de uso interno |
-
-`workspaces.webhook_secret` y `channels.webhook_secret` son el secreto con el que se valida la
-firma HMAC de los webhooks de Zernio: quien lo tuviera podía **forjar eventos entrantes firmados**.
-Las props de un Client Component se serializan en el HTML, así que una fila "leída solo en el
-servidor" terminaba en el navegador con todo lo que trae.
-
-**Regla nueva del proyecto, en `lib/safe-columns.ts`:** ninguna consulta que alimente un Client
-Component o una respuesta de API usa `select("*")` sobre `workspaces` ni `channels`. Se enumeran
-columnas. Lo hacen cumplir dos cosas: el tipo (los Client Components usan `Omit<Row, secreto>`, así
-que el compilador rechaza traer la columna) y `lib/safe-columns.test.ts`, un test estático que
-prohíbe el `*` y el nombre de la columna fuera de un allowlist con motivo escrito. El test encontró
-cuatro de los seis puntos que la revisión manual no había visto.
-
-**La extensión de `channels` a más plataformas no hace falta todavía**, igual que dice la nota de
-arriba.
-
-**Por qué se desdobló `00017_extend_contacts`:** el scope de leads de F3 se define por `setter_id` y
-`vendedor_id`, que el plan original ubicaba en la extensión de `contacts` del Bloque 3. Sin esas dos
-columnas las policies de F3 no se pueden escribir. Se adelantaron solo esas dos más el flag de
-visibilidad de leads sin asignar; el resto de la extensión de `contacts` sigue en el Bloque 3.
-`00017_extend_contacts.sql` pasa a numerarse desde `00022` y arranca sin esas dos columnas (siendo
-idempotente con `add column if not exists`, tampoco rompería si las repitiera).
-
-**Desvío en la firma de `can_see_contact`:** el criterio de F3 la describe como
-`can_see_contact(contact_row)`. Se implementa con argumentos sueltos,
-`can_see_contact(p_workspace_id, p_setter_id, p_vendedor_id)`. Motivo verificado con `EXPLAIN` sobre
-esta base: una función `security definer` no se inlinea nunca, así que con cualquiera de las dos
-firmas la policy se evalúa fila por fila y ningún índice la ayuda; recibir la fila completa solo
-agrega el costo de armar un valor compuesto por fila, ata la firma al rowtype de `contacts` (que el
-Bloque 3 extiende) y obliga a materializar el registro entero en las policies de las tablas
-satélite. Se mantiene el espíritu del criterio: una sola función helper usada en las policies de
-SELECT, UPDATE y DELETE de `contacts`.
-
-#### Decisiones de la 00019
-
-**El INSERT no es simétrico entre `contacts` y `conversations`.** Las policies del fork son
-`for all`, así que también eran las que habilitaban el INSERT: al reemplazarlas hubo que decidir
-quién crea cada cosa.
-
-- **`contacts`: insertan todos los miembros, con un `with check` de auto-asignación.** Un Member que
-  crea un lead tiene que quedar como `setter_id` o `vendedor_id`, o el insert falla; Owner y Admin
-  insertan libre. Sin ese `with check` el propio scope le esconde el contacto en la consulta
-  siguiente: el lead existiría, sin dueño y sin que su creador pueda verlo. Queda listo para el alta
-  manual y la importación CSV del Bloque 3 sin otra migración.
-- **`conversations`: el INSERT desde el navegador es solo de manager.** Las conversaciones nacen del
-  webhook, que entra con service role y se saltea la RLS. No hay caso legítimo de creación desde la
-  interfaz.
-
-**`conversations` necesita policy de UPDATE, y no es opcional.** La bandeja marca como leído desde
-el **navegador** (`inbox-view.tsx`, `update` de `unread_count` con el cliente del usuario) y
-`api/v1/messages` actualiza la conversación al enviar. Sin UPDATE las dos cosas fallan devolviendo
-cero filas afectadas, sin error visible en ningún lado.
-
-**`scheduled_jobs`: se borraron las tres policies de la 00009 y no se reemplazaron.** Autorizaban
-con `auth.uid() is not null` y la tabla no tiene `workspace_id`, así que cualquier usuario
-autenticado del proyecto podía encolar un job con el `type` que quisiera —que el cron ejecuta—,
-marcar la cola entera como `completed` dejando caer secuencias y resume de flujos en silencio, y
-leer los payloads de todos los workspaces. Con RLS activa y sin policies, Postgres niega todo para
-cualquier token de usuario; el cron y el motor de flujos entran con service role y no se ven
-afectados.
-
-Antes de borrarlas se verificaron los dos puntos de inserción. `lib/flow-engine/engine.ts`
-(`executeDelay`) está limpio: los tres puntos de entrada a `executeFlow` / `resumeSession` son el
-webhook, `processComment` —que tiene un solo llamador, el mismo webhook— y el cron, los tres con
-`createServiceClient()`. `lib/scheduler.ts` (`scheduleBroadcastDelivery`) **no** lo estaba: recibía
-el cliente con cookies desde `/api/v1/broadcasts/[id]/send`. Esa ruta se corrigió en el mismo
-commit: encola con service role, quedó detrás de una guarda de manager —pasa a ser el único camino
-que le queda a un cliente para meter filas en la cola, así que sin guarda la puerta no se cierra, se
-muda— y su sexta copia del `limit(1).single()` sobre `workspace_members` se reemplazó por el
-resolvedor de `lib/workspace.ts`.
-
-**`flow_sessions` y `broadcast_recipients` también entraron.** Las dos tienen `contact_id` y
-autorizaban vía `flows` y vía `broadcasts` con `is_workspace_member`. La primera es la más grave de
-las dos: `variables jsonb` es donde el motor guarda todo lo que capturó de la conversación —nombre,
-email, teléfono, respuestas—, así que un Member leía lo capturado de cualquier lead del workspace.
-
-#### Decisiones de la 00020, y el bug silencioso que la motivó
-
-La 00019 le dio al manager una policy de UPDATE sobre `workspace_members` para poder cambiar el rol
-de un miembro. **No alcanzaba, y fallaba en silencio.**
-
-Postgres aplica también las policies de **SELECT** cuando un UPDATE o un DELETE referencia columnas
-de la tabla, y PostgREST siempre arma un `WHERE`. La policy de SELECT del fork es
-`user_id = auth.uid()`: cada quien ve solo su propia fila. Entonces un Owner que intentaba cambiarle
-el rol a otra persona no veía esa fila, el UPDATE afectaba cero filas, y PostgREST respondía **204**
-igual. Éxito aparente, rol sin cambiar.
-
-Apareció probando con un Member invitado de verdad: la comprobación "un Manager SÍ puede cambiar el
-rol de un miembro" devolvía 204 con el rol intacto. Es el mismo modo de fallar que el de
-`conversations` y el marcar-como-leído: cero filas afectadas no es un error.
-
-La 00020 lo arregla dejando que el manager vea las membresías de su workspace. Además de destrabar
-el UPDATE, es correcto por sí solo: la pantalla de equipo ya muestra ese listado y hasta ahora tenía
-que armarlo con el service client porque la RLS no se lo permitía. No hay recursión porque la rama
-nueva no consulta `workspace_members` directamente: llama a `is_workspace_manager`, que es
-`security definer`. Escribir no cambia: el UPDATE sigue siendo de manager y el DELETE solo del Owner.
-
-#### Roles e invitaciones (Sesión B, PASO 2)
-
-**Las guardas de rol viven en `lib/workspace.ts`**, no como parches por ruta: `requireManager()` para
-rutas de API (403 en JSON, distinguido del 401) y `getWorkspaceAsManager()` para páginas (manda al
-Member a `/dashboard` en vez de renderizar). Cubren `/dashboard/settings`,
-`/dashboard/settings/team`, `/dashboard/channels` y las **cinco** rutas de `api/v1/channels`, más
-`/api/v1/broadcasts/[id]/send` que ya las necesitaba desde la 00019.
-
-Poner la guarda en `/dashboard/settings/team` es lo que cierra la fuga del listado de equipo: la
-página arma el roster con el service client y resuelve cada email contra `auth.users`, así que la
-RLS no la frenaba y esconder los botones en el cliente no servía de nada.
-
-**`api/v1/channels/test-key` no tenía ninguna capa de autorización**: ni `getUser()`, ni chequeo de
-membresía, y tomaba el `workspaceId` del body. Un POST sin sesión llegaba a Zernio con la clave que
-mandara quien llamara y recibía `{ accounts }`, o sea un oráculo abierto para validar claves de
-Zernio robadas. Ahora exige manager y el workspace sale de la sesión.
-
-**Quién hace qué:** invitar, revocar y cambiar rol es de Owner y Admin; remover a alguien del
-workspace sigue siendo solo del Owner. No se puede tocar el rol de un Owner ni ascender a nadie a
-Owner: sin ese límite un Admin podría degradar al Owner y quedarse con el workspace.
-
-**Entrega de la invitación.** No se manda ningún email —eso es Resend, Bloque 2—, así que el link
-`/invite/<id>` se muestra y se copia desde la pantalla de equipo: hasta ahora no se mostraba en
-ningún lado y no había forma de hacerlo llegar. Además `/login` y `/register` ahora respetan el
-parámetro `next`, que la pantalla de invitación ya les pasaba y las dos ignoraban; el invitado
-volvía del login al dashboard con la invitación sin aceptar. El `next` se valida en
-`lib/next-param.ts` con la misma regla que `auth/callback`: solo rutas internas, porque si no la
-pantalla de login se convierte en un redirector abierto.
-
-**Lead que sale del scope con la pantalla abierta.** `api/v1/messages` devolvía un 404 genérico que
-la bandeja interpretaba como "conversación sin mensajes" y renderizaba un hilo vacío sin
-explicación. Ahora responde 403 con `code: "fuera_de_scope"` en el GET y en el POST, y la bandeja
-muestra un mensaje claro con un botón para actualizar. No se distingue "se borró" de "te la
-sacaron": la RLS devuelve vacío en los dos casos y decir "existe pero no es tuya" confirmaría la
-existencia de un lead ajeno.
-
-#### Firma HMAC y canales (Sesión B, PASO 3)
-
-**El webhook pasa a fallar cerrado.** La condición era `if (secret && !verifica(...))`: **sin secret
-configurado, el evento se procesaba sin verificar nada**. Eso convierte `/api/webhooks/late` en una
-entrada abierta al motor de flujos durante toda la ventana entre conectar un canal y guardar el
-secret; cualquiera que conociera la URL y un `late_account_id` podía inyectar mensajes entrantes
-falsos. Ahora, sin secret, responde 401 y lo registra en el log (con el canal, nunca con el secret
-ni la firma).
-
-**La consecuencia operativa hay que conocerla:** si se conectan canales y se mandan mensajes de
-prueba **antes** de registrar el webhook con su secret, esos mensajes se descartan con 401 y se
-pierden. Zernio reintenta un rato y abandona; no quedan en ninguna cola local. Por eso
-`docs/checklist-verificacion-instagram.md` arranca por el orden de conexión —clave, secret,
-después mensajes— y no por los criterios.
-
-**Tests del handler** en `app/api/webhooks/late/route.test.ts`: firma válida, inválida y ausente;
-rechazo sin secret en el camino de mensajes **y** en el de comentarios; el secret heredado del canal
-como fallback; paridad Instagram/WhatsApp comparando la respuesta y lo que recibe el procesamiento;
-idempotencia por `webhook_events` para las dos plataformas y para comentarios; story reply; mensajes
-salientes ignorados; cuerpo que no es JSON.
-
-**`scripts/verify-realtime-scope.mjs`.** PostgREST y Realtime son dos caminos distintos: el primero
-es una consulta con la RLS adelante, el segundo es el servidor empujando filas y decidiendo a quién
-mandárselas. Podían estar de acuerdo o no, y la bandeja usa los dos. Verificado: un Member recibe los
-eventos de su conversación y **no** los de la ajena.
-
-Dos cosas que ese script dejó escritas:
-
-- **Los eventos de DELETE no los filtra la RLS.** Postgres solo entrega la clave primaria vieja en el
-  WAL, así que Realtime no tiene columnas contra las cuales evaluar la policy y manda el evento a
-  todos los suscriptores. Lo que viaja es un UUID, sin contenido. La app no borra conversaciones ni
-  mensajes desde la interfaz, y el soft delete del Bloque 3 es un UPDATE, que sí se filtra.
-- **Tiene un canario, y no es decoración.** La primera corrida dio verde en las dos comprobaciones de
-  "no recibe lo ajeno" porque no llegó **ningún** evento: la suscripción todavía no estaba caliente.
-  Un verificador que pasa por vacío es peor que no tenerlo. Ahora primero prueba que el pipe entrega
-  un evento propio, y solo entonces mide.
-
-#### Un criterio de F4 desfasado en el tiempo
-
-**"El estado de la conexión es visible en `/settings/integrations`".** Esa pantalla es del Bloque 2
-(sección 4.8). Hoy el estado se ve en `/dashboard/channels`, por canal. No hay nada que decidir: el
-criterio se verifica ahí hasta que la pantalla exista.
-
----
-
-## DECISIÓN ABIERTA: dónde vive el historial de mensajes
-
-**Estado: sin resolver. No la tomó nadie. Bloquea decisiones de Fase 2 en adelante.**
-
-Verificando F4 apareció que **el sistema no guarda los mensajes entrantes**. El handler del webhook
-lo dice explícitamente —*"Messages are stored by Zernio (source of truth) — no local insert
-needed"*— y la bandeja los lee de la API de Zernio en cada apertura. En `messages` solo hay
-salientes: lo que manda el motor de flujos, el procesador de secuencias y el nodo de IA.
-
-Esto se descubrió como una diferencia de redacción en un criterio de aceptación, pero **no es un
-problema de redacción**. Es una decisión de arquitectura que se tomó por omisión, heredada del fork,
-y que define de quién es el historial de conversaciones del negocio.
-
-### Qué depende de esto
-
-| Área | Qué pasa si el historial vive en Zernio |
-| --- | --- |
-| **Agente de IA** | El contexto de la conversación hay que pedírselo a Zernio en cada turno: más latencia, más costo por llamada, y un límite externo a cuánto historial se puede usar en un prompt |
-| **Analíticas** | No se puede consultar sobre el contenido ni los tiempos de respuesta con SQL. Toda métrica de conversación depende de lo que la API de Zernio exponga y pagine |
-| **Filtros de bandeja** (4.12) | Filtrar o buscar por texto del mensaje exige traerlo de Zernio primero. Un `where text ilike` sobre la base local no existe |
-| **Soft delete** (4.11) | Se puede marcar borrado el contacto y la conversación local, pero los mensajes siguen en Zernio. "Borrar los datos de una persona" queda a medias |
-| **Cambio de proveedor** | Es el peso mayor. Si algún día se deja Zernio, **el historial se va con Zernio**. No hay migración posible de lo que nunca se guardó |
-| **Disponibilidad** | Una caída de Zernio deja la bandeja vacía, no desactualizada |
-
-### Las dos opciones
-
-**A. Seguir como está.** Zernio es la fuente de verdad del historial; el sistema guarda las
-conversaciones, los contactos y los mensajes salientes. Es lo que hay hoy, no cuesta nada, y sirve
-mientras el negocio opere sobre Zernio y las funcionalidades de arriba no aprieten.
-
-**B. La base local es la fuente de verdad y Zernio queda como transporte.** El webhook inserta cada
-mensaje entrante en `messages` al recibirlo, y Zernio pasa a ser el canal por el que entran y salen
-los mensajes, no el archivo donde viven. Da historial propio, consultable y portable.
-
-Lo que hay que resolver si se elige B, y es la razón por la que no se decide de paso:
-
-- **Qué pasa cuando las dos fuentes difieren.** Un mensaje que Zernio tiene y la base no —porque el
-  webhook falló, porque el evento se descartó con 401— hoy no se nota. Con B hay que decidir si se
-  reconcilia, cada cuánto, y quién gana.
-- **El backfill.** `backfillInboxConversations` ya trae conversaciones previas; habría que extenderlo
-  a los mensajes, con paginación y sin duplicar.
-- **La idempotencia.** `webhook_events` cubre el reintento del mismo evento, pero no el mismo mensaje
-  llegando por dos caminos (webhook y backfill). Haría falta una clave única por
-  `platform_message_id`.
-- **El volumen.** Es la tabla que más crece del sistema, y hoy no tiene política de retención.
-
-### Recomendación
-
-**B**, y cuanto antes mejor: los mensajes que no se guardan hoy no se pueden recuperar mañana. Cada
-día que pasa es historial que solo existe en Zernio. Pero **es una decisión del dueño del producto,
-no de la construcción**, y el lugar natural para tomarla es al planificar el Bloque 3, donde entran
-el modelo de contacto, el soft delete y los filtros de bandeja: los tres la tocan.
-
-Hasta que se decida, el criterio 8 de F4 se lee como "los mensajes **salientes** se almacenan en
-`messages` con la referencia correcta a conversación y canal".
-
----
-
-## Regla de verificación: toda comprobación negativa necesita un control positivo al lado
-
-Salió tres veces en el Bloque 1, siempre de la misma forma, y las tres veces costó descubrirla.
-
-**El problema.** Una comprobación negativa —"el Member NO ve el lead ajeno", "NO recibe el evento
-ajeno", "el UPDATE NO pasa"— se cumple sola cuando no pasa nada. Si el escenario no se armó, si la
-conexión no estaba lista, si la consulta apuntaba a otro lado, el resultado es el mismo que cuando
-la seguridad funciona: vacío. **Sin un control positivo al lado, "no pasó nada malo" y "no pasó
-nada" son indistinguibles**, y el segundo se lee como verde.
-
-**La regla.** Junto a cada comprobación de que algo NO ocurre, tiene que haber una que demuestre que
-el mecanismo estaba vivo y habría detectado lo contrario.
-
-Los tres casos del bloque, para que se entienda qué forma toma:
-
-| Dónde | La negativa | El control positivo | Qué habría pasado sin él |
-| --- | --- | --- | --- |
-| `verify-realtime-scope.mjs` | El Member no recibe el evento de la conversación ajena | El canario: primero se prueba que el pipe entrega un evento **propio**, y recién entonces se mide | Pasó de verdad: la primera corrida dio verde en las dos negativas porque no llegó **ningún** evento. La suscripción no estaba caliente |
-| PASO 2, roles | El Member no puede invitar, ascenderse ni renombrar el workspace | "Un Manager **SÍ** puede invitar, revocar y cambiar el rol" | Ahí apareció que la policy de UPDATE de la 00019 era letra muerta: devolvía 204 sin cambiar nada. Las negativas no lo habrían mostrado nunca |
-| `verify-lead-scope.mjs` | Las 11 comprobaciones de scope | El script se escribió **en rojo a propósito** contra las policies del fork, y se lo vio fallar antes de arreglar nada | Un script que nunca falló no prueba que detecte algo. Podría estar consultando mal y dar verde siempre |
-
-**Cómo se aplica en la práctica:**
-
-- Un script de verificación nuevo se corre **antes** del arreglo, y tiene que fallar. Si pasa en
-  rojo a verde, mide algo. Si nació en verde, no se sabe.
-- Toda negativa sobre un canal que puede estar frío o roto —Realtime, un webhook, una suscripción—
-  lleva canario: un evento que **sí** tiene que llegar, esperado por condición y no por un sleep.
-- Toda restricción por rol lleva su contraparte: si se prueba que el Member no puede, se prueba que
-  el Manager sí. Es lo que separa "está bien restringido" de "está roto para todos".
-- Cuando el control positivo falla, el veredicto no es "la seguridad funciona": es **no
-  concluyente**, y hay que decirlo con esas palabras en lugar de reportar verde.
-
-#### Cierre del Bloque 1 (Sesión B, PASO 4)
-
-**La 00021 cierra el expandir-y-contraer.** Borradas `late_api_key_encrypted` y `ai_api_key`, más
-los tipos y el `Omit` que las excluía. `webhook_secret` **no** se toca: sigue en uso para validar la
-firma de los webhooks, y `lib/safe-columns.ts` lo sigue protegiendo.
-
-Con eso se cumple el criterio de F2 que la 00018 no podía cumplir. Verificado contra la base: un
-`select *` sobre `workspaces` devuelve `id, name, slug, global_keywords, created_at, updated_at,
-ai_provider, webhook_secret, unassigned_leads_visible_to_members`. Ninguna clave de API.
-
-**`npm run verify:security`** corre los dos verificadores juntos, que es el punto: ninguno de los
-dos corre con `npm test`, así que la suite podía estar entera en verde con el scope roto. Un comando
-con nombre que no se olvida.
-
-Detalle operativo: **si el canario de Realtime falla justo después de un `supabase db push`, hay que
-volver a correrlo.** Pasó una vez, corriendo inmediatamente después de aplicar la 00021; a la
-siguiente corrida pasó sin tocar nada. La explicación probable —inferencia, no verificada— es que
-Realtime recarga su cache de esquema tras un DDL. Lo importante es que se ve como un fallo del
-canario y no como un verde.
-
-#### Pendientes de rendimiento, para el Bloque 4
-
-**La medición de `EXPLAIN ANALYZE` de la consulta de la bandeja queda diferida.** Hoy la base tiene
-0 contactos y 0 conversaciones: medir sería un seq scan de cero filas con cualquiera de las dos
-formas del helper y no diría nada. Se hace en el Bloque 4, cuando la importación CSV permita cargar
-unos miles de contactos de prueba. **Cómo:** `SUPABASE_DB_URL` en `.env` más un
-`scripts/explain-inbox.mjs` versionado que haga `SET LOCAL ROLE authenticated` con los claims del
-Member y corra el `EXPLAIN ANALYZE` bajo RLS real. Hasta entonces el helper se queda como está: la
-decisión de pasarlo a forma inline se toma con datos, no antes.
-
-En la misma corrida se mide otra cosa: **el SELECT de `messages` hace una llamada a función por fila
-y cada una consulta `contacts`.** No se optimiza ahora.
-
-#### Deuda conocida que la 00019 no cubre
-
-- **`comment_logs`, para el Bloque 4.** Tiene `author_username`, `author_name` y `comment_text`, y
-  `author_username` es el mismo identificador que `contact_channels.platform_username`, así que se
-  correlaciona con un lead. Pero **no tiene `contact_id`**: arreglarla exige decidir antes si un
-  comentario pertenece a un lead o al workspace, y esa decisión no se toma todavía.
-- Las policies de INSERT y UPDATE de `broadcast_recipients` que agregó la 00009 siguen autorizando
-  por `is_workspace_member`. Son caminos de escritura, no de lectura.
-- `scheduleJob` (`lib/scheduler.ts`) es código muerto: no tiene ningún llamador.
-- **Los dos verificadores corren contra la base de producción.** Hoy está vacía y es tolerable;
-  cuando el negocio opere tienen que apuntar a una base local o de staging.
-- **El envío de invitaciones por email, Bloque 2** (Resend). Hasta entonces el link se copia a mano
-  desde la pantalla de equipo.
-- El botón de sincronizar de la bandeja le devuelve 403 a un Member en vez de esconderse. Antes le
-  fallaba igual, con un error de Vault menos claro, porque leer la clave de Zernio ya exigía manager.
+- Numeradas secuencialmente. Las del fork van de la 00001 a la 00016; las propias desde la 00017.
+- Las del fork no son idempotentes y se aplican una sola vez sobre una base limpia, con el CLI de Supabase, que lleva su propio registro de qué aplicó.
+- Las propias, de la 00017 en adelante, sí son idempotentes: se pueden correr dos veces sin romper nada.
+- El archivo consolidado `ALL_MIGRATIONS.sql` se mantiene sincronizado, y hay un test que falla si alguien agrega una migración y se olvida de sumarla.
 
 ### Variables de entorno
 
-```
-# === Supabase ===
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-
-# === App ===
-NEXT_PUBLIC_APP_URL=
-CRON_SECRET=
-
-# === Integraciones ===
-# Las API keys NO van acá: se configuran desde /settings/integrations
-# y se guardan en Supabase Vault (encriptadas)
-
-# === Google Cloud (OAuth) — Etapa 2 ===
-# GOOGLE_CLIENT_ID=
-# GOOGLE_CLIENT_SECRET=
-# GOOGLE_REDIRECT_URI=
-
-# === LinkedIn (OAuth) — Etapa 2 ===
-# LINKEDIN_CLIENT_ID=
-# LINKEDIN_CLIENT_SECRET=
-# LINKEDIN_REDIRECT_URI=
-```
-
-**Ya no existen:** `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `RESEND_API_KEY` (esta última pasa a Vault como todas las demás).
+`.env.example` con todas las variables agrupadas por servicio, cada una con su comentario de qué es y dónde se consigue. Ninguna clave de terceros va ahí: las de Zernio, Evolution, Resend e IA se cargan desde la interfaz y se guardan en Vault.
 
 ### README de setup
 
-1. Forkear [el repositorio](https://github.com/zernio-dev/zernflow) en GitHub
-2. Crear proyecto en Supabase, plan Pro
-3. Habilitar Vault: `CREATE EXTENSION IF NOT EXISTS vault WITH SCHEMA vault`
-4. Correr migraciones **00001 a 00023** en orden
-5. Copiar `.env.example` a `.env` y completar Supabase, App URL y Cron Secret
-6. `npm install`
-7. `npm run dev` para desarrollo local
-8. Deploy a Railway: conectar el repo de GitHub y configurar las variables de entorno
-9. Desde la app, ir a `/settings/integrations` y conectar Zernio (Instagram y WhatsApp), Resend y los proveedores de IA
+1. Forkear el repositorio
+2. Crear proyecto en Supabase
+3. Aplicar las migraciones con el CLI
+4. Copiar `.env.example` a `.env` y completar
+5. Instalar dependencias y correr en desarrollo
+6. Desplegar en Railway, incluyendo el servicio de Evolution
 
-**Troubleshooting:**
-- "RLS policy error": verificar que las migraciones de RLS corrieron
-- "Vault not found": habilitar la extensión Vault
-- "Un Member ve leads que no son suyos": la migración 00022 no corrió o `can_see_contact` no está en la policy
-- "El mensaje no se envía": verificar el estado de la ventana de la conversación antes que la conexión del canal
-- "API key inválida": verificar desde `/settings/integrations`
+Con su sección de problemas frecuentes.
 
-### Personalización sin código
+### Separación de datos
 
-| Qué se personaliza | Desde dónde |
-| --- | --- |
-| Nombre del negocio y datos del workspace | Settings |
-| Canales conectados | Settings → Integraciones |
-| Proveedores de IA | Settings → Integraciones |
-| **Plantillas de WhatsApp** | Settings → Plantillas de WhatsApp |
-| Respuestas rápidas | Settings → Respuestas rápidas |
-| Tags y custom fields | Contacts |
-| Flows y automatizaciones | Flow Builder |
-| Frases de opt-out | Settings |
-| Funcionalidades nuevas, flujos de negocio, canales nuevos | Código |
+El sistema funciona con la base vacía. Los datos de ejemplo, si se agregan, van en archivos separados de las migraciones de estructura.
+
+### Personalización
+
+| Qué se personaliza | Desde dónde | Requiere código |
+|---|---|---|
+| Nombre y datos del negocio | Interfaz | No |
+| Canales conectados | Interfaz | No |
+| Reglas de seguridad de secuencia | Interfaz | No |
+| Respuestas rápidas y frases de baja | Interfaz | No |
+| Flujos y automatizaciones | Interfaz | No |
+| Agregar funcionalidades nuevas | Código | Sí |
+| Cambiar o agregar integraciones | Código | Sí |
 
 ---
 
-## 14. Pendientes
+## 15. Notas y pendientes
 
-### Dependencias externas con plazo
+### Pendientes que solo se resuelven midiendo
 
-| Dependencia | Plazo | Bloquea |
-| --- | --- | --- |
-| **Número dedicado de WhatsApp** | En trámite | La conexión del canal, no su construcción |
-| **Nombre para mostrar aprobado por Meta** | Horas a días | El envío de plantillas |
-| **Plantillas aprobadas por Meta** | 24 a 48 horas por plantilla | Las secuencias de Fase 2 |
-| Verificación de negocio con Meta | 3 a 5 días, salvo que Zernio la absorba | Etapa 2 (Meta Ads) |
-| Dominio verificado en Resend | Horas | Emails con remitente propio |
-| Cuenta de Zernio con las 2 cuentas gratuitas | Minutos | Ambos canales |
+No se deciden leyendo documentación. Se instrumentan y se miran.
 
-### A confirmar con Zernio
+| Pendiente | Cómo se resuelve | Cuándo |
+|---|---|---|
+| Con qué frecuencia llega un mensaje sin teléfono resuelto | Contador en el sistema, primera semana con el número conectado | Después del Bloque 3 |
+| Qué tan completo viene el historial al vincular el número | Comparar con lo que se ve en el teléfono | Al conectar |
+| Cómo se comporta la reconexión en caídas largas | Registro del chequeo periódico | Primeras semanas |
+| Si el mecanismo de autenticación del aviso sigue existiendo en versiones nuevas de Evolution | Volver a verificar contra el código en cada actualización | En cada actualización |
+| Consumo real de Railway con los servicios nuevos | Mirar el medidor la primera semana | Después del Bloque 2 |
 
-1. **¿Absorben la verificación de negocio con Meta?** Cambia el cronograma de la Etapa 2.
-2. **¿Exponen la gestión de plantillas por API** (alta, estado, calificación) o hay que crearlas a mano en Meta Business Manager? Define si F6b es un módulo completo o un espejo de lectura.
-3. **¿El webhook de WhatsApp es en tiempo real?** Su documentación dice que Meta, Telegram y Slack lo son; WhatsApp es de Meta, así que debería, pero conviene confirmarlo por escrito.
-4. **¿La API expone `window_expires_at` o hay que calcularla del último mensaje entrante?** Si la expone, es preferible usarla como fuente de verdad.
+### Preguntas que ya se cerraron con el análisis de los datos
 
-### Decisiones abiertas menores
+- **El usuario de Instagram no está en Pipedrive, confirmado con el negocio.** Los contactos los importó una automatización por API que trajo únicamente el nombre para mostrar. No está en una nota ni en un campo sin exportar: no está. Eso cierra la pregunta y confirma la decisión de no migrar los 118 tratos "IG DM".
+- **Los 52 tratos abiertos sin persona son leads de Instagram.** No hay que "arreglarlos" en Pipedrive vinculándolos a una persona: no existe la persona porque no hay teléfono, correo ni usuario. Crear fichas con un nombre para mostrar sería fabricar registros que tampoco corresponderían con nada.
+- **El código de país por defecto queda como configuración**, con Costa Rica como valor inicial. Ver los criterios de F38.
 
-- **Wizard de onboarding**: la estructura exacta se puede refinar durante la construcción.
-- **Frases de opt-out**: la lista inicial es la del F18; el cliente puede ampliarla desde Settings.
+### Lo que se necesita antes de construir
+
+- **La pantalla de importación no está especificada, ni para F37 ni para F38.** La sección 11 no la tiene: el Bloque 4 documenta bandeja, canales y configuración del canal de WhatsApp, y ninguna pantalla de importación. El hueco es anterior a F38, pero F38 lo vuelve urgente, porque pide que esa pantalla permita cambiar el código de país por defecto para una importación puntual. **Hay que especificarla antes de construir el Bloque 4**, o esa decisión se va a tomar mientras se escribe el código, que es exactamente donde termina siendo una constante cableada.
+- El número dedicado de WhatsApp, todavía en trámite. No bloquea el Bloque 2 ni el 3, pero sí la conexión en vivo.
+- Verificación del negocio en Meta, prevista para la semana del 22 de septiembre. No bloquea nada del camino principal; sirve para el plan B.
+
+### Cambios que convendría reflejar en documentos anteriores
+
+El documento de **alcance** todavía tiene la Decisión 29 escrita a favor de la API oficial de WhatsApp, y el **anexo de integración de WhatsApp** sigue redactado como si fuera el camino principal en lugar del manual del plan B. Ninguno bloquea la construcción, pero los dos se leen distinto ahora, y si en algún momento se arma la propuesta comercial con `06-propuesta`, esos sí llegan al cliente.
+
+Mi recomendación es actualizarlos recién antes de la propuesta, no ahora: hoy no cambian ninguna decisión y el esfuerzo rinde más cuando el destinatario es alguien de afuera del proyecto.
+
+El análisis de los exports de Pipedrive agregó dos más, y el segundo pesa:
+
+- **La tabla de herramientas del brief** debería listar Pipedrive como CRM actual y Calendly como agendador, que son las dos herramientas reales del negocio.
+- **El brief y el alcance describen una agencia de diez a quince personas**, con 330.000 leads en otra plataforma, equipo de setters y closers, director comercial y un tablero para el CEO. El negocio real es bastante más chico: **un solo embudo, una sola persona en el CRM, 526 contactos**. El modelo de roles ya está construido y no cuesta nada dejarlo, pero la propuesta comercial no puede seguir hablando de ese tamaño de negocio. Se corrige al correr `06-propuesta`.
+
 
 ---
 
-**Siguiente paso:** el plano de la Fase 1 está listo. Para la propuesta comercial, usá `06-propuesta`. Para arrancar la construcción, los bloques están definidos para ejecutar en orden con Claude Code (`09-construccion-claude-code`). Para diseñar los flujos visualmente, usá `07-flujogramas`.
+## 16. Correspondencia de números jubilados
+
+Este documento usa F1 a F4 para el Bloque 1 y F21 a F40 para los bloques 2 a 4. El documento anterior usaba F1 a F20 para toda la fase. La tabla dice dónde fue cada una, para que una referencia vieja se pueda resolver sin adivinar.
+
+**La lista es cerrada.** Si aparece una F del documento viejo que no está acá, es un hueco de la conciliación y hay que tratarlo como tal, no como una funcionalidad olvidada a propósito.
+
+| Número viejo | Qué era | Dónde está ahora |
+|---|---|---|
+| F1 | Fork y deploy de ZernFlow | F1, sin cambios. Bloque 1, construido |
+| F2 | Supabase Vault y migración de claves | F2, sin cambios. Bloque 1, construido |
+| F3 | Roles, workspaces y scope de leads | F3, sin cambios. Bloque 1, construido |
+| F4 | Instagram vía Zernio | F4, sin cambios. Bloque 1, construido |
+| F5 | TikTok | Eliminado de la Fase 1. Etapa 2 |
+| F6 | WhatsApp por API oficial vía Zernio | Reemplazado por F21 y F22, sobre Evolution. El modelo oficial pasa al apéndice del plan B |
+| F6b | Plantillas de WhatsApp | Apéndice del plan B, sin construir |
+| F6c | Ventana de conversación | Partida en dos: **F40** para Instagram, que es alcance actual, y el apéndice del plan B para WhatsApp |
+| F7 | Email saliente vía Resend | F23 |
+| F8 | Configuración de integraciones y BYOK IA | F24 |
+| F9 | Modelo de contacto extendido | F25 |
+| F10 | Datos de atribución | Absorbida en F25, con sus criterios |
+| F11 | Asignación setter y vendedor | Construida en el Bloque 1 como parte de F3. Las columnas ya existen |
+| F12 | Detección cross-canal | F29, con F26 agregando la identidad de canal |
+| F13 | Notas en el contacto | F30 |
+| F14 | Ficha de contacto completa | F30 |
+| F15 | Soft delete | F30 |
+| F16 | Filtros de inbox | F35 |
+| F17 | Templates de respuesta rápida | F36. Nombre en la interfaz: "respuestas rápidas" |
+| F18 | Marca "no contactar" | F34 |
+| F19 | Importación CSV | F37 |
+| F20 | Audit log global | F31 |
+
+**Funcionalidades que no existían en el documento viejo:** F26 identidad de canal, F27 guardado de mensajes entrantes, F28 adjuntos, F32 estado de sesión, F33 reglas de seguridad de secuencia, F38 migración desde Pipedrive, F39 detección de silencio del canal, F40 ventana de Instagram.

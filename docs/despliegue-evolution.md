@@ -16,7 +16,7 @@ de vuelta desde Evolution. `verify-evolution-deploy.mjs` y `verify-evolution-web
 > ## ⚠ El número no se vincula todavía
 >
 > No es una preferencia de orden: es una regla dura, y el motivo está en
-> `docs/requerimientos-bloques-2-3-4.md` §4.7.
+> `docs/requerimientos-fase1.md` §4.7.
 >
 > El receptor de webhooks autentica el aviso, controla que no esté repetido, responde 200 y
 > **descarta el contenido**, porque guardarlo es F27 y todavía no existe. Si el número se vincula

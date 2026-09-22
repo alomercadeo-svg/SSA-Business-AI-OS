@@ -25,7 +25,7 @@
  * │ pierden de la peor forma: en silencio y con acuse de éxito. El único      │
  * │ síntoma serían conversaciones que nunca existieron.                       │
  * │                                                                           │
- * │ Ver docs/requerimientos-bloques-2-3-4.md §4.7 y el Flujo 4, paso 5.       │
+ * │ Ver docs/requerimientos-fase1.md §4.7 y el Flujo 4, paso 5.               │
  * └──────────────────────────────────────────────────────────────────────────┘
  */
 

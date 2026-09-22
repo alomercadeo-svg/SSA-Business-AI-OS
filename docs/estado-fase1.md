@@ -123,14 +123,20 @@ Queda una decisión de segundo orden: los adjuntos. Las URL de medios de Meta ve
 
 ---
 
+## El plano, y por qué este tramo estaba vencido
+
+**Acá decía "correr `05-requerimientos` para generar el plano de los Bloques 2, 3 y 4", con la lista de siete cosas que tenían que entrar. Eso ya se hizo y la lista entera está cubierta.** El pendiente quedó escrito como si siguiera abierto durante toda la construcción del Bloque 2, que es lo que pasa cuando un documento de estado se escribe al cerrar un bloque y no se vuelve a mirar.
+
+**El plano es `docs/requerimientos-fase1.md` y es el único.** F1 a F39, una sola numeración. Hasta el 21 de septiembre de 2026 convivió con `docs/requerimientos-bloques-2-3-4.md`, que numeraba distinto; se conciliaron en uno y el segundo se borró. Hay un test, `docs/docs-unicos.test.ts`, que falla si aparece otro.
+
+Las siete cosas de la lista vieja, dónde quedaron: el adaptador de Evolution en F22, el guardado de mensajes entrantes en F27, las seis reglas de seguridad en F33, el estado de sesión en F32, la autenticación del webhook en F22, el despliegue de Railway en F21, y el modelo de ventana y plantillas en §4.12b marcado como condicional al plan B.
+
+---
+
 ## Siguiente paso
 
-Correr `05-requerimientos` para generar el plano de los Bloques 2, 3 y 4, ya con las dos decisiones tomadas. Lo que tiene que entrar en esa regeneración y hoy no está en ningún plano:
+**Ejecutar `docs/purga-y-reconexion-instagram.md`.** Está escrito, revisado y sin correr. Son cinco pasos acoplados —desconectar, purgar, reconectar, rotar el secreto, verificar de punta a punta— y hasta que no se ejecuten, el canal de Instagram sigue conectado a la cuenta equivocada.
 
-- El adaptador de Evolution API, con el mismo contrato de canal que Instagram y sin condicionales por plataforma en el camino de entrada.
-- El guardado de mensajes entrantes, con idempotencia por `platform_message_id`, el backfill inicial y la decisión sobre adjuntos.
-- Las seis reglas de seguridad de secuencia, como configuración del canal.
-- El estado de la sesión de WhatsApp visible en la pantalla de canales, con forma de volver a escanear el QR.
-- La autenticación del webhook de Evolution.
-- El despliegue en Railway con varios servicios y las dos bases Postgres separadas.
-- El modelo de ventana y plantillas de WhatsApp, marcado como condicional al plan B.
+Después, el Bloque 3: modelo de contacto extendido (F25), identidad de canal y reconciliación de teléfonos (F26), y guardado de mensajes entrantes (F27), que es donde vive el riesgo real de la fase.
+
+Sin fecha, y esperando el número dedicado: el Flujo 4 del plano, la conexión en vivo de WhatsApp. No se ejecuta hasta que F27 esté construido y probado, por el motivo que el propio Flujo 4 detalla en sus pasos 4 y 5.

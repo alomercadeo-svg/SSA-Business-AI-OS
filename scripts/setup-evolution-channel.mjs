@@ -7,7 +7,7 @@
  * generación de QR apagada. Mientras F27 no exista, el receptor autentica,
  * acusa con 200 y DESCARTA el contenido, así que un número real conectado
  * ahora significa mensajes de leads perdidos en silencio y con acuse de éxito.
- * Ver docs/requerimientos-bloques-2-3-4.md §4.7.
+ * Ver docs/requerimientos-fase1.md §4.7.
  *
  * ── EL ORDEN DE LAS OPERACIONES ES EL CONTROL, NO UN DETALLE ────────────────
  *

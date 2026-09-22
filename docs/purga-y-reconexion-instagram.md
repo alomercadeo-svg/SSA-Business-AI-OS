@@ -107,7 +107,7 @@ Los dos comentarios dicen "best-effort: a failure must not block".
 O sea que **el re-registro falla en silencio**. La pantalla informa que el canal se sincronizó bien,
 la aplicación sigue creyendo que el webhook está registrado, y la bandeja deja de recibir sin
 ningún síntoma. Es el tercer caso de la regla de vigilancia por ausencia de
-`docs/requerimientos-bloques-2-3-4.md` §14.
+`docs/requerimientos-fase1.md` §14.
 
 La consecuencia directa para este procedimiento: **"rotado" y "rotado y roto" se ven exactamente
 igual desde la pantalla**. Sin un mensaje que entre de verdad y aparezca en la bandeja, no hay forma

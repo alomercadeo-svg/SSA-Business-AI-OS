@@ -44,7 +44,7 @@ import type { Database } from "@/lib/types/database";
  * hay error y no se dispara ninguna alerta. El único síntoma serían
  * conversaciones con leads que nunca existieron.
  *
- * Ver `docs/investigacion-evolution-api.md` y `docs/requerimientos-bloques-2-3-4.md` §4.7.
+ * Ver `docs/investigacion-evolution-api.md` y `docs/requerimientos-fase1.md` §4.7.
  */
 
 // ── Forma del payload ───────────────────────────────────────────────────────
