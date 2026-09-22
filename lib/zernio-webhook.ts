@@ -49,8 +49,15 @@ export const WEBHOOK_NAME = "Zernflow";
  */
 export const WEBHOOK_EVENTS = ["message.received", "comment.received", "message.sent"] as const;
 
-/** Events Zernflow needs delivered to its webhook. */
-export type WebhookEvent = "message.received" | "comment.received";
+/**
+ * Events Zernflow needs delivered to its webhook.
+ *
+ * Derivado de `WEBHOOK_EVENTS` y no escrito a mano: cuando `63834ac` sumó
+ * `message.sent` a la lista, este tipo quedó con los dos eventos viejos y el
+ * build de producción falló el 22/09/2026. Los tests no lo vieron porque Vitest
+ * no chequea tipos. Una sola fuente, igual que la lista.
+ */
+export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 
 export interface EnsureWebhookOptions {
   /** Public base URL of this Zernflow deployment (e.g. NEXT_PUBLIC_APP_URL). */
