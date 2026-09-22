@@ -87,7 +87,7 @@ El motor de secuencias de la Fase 2 va a consumir las reglas de seguridad y el e
 | Bloque 4: Bandeja, herramientas y reglas de seguridad | 5 a 6 | Bandeja, filtros, respuestas rápidas, no contactar, reglas de seguridad de secuencia, importación CSV, migración desde Pipedrive, estado de sesión | Bandeja, `response_templates`, `channels` |
 | Testing de fase | 7 | Testing completo, correcciones y colchón | |
 
-**Nota sobre el tamaño del Bloque 3.** Es el más cargado de los tres. En el Bloque 1 aprendimos que un bloque demasiado grande obliga a partirlo a mitad de camino, con la memoria de la sesión ya gastada justo en el paso más delicado. Conviene planificar el Bloque 3 partido desde el principio: una sesión para el modelo de contacto y la identidad de canal, otra para la ingesta, los adjuntos y la deduplicación.
+**Nota sobre el tamaño del Bloque 3.** Es el más cargado de los tres. En el Bloque 1 aprendimos que un bloque demasiado grande obliga a partirlo a mitad de camino, con la memoria de la sesión ya gastada justo en el paso más delicado. Conviene planificar el Bloque 3 partido desde el principio. **La partición vigente es en tres sesiones y está en `docs/estado-fase1.md`**, con la línea de base de la medición: la que decía acá, en dos, dejaba afuera F30, F31 y F39.
 
 **Nota sobre el número de WhatsApp.** El número dedicado no está conectado: no hay canal de WhatsApp con cuenta asociada, y eso se comprueba mirando la tabla `channels`, no el calendario. El plano está escrito para que el despliegue de Evolution y toda la ingesta se construyan y se prueben sin el número, con mensajes de prueba. La conexión del canal en vivo es un paso aparte, con su propio checklist, que se ejecuta cuando el número llegue.
 
@@ -199,7 +199,7 @@ Construidos en el Bloque 1 y verificados con `scripts/verify-lead-scope.mjs`, 24
 >
 > **Uno. Vincular el número no es prender un interruptor: es migrar el canal vivo del negocio.** Hay leads en curso con el número actual y la pauta apunta a alguno. Eso se hace una vez, y hacia una bandeja donde se pueda trabajar. Al cerrar el Bloque 3 esa bandeja no existe: F34 (no contactar), F35 (bandeja y filtros), F36 (respuestas rápidas) y F40 (ventana de conversación) son **todas del Bloque 4**. Adelantar F32 compraría vincular unos días antes hacia una lista pelada.
 >
-> **Dos, y este no estaba en ninguna de las dos opciones que se evaluaron: adelantar F32 destruye la medición del Bloque 3.** El Bloque 3 es el que se va a medir para tener un número real de ritmo en vez de la proyección de 1,5 días que hay hoy. No se pueden comparar dos días planificados contra un bloque al que se le acaba de sumar una funcionalidad. El costo de adelantar F32 no es solo el trabajo de F32: es perder la única medición limpia que va a haber en toda la fase.
+> **Dos, y este no estaba en ninguna de las dos opciones que se evaluaron: adelantar F32 destruye la medición del Bloque 3.** El Bloque 3 es el que se va a medir para tener un número real de ritmo, en vez de una proyección que hoy se apoya en 1,5 días de avance registrado sobre los 7 de la fase. Ese 1,5 es el progreso hecho, no la duración de ningún bloque: el Bloque 3 está estimado en 2 días, los de la tabla de bloques. No se pueden comparar dos días planificados contra un bloque al que se le acaba de sumar una funcionalidad. El costo de adelantar F32 no es solo el trabajo de F32: es perder la única medición limpia que va a haber en toda la fase.
 >
 > **El costo aceptado, sin maquillarlo:** Evolution queda desplegado y sin usar durante dos bloques. Es bajo porque Railway factura por consumo de recursos, no por servicio levantado. Lo que se paga es que **el canal esté listo antes que el sistema**, y ese es el orden correcto: lo contrario sería un sistema listo esperando un canal, que es la forma de que alguien vincule el número "para probar".
 >
@@ -523,6 +523,19 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [ ] Al reconciliar, si ya existe otro contacto con ese teléfono, se propone la fusión mostrando los dos lados. La fusión la confirma una persona, nunca es automática
 - [ ] Al fusionar se unifican conversaciones, notas, etiquetas y atribución
 - [ ] Instrumentación obligatoria: contador de cuántos mensajes entrantes llegan sin teléfono resuelto, visible para el Owner. Es el dato que decide si esto es marginal o si hay que invertir más
+- [ ] **La identidad de un canal es la cuenta en la plataforma, no la ranura del proveedor.** `channels` guarda el identificador de la cuenta en la plataforma (`platformUserId` en la respuesta de Zernio), y `late_account_id` queda solo como referencia al proveedor. Si una sincronización encuentra el mismo `late_account_id` con otro `platformUserId`, **no renombra la fila**: la desactiva, crea un canal nuevo para la cuenta nueva, y lo registra en el historial de auditoría. Agregado el 22 de septiembre de 2026, antes de fijar la línea de base del Bloque 3; el motivo está abajo
+
+> **Hallazgo del 22 de septiembre de 2026: el identificador de cuenta de Zernio no identifica una cuenta de Instagram.** Afecta a esta funcionalidad y a F29. **Decidido el mismo día: entra en F26**, como el último criterio de arriba. No es ampliación de alcance: F26 es la funcionalidad de la identidad de canal, y hoy usa como identidad un campo que se midió que no identifica una cuenta. F29 no cambia.
+>
+> **Lo medido.** Se desconectó `@theconsultour` de Zernio y se conectó `@alomercadeo`, que es otra cuenta de Instagram. Zernio le dio a la nueva **el mismo `_id`** que tenía la vieja, `6aab34cb8d284ffb210b9700`. El objeto de la cuenta conserva el `createdAt` del 17 de septiembre, que es cuando se conectó la vieja, y tiene un `metadata.connectedAt` nuevo, del 22. La documentación de Zernio no dice nada sobre reusar identificadores.
+>
+> **Qué hizo nuestro código con eso, verificado en `app/api/v1/channels/sync/route.ts`.** Empareja canales por `late_account_id`, encontró la fila existente, y **le cambió el nombre de usuario**. No creó un canal nuevo ni desactivó el viejo. Todo lo que colgaba de esa fila —`contact_channels`, `conversations`— pasó a colgar de la cuenta nueva, sin ningún aviso. Esta vez no hizo daño porque la purga del paso 1 había vaciado la fila justo antes.
+>
+> **La cara visible del mismo hallazgo.** La tarjeta del canal muestra "@alomercadeo · Active · Connected Sep 16". La cuenta se conectó el 22; el 16 es cuando se conectó `@theconsultour`. La fecha sale de `channels.created_at` (`app/(dashboard)/dashboard/channels/channels-view.tsx:405`), y como la fila se renombró en vez de reemplazarse, se quedó con la fecha de la otra cuenta. **La interfaz afirma que el Instagram del negocio está conectado desde hace seis días, y es falso.** El criterio nuevo lo resuelve solo: al crear una fila por cuenta, `created_at` vuelve a ser la fecha de conexión de esa cuenta.
+>
+> **Lo que eso significa.** `late_account_id` no identifica una cuenta de Instagram. Identifica otra cosa: por lo que se vio, una ranura de conexión dentro de Zernio, que sobrevive a la desconexión y se reusa. Esto último es **inferencia**; lo medido es solo que el `_id` se repitió. La identidad real de la cuenta viene en otros campos de la misma respuesta: `platformUserId` y `metadata.instagramScopedId`.
+>
+> **Por qué le toca a F26.** Todo lo que esta funcionalidad construye sobre `contact_channels` da por sentado que "el canal" es una cosa fija. Si la fila del canal puede pasar a ser otra cuenta sin avisar, el identificador del remitente deja de significar lo mismo de un día para el otro. Y probablemente cambie también el valor: el identificador que Meta le da a un remitente de Instagram está atado a la cuenta profesional que recibe, así que la misma persona tendría otro identificador en la cuenta nueva. **Sin verificar:** sale de memoria sobre la documentación de Meta, no de una lectura ni de una medición.
 
 #### F27: Guardado de mensajes entrantes
 
@@ -553,6 +566,14 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 > **El trabajo de paginar la API ya está hecho y es reutilizable.** `lib/zernio-message-map.ts` tiene el bucle contra el endpoint de mensajes de Zernio, con lo que hace falta saber medido contra la API real: el tamaño de página es 100 y está topeado ahí, `offset` no existe, se pagina con `cursor` desde `pagination.nextCursor`, y `sortOrder` acepta `asc` y `desc`. La importación de F27 necesita exactamente ese bucle, recorriendo hacia atrás en vez de traer una sola página.
 >
 > **Y hay un límite que conviene saber antes de prometer la importación:** el endpoint devuelve `message: ""` para buena parte de los mensajes históricos de Instagram, los que Zernio resume como `[Attachment]` en el listado. Medido: 22 de 24 en las primeras conversaciones revisadas. Ese contenido no está del lado del proveedor, así que ninguna importación lo puede recuperar. El historial que se importe va a tener huecos, y eso hay que decirlo antes y no después.
+
+> **Hallazgo del 22 de septiembre de 2026: la importación de conversaciones que ya existe tiene un techo de 200, y F27 lo tiene que sacar.**
+>
+> `lib/inbox-sync.ts:15-16` fija 4 páginas de 50, siempre desde las más recientes. Las conversaciones conocidas se saltean pero ocupan su lugar en esas páginas, así que repetir la sincronización no baja nunca de las mismas 200. En la reconexión de `@alomercadeo`, Zernio reprodujo 500 conversaciones (del 3 de agosto al 22 de septiembre) y nuestra base quedó en 200 (del 3 de septiembre en adelante). El registro de esa ejecución está en `docs/purga-y-reconexion-instagram.md`.
+>
+> **Lo que F27 tiene que hacer distinto:** recorrer la paginación hasta que el proveedor diga que no hay más, con un tope de seguridad que esté **por encima** del máximo documentado del proveedor (500 conversaciones por cuenta) y no por debajo. Y cuando corte por el tope de seguridad en vez de por el final de la paginación, decirlo, porque esos dos cortes se ven igual en el resultado.
+>
+> Mientras tanto no se tocó, a propósito: el negocio no trabaja todavía desde nuestra bandeja, así que lo que falta no le falta a nadie.
 
 > **Medición del 21 de septiembre de 2026: el webhook y el listado le ponen el mismo identificador al mismo mensaje. La restricción única de F27 funciona.**
 >
@@ -690,6 +711,12 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [ ] La ficha muestra todas las conversaciones agrupadas por canal
 - [ ] Las vinculaciones automáticas y manuales quedan en el historial de auditoría
 
+> **Hallazgo del 22 de septiembre de 2026, desarrollado en F26: una fila de canal puede convertirse en silencio en otra cuenta de Instagram**, porque Zernio reusó su identificador de cuenta al conectar una distinta y nuestro código empareja por ese identificador.
+>
+> **Por qué toca a esta funcionalidad.** El criterio "cada conversación queda separada por canal, los hilos no se mezclan" da por sentado que un canal es siempre la misma cuenta. Si la fila cambia de cuenta, las conversaciones de dos cuentas distintas quedan bajo el mismo canal, y la ficha las agruparía como si fueran de una sola.
+>
+> **Decidido el mismo día: los criterios de F29 no cambian.** El arreglo va en F26, que devuelve a "un canal es una cuenta" su verdad, y con eso este criterio vuelve a valer. El caso de una misma persona escribiendo a dos cuentas de Instagram del negocio ya lo cubre el criterio de sugerir por nombre de usuario. **Sin verificar:** que Meta le dé a esa persona un identificador de remitente distinto en cada cuenta receptora, lo que impediría cruzar cuentas por ese identificador.
+
 #### F30: Notas, ficha de contacto y borrado suave
 
 **Descripción:** la vista completa del lead y la posibilidad de deshacer un borrado.
@@ -784,6 +811,16 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [ ] Filtro por "teléfono sin resolver", para poder trabajar esa cola
 - [ ] Filtros combinables, reflejados en la dirección de la página para poder compartirla, con contador y botón de limpiar
 - [ ] Búsqueda de texto dentro de los mensajes, que ahora es posible porque están guardados
+
+> **Medido el 22 de septiembre de 2026: la bandeja muestra 50 conversaciones de 200, y el buscador busca solo en esas 50 sin avisar que hay más.** Los criterios no se cambiaron: la propuesta está pendiente de decisión.
+>
+> **De dónde sale el 50.** Un tope fijo en `app/(dashboard)/dashboard/inbox/page.tsx:12`, `.limit(50)`, ordenado por último mensaje. No es un tamaño de página: no hay paginación ni carga al bajar. La búsqueda y el filtro de estado corren en el cliente sobre esas 50 (`components/inbox/conversation-list.tsx:103-110`), y el contador de arriba (línea 120) cuenta las cargadas, no las que existen. Con los datos de ese día, la conversación número 50 era del 16 de septiembre y la 200 del 2. Las conversaciones nuevas que llegan por Realtime se suman arriba, así que la lista puede crecer durante la sesión, pero nunca hacia abajo.
+>
+> **Las 150 restantes no se pueden abrir desde la interfaz.** La lista de contactos tiene su propio tope fijo de 100 (`app/(dashboard)/dashboard/contacts/page.tsx:13`, el contacto 100 era del 13 de septiembre), también con búsqueda en el cliente. Y la ficha de contacto lista sus conversaciones, pero el enlace de cada una va a `/dashboard/inbox` a secas (`app/(dashboard)/dashboard/contacts/[contactId]/page.tsx:205`), no a esa conversación. Un contacto del puesto 51 al 100 se ve en contactos pero su conversación no se abre. Uno del 101 al 200 solo es alcanzable escribiendo su dirección a mano.
+>
+> **La consecuencia que importa:** alguien busca un cliente de agosto, no lo encuentra, y concluye que no existe. El buscador busca en una cuarta parte de las conversaciones y la pantalla no dice que hay más. Es la misma familia que §14, "Un instrumento comparado solo contra sí mismo": una lista que se corta sin avisar se lee como una lista completa.
+>
+> **Los cinco niveles medidos ese día, y ninguno avisa:** Instagram, todas; Zernio, 500 desde el 3 de agosto; nuestra base, 200 desde el 3 de septiembre; la lista de contactos, 100 desde el 13; la bandeja, 50 desde el 16.
 
 #### F36: Respuestas rápidas
 
@@ -1579,6 +1616,24 @@ Había un test que cubría exactamente eso, y estaba en verde. Mandaba `directio
 **La regla que sale de acá:** **los fixtures salen de una respuesta real del proveedor, no de lo que el código espera.** Copiada de un payload observado, con la fecha y el origen anotados al lado. Cuando no hay forma de conseguir una respuesta real, el fixture se marca como inventado, con esas palabras, para que el que venga sepa que esa parte no está verificada.
 
 El corolario incómodo, que conviene aceptar de entrada: **un test verde sobre un fixture inventado vale menos que no tener test**, porque ocupa el lugar donde alguien habría mirado.
+
+### Un instrumento comparado solo contra sí mismo no puede revelar su propio techo
+
+**El caso, del 22 de septiembre de 2026, en la primera ejecución de `docs/purga-y-reconexion-instagram.md`.** El paso 2.1 decide cuándo terminó la reproducción del historial de Instagram con tres lecturas iguales del conteo de `conversations`. Antes de ejecutarlo ya se le había encontrado un defecto: sin una sincronización antes de cada lectura, el conteo no puede subir y las tres lecturas salen iguales por construcción. Se arregló.
+
+**Y con el arreglo aplicado, el conteo se habría estancado igual.** Quedó en 200, porque la importación lee como máximo 4 páginas de 50 (`lib/inbox-sync.ts:15-16`). Las tres lecturas iguales habrían salido, las dos horas habrían pasado, y el procedimiento se habría cerrado **con 300 conversaciones faltando y todo en verde**. Arreglar el instrumento no tocó el problema, porque el problema era el techo del instrumento.
+
+**Lo que reveló la verdad no fue arreglarlo sino contar del otro lado.** Del lado de Zernio había 500. Recién comparando las dos cifras apareció que la nuestra no estaba midiendo la reproducción: estaba midiendo su propio tope.
+
+**La regla:** **un instrumento comparado solo contra sí mismo no puede revelar su propio techo, y por eso una medición que importa necesita una segunda fuente, y no solo un control positivo.**
+
+**Por qué es una familia distinta de las dos reglas de verificación del `CLAUDE.md`.** El control positivo prueba que el instrumento *responde*: que la cañería entrega, que el camino de éxito funciona. Acá respondía perfecto. Las primeras 200 entraron bien, y cualquier control positivo que se le hubiera puesto habría dado verde. Lo que un control positivo no puede decir es **hasta dónde** mide el instrumento, porque para saber dónde está el techo hace falta ver algo que esté por encima, y el instrumento por definición no lo ve. Una segunda fuente independiente sí.
+
+**Qué implica en concreto:**
+
+- **Toda condición de "terminó" o "está completo" se contrasta contra una fuente que no dependa del mismo código.** Si la única cifra disponible sale del instrumento que se está evaluando, el resultado es **no concluyente**, dicho con esas palabras.
+- **Un número redondo es una pista, no una prueba.** El 200 exacto fue lo que hizo sospechar. Pero un techo puede caer en cualquier número, y la sospecha no reemplaza a la segunda fuente.
+- **Cuando la segunda fuente también tiene techo, se dice.** El 500 de Zernio es a su vez el máximo que el proveedor documenta. Que las dos cifras coincidieran con dos topes distintos no prueba que la reproducción esté completa: prueba dónde está cada techo.
 
 ---
 

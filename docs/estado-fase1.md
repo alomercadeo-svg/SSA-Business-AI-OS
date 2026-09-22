@@ -99,9 +99,10 @@ Queda una decisión de segundo orden: los adjuntos. Las URL de medios de Meta ve
 - ~~**Autenticación del webhook de Evolution.**~~ **Resuelto en F22, el 17 de septiembre de 2026.** Evolution firma cada entrega con un JWT HS256 derivado del `jwt_key` de la instancia y el receptor lo verifica, fallando cerrado igual que el de Zernio. El mecanismo está en el código de la 2.3.7 pero no documentado, así que subir de versión obliga a re-verificarlo: el recordatorio está en `lib/evolution-version.mjs`.
 - **¿Redis es necesario?** La plantilla de Railway lo despliega, pero la documentación de Evolution v2 lo describe como caché de rendimiento y existe `CACHE_LOCAL_ENABLED`. Probable que se pueda prescindir. Sin verificar.
 - **La sesión de WhatsApp expira sin aviso visible.** Es F32, y **decidido el 22 de septiembre de 2026 se queda en el Bloque 4**, lo que fija que el número no se vincule hasta que ese bloque cierre. Sobrevive a un redeploy porque se guarda en Postgres, pero al expirar la bandeja simplemente deja de recibir, igual que si no escribiera nadie. Hace falta estado de sesión visible en la pantalla de canales y forma de volver a escanear el QR.
+- **El token de Instagram de `@alomercadeo` vence el 21 de noviembre de 2026, a las 13:38 hora de Costa Rica.** Leído el 22 de septiembre de 2026 de `tokenExpiresAt` en `GET /v1/accounts`: es un token de 60 días exactos (`metadata.expires_in` = 5.183.999 segundos) emitido al conectar ese día. **Hay un recordatorio programado fuera del sistema para el 14 de noviembre.** Cuando venza, la bandeja deja de recibir con el síntoma de siempre, un día tranquilo. Dos cosas sin resolver: **si Zernio lo renueva solo**, sin verificar (se sabría leyendo `tokenExpiresAt` otra vez en unos días y viendo si se movió); y **dónde vive el aviso dentro del sistema**, sin decidir, con F24 recomendada por ser la sección de canales que ya muestra el estado del registro del webhook de Zernio. La fecha de 15 de noviembre que circuló antes era el token de `@theconsultour`, que ya no está conectada.
 - **Verificación de negocio en Meta:** confirmada como no hecha. Prevista para la semana del 22 de septiembre. No bloquea nada; levanta el tope de 250.
 - **Cuatro preguntas para Zernio**, todavía sin respuesta, hoy menos urgentes: si absorben la verificación de negocio, si exponen gestión de plantillas por API, si el webhook de WhatsApp es en tiempo real, y la región y tipo de línea del número.
-- **Purga de datos de prueba, reconexión de Instagram y rotación del secreto de firma.** Pendiente, con procedimiento escrito y versionado en **`docs/purga-y-reconexion-instagram.md`**. Son cuatro pasos acoplados y el orden no es negociable. Incluye el motivo por el que la rotación no se hizo suelta: rotar obliga a re-registrar el webhook, y ese re-registro falla en silencio por un `try/catch`, así que el procedimiento de rotación pasa justo por el camino de falla que el propio hallazgo describe. La verificación de punta a punta que la rotación necesita ya está en ese documento, en vez de ser un paso que alguien tiene que acordarse de agregar.
+- **Purga de datos de prueba, reconexión de Instagram y rotación del secreto de firma: ejecutada el 22 de septiembre de 2026, veredicto "entra y sale", con un pendiente.** `@theconsultour` desconectada, base purgada, `@alomercadeo` conectada, secreto rotado de `…694b` a `…85b1`, y un mensaje real de ida y vuelta. **El pendiente:** la rotación le borró `message.sent` a la suscripción del webhook, porque producción corre código anterior al commit que suma ese evento y **la rama local tiene 19 commits sin subir**. Hay que desplegar, sincronizar, y repetir los pasos 3.2 y 4. El registro completo, los tiempos medidos de la reproducción del historial y los cinco techos encontrados están en el paso 5 del procedimiento. **Lo que confirmó la ejecución sobre el motivo del orden:** rotar obliga a re-registrar el webhook, y ese re-registro corre dentro de un `try/catch` silencioso. La rotación pasó justo por ese camino, y la pantalla no mostró nada mientras la suscripción perdía un evento. Solo lo detectó `--registro`, mirado a ojo.
 
 ---
 
@@ -135,22 +136,36 @@ Las siete cosas de la lista vieja, dónde quedaron: el adaptador de Evolution en
 
 ## Siguiente paso
 
-**Ejecutar `docs/purga-y-reconexion-instagram.md`.** Está escrito, revisado y sin correr. Son cinco pasos acoplados —desconectar, purgar, reconectar, rotar el secreto, verificar de punta a punta— y hasta que no se ejecuten, el canal de Instagram sigue conectado a la cuenta equivocada.
+**Desplegar y cerrar el pendiente de `docs/purga-y-reconexion-instagram.md`.** El procedimiento se ejecutó el 22 de septiembre de 2026 y el canal ya está en la cuenta del negocio. Falta subir los 19 commits, desplegar, sincronizar, y repetir los pasos 3.2 y 4 para que `message.sent` vuelva a la suscripción y el nuevo registro del webhook quede verificado. **Antes de subir, confirmar desde qué rama despliega Railway**, que no está verificado.
 
 Después, el Bloque 3: modelo de contacto extendido (F25), identidad de canal y reconciliación de teléfonos (F26), y guardado de mensajes entrantes (F27), que es donde vive el riesgo real de la fase.
 
-### El Bloque 3 se corre partido en dos, y se mide
+### El Bloque 3 se corre en tres sesiones, contra dos días, y se mide
 
-**Se parte en dos sesiones**, como el propio plano recomienda: una para el modelo de contacto y la identidad de canal (F25 y F26), otra para la ingesta, los adjuntos y la deduplicación (F27, F28, F29).
+**Línea de base fijada el 22 de septiembre de 2026, antes de arrancar el bloque.** No se toca mientras se mide.
 
-**Y se anotan los días hábiles reales contra los planificados, al terminar cada sesión.** El plano proyecta 1,5 días para el Bloque 3. Eso es una proyección, no una medición: **nunca se midió un bloque de este proyecto contra su estimación.**
+**El alcance son las ocho funcionalidades del Bloque 3 en el plano**, y ninguna más: F25, F26, F27, F28, F29, F30, F31 y F39. F26 incluye el criterio agregado ese mismo día sobre la identidad del canal, que entró **antes** de fijar esta línea de base.
 
-| | Planificado | Real | Anotado el |
-|---|---|---|---|
-| Sesión 1 — F25, F26 | | | |
-| Sesión 2 — F27, F28, F29 | | | |
+**La estimación son 2 días hábiles para el bloque entero**, los "días 3 a 4" de la tabla de bloques del plano. Circuló también una cifra de 1,5 días, pero no era una duración: era una lectura mal copiada del gráfico de avance, y se corrigió donde aparecía.
 
-**Por qué al terminar cada sesión y no al cerrar el bloque:** si se anota al final, lo que queda es un número agregado que no dice dónde se fue el tiempo, y la mitad del valor de medir es saber cuál de las dos partes se desbordó.
+| Sesión | Funcionalidades | Por qué juntas | Días reales | Anotado el |
+|---|---|---|---|---|
+| 1 | F31, F25, F26 | El modelo de contacto y la identidad de canal. **F31 primero:** F26 escribe en la auditoría, y la tabla no existe hasta F31 | | |
+| 2 | F27, F28, F39 | El camino de entrada. F28 y F39 cuelgan de F27 | | |
+| 3 | F29, F30 | El lado de CRM, que no toca la ingesta | | |
+| **Bloque** | | | **Planificado: 2 días** | |
+
+**Por qué tres sesiones y no dos.** La partición en dos que estaba escrita acá nombraba F25 a F29 y dejaba afuera F30, F31 y F39. Nunca fue una partición completa: se escribió antes de que F39 existiera y sin contar F30 ni F31. Y **sesiones y días no son lo mismo**: las sesiones son unidades de trabajo, los dos días son la estimación. Se miden tres sesiones contra dos días planificados, y si tarda cuatro, ese es el resultado. Meter cinco funcionalidades en una sesión para que entren en dos no mejora la estimación: produce una sesión que se desborda y no enseña nada.
+
+**Pronóstico, escrito antes de arrancar, para que la primera corrida ponga a prueba dos cosas, la estimación y el pronóstico.** Un pronóstico escrito después no vale nada.
+
+- **El bloque se pasa de los 2 días. La sesión 2 sola se lleva más de uno.**
+- **Por qué la sesión 2, y por qué F27.** Es donde vive el riesgo de la fase: dos caminos de entrada que se tienen que deduplicar entre sí (el webhook y la importación del historial), dos proveedores con formas de aviso distintas (Evolution manda un objeto para un mensaje y una lista para una sincronización), y una importación que hoy tiene un techo de 200 y que F27 tiene que reescribir para recorrer hasta el final. F28 y F39 no pueden empezar hasta que F27 guarde mensajes.
+- **Lo que haría fallar el pronóstico, dicho de antemano:** que la sesión 1 se lleve más que la 2. Sería señal de que F31 y el criterio nuevo de F26 pesaban más de lo que parecían.
+
+**El dato en que se apoya el pronóstico, y su límite.** El Bloque 2 estaba planificado en "1 a 2" días. Tiene commits del 16, el 17 y el 21 de septiembre de 2026, y F24 sigue parcial. **No es una medición:** días con commits no son días trabajados, y en el medio hubo trabajo que no estaba en el plan. Apunta a que el plan es optimista, y no dice cuánto.
+
+**Por qué se anota al terminar cada sesión y no al cerrar el bloque:** si se anota al final, lo que queda es un número agregado que no dice dónde se fue el tiempo, y la mitad del valor de medir es saber cuál de las tres partes se desbordó.
 
 **Para qué sirve, concretamente:** la próxima decisión de alcance —qué entra en la Fase 2, si el Bloque 4 se parte, cuánto dura la fase— se va a tomar con este dato o con otra proyección. Hoy todas las estimaciones del plano descienden de la misma suposición inicial y ninguna se contrastó nunca contra un bloque terminado.
 
