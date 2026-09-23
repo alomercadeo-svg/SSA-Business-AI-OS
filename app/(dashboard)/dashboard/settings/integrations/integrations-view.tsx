@@ -191,7 +191,7 @@ function TarjetaView({ t, cuentasInstagram }: { t: Tarjeta; cuentasInstagram: Cu
         </span>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        {t.verificado_el ? `Verificado el ${fecha(t.verificado_el)}.` : "Todavía no se verificó."}
+        {t.verificado_el ? `Última verificación: ${fecha(t.verificado_el)}` : "Todavía no se verificó."}
         {t.estado === "sin_verificar" && " No se pudo preguntarle al proveedor, así que no sabemos si está conectado."}
       </p>
       {t.detalle && <p className="mt-1 text-xs text-muted-foreground">{t.detalle}</p>}

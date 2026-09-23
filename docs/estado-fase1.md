@@ -170,9 +170,42 @@ Las siete cosas de la lista vieja, dónde quedaron: el adaptador de Evolution en
 
 ---
 
+## Sesión del 23 de septiembre de 2026, tarde: F24 construida
+
+**Inicio 14:02, cierre 15:18, hora de Costa Rica.**
+
+**Commits:** `9072542` (criterio de confirmación al desconectar), `3a4d08f` (migración 00024), `105b283` (pantalla), `90be0f9` (detección de estado), `e822588` (00024 aplicada), `17459ef` ("1 cuenta" y la deuda de §15) y el de este registro. Suite en verde y tipos en cero en cada uno.
+
+**Base de producción, con la aprobación de Marcos:**
+
+- `supabase db push --dry-run` listó solo la 00024, y se aplicó.
+- `scripts/verify-integration-configs.mjs` pasó 5 de 5. Un Member no lee `integration_configs` por API ni recibe el evento de Realtime, y un Admin de prueba sí: esa es la contraparte y el canario. No se corrió en rojo antes: que falle porque la tabla no existe no prueba la RLS.
+- Conteos antes y después del verificador, iguales: 1 usuario, 0 de prueba, 1 workspace y 1 membresía.
+
+**La pantalla, abierta en el servidor de desarrollo contra producción, sin apretar ningún botón:**
+
+- Al abrir solo salen GET contra los proveedores. `ensureWebhookRegistered` no está en ese camino: solo se llega con "Probar y guardar".
+- La verificación dejó Zernio conectado (1 cuenta) y Evolution conectado. Resend y los tres proveedores de IA quedaron sin configurar, porque no hay claves cargadas.
+- **Control positivo de Realtime:** a las 15:15:57 se cambió en la base la fila de Resend (estado y `ultimo_error`). Marcos vio la tarjeta cambiar sin recargar y lo mostró en una captura. A las 15:16:42 se restauró, y quedó igual a la original.
+- Esto prueba la **propagación**. La **detección** la cubren los tests, con respuestas simuladas.
+- El webhook de Zernio, leído al terminar: uno solo, a `app.alomercadeo.com/api/webhooks/late`, activo, con los tres eventos.
+
+**Lo que no se pudo o no se quiso probar:**
+
+- **`NEXT_PUBLIC_APP_URL` del servidor de desarrollo:** no se leyó, porque el permiso rechazó leer `.env`. La deuda que eso abre quedó en §15 del plano.
+- **Desconectar:** probado solo con Zernio simulado, a propósito.
+- **Una clave de Resend restringida a envío:** si recibe 401 en `/domains`, la pantalla la marcaría "desconectada". Sin verificar.
+
+**F24, lo que falta:**
+
+- El estado del registro del webhook de Zernio en la sección de canales: es un criterio que esta construcción no tocó.
+- Aparte, fuera de F24: la ruta vieja `DELETE /api/v1/channels/[channelId]` borra la fila del canal y, en cascada, su historial. Quedó como tarea aparte.
+
+---
+
 ## Siguiente paso
 
-**`docs/purga-y-reconexion-instagram.md` está cerrado**, desde el 22 de septiembre de 2026, con el despliegue verificado. Railway despliega `bloque-1-foundation` con despliegue automático al subir, verificado ese día en la interfaz. Producción sirve `98aa3aa`.
+**`docs/purga-y-reconexion-instagram.md` está cerrado**, desde el 22 de septiembre de 2026, con el despliegue verificado. Railway despliega `bloque-1-foundation` con despliegue automático al subir, verificado ese día en la interfaz. El último despliegue verificado es `d3eb410`, el 23 de septiembre de 2026, con la tarjeta ACTIVE en "Deployment successful" (captura de Marcos).
 
 ### Dos desincronizaciones entre producción y el repositorio, el 22 de septiembre de 2026
 
