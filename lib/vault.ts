@@ -29,6 +29,12 @@ export const SECRET_NAMES = {
   evolutionWebhookSecret: "evolution_webhook_secret",
   /** El secreto anterior, aceptado solo durante la ventana de rotación. */
   evolutionWebhookSecretPrevious: "evolution_webhook_secret_previous",
+  /** Clave de Resend, para el correo saliente (F23). Se carga desde integraciones (F24). */
+  resend: "resend_api_key",
+  /** Claves de los proveedores de IA (F24). Se cargan acá; el cableado es de la Fase 2. */
+  openai: "openai_api_key",
+  anthropic: "anthropic_api_key",
+  google: "google_api_key",
 } as const;
 
 export type SecretName = (typeof SECRET_NAMES)[keyof typeof SECRET_NAMES] | string;

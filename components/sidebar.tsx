@@ -13,6 +13,7 @@ import {
   Sprout,
   Plug,
   Settings,
+  KeyRound,
   LogOut,
   Moon,
   Sun,
@@ -54,6 +55,9 @@ const navigation = [
   { name: "Growth", href: "/dashboard/growth", icon: Sprout },
   { name: "Channels", href: "/dashboard/channels", icon: Plug },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
+  // Solo para Owner y Admin. Esconderla es comodidad: el control real es la
+  // guarda del servidor en la página (F24).
+  { name: "Integraciones", href: "/dashboard/settings/integrations", icon: KeyRound, soloManagers: true },
 ];
 
 export function Sidebar({
@@ -65,6 +69,14 @@ export function Sidebar({
   workspaces: WorkspaceItem[];
 }) {
   const pathname = usePathname();
+  const rol = workspaces.find((w) => w.id === workspace.id)?.role;
+  const esManager = rol === "owner" || rol === "admin";
+  const visibles = navigation.filter((item) => !("soloManagers" in item) || esManager);
+  // La entrada activa es la de href más largo que coincide: sin esto,
+  // /dashboard/settings/integrations marcaría también a Settings.
+  const activa = visibles
+    .filter((item) => pathname.startsWith(item.href))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
   const router = useRouter();
   const supabase = createClient();
   const dark = useSyncExternalStore(
@@ -92,8 +104,8 @@ export function Sidebar({
       </div>
 
       <nav className="flex-1 space-y-1 p-3">
-        {navigation.map((item) => {
-          const isActive = pathname.startsWith(item.href);
+        {visibles.map((item) => {
+          const isActive = item.href === activa;
           return (
             <Link
               key={item.name}
