@@ -135,8 +135,14 @@ que de acá en adelante una copia borrada o una mudanza sin explicar ponen la su
 
 Origen de todas: `docs/requerimientos-fase1.md` en `ebc9702`, en la sección indicada. **R** es
 reescrito o presente, **P** perdido y **D** descartado con motivo. **R\*** significa que la obligación
-sigue viva, pero en prosa (§14, §14b) o en el `CLAUDE.md`, no como criterio. Eso implica que la foto
-**no la protege**, y por eso cada R\* recibe un destino igual que una perdida.
+sigue viva, pero en prosa (§4, §6, §11, §14 y sus anexos 14b a 14d) o en el `CLAUDE.md`, no como
+criterio. Eso implica que la foto **no la protege**, y por eso cada R\* recibe un destino igual que
+una perdida. **Las líneas citadas son del plano al 23/09/2026, antes de devolverle ningún criterio**:
+cualquier edición posterior las corre.
+
+**Revisión del 23/09/2026: cada P se buscó en la prosa de §4, §6, §11 y §14.** Pasaron a R\* #13b,
+#22b, #22c, #27b, #35b, #45, #103c, #119 y #129, y el #63 se partió por la regla 4. Los que siguen en
+P con prosa cercana dicen en su fila por qué esa prosa no alcanza.
 
 ### Destinos, fijados el 23/09/2026
 
@@ -160,7 +166,7 @@ su destino, así que no hay nada que devolver. Por eso no entran en los totales 
 |---|---|---|---|---|
 | 1 | El adaptador de WhatsApp usa el mismo contrato de canal, sin condicionales | R | F27, camino de entrada único | |
 | 2 | "whatsapp ya está en el CHECK de `channels`, no hace falta migración" | D | Es un hecho del esquema, no una obligación. Con Evolution el canal entró en 00022 | |
-| 3 | Registro `whatsapp_zernio` en `integration_configs` | P | El apéndice del plan B no conserva el canal, solo plantillas y ventana. Poco peso | B, apéndice del plan B |
+| 3 | Registro `whatsapp_zernio` en `integration_configs` | P | El apéndice del plan B no conserva el canal, solo plantillas y ventana. §4.12b describe el modelo del plan B sin mencionar el registro. Poco peso | B, apéndice del plan B |
 | 4 | El webhook procesa WhatsApp por la misma ruta que Instagram | R | F27 | |
 | 5 | Idempotencia igual para los dos canales | R\* | §14, "Patrón de avisos entrantes". F22 no tiene criterio propio | A, F22 |
 | 6–9 | Número sin cuenta previa, alta en WABA, PIN, nombre para mostrar aprobado | R | Pasos del alta en `docs/anexo-whatsapp.md` | |
@@ -168,8 +174,8 @@ su destino, así que no hay nada que devolver. Por eso no entran en los totales 
 | 11 | Entrantes por webhook, guardados en `messages` | R | F27 | |
 | 12 | Texto libre con la ventana abierta | B | F6c, en el apéndice | B, ya en el apéndice |
 | 13a | Vincular el contacto por teléfono normalizado | R | F29 | |
-| 13b | …**en E.164** | P | F29 dice "normalizado". Ver la familia E.164 abajo | B, definición E.164 única en §14 |
-| 129 | El estado de la conexión de WhatsApp visible en `/settings/integrations` | P | Encontrada por duplicados en `8d69af7`: el mismo texto estaba en F4 y en F6, y la copia de F4 tapaba la pérdida de la de F6 | B, apéndice del plan B |
+| 13b | …**en E.164** | R\* | §14, línea 1585: el teléfono que vincula es el "normalizado a E.164", y solo con coincidencia exacta. F29 dice "normalizado" a secas | B, definición E.164 única en §14 |
+| 129 | El estado de la conexión de WhatsApp visible en `/settings/integrations` | R\* | Encontrada por duplicados en `8d69af7`: el mismo texto estaba en F4 y en F6, y la copia de F4 tapaba la pérdida de la de F6. Vive en §11.2, línea 1408: la tarjeta es por canal, no por proveedor, y muestra el estado | B, apéndice del plan B |
 
 **F7, correo por Resend (hoy F23)**
 
@@ -182,22 +188,22 @@ su destino, así que no hay nada que devolver. Por eso no entran en los totales 
 
 | # | Obligación | | | Destino |
 |---|---|---|---|---|
-| 20a | Accesible **desde el sidebar** | P | | A, F24 |
+| 20a | Accesible **desde el sidebar** | P | §11.1, línea 1383: la barra lateral tiene "configuración", pero no dice que desde ahí se llegue a integraciones | A, F24 |
 | 20b | Solo Owner y Admin | R | F24 | |
 | 21 | Sección de canales | R | F24 | |
 | 22a | Conectar Instagram con la clave de Zernio | R | F4 | |
-| 22b | **Desconectar** Instagram | P | | A, F24 |
-| 22c | **Estado** de Instagram | P | Va con el 32 | A, F24 |
+| 22b | **Desconectar** Instagram | R\* | §4.4, línea 150 ("permitir conectar y desconectar"), y §11.2, línea 1408 ("botones de conectar y desconectar") | A, F24 |
+| 22c | **Estado** de Instagram | R\* | §4.4, línea 150 ("mostrar el estado de cada conexión"), y §11.2, línea 1408 (la tarjeta muestra el estado) | A, F24 |
 | 23 | WhatsApp por la API oficial en la pantalla | D | Decisión del 16/09; reescritura decidida el 22/09 | |
 | 24a, 25a | Facebook y X opcionales | R | F24; quedan afuera por decisión del 22/09 | |
 | 24b, 25b | La nota "$6/mes extra" | P | Poco peso | C: Facebook y X quedan fuera de F24 por la decisión del 22/09, así que no hay dónde poner su nota de precio |
 | 26 | Estructura extensible para Etapa 2 | R | F24, "agregar una sin cambiar la base" | |
 | 27a | Resend con clave y dominio verificado | R | F24 | |
-| 27b | **Estado** del correo | P | | A, F24 |
+| 27b | **Estado** del correo | R\* | §4.4, línea 150 ("el estado de cada conexión"), y §11.2, línea 1411 ("con servicios conectados se ve el estado de cada uno"). La línea 1409, la de la sección de correo, no lo nombra | A, F24 |
 | 28–30 | IA con tres proveedores, claves en Vault, validación de formato | R | F24 | |
 | 31a | Cada integración es un registro con tipo | R | F24 | |
 | 31b | Que la tabla se llame `integration_configs` | D | Regla 2: el nombre no lo distingue ninguna comprobación | |
-| 32 | **El estado de cada integración se actualiza en tiempo real** | P | | A, F24 |
+| 32 | **El estado de cada integración se actualiza en tiempo real** | P | Ni §4.4 ni §11.2 hablan de actualización en vivo. La "actualización en vivo" de §14c, línea 1718, es la del fork, en conversaciones y mensajes | A, F24 |
 | 33 | Agregar una integración sin cambiar la tabla | R | F24 | |
 
 **F9 y F10, modelo de contacto y atribución (hoy F25)**
@@ -208,7 +214,7 @@ su destino, así que no hay nada que devolver. Por eso no entran en los totales 
 | 34b | Columnas de redes: `instagram_username`, `tiktok_username`, `youtube_channel_id`, `linkedin_profile_url`, `twitter_username`, `facebook_id` | D | Decisión del 22/09: el handle es por canal, en `contact_channels` | |
 | 34c | `setter_id` y `vendedor_id` | D | Construidas en 00017 | |
 | 35a | Normalizar el teléfono en el servidor | R | F25 | |
-| 35b | …**a E.164** | P | F25 dice "formato internacional" | B, definición E.164 única en §14 |
+| 35b | …**a E.164** | R\* | F25 dice "formato internacional", pero §14, línea 1585, dice que `contacts.phone` guarda el teléfono "normalizado a E.164", y §14b, línea 1689, que se normaliza en el servidor | B, definición E.164 única en §14 |
 | 36a | Índices de teléfono, correo y marca de borrado | R | F25 | |
 | 36b | Índices de `whatsapp_phone`, `setter_id` y `vendedor_id` | D | Regla 2: un índice no lo distingue ninguna comprobación. Los de asignación existen en 00017 | |
 | 37 | Índices compuestos por workspace con teléfono y con correo | R | F25 | |
@@ -226,11 +232,11 @@ las columnas y el scope, no la asignación desde la interfaz.
 
 | # | Obligación | | | Destino |
 |---|---|---|---|---|
-| 45 | Setter y vendedor visibles en la ficha | **P** | §11.2, "Ficha de contacto", la conserva en prosa entre los componentes; no hay criterio | A, F41 |
-| 46 | **Se asignan desde un desplegable con los miembros** | **P** | **Grave.** No hay pantalla en el código ni criterio en el plano. Sin esto nadie asigna leads, y el scope de leads se apoya en esa asignación | A, F41 |
+| 45 | Setter y vendedor visibles en la ficha | R\* | §11.2, línea 1423: "asignaciones de setter y vendedor" entre los componentes de la ficha | A, F41 |
+| 46 | **Se asignan desde un desplegable con los miembros** | **P** | **Grave.** No hay pantalla en el código ni criterio en el plano. §14, línea 1570, dice "Asignación manual", que no obliga al desplegable ni a que muestre a los miembros. Sin esto nadie asigna leads, y el scope de leads se apoya en esa asignación | A, F41 |
 | 47 | Opcionales e independientes | R\* | §14, "Modelo de asignación" | A, F41 |
 | 48 | Los cambios quedan en la auditoría | R | F31, "asignado" | |
-| 49 | Filtrar la lista de contactos por cada uno | **P** | F35 filtra la bandeja, no los contactos | A, F41 |
+| 49 | Filtrar la lista de contactos por cada uno | **P** | F35 filtra la bandeja, no los contactos. §11.2 no tiene pantalla de lista de contactos | A, F41 |
 | 50 | Cambiar una asignación cambia la visibilidad de inmediato | R | F3 | |
 
 **F12, F13, F14 y F15, detección, notas, ficha y borrado suave (hoy F29 y F30)**
@@ -238,13 +244,14 @@ las columnas y el scope, no la asignación desde la interfaz.
 | # | Obligación | | | Destino |
 |---|---|---|---|---|
 | 51–55, 56a, 57 | Detección entre canales, vinculación, registro de canal, hilos separados, sugerencia por usuario, agrupación por canal, auditoría | R | F29 | |
-| 56b, 64b | **Cada conversación de la ficha con su estado de ventana** | P | F40 lo pone en la bandeja, no en la ficha | B: F40 para Instagram, apéndice del plan B para WhatsApp |
+| 56b, 64b | **Cada conversación de la ficha con su estado de ventana** | P | F40 lo pone en la bandeja, no en la ficha. §11.2, línea 1423, lista las conversaciones por canal sin estado de ventana; §6, línea 1112, lo pone en la bandeja | B: F40 para Instagram, apéndice del plan B para WhatsApp |
 | 58–61 | Notas: tabla, lista, quién crea y quién edita | R | F30 | |
 | 62 | RLS de las notas | P → **devuelto** | `0875ded`, el 22/09 | Ya devuelto |
-| 63 | La ficha muestra **qué datos**: nombre, correo, teléfono, redes, país, setter, vendedor, temperatura, seguimiento | P | F30 dice "datos" sin enumerar | A, F30 |
+| 63a | La ficha muestra nombre, correo, teléfono, setter, vendedor, temperatura y seguimiento | R\* | §11.2, línea 1423: "datos personales y de contacto, asignaciones de setter y vendedor, temperatura, próximo seguimiento" | A, F30 |
+| 63b | …**redes y país** | P | §11.2, línea 1423, no los nombra y "datos personales y de contacto" no obliga a mostrarlos. §4.5, línea 158, los pone en el modelo, no en la ficha | A, F30 |
 | 64a, 65, 66 | Conversaciones por canal, secciones de la ficha, marca de no contactar | R | F30 | |
-| 67 | **Botón para editar los datos** | P | | A, F30 |
-| 68 | **Clic en una conversación lleva a ese hilo** | P | Hoy el enlace va a `/dashboard/inbox` a secas (medido el 22/09, ver F35) | A, F30 |
+| 67 | **Botón para editar los datos** | P | §11.2, línea 1424, solo permite cargar a mano un teléfono sin resolver | A, F30 |
+| 68 | **Clic en una conversación lleva a ese hilo** | P | Hoy el enlace va a `/dashboard/inbox` a secas (medido el 22/09, ver F35). §11.2 no dice qué pasa al hacer clic | A, F30 |
 | 69–72, 73a, 74, 75 | Borrado suave, listados y reglas que lo excluyen, purga a 30 días en cascada, auditoría que no se purga | R | F30 | |
 | 73b | La ruta `/api/cron/purge-deleted` | D | Regla 2: implementación | |
 
@@ -254,7 +261,7 @@ las columnas y el scope, no la asignación desde la interfaz.
 |---|---|---|---|---|
 | 76a, 77a, 78a, 79a, 80a, 81–83 | Filtros por etiquetas, asignación, canal, fecha y ventana; combinables, en la dirección de la página, contador y limpiar | R | F35 | |
 | 76b, 78b | Etiquetas y canal **con selección múltiple** | P | | A, F35 |
-| 77b | Opciones de asignación: **"Sin asignar"** y **"Agente IA"** | P | | "Sin asignar": A, F35. "Agente IA": B, funcionalidades de fases siguientes |
+| 77b | Opciones de asignación: **"Sin asignar"** y **"Agente IA"** | P | §14, línea 1570, dice que la conversación tiene un agente asignado, no que se filtre por eso | "Sin asignar": A, F35. "Agente IA": B, funcionalidades de fases siguientes |
 | 79b | Fecha con **presets y rango personalizado** | P | | A, F35 |
 | 80b | Ventana **"por vencer en menos de 2 horas"** | P | | A, F35 |
 
@@ -263,17 +270,17 @@ las columnas y el scope, no la asignación desde la interfaz.
 | # | Obligación | | | Destino |
 |---|---|---|---|---|
 | 84–87, 88a, 89–91 | Respuestas rápidas completas, con aislamiento por workspace (F3) | R | F36 | |
-| 88b | Variable **`{{workspace.name}}`**: datos del negocio, no solo del contacto | P | F36 dice "datos del contacto" | A, F36 |
+| 88b | Variable **`{{workspace.name}}`**: datos del negocio, no solo del contacto | P | F36 dice "datos del contacto". §14d, línea 1759, hace configurables los datos del negocio, no los vuelve variable | A, F36 |
 | 92a, 93–95, 97, 98 | No contactar: lista configurable, detección, marca, reversión, bloqueo, fuera de secuencias | R | F34 | |
-| 92b | **Las frases por defecto** ("stop", "basta", "no me escribas más"…) | P | Una comprobación lo nota: "stop" no se detecta | A, F34 |
+| 92b | **Las frases por defecto** ("stop", "basta", "no me escribas más"…) | P | Una comprobación lo nota: "stop" no se detecta. §14d, línea 1762, hace configurables las frases de baja, sin decir cuáles vienen de fábrica | A, F34 |
 | 96 | Advertencia con confirmación al escribir a un contacto marcado | D | Reemplazada por un bloqueo duro sin forzar, más estricto (F34) | |
-| 99 | Botón "Importar CSV" en `/contacts` | P | Poco peso | A, F37 |
+| 99 | Botón "Importar CSV" en `/contacts` | P | §4.11, línea 234, nombra la importación, no dónde se inicia. Poco peso | A, F37 |
 | 100, 101a, 103a, 103b, 104, 105a, 106, 107 | Tamaño, vista previa, identificador obligatorio, deduplicación, segundo plano, progreso, auditoría y `csv_imports` | R | F37 y el modelo de datos | |
 | 101b | Vista previa de **5 filas** con **mapeo sugerido** | P | | A, F37 |
-| 102 | Mapear a **setter, vendedor, etiquetas y campos personalizados** | P | | A, F37 |
-| 103c | Teléfono **en E.164** | P | | B, definición E.164 única en §14 |
+| 102 | Mapear a **setter, vendedor, etiquetas y campos personalizados** | P | §6, línea 1123, mapea "las columnas comerciales" de Pipedrive, que no son estas | A, F37 |
+| 103c | Teléfono **en E.164** | R\* | §14, líneas 1581 y 1585: la lista de identificadores es cerrada y vale para cada importador, y el teléfono que califica es el "normalizado a E.164" | B, definición E.164 única en §14 |
 | 105b | `scheduled_jobs` | D | Regla 2 | |
-| 105c | **Notificación al terminar** | P | Es una "notificación del sistema" concreta para el hueco de F23 | A, F37 |
+| 105c | **Notificación al terminar** | P | Es una "notificación del sistema" concreta para el hueco de F23. §14, línea 1566, dice que la importación sigue en segundo plano, no que avise al terminar | A, F37 |
 
 **F20, auditoría (hoy F31), y checklist**
 
@@ -283,10 +290,10 @@ las columnas y el scope, no la asignación desde la interfaz.
 | 110b | Auditar el envío y la aprobación de plantillas de WhatsApp | P | Del apéndice del plan B. Poco peso | B, apéndice del plan B |
 | 113–115, 118, 122, 125, 127, 128 | RLS en todo, políticas probadas por API, Realtime con scope, validación en servidor, Vault, logs, firmas, versión de Zernio | R | Checklist actual, F1, F2 y F3 | |
 | 116a | Sesión verificada en las rutas de API | R | Checklist | |
-| 116b | **…y en las Server Actions** | **P** | El `CLAUDE.md` pone las mutaciones de la interfaz en Server Actions | A, checklist de §14b |
+| 116b | **…y en las Server Actions** | **P** | El `CLAUDE.md` pone las mutaciones de la interfaz en Server Actions. §14b, línea 1690, verifica la sesión "en todas las rutas", y §14c, línea 1719, nombra las acciones de servidor sin exigirles sesión | A, checklist de §14b |
 | 117 | **Rate limiting en los webhooks** | **P** | Ni en el plano ni en el `CLAUDE.md` | A, checklist de §14b |
-| 119 | **Teléfonos en E.164** | P | Familia E.164 | B, definición E.164 única en §14 |
-| 120 | **CORS con dominio específico** | **P** | Ni en el plano ni en el `CLAUDE.md` | A, checklist de §14b |
+| 119 | **Teléfonos en E.164** | R\* | §14, línea 1585 (E.164), y §14b, línea 1689 ("Teléfonos normalizados en servidor") | B, definición E.164 única en §14 |
+| 120 | **CORS con dominio específico** | **P** | Ni en el plano ni en el `CLAUDE.md`. §14b, línea 1692, valida el origen de las redirecciones, que no es CORS | A, checklist de §14b |
 | 121 | **Headers de seguridad en la config de Next** | **P** | Ni en el plano ni en el `CLAUDE.md` | A, checklist de §14b |
 | 123, 124, 126 | Service Role solo en el servidor, HTTPS, `.env` fuera de git | R\* | §14b y el `CLAUDE.md` | A, checklist de §14b |
 
@@ -295,17 +302,24 @@ F25, §7.1, F29 y F37. No cuatro copias que puedan divergir.
 
 ### Resumen
 
-- **39 obligaciones perdidas**: las 38 de la clasificación del 22/09 más el #129. Una ya se devolvió
-  (#62). Hay 11 descartadas con motivo (#2, #19, #23, #31b, #34b, #34c, #36b, #38, #73b, #96, #105b)
-  y 5 que siguen vivas solo en prosa o en el `CLAUDE.md` (R\*: #5, #47, #123, #124, #126). El resto
-  está reescrito o presente.
-- **Destinos: 31 A, 11 B y 2 C**, para las 38 perdidas pendientes y las 5 R\*. Suman 44 y no 43
-  porque #77b se parte en dos destinos. #12 y #43b, que ya son B cumplidas, no entran en la cuenta.
-  - **A (31):** F24 5 (#20a, #22b, #22c, #27b, #32); F41 4 (#45, #46, #49 y R\* #47); F30 3 (#63,
-    #67, #68); F35 5 (#76b, #78b, #79b, #80b y #77b "Sin asignar"); F36 1 (#88b); F34 1 (#92b);
-    F37 4 (#99, #101b, #102, #105c); checklist de §14b 7 (#116b, #117, #120, #121 y R\* #123,
-    #124, #126); F22 1 (R\* #5).
-  - **B (11):** #56b y #64b; #13b, #35b, #103c y #119; #77b "Agente IA"; #3, #10, #110b y #129.
+Recontado con script el 23/09/2026, después de buscar cada P en la prosa.
+
+- **30 obligaciones perdidas**: 29 pendientes más #62, ya devuelta. Antes de la revisión eran 39;
+  pasaron a R\* #13b, #22b, #22c, #27b, #35b, #45, #103c, #119 y #129, y #63 se partió en #63a (R\*)
+  y #63b (P).
+- **15 R\***, vivas solo en prosa o en el `CLAUDE.md`: las 5 de antes (#5, #47, #123, #124, #126),
+  las 9 que pasaron y #63a.
+- **11 descartadas con motivo** (D): #2, #19, #23, #31b, #34b, #34c, #36b, #38, #73b, #96, #105b.
+  El resto está reescrito o presente.
+- **Destinos: 32 A, 11 B y 2 C**, para las 29 perdidas pendientes y las 15 R\*. Suman 45 y no 44
+  porque #77b se parte en dos destinos. Ningún destino cambió con la revisión: A pasa de 31 a 32
+  solo porque #63 ahora son dos filas. #12 y #43b, que ya son B cumplidas, no entran en la cuenta.
+  - **A (32):** F24 5 (#20a, #32 y R\* #22b, #22c, #27b); F41 4 (#46, #49 y R\* #45, #47); F30 4
+    (#63b, #67, #68 y R\* #63a); F35 5 (#76b, #78b, #79b, #80b y #77b "Sin asignar"); F36 1
+    (#88b); F34 1 (#92b); F37 4 (#99, #101b, #102, #105c); checklist de §14b 7 (#116b, #117, #120,
+    #121 y R\* #123, #124, #126); F22 1 (R\* #5).
+  - **B (11):** #56b y #64b; R\* #13b, #35b, #103c y #119; #77b "Agente IA"; #3, #10, #110b y
+    R\* #129.
   - **C (2):** #24b y #25b.
 - **Por peso, las que no deberían esperar:**
   1. **La asignación de setter y vendedor (#45, #46, #49).** No desapareció entera: §11.2 conserva
@@ -313,11 +327,12 @@ F25, §7.1, F29 y F37. No cuatro copias que puedan divergir.
      contactos, y el scope de leads depende de que alguien pueda asignar.
   2. **Seguridad del checklist (#116b, #117, #120, #121):** Server Actions, rate limiting, CORS y
      headers.
-  3. **La familia E.164 (#13b, #35b, #103c, #119).** El plano dice "formato internacional" y el
-     `CLAUDE.md` dice E.164.
-  4. **La ficha (#63, #67, #68, #56b):** qué datos muestra, que se pueda editar, que el clic lleve al
+  3. **La familia E.164 (#13b, #35b, #103c, #119).** Vive en §14, línea 1585, pero F25 dice
+     "formato internacional" y F29 "normalizado": la definición existe y los criterios no la citan.
+  4. **La ficha (#63b, #67, #68, #56b):** redes y país, que se pueda editar, que el clic lleve al
      hilo, y el estado de ventana.
-  5. **La pantalla de integraciones (#32, #22b, #22c, #27b):** tiempo real, desconectar y estados.
+  5. **La pantalla de integraciones (#32):** el tiempo real. Desconectar y los estados (#22b, #22c,
+     #27b) viven en §4.4 y §11.2, solo que sin criterio.
 - **Detalles de interfaz, de poco peso:** filtros (#76b a #80b), mapeo de la importación (#101b,
   #102), variable del negocio (#88b), frases por defecto (#92b), notificación al importar (#105c),
   sidebar (#20a), notas de precio (#24b, #25b), botón de importar (#99), y lo del plan B (#3, #10,
