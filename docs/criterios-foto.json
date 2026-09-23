@@ -1197,6 +1197,69 @@
     "texto": "- [ ] Nunca se elimina ni tiene borrado suave"
   },
   {
+    "seccion": "F41: Asignación de setter y vendedor",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 3: Modelo de contacto, ingesta y CRM",
+      "F41: Asignación de setter y vendedor"
+    ],
+    "texto": "- [ ] `setter_id` y `vendedor_id` aparecen en la ficha del contacto (devuelto el 23/09/2026, auditoría #45)"
+  },
+  {
+    "seccion": "F41: Asignación de setter y vendedor",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 3: Modelo de contacto, ingesta y CRM",
+      "F41: Asignación de setter y vendedor"
+    ],
+    "texto": "- [ ] Se asignan desde un dropdown con los miembros del workspace (devuelto el 23/09/2026, auditoría #46)"
+  },
+  {
+    "seccion": "F41: Asignación de setter y vendedor",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 3: Modelo de contacto, ingesta y CRM",
+      "F41: Asignación de setter y vendedor"
+    ],
+    "texto": "- [ ] Ambos son opcionales e independientes (devuelto el 23/09/2026, auditoría #47)"
+  },
+  {
+    "seccion": "F41: Asignación de setter y vendedor",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 3: Modelo de contacto, ingesta y CRM",
+      "F41: Asignación de setter y vendedor"
+    ],
+    "texto": "- [ ] Los cambios quedan en el audit log: es el evento \"asignado\" de F31 (cita a F31, auditoría #48)"
+  },
+  {
+    "seccion": "F41: Asignación de setter y vendedor",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 3: Modelo de contacto, ingesta y CRM",
+      "F41: Asignación de setter y vendedor"
+    ],
+    "texto": "- [ ] Se puede filtrar la lista de contactos por cada uno (devuelto el 23/09/2026, auditoría #49)"
+  },
+  {
+    "seccion": "F41: Asignación de setter y vendedor",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 3: Modelo de contacto, ingesta y CRM",
+      "F41: Asignación de setter y vendedor"
+    ],
+    "texto": "- [ ] **Cambiar una asignación cambia el scope de visibilidad de inmediato** (consecuencia de F3, que lo exige y lo prueba; cita a F3, auditoría #50)"
+  },
+  {
+    "seccion": "F41: Asignación de setter y vendedor",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 3: Modelo de contacto, ingesta y CRM",
+      "F41: Asignación de setter y vendedor"
+    ],
+    "texto": "- [ ] **Control positivo:** asignar un contacto a un Member desde el dropdown hace que ese Member lo lea en una consulta directa por API con su token, y quitarle la asignación hace que deje de leerlo. Probar solo que un Member no ve lo ajeno no distingue entre un scope bien aplicado y una asignación que nunca se escribe (agregado el 23/09/2026)"
+  },
+  {
     "seccion": "F32: Estado de sesión del canal y reconexión",
     "ruta": [
       "5. Funcionalidades y criterios de aceptación",

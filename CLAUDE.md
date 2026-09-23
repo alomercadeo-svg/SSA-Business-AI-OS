@@ -26,7 +26,7 @@
 
 El plano de la fase actual está en `docs/requerimientos-fase1.md`. Leelo antes de construir.
 
-**Ese es el ÚNICO documento de requerimientos del proyecto.** No hay un plano por bloque ni por etapa: F1 a F39 viven ahí, con una sola numeración. Si aparece otro archivo de requerimientos en `docs/`, **está superado: hay que borrarlo, no consultarlo.** Hasta el 21 de septiembre de 2026 convivieron dos, con numeraciones distintas que no se podían comparar, y durante una semana se actualizó el equivocado. Hay un test que falla si aparece un segundo.
+**Ese es el ÚNICO documento de requerimientos del proyecto.** No hay un plano por bloque ni por etapa: F1 a F41 viven ahí, con una sola numeración. Si aparece otro archivo de requerimientos en `docs/`, **está superado: hay que borrarlo, no consultarlo.** Hasta el 21 de septiembre de 2026 convivieron dos, con numeraciones distintas que no se podían comparar, y durante una semana se actualizó el equivocado. Hay un test que falla si aparece un segundo.
 
 **Ningún criterio de aceptación desaparece sin decir por qué.** `docs/criterios-foto.json` es una foto de cada línea de criterio del plano, con la ruta completa de encabezados, y `docs/plano-criterios.test.ts` falla si una ya no está donde estaba sin figurar en `docs/criterios-bajas.json` como reescrita (con el texto nuevo), dada de baja (con motivo) o movida (con la ruta nueva). Cuenta apariciones, no textos: borrar una de dos copias iguales también falla. Después de tocar criterios: `node scripts/foto-criterios.mjs --escribir`, que se niega si falta explicar alguna. Existe porque la conciliación de `584226f` (21/09/2026) perdió criterios en silencio. Ver `docs/auditoria-conciliacion.md`.
 

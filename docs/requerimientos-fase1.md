@@ -93,7 +93,7 @@ El motor de secuencias de la Fase 2 va a consumir las reglas de seguridad y el e
 |---|---|---|---|
 | Bloque 1: Fork, despliegue y base | **Construido** | Fork y despliegue, migraciones 00017 a 00021, Supabase Vault, scope de leads por RLS, canal de Instagram | `workspaces`, `workspace_members`, `channels`, Vault |
 | Bloque 2: Infraestructura de canal, email e integraciones | 1 a 2 | Despliegue de Evolution, receptor de webhook autenticado, email por Resend, pantalla de integraciones y BYOK de IA | `integration_configs`, Vault, Railway, `/settings/integrations` |
-| Bloque 3: Modelo de contacto, ingesta y CRM | 3 a 4 | Modelo de contacto, identidad de canal, guardado de mensajes, adjuntos, deduplicación cross-canal, notas, ficha, borrado suave, registro de auditoría | `contacts`, `contact_channels`, `messages`, `conversations`, Supabase Storage |
+| Bloque 3: Modelo de contacto, ingesta y CRM | 3 a 4 | Modelo de contacto, identidad de canal, guardado de mensajes, adjuntos, deduplicación cross-canal, notas, ficha, borrado suave, registro de auditoría, asignación de setter y vendedor | `contacts`, `contact_channels`, `messages`, `conversations`, Supabase Storage |
 | Bloque 4: Bandeja, herramientas y reglas de seguridad | 5 a 6 | Bandeja, filtros, respuestas rápidas, no contactar, reglas de seguridad de secuencia, importación CSV, migración desde Pipedrive, estado de sesión | Bandeja, `response_templates`, `channels` |
 | Testing de fase | 7 | Testing completo, correcciones y colchón | |
 
@@ -781,6 +781,24 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [ ] Nunca se elimina ni tiene borrado suave
 
 > **Nota del 22 de septiembre de 2026:** los cambios hechos en la pantalla de integraciones de F24 (claves guardadas o borradas, modelos por defecto, integraciones agregadas) son "cambios de configuración" y tienen que quedar auditados. Si F24 se construye antes que esta funcionalidad, esa conexión se agrega al construir F31. La dependencia va en este sentido: F31 depende de conocer F24, no al revés.
+
+#### F41: Asignación de setter y vendedor
+
+**Descripción:** asignar a cada contacto quién lo contacta y quién lo cierra, desde la interfaz. El scope de leads de F3 se apoya en esa asignación: sin una forma de escribirla desde la pantalla, un Member no ve ningún lead y nadie puede dárselo sin entrar a la base.
+
+**Estado: no construido** (verificado el 23 de septiembre de 2026). Las columnas `setter_id` y `vendedor_id` existen desde la migración 00017, del Bloque 1. Ninguna pantalla las escribe: fuera de los tipos de `lib/types/database.ts`, no aparecen en `app/`, `components/` ni `lib/`.
+
+**Por qué es una funcionalidad y no un criterio de otra:** el desplegable es una capacidad que el usuario ve por separado. Venía de F11 del documento viejo, y la conciliación de `584226f` la dio por construida con F3. Lo que construyó el Bloque 1 son las columnas y el scope, no la asignación. El detalle está en `docs/auditoria-conciliacion.md`.
+
+**Criterios de aceptación:**
+
+- [ ] `setter_id` y `vendedor_id` aparecen en la ficha del contacto (devuelto el 23/09/2026, auditoría #45)
+- [ ] Se asignan desde un dropdown con los miembros del workspace (devuelto el 23/09/2026, auditoría #46)
+- [ ] Ambos son opcionales e independientes (devuelto el 23/09/2026, auditoría #47)
+- [ ] Los cambios quedan en el audit log: es el evento "asignado" de F31 (cita a F31, auditoría #48)
+- [ ] Se puede filtrar la lista de contactos por cada uno (devuelto el 23/09/2026, auditoría #49)
+- [ ] **Cambiar una asignación cambia el scope de visibilidad de inmediato** (consecuencia de F3, que lo exige y lo prueba; cita a F3, auditoría #50)
+- [ ] **Control positivo:** asignar un contacto a un Member desde el dropdown hace que ese Member lo lea en una consulta directa por API con su token, y quitarle la asignación hace que deje de leerlo. Probar solo que un Member no ve lo ajeno no distingue entre un scope bien aplicado y una asignación que nunca se escribe (agregado el 23/09/2026)
 
 ---
 
@@ -1826,7 +1844,7 @@ El análisis de los exports de Pipedrive agregó dos más, y el segundo pesa:
 
 ## 16. Correspondencia de números jubilados
 
-Este documento usa F1 a F4 para el Bloque 1 y F21 a F40 para los bloques 2 a 4. El documento anterior usaba F1 a F20 para toda la fase. La tabla dice dónde fue cada una, para que una referencia vieja se pueda resolver sin adivinar.
+Este documento usa F1 a F4 para el Bloque 1 y F21 a F41 para los bloques 2 a 4. El documento anterior usaba F1 a F20 para toda la fase. La tabla dice dónde fue cada una, para que una referencia vieja se pueda resolver sin adivinar.
 
 **La lista es cerrada.** Si aparece una F del documento viejo que no está acá, es un hueco de la conciliación y hay que tratarlo como tal, no como una funcionalidad olvidada a propósito.
 
@@ -1844,7 +1862,7 @@ Este documento usa F1 a F4 para el Bloque 1 y F21 a F40 para los bloques 2 a 4. 
 | F8 | Configuración de integraciones y BYOK IA | F24 |
 | F9 | Modelo de contacto extendido | F25 |
 | F10 | Datos de atribución | Absorbida en F25, con sus criterios |
-| F11 | Asignación setter y vendedor | Construida en el Bloque 1 como parte de F3. Las columnas ya existen |
+| F11 | Asignación setter y vendedor | **F41**, Bloque 3. Corregido el 23 de septiembre de 2026: esta fila decía "Construida en el Bloque 1 como parte de F3. Las columnas ya existen", y lo construido son las columnas (00017) y el scope, no la asignación desde la interfaz. Ver `docs/auditoria-conciliacion.md`, #45 a #50 |
 | F12 | Detección cross-canal | F29, con F26 agregando la identidad de canal |
 | F13 | Notas en el contacto | F30 |
 | F14 | Ficha de contacto completa | F30 |
