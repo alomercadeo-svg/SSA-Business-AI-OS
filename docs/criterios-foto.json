@@ -519,6 +519,15 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
+    "texto": "- [ ] Desconectar un canal pide confirmación explícita que nombra la cuenta y advierte que los mensajes entrantes dejan de llegar. Motivo: la cuenta conectada es la del negocio y recibe leads reales, y un clic no puede cortar el único canal vivo (agregado el 23/09/2026)"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F24: Pantalla de integraciones y claves de IA"
+    ],
     "texto": "- [ ] Sección de correo, con Resend, su dominio verificado y su estado (devuelto el 23/09/2026, auditoría #27b)"
   },
   {
