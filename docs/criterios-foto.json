@@ -447,6 +447,15 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
+    "texto": "- [ ] Pantalla accesible desde el sidebar, solo para Owner y Admin (devuelto el 23/09/2026, auditoría #20a)"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F24: Pantalla de integraciones y claves de IA"
+    ],
     "texto": "- [ ] Sección de canales de mensajería, con Instagram vía Zernio y WhatsApp vía Evolution. El estado de sesión de WhatsApp y la reconexión con código QR son de F32. Facebook y X no van (decidido el 22 de septiembre de 2026, ver §0)"
   },
   {
@@ -456,7 +465,16 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] Sección de correo, con Resend y su dominio verificado"
+    "texto": "- [ ] Instagram (Zernio): API key, estado, conectar y desconectar (devuelto el 23/09/2026, auditoría #22b y #22c)"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F24: Pantalla de integraciones y claves de IA"
+    ],
+    "texto": "- [ ] Sección de correo, con Resend, su dominio verificado y su estado (devuelto el 23/09/2026, auditoría #27b)"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -493,6 +511,15 @@
       "F24: Pantalla de integraciones y claves de IA"
     ],
     "texto": "- [ ] Al guardar una clave se valida el formato, con largo mínimo y prefijo esperado donde corresponda"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F24: Pantalla de integraciones y claves de IA"
+    ],
+    "texto": "- [ ] El estado de cada integración se actualiza en tiempo real. El mecanismo está sin decidir: ver §15 (devuelto el 23/09/2026, auditoría #32)"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",

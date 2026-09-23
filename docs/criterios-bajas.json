@@ -26,5 +26,12 @@
     "nuevo": "- [ ] **Cada fila necesita al menos un identificador que permita deduplicar, de los enumerados en la sección 14.** El correo se valida con formato y el teléfono se normaliza a E.164 según §14, pero los dos son ejemplos, no la lista: un identificador único del sistema de origen sirve igual, y de hecho sirve mejor, porque allá ya se garantizó que es único. Una fila sin ningún identificador no se puede deduplicar y se rechaza con su motivo (devuelto el 23/09/2026, auditoría #103c)",
     "motivo": "Vuelve el E.164 de la validación de F19 en ebc9702, citando la definición única de §14 (auditoría #103c).",
     "fecha": "2026-09-23"
+  },
+  {
+    "texto": "- [ ] Sección de correo, con Resend y su dominio verificado",
+    "destino": "reescrito",
+    "nuevo": "- [ ] Sección de correo, con Resend, su dominio verificado y su estado (devuelto el 23/09/2026, auditoría #27b)",
+    "motivo": "Vuelve el estado de la sección de correo, que F8 de ebc9702 pedía y la conciliación de 584226f perdió (auditoría #27b).",
+    "fecha": "2026-09-23"
   }
 ]

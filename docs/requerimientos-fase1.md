@@ -466,12 +466,15 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 **Criterios de aceptación:**
 
 - [ ] Pantalla en `/settings/integrations`, solo para Owner y Admin, con el control de rol hecho en el servidor
+- [ ] Pantalla accesible desde el sidebar, solo para Owner y Admin (devuelto el 23/09/2026, auditoría #20a)
 - [ ] Sección de canales de mensajería, con Instagram vía Zernio y WhatsApp vía Evolution. El estado de sesión de WhatsApp y la reconexión con código QR son de F32. Facebook y X no van (decidido el 22 de septiembre de 2026, ver §0)
-- [ ] Sección de correo, con Resend y su dominio verificado
+- [ ] Instagram (Zernio): API key, estado, conectar y desconectar (devuelto el 23/09/2026, auditoría #22b y #22c)
+- [ ] Sección de correo, con Resend, su dominio verificado y su estado (devuelto el 23/09/2026, auditoría #27b)
 - [ ] Sección de proveedores de IA, con OpenAI, Anthropic y Google, cada uno con su clave y su modelo por defecto
 - [ ] Todas las claves van a Vault. Ninguna viaja al navegador: la pantalla muestra "configurada" o "sin configurar" según exista el secreto, nunca su valor
 - [ ] Cada integración es un registro con su tipo. Agregar una nueva en la Etapa 2 no requiere cambiar la base de datos
 - [ ] Al guardar una clave se valida el formato, con largo mínimo y prefijo esperado donde corresponda
+- [ ] El estado de cada integración se actualiza en tiempo real. El mecanismo está sin decidir: ver §15 (devuelto el 23/09/2026, auditoría #32)
 - [ ] **Estado del registro del webhook de Zernio, visible en la sección de canales:** si está registrado, contra qué URL, y cuándo se verificó por última vez. Se lee de `GET /v1/webhooks/settings`, que ya devuelve todo eso
 - [ ] Ese estado nunca muestra el secreto de firma, que esa misma respuesta trae en texto plano. A lo sumo longitud y últimos cuatro caracteres, igual que el resto de las claves
 
@@ -1824,6 +1827,7 @@ No se deciden leyendo documentación. Se instrumentan y se miran.
 
 ### Lo que se necesita antes de construir
 
+- **El mecanismo del tiempo real del estado de las integraciones, para F24.** El criterio volvió el 23 de septiembre de 2026 sin mecanismo, a propósito (auditoría #32). **Lo abierto:** el estado de un servicio externo no es una fila de nuestra base, así que algo tiene que consultarlo y escribirlo para que la pantalla se entere, y no está decidido qué lo consulta ni cada cuánto. Si termina siendo un trabajo periódico, le aplica la regla de §14 sobre la prueba de vida. **Lo decidido el 22 de septiembre:** ese estado lo ven solo Owner y Admin, también por Realtime. Fuente: `docs/estado-fase1.md`. Se decide antes de construir F24.
 - **La pantalla de importación no está especificada, ni para F37 ni para F38.** La sección 11 no la tiene: el Bloque 4 documenta bandeja, canales y configuración del canal de WhatsApp, y ninguna pantalla de importación. El hueco es anterior a F38, pero F38 lo vuelve urgente, porque pide que esa pantalla permita cambiar el código de país por defecto para una importación puntual. **Hay que especificarla antes de construir el Bloque 4**, o esa decisión se va a tomar mientras se escribe el código, que es exactamente donde termina siendo una constante cableada.
 - El número dedicado de WhatsApp, todavía en trámite. No bloquea el Bloque 2 ni el 3, pero sí la conexión en vivo.
 - Verificación del negocio en Meta: **no hecha**. No bloquea nada del camino principal; sirve para el plan B, donde levanta el tope de 250 contactos únicos cada 24 horas. Se comprueba en Business Manager.
