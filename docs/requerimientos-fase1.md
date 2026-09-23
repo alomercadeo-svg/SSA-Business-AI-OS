@@ -430,6 +430,7 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 - [x] Alerta ante cualquier rechazo, con lo que significa cada una escrito en la pantalla: en el rechazo de autenticación, cada ocurrencia es un mensaje de un lead que se perdió; en la instancia desconocida todavía no se perdió ninguno, y lo que se muestra es el plazo que queda para corregir
 - [x] Nunca se registra en los logs el contenido completo del aviso, porque incluye credenciales
 - [x] Control de duplicados reusando el registro de eventos que ya existe
+- [ ] La idempotencia por `webhook_events` funciona igual para los dos canales (devuelto el 23/09/2026, auditoría #5)
 - [x] Responde con acuse inmediato antes de procesar. El mecanismo de reintentos de Evolution queda bloqueado mientras espera
 - [x] Tests: autenticación válida, inválida, ausente, vencida, con algoritmo distinto, y evento repetido
 
@@ -1010,6 +1011,7 @@ El argumento decisivo es la asimetría del error: **dejar afuera es irreversible
 - [ ] Campos `window_expires_at` y `window_source` agregados a `conversations`
 - [ ] `window_expires_at` se recalcula con cada mensaje entrante: 24 horas desde el mensaje
 - [ ] En la bandeja, cada conversación muestra un indicador del estado de la ventana: abierta con el tiempo restante, o cerrada
+- [ ] La ficha del contacto muestra cada conversación de Instagram con su propio estado de ventana (devuelto el 23/09/2026, auditoría #56b y #64b)
 - [ ] Con la ventana abierta, el campo de respuesta acepta texto libre normalmente
 - [ ] Con la ventana cerrada, el campo se deshabilita y se explica por qué, sin ofrecer alternativa, porque en Instagram no hay plantillas
 - [ ] Un mensaje que falla por ventana expirada muestra un error claro en la interfaz, no un error genérico
@@ -1022,7 +1024,19 @@ El argumento decisivo es la asimetría del error: **dejar afuera es irreversible
 
 Nada de lo que sigue se construye en esta fase. Se conserva especificado porque es lo que hace que la migración a la API oficial sea configuración y no rediseño. El procedimiento de migración, con sus disparadores y sus fuentes, está en `docs/contingencia-whatsapp.md`.
 
-Las dos funcionalidades conservan la numeración del documento original, F6b y F6c, para que se las reconozca como lo que son: especificación heredada que quedó en suspenso, no funcionalidades nuevas.
+Las funcionalidades conservan la numeración del documento original, F6, F6b y F6c, para que se las reconozca como lo que son: especificación heredada que quedó en suspenso, no funcionalidades nuevas. F6 se sumó el 23 de septiembre de 2026, con los criterios de conexión que la conciliación había perdido.
+
+#### F6: WhatsApp por API oficial vía Zernio
+
+**Descripción**: conectar WhatsApp por la API oficial de Meta a través de Zernio. Acá está solo lo que la conexión le pide al sistema; el alta del número en Meta, con la cuenta de WhatsApp Business, el PIN y el nombre para mostrar, está en `docs/anexo-whatsapp.md`.
+
+**Estado: escrito y sin construir** (decidido el 16 de septiembre de 2026; devuelto al apéndice el 23 de septiembre de 2026). Vive en el apéndice del plan B.
+
+**Criterios de aceptación**:
+
+- [ ] `integration_configs` soporta un registro `type='channel', provider='whatsapp_zernio'` (devuelto el 23/09/2026, auditoría #3)
+- [ ] Desde la UI se puede conectar el canal con la API key de Zernio (devuelto el 23/09/2026, auditoría #10)
+- [ ] El estado de la conexión es visible en `/settings/integrations` (devuelto el 23/09/2026, auditoría #129)
 
 #### F6b: Plantillas de WhatsApp
 
@@ -1040,6 +1054,7 @@ Las dos funcionalidades conservan la numeración del documento original, F6b y F
 - [ ] Editar una plantilla aprobada crea una versión nueva que vuelve a estado "enviada"
 - [ ] **El modelo está listo para que un paso de secuencia referencie una plantilla por ID**, aunque las secuencias se construyan en Fase 2
 - [ ] La categoría (marketing, utility, authentication) es obligatoria y visible, porque determina el costo
+- [ ] Generan entrada en el historial de auditoría: plantilla de WhatsApp enviada a aprobación, aprobada o rechazada (devuelto el 23/09/2026, auditoría #110b)
 
 *Si Zernio no expone la gestión de plantillas por API (pendiente de confirmar), la creación se hace desde Meta Business Manager y el sistema solo refleja el estado. Los criterios de sincronización se mantienen; los de creación se pasan a Fase 2.*
 
@@ -1054,6 +1069,7 @@ Las dos funcionalidades conservan la numeración del documento original, F6b y F
 - [ ] Campos `window_expires_at` y `window_source` agregados a `conversations` (ver 7.2)
 - [ ] `window_expires_at` se recalcula con cada mensaje entrante: 24 horas desde el mensaje, o 72 si `window_source = 'ctwa'` (click-to-WhatsApp)
 - [ ] En la bandeja, cada conversación muestra un indicador del estado de la ventana: abierta con tiempo restante, o cerrada
+- [ ] La ficha del contacto muestra cada conversación con su propio estado de ventana (devuelto el 23/09/2026, auditoría #56b y #64b)
 - [ ] Con la ventana **abierta**, el campo de respuesta acepta texto libre normalmente
 - [ ] Con la ventana **cerrada en WhatsApp**, el campo de texto libre se deshabilita y se ofrece un selector de plantillas aprobadas, indicando el costo estimado
 - [ ] Con la ventana **cerrada en Instagram**, el campo se deshabilita y se explica por qué, sin ofrecer alternativa
@@ -1066,6 +1082,7 @@ Las dos funcionalidades conservan la numeración del documento original, F6b y F
 |---|---|
 | Motor de secuencias de seguimiento | Fase 2 |
 | Agente de respuesta automática | Fase 2 |
+| Filtro de la bandeja por asignación al agente de IA, la opción "Agente IA" que F35 no incluye (devuelto el 23/09/2026, auditoría #77b) | Fase 2, con el agente de respuesta automática |
 | Difusiones y envíos masivos | Fase 2 |
 | Integración de solo lectura con Calendly: estado de agenda en el contacto y condición en las secuencias | Fase 2 |
 | Email bidireccional | Etapa 2 |
@@ -1575,6 +1592,7 @@ El agendador propio es Etapa 4. Las secuencias de seguimiento son Fase 2. Entre 
 | Plantillas de WhatsApp aprobadas por Meta | Solo aplican en la API oficial |
 | Ventana de 24 y 72 horas para WhatsApp | Solo aplica en la API oficial |
 | Alta de cuenta de WhatsApp Business en Meta | Solo si se migra |
+| Conexión del canal por la API oficial vía Zernio (F6 del apéndice) | Solo si se migra |
 
 ### Deuda que se arrastra del Bloque 1
 

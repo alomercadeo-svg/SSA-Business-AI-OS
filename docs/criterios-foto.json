@@ -378,6 +378,15 @@
     "texto": "- [ ] Los mensajes se almacenan en `messages` con la referencia correcta a conversación y canal"
   },
   {
+    "seccion": "F22: Receptor de mensajes entrantes, autenticado",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F22: Receptor de mensajes entrantes, autenticado"
+    ],
+    "texto": "- [ ] La idempotencia por `webhook_events` funciona igual para los dos canales (devuelto el 23/09/2026, auditoría #5)"
+  },
+  {
     "seccion": "F23: Email saliente vía Resend",
     "ruta": [
       "5. Funcionalidades y criterios de aceptación",
@@ -1905,6 +1914,15 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F40: Ventana de conversación de Instagram"
     ],
+    "texto": "- [ ] La ficha del contacto muestra cada conversación de Instagram con su propio estado de ventana (devuelto el 23/09/2026, auditoría #56b y #64b)"
+  },
+  {
+    "seccion": "F40: Ventana de conversación de Instagram",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F40: Ventana de conversación de Instagram"
+    ],
     "texto": "- [ ] Con la ventana abierta, el campo de respuesta acepta texto libre normalmente"
   },
   {
@@ -1951,6 +1969,33 @@
       "F40: Ventana de conversación de Instagram"
     ],
     "texto": "- [ ] Los campos se agregan igual para WhatsApp aunque no se usen, porque son los mismos que necesita el plan B. Ver el apéndice del plan B"
+  },
+  {
+    "seccion": "F6: WhatsApp por API oficial vía Zernio",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Apéndice: plan B, escrito y sin construir",
+      "F6: WhatsApp por API oficial vía Zernio"
+    ],
+    "texto": "- [ ] `integration_configs` soporta un registro `type='channel', provider='whatsapp_zernio'` (devuelto el 23/09/2026, auditoría #3)"
+  },
+  {
+    "seccion": "F6: WhatsApp por API oficial vía Zernio",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Apéndice: plan B, escrito y sin construir",
+      "F6: WhatsApp por API oficial vía Zernio"
+    ],
+    "texto": "- [ ] Desde la UI se puede conectar el canal con la API key de Zernio (devuelto el 23/09/2026, auditoría #10)"
+  },
+  {
+    "seccion": "F6: WhatsApp por API oficial vía Zernio",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Apéndice: plan B, escrito y sin construir",
+      "F6: WhatsApp por API oficial vía Zernio"
+    ],
+    "texto": "- [ ] El estado de la conexión es visible en `/settings/integrations` (devuelto el 23/09/2026, auditoría #129)"
   },
   {
     "seccion": "F6b: Plantillas de WhatsApp",
@@ -2025,6 +2070,15 @@
     "texto": "- [ ] La categoría (marketing, utility, authentication) es obligatoria y visible, porque determina el costo"
   },
   {
+    "seccion": "F6b: Plantillas de WhatsApp",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Apéndice: plan B, escrito y sin construir",
+      "F6b: Plantillas de WhatsApp"
+    ],
+    "texto": "- [ ] Generan entrada en el historial de auditoría: plantilla de WhatsApp enviada a aprobación, aprobada o rechazada (devuelto el 23/09/2026, auditoría #110b)"
+  },
+  {
     "seccion": "F6c: Ventana de conversación",
     "ruta": [
       "5. Funcionalidades y criterios de aceptación",
@@ -2050,6 +2104,15 @@
       "F6c: Ventana de conversación"
     ],
     "texto": "- [ ] En la bandeja, cada conversación muestra un indicador del estado de la ventana: abierta con tiempo restante, o cerrada"
+  },
+  {
+    "seccion": "F6c: Ventana de conversación",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Apéndice: plan B, escrito y sin construir",
+      "F6c: Ventana de conversación"
+    ],
+    "texto": "- [ ] La ficha del contacto muestra cada conversación con su propio estado de ventana (devuelto el 23/09/2026, auditoría #56b y #64b)"
   },
   {
     "seccion": "F6c: Ventana de conversación",
