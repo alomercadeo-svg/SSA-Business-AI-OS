@@ -172,7 +172,7 @@ Las siete cosas de la lista vieja, dónde quedaron: el adaptador de Evolution en
 
 ## Sesión del 23 de septiembre de 2026, tarde: F24, construida en parte
 
-**Inicio 14:02, cierre 15:18, hora de Costa Rica.**
+**Inicio 14:02, cierre 15:56, hora de Costa Rica.** Un primer cierre a las 15:18, reabierto para la ruta que borraba el historial.
 
 **Commits:** `9072542` (criterio de confirmación al desconectar), `3a4d08f` (migración 00024), `105b283` (pantalla), `90be0f9` (detección de estado), `e822588` (00024 aplicada), `17459ef` ("1 cuenta" y la deuda de §15) y el de este registro. Suite en verde y tipos en cero en cada uno.
 
@@ -196,7 +196,23 @@ Las siete cosas de la lista vieja, dónde quedaron: el adaptador de Evolution en
 - **Desconectar:** probado solo con Zernio simulado, a propósito.
 - **Una clave de Resend restringida a envío:** si recibe 401 en `/domains`, la pantalla la marcaría "desconectada". Sin verificar.
 
-**F24, lo que falta:**
+**Cierre, 15:56. F24 queda parcial.** Faltan dos cosas: el estado del registro del webhook de Zernio en la sección de canales, que no se construyó, y reemplazar la ruta `DELETE /api/v1/channels/[channelId]`, que borra la fila del canal y en cascada sus conversaciones y mensajes, por una que marque el canal inactivo (criterio nuevo de F24, `0107e75`).
+
+**Los dos botones de desconexión quedan deshabilitados en producción,** con el texto "Desconectar no está disponible todavía":
+
+- El tacho de la pantalla de Canales (`5a9e2af`), que llegaba a esa ruta. Estaba al alcance de Owner y Admin.
+- El "Desconectar" de F24 (`b0f50ca`), que no borra nada pero nunca se probó contra Zernio real. Se habilita con la aprobación de Marcos, después de esa prueba. El diálogo de confirmación que nombra la cuenta se sacó junto con el botón y vuelve desde git.
+
+Los dos los cuida `app/(dashboard)/dashboard/channels/desconectar-deshabilitado.test.ts`, visto en rojo antes de cada cambio.
+
+**Resend: el mapeo de estados está propuesto y pendiente de la decisión de Marcos.**
+
+- **Lo verificado en la documentación de errores:** un 401 `restricted_api_key` es una clave de solo envío, y un 403 `restricted_api_key` o `suspended_api_key` es una clave no activa o suspendida.
+- **Lo que no documenta:** qué devuelve una clave inválida.
+- **La propuesta:** 200 es conectado; 401 `restricted_api_key` es conectado, con la nota de que el dominio no se puede consultar con esa clave; cualquier otro 401 es sin verificar; los 403 de clave no activa o suspendida son desconectado; `invalid_permission`, 429, 5xx y los errores de red son sin verificar.
+- Hasta que se decida, el código sigue marcando "desconectado" ante cualquier 401 o 403.
+
+**F24, lo que falta (anotado antes del cierre):**
 
 - El estado del registro del webhook de Zernio en la sección de canales: es un criterio que esta construcción no tocó.
 - Aparte, fuera de F24: la ruta vieja `DELETE /api/v1/channels/[channelId]` borra la fila del canal y, en cascada, su historial. Quedó como tarea aparte.
