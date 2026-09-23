@@ -1772,7 +1772,7 @@ Dicho al revés: el resto del modelo del plan B se puede construir el día que s
 | Área | Definición para este proyecto |
 |---|---|
 | Autenticación | Supabase Auth con correo y contraseña, cookies seguras del lado del servidor. El registro público debe estar desactivado: los usuarios entran por invitación |
-| Seguridad por filas | Activada en **todas las tablas de hoy**, que son 25: las 24 del fork más `webhook_alerts` de la 00022. Ver el conteo vigente en 14c. Un Member solo accede a los contactos y conversaciones donde figura asignado, y eso lo decide la base de datos. Verificado con `scripts/verify-lead-scope.mjs`, 24 comprobaciones contra la API (última corrida: 22/09/2026) |
+| Seguridad por filas | Activada en **todas las tablas de hoy**: las 24 del fork, `webhook_alerts` de la 00022 e `integration_configs` de la 00024. Ver el conteo vigente en 14c. Un Member solo accede a los contactos y conversaciones donde figura asignado, y eso lo decide la base de datos. Verificado con `scripts/verify-lead-scope.mjs`, 24 comprobaciones contra la API (última corrida: 22/09/2026) |
 | Validación de datos | En el servidor siempre, no solo en el formulario. Teléfonos normalizados en servidor. Tipo real de archivo validado en servidor |
 | Protección de rutas de API | Sesión verificada en todas las rutas. Control de rol en el servidor para las pantallas y rutas de configuración |
 | Datos sensibles | Todas las claves de terceros en Vault. Ninguna clave viaja al navegador. Los logs nunca incluyen el contenido completo de un aviso entrante, porque incluye credenciales |
@@ -1808,7 +1808,7 @@ Dicho al revés: el resto del modelo del plan B se puede construir el día que s
 |---|---|
 | Proyecto base | [ZernFlow](https://github.com/zernio-dev/zernflow), licencia MIT |
 | Framework | Next.js 16.1.6, React 19.2.4, Tailwind CSS 4.1.18. Atención: Tailwind es v4, no v3 |
-| Tablas existentes | **Conteo vigente, y es el único lugar donde vive: 25 tablas y 23 migraciones aplicadas.** El fork trae 24 tablas en 16 migraciones; las propias van de la 00017 a la 00023, siete en total, y agregan una tabla, `webhook_alerts`. Si este número aparece en otro lado del documento sin la palabra "fork" al lado, está mal |
+| Tablas existentes | **Conteo vigente, y es el único lugar donde vive: 26 tablas y 24 migraciones en el repo.** El fork trae 24 tablas en 16 migraciones; las propias van de la 00017 a la 00024, ocho en total, y agregan dos tablas, `webhook_alerts` e `integration_configs`. **La 00024 está escrita y, al 23 de septiembre de 2026, sin aplicar a producción:** aplicarla pide la aprobación de Marcos. Hasta entonces la base tiene 25 tablas y 23 migraciones. Si este número aparece en otro lado del documento sin la palabra "fork" al lado, está mal |
 | Ya implementado, no reconstruir | Autenticación, motor de flujos visual, bandeja básica, CRM con etiquetas y campos personalizados, secuencias con pausa automática, gestión de equipo, difusiones, control de duplicados de avisos, versionado de flujos, actualización en vivo, cliente de Zernio con sus adaptadores |
 | Patrones a respetar | Componentes de servidor más hooks, sin almacén global. Avisos en rutas de API, mutaciones en acciones de servidor. Clave de servicio solo en servidor. Estilos con clases de Tailwind, sin módulos de CSS |
 | Dependencias críticas | `@zernio/node` fijado en versión exacta, sin prefijo, porque es una librería en versión 0.x y puede romper entre versiones menores |

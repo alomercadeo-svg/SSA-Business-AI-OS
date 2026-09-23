@@ -33,7 +33,7 @@ Los procedimientos ejecutables no van en ninguno de los dos: van en `docs/`, uno
 
 ## Qué quedó construido
 
-**Migraciones aplicadas en el Bloque 1:** 00017 a 00021, todas idempotentes, sobre las 16 del fork. El Bloque 2 sumó la 00022 y la 00023. **El conteo vigente vive en `docs/requerimientos-fase1.md` §14c y un test lo comprueba; no lo repitas acá.**
+**Migraciones aplicadas en el Bloque 1:** 00017 a 00021, todas idempotentes, sobre las 16 del fork. El Bloque 2 sumó la 00022 y la 00023, y la 00024 (F24, `integration_configs`), escrita el 23 de septiembre de 2026 y todavía sin aplicar a producción. **El conteo vigente vive en `docs/requerimientos-fase1.md` §14c y un test lo comprueba; no lo repitas acá.**
 
 - `00017` — columnas de asignación: `contacts.setter_id`, `contacts.vendedor_id`, y el flag `workspaces.unassigned_leads_visible_to_members`.
 - `00018` — Supabase Vault: `store_secret`, `read_secret`, `delete_secret` e `is_workspace_manager`, aislados por workspace.

@@ -19,6 +19,13 @@ export type ChannelProvider = "zernio" | "evolution";
 /** Condiciones que registra el receptor de webhooks. Migración 00022. */
 export type WebhookAlertCondition = "webhook_auth_failed" | "webhook_unknown_instance";
 
+/**
+ * Estado de una integración (F24, migración 00024). `sin_verificar` es "no se
+ * pudo preguntar" y nunca se muestra como `desconectado`.
+ */
+export type IntegrationEstado = "conectado" | "desconectado" | "sin_verificar" | "sin_configurar";
+export type IntegrationTipo = "canal" | "correo" | "ia";
+
 export type FlowStatus = "draft" | "published" | "archived";
 export type ConversationStatus = "open" | "closed" | "snoozed";
 export type MessageDirection = "inbound" | "outbound";
@@ -1049,6 +1056,56 @@ export interface Database {
             columns: ["channel_id"];
             isOneToOne: false;
             referencedRelation: "channels";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      integration_configs: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          tipo: IntegrationTipo;
+          proveedor: string;
+          nombre: string;
+          orden: number;
+          /** Datos no secretos, como el modelo por defecto. Nunca una clave */
+          config: Json;
+          estado: IntegrationEstado;
+          verificado_el: string | null;
+          /** Motivo corto en lenguaje claro. Nunca una clave ni el cuerpo de una respuesta */
+          ultimo_error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          tipo: IntegrationTipo;
+          proveedor: string;
+          nombre: string;
+          orden?: number;
+          config?: Json;
+          estado?: IntegrationEstado;
+          verificado_el?: string | null;
+          ultimo_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          nombre?: string;
+          orden?: number;
+          config?: Json;
+          estado?: IntegrationEstado;
+          verificado_el?: string | null;
+          ultimo_error?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "integration_configs_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
             referencedColumns: ["id"];
           },
         ];
