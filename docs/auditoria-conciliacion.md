@@ -16,9 +16,11 @@ padre inmediato de `584226f`:
 
 Se comparan contra `docs/requerimientos-fase1.md` actual, con 208 criterios.
 
-**Estado: empezada el 22/09/2026 a las 19:55 y cortada a las 19:57 por hora. Solo se revisó F8, la
-pantalla de integraciones (hoy F24), como control positivo del método. Faltan las otras 38
-funcionalidades de las dos fuentes.**
+**Estado: lista completa y clasificada el 22/09/2026, de forma provisoria. El plano no se corrigió,
+salvo #62, que se devolvió aparte por ser la restricción dura del proyecto.** La lista de trabajo son
+las 128 líneas que da la comparación por texto exacto (sección de abajo), que pasó su control
+positivo: contiene las seis pérdidas conocidas de F24. La primera pasada, por similitud y cortada a
+las 19:57, quedó como registro del método.
 
 ---
 
@@ -86,9 +88,192 @@ unificó a propósito. Eso lo decide la revisión. **Propuesta, sin decidir:** u
 de trabajo de la auditoría, y dejar el script por similitud solo para sugerir a qué criterio actual
 corresponde cada una.
 
+## Alcance: la auditoría está completa cuando se clasifican F1 a F20 del plano de fase 1
+
+Las 128 líneas vienen **todas** de `docs/requerimientos-fase1.md` en `ebc9702`, secciones F6 a F20 y el
+checklist. **Ninguna** viene de `docs/requerimientos-bloques-2-3-4.md`: la conciliación conservó ese
+texto tal cual. Así que la auditoría no termina cuando se acaba la lista, sino cuando cada obligación
+de F1 a F20 quedó clasificada. F1 a F5 no aportan líneas porque sobrevivieron textuales.
+
+## Las cuatro reglas de clasificación, fijadas el 22/09/2026 antes de clasificar las 125 restantes
+
+1. **Se clasifica por lo que el criterio obliga, no por las palabras.** Es "reescrito" solo si el
+   criterio actual obliga a lo mismo. Si obliga a menos, la parte que falta está perdida.
+2. **Un mecanismo es obligación si ninguna comprobación puede reemplazarlo sin notarlo.** RLS contra
+   un filtro en la interfaz, o Vault contra una variable de entorno, se distinguen con una
+   comprobación: son obligación. `scheduled_jobs` contra otra cola, o el nombre de una tabla, no se
+   distinguen: son implementación, y se pueden descartar con motivo.
+3. **Un duplicado unificado se revisa línea por línea.** La unificación es legítima solo si cada
+   línea de la versión descartada queda cubierta por la que sobrevivió.
+4. **La unidad es la obligación, no la línea.** Una línea con dos obligaciones puede recibir dos
+   clasificaciones (#105a, #105b).
+
+## La lista completa, clasificada (provisoria, sin corregir el plano)
+
+Origen de todas: `docs/requerimientos-fase1.md` en `ebc9702`, en la sección indicada. **R** es
+reescrito o presente, **P** perdido y **D** descartado con motivo. **R\*** significa que la obligación
+sigue viva, pero en prosa (§14, §14b) o en el `CLAUDE.md`, no como criterio. Eso implica que la foto
+**no la protege**. Es el primer punto a calibrar: si eso cuenta como presente o como perdido.
+
+**F6, WhatsApp por la API oficial (plan B desde el 16/09; el apéndice conservó solo F6b y F6c)**
+
+| # | Obligación | | Dónde está hoy, o por qué se descarta |
+|---|---|---|---|
+| 1 | El adaptador de WhatsApp usa el mismo contrato de canal, sin condicionales | R | F27, camino de entrada único |
+| 2 | "whatsapp ya está en el CHECK de `channels`, no hace falta migración" | D | Es un hecho del esquema, no una obligación. Con Evolution el canal entró en 00022 |
+| 3 | Registro `whatsapp_zernio` en `integration_configs` | P | El apéndice del plan B no conserva el canal, solo plantillas y ventana. Poco peso |
+| 4 | El webhook procesa WhatsApp por la misma ruta que Instagram | R | F27 |
+| 5 | Idempotencia igual para los dos canales | R\* | §14, "Patrón de avisos entrantes". F22 no tiene criterio propio |
+| 6–9 | Número sin cuenta previa, alta en WABA, PIN, nombre para mostrar aprobado | R | Pasos del alta en `docs/anexo-whatsapp.md` |
+| 10 | Conectar el canal del plan B desde la interfaz | P | Mismo caso que el 3. Poco peso |
+| 11 | Entrantes por webhook, guardados en `messages` | R | F27 |
+| 12 | Texto libre con la ventana abierta | R | F6c, en el apéndice |
+| 13a | Vincular el contacto por teléfono normalizado | R | F29 |
+| 13b | …**en E.164** | P | F29 dice "normalizado". Ver la familia E.164 abajo |
+
+**F7, correo por Resend (hoy F23)**
+
+| # | Obligación | | |
+|---|---|---|---|
+| 14–18 | Clave en Vault desde integraciones, invitaciones y notificaciones, remitente con dominio verificado, reintentos, registro | R | F23 |
+| 19 | "La infraestructura queda lista para que la Fase 2 la use en secuencias" | D | Por la regla 2: no hay comprobación posible en esta fase. **Provisoria** |
+
+**F8, pantalla de integraciones (hoy F24)**
+
+| # | Obligación | | |
+|---|---|---|---|
+| 20a | Accesible **desde el sidebar** | P | |
+| 20b | Solo Owner y Admin | R | F24 |
+| 21 | Sección de canales | R | F24 |
+| 22a | Conectar Instagram con la clave de Zernio | R | F4 |
+| 22b | **Desconectar** Instagram | P | |
+| 22c | **Estado** de Instagram | P | Va con el 32 |
+| 23 | WhatsApp por la API oficial en la pantalla | D | Decisión del 16/09; reescritura decidida el 22/09 |
+| 24a, 25a | Facebook y X opcionales | R | F24; quedan afuera por decisión del 22/09 |
+| 24b, 25b | La nota "$6/mes extra" | P | Poco peso |
+| 26 | Estructura extensible para Etapa 2 | R | F24, "agregar una sin cambiar la base" |
+| 27a | Resend con clave y dominio verificado | R | F24 |
+| 27b | **Estado** del correo | P | |
+| 28–30 | IA con tres proveedores, claves en Vault, validación de formato | R | F24 |
+| 31a | Cada integración es un registro con tipo | R | F24 |
+| 31b | Que la tabla se llame `integration_configs` | D | Regla 2: el nombre no lo distingue ninguna comprobación |
+| 32 | **El estado de cada integración se actualiza en tiempo real** | P | |
+| 33 | Agregar una integración sin cambiar la tabla | R | F24 |
+
+**F9 y F10, modelo de contacto y atribución (hoy F25)**
+
+| # | Obligación | | |
+|---|---|---|---|
+| 34a | Columnas de contacto que siguen | R | F25 |
+| 34b | Columnas de redes: `instagram_username`, `tiktok_username`, `youtube_channel_id`, `linkedin_profile_url`, `twitter_username`, `facebook_id` | D | Decisión del 22/09: el handle es por canal, en `contact_channels` |
+| 34c | `setter_id` y `vendedor_id` | D | Construidas en 00017 |
+| 35a | Normalizar el teléfono en el servidor | R | F25 |
+| 35b | …**a E.164** | P | F25 dice "formato internacional" |
+| 36a | Índices de teléfono, correo y marca de borrado | R | F25 |
+| 36b | Índices de `whatsapp_phone`, `setter_id` y `vendedor_id` | D | Regla 2: un índice no lo distingue ninguna comprobación. Los de asignación existen en 00017 |
+| 37 | Índices compuestos por workspace con teléfono y con correo | R | F25 |
+| 38 | RLS actualizada con el scope de leads | D | Cumplido en el Bloque 1 (00019), sostenido por F3 |
+| 39 | Los campos personalizados se conservan | R | F25 |
+| 40–42, 43a, 44 | Atribución, primer y último clic, origen de click-to-WhatsApp, sin RLS adicional | R | F25 |
+| 43b | `window_source = 'ctwa'` | R | F6c, en el apéndice |
+
+**F11, asignación de setter y vendedor (hoy no existe ninguna funcionalidad)**
+
+| # | Obligación | | |
+|---|---|---|---|
+| 45 | Setter y vendedor visibles en la ficha | **P** | |
+| 46 | **Se asignan desde un desplegable con los miembros** | **P** | **Grave.** No hay pantalla en el código ni criterio en el plano. Sin esto nadie asigna leads, y el scope de leads se apoya en esa asignación |
+| 47 | Opcionales e independientes | R\* | §14, "Modelo de asignación" |
+| 48 | Los cambios quedan en la auditoría | R | F31, "asignado" |
+| 49 | Filtrar la lista de contactos por cada uno | **P** | F35 filtra la bandeja, no los contactos |
+| 50 | Cambiar una asignación cambia la visibilidad de inmediato | R | F3 |
+
+**F12, F13, F14 y F15, detección, notas, ficha y borrado suave (hoy F29 y F30)**
+
+| # | Obligación | | |
+|---|---|---|---|
+| 51–55, 56a, 57 | Detección entre canales, vinculación, registro de canal, hilos separados, sugerencia por usuario, agrupación por canal, auditoría | R | F29 |
+| 56b, 64b | **Cada conversación de la ficha con su estado de ventana** | P | F40 lo pone en la bandeja, no en la ficha |
+| 58–61 | Notas: tabla, lista, quién crea y quién edita | R | F30 |
+| 62 | RLS de las notas | P → **devuelto** | `0875ded`, el 22/09 |
+| 63 | La ficha muestra **qué datos**: nombre, correo, teléfono, redes, país, setter, vendedor, temperatura, seguimiento | P | F30 dice "datos" sin enumerar |
+| 64a, 65, 66 | Conversaciones por canal, secciones de la ficha, marca de no contactar | R | F30 |
+| 67 | **Botón para editar los datos** | P | |
+| 68 | **Clic en una conversación lleva a ese hilo** | P | Hoy el enlace va a `/dashboard/inbox` a secas (medido el 22/09, ver F35) |
+| 69–72, 73a, 74, 75 | Borrado suave, listados y reglas que lo excluyen, purga a 30 días en cascada, auditoría que no se purga | R | F30 |
+| 73b | La ruta `/api/cron/purge-deleted` | D | Regla 2: implementación |
+
+**F16, filtros de la bandeja (hoy F35)**
+
+| # | Obligación | | |
+|---|---|---|---|
+| 76a, 77a, 78a, 79a, 80a, 81–83 | Filtros por etiquetas, asignación, canal, fecha y ventana; combinables, en la dirección de la página, contador y limpiar | R | F35 |
+| 76b, 78b | Etiquetas y canal **con selección múltiple** | P | |
+| 77b | Opciones de asignación: **"Sin asignar"** y **"Agente IA"** | P | |
+| 79b | Fecha con **presets y rango personalizado** | P | |
+| 80b | Ventana **"por vencer en menos de 2 horas"** | P | |
+
+**F17, F18 y F19, respuestas rápidas, no contactar e importación (hoy F36, F34 y F37)**
+
+| # | Obligación | | |
+|---|---|---|---|
+| 84–87, 88a, 89–91 | Respuestas rápidas completas, con aislamiento por workspace (F3) | R | F36 |
+| 88b | Variable **`{{workspace.name}}`**: datos del negocio, no solo del contacto | P | F36 dice "datos del contacto" |
+| 92a, 93–95, 97, 98 | No contactar: lista configurable, detección, marca, reversión, bloqueo, fuera de secuencias | R | F34 |
+| 92b | **Las frases por defecto** ("stop", "basta", "no me escribas más"…) | P | Una comprobación lo nota: "stop" no se detecta |
+| 96 | Advertencia con confirmación al escribir a un contacto marcado | D | Reemplazada por un bloqueo duro sin forzar, más estricto (F34) |
+| 99 | Botón "Importar CSV" en `/contacts` | P | Poco peso |
+| 100, 101a, 103a, 103b, 104, 105a, 106, 107 | Tamaño, vista previa, identificador obligatorio, deduplicación, segundo plano, progreso, auditoría y `csv_imports` | R | F37 y el modelo de datos |
+| 101b | Vista previa de **5 filas** con **mapeo sugerido** | P | |
+| 102 | Mapear a **setter, vendedor, etiquetas y campos personalizados** | P | |
+| 103c | Teléfono **en E.164** | P | |
+| 105b | `scheduled_jobs` | D | Regla 2 |
+| 105c | **Notificación al terminar** | P | Es una "notificación del sistema" concreta para el hueco de F23 |
+
+**F20, auditoría (hoy F31), y checklist**
+
+| # | Obligación | | |
+|---|---|---|---|
+| 108, 109, 110a, 111, 112 | Tabla, índices, eventos, quién ve qué, nunca se borra | R | F31 |
+| 110b | Auditar el envío y la aprobación de plantillas de WhatsApp | P | Del apéndice del plan B. Poco peso |
+| 113–115, 118, 122, 125, 127, 128 | RLS en todo, políticas probadas por API, Realtime con scope, validación en servidor, Vault, logs, firmas, versión de Zernio | R | Checklist actual, F1, F2 y F3 |
+| 116a | Sesión verificada en las rutas de API | R | Checklist |
+| 116b | **…y en las Server Actions** | **P** | El `CLAUDE.md` pone las mutaciones de la interfaz en Server Actions |
+| 117 | **Rate limiting en los webhooks** | **P** | Ni en el plano ni en el `CLAUDE.md` |
+| 119 | **Teléfonos en E.164** | P | Familia E.164 |
+| 120 | **CORS con dominio específico** | **P** | Ni en el plano ni en el `CLAUDE.md` |
+| 121 | **Headers de seguridad en la config de Next** | **P** | Ni en el plano ni en el `CLAUDE.md` |
+| 123, 124, 126 | Service Role solo en el servidor, HTTPS, `.env` fuera de git | R\* | §14b y el `CLAUDE.md` |
+
+### Resumen
+
+- **38 obligaciones perdidas.** Una ya se devolvió (#62). Hay 11 descartadas con motivo (#2, #19, #23,
+  #31b, #34b, #34c, #36b, #38, #73b, #96, #105b) y 5 que siguen vivas solo en prosa o en el
+  `CLAUDE.md` (R\*: #5, #47, #123, #124, #126). El resto está reescrito o presente.
+- **Por peso, las que no deberían esperar:**
+  1. **La asignación de setter y vendedor (#45, #46, #49).** Es una funcionalidad entera que
+     desapareció, y el scope de leads depende de ella.
+  2. **Seguridad del checklist (#116b, #117, #120, #121):** Server Actions, rate limiting, CORS y
+     headers.
+  3. **La familia E.164 (#13b, #35b, #103c, #119).** El plano dice "formato internacional" y el
+     `CLAUDE.md` dice E.164.
+  4. **La ficha (#63, #67, #68, #56b):** qué datos muestra, que se pueda editar, que el clic lleve al
+     hilo, y el estado de ventana.
+  5. **La pantalla de integraciones (#32, #22b, #22c, #27b):** tiempo real, desconectar y estados.
+- **Detalles de interfaz, de poco peso:** filtros (#76b a #80b), mapeo de la importación (#101b,
+  #102), variable del negocio (#88b), frases por defecto (#92b), notificación al importar (#105c),
+  sidebar (#20a), notas de precio (#24b, #25b), botón de importar (#99), y lo del plan B (#3, #10,
+  #110b).
+- **Descartes provisorios que conviene mirar:** el #19 (sin comprobación posible hoy) y el #38
+  (cumplido en el Bloque 1: ¿alcanza con F3, o F25 tiene que repetirlo?).
+
 ## Cómo seguir
 
-1. Revisar juntos los tres primeros de la lista y fijar el criterio de clasificación.
-2. Decidir lo de los sinónimos, antes de correr el resto.
-3. Correr las otras 38 funcionalidades de las dos fuentes, sin filtro de encabezado, y clasificar.
-4. Recién ahí corregir el plano. Esta auditoría no arregla nada.
+1. ~~Calibrar con tres casos y fijar las reglas.~~ Hecho: son las cuatro reglas de arriba.
+2. ~~Lo de los sinónimos.~~ Ya no bloquea: la lista sale de la comparación por texto exacto, y la
+   similitud solo sugiere.
+3. ~~Clasificar.~~ Hecho, de forma provisoria.
+4. **Revisar la lista entera juntos**, y decidir si R\* (vivo solo en prosa) cuenta como presente.
+5. Recién ahí corregir el plano. Cada corrección pasa por la foto de criterios. Las bajas deliberadas
+   (las D) van a `docs/criterios-bajas.json` solo si alguna vez estuvieron en la foto. Estas son
+   anteriores a la foto, así que su registro es este documento.
