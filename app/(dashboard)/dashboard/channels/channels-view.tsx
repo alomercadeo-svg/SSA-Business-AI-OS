@@ -10,11 +10,9 @@ import {
   PowerOff,
   RefreshCw,
   Loader2,
-  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PlatformIcon } from "@/components/platform-icon";
 import type { Database } from "@/lib/types/database";
 import {
@@ -67,8 +65,6 @@ export function ChannelsView({
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [channelToDelete, setChannelToDelete] = useState<Channel | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showPlatformPicker, setShowPlatformPicker] = useState(false);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -181,32 +177,6 @@ export function ChannelsView({
       );
     }
     setTogglingId(null);
-  }
-
-  async function handleDelete() {
-    if (!channelToDelete) return;
-    const id = channelToDelete.id;
-    setChannelToDelete(null);
-    setDeletingId(id);
-
-    try {
-      const res = await fetch(`/api/v1/channels/${id}`, { method: "DELETE" });
-      const data = await res.json();
-
-      if (!res.ok || data.error) {
-        setSyncMessage(data.error || "Failed to delete channel");
-        setTimeout(() => setSyncMessage(null), 4000);
-        return;
-      }
-
-      setChannels((prev) => prev.filter((c) => c.id !== id));
-    } catch {
-      setSyncMessage("Failed to delete channel. Check your connection.");
-      setTimeout(() => setSyncMessage(null), 4000);
-    } finally {
-      setDeletingId(null);
-      setChannelToDelete(null);
-    }
   }
 
   return (
@@ -366,17 +336,18 @@ export function ChannelsView({
                           <PowerOff className="h-4 w-4" />
                         )}
                       </button>
+                      {/* Deshabilitado el 23/09/2026. La ruta DELETE heredada del fork
+                          borra el canal y, en cascada, sus conversaciones y mensajes; el
+                          historial vive en la base local por decisión cerrada. Se vuelve a
+                          habilitar cuando esa ruta se reemplace por una que marque el canal
+                          inactivo (criterio de F24). Lo cuida desconectar-deshabilitado.test.ts. */}
                       <button
-                        onClick={() => setChannelToDelete(channel)}
-                        disabled={deletingId === channel.id}
-                        className="rounded-lg p-2 text-muted-foreground hover:bg-red-100 hover:text-red-600 transition-colors"
-                        title="Delete channel"
+                        type="button"
+                        disabled
+                        className="cursor-not-allowed rounded-lg px-2 py-1 text-[10px] text-muted-foreground"
+                        title="Desconectar no está disponible todavía"
                       >
-                        {deletingId === channel.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
+                        Desconectar no está disponible todavía
                       </button>
                     </div>
                   </div>
@@ -452,20 +423,6 @@ export function ChannelsView({
           </div>
         )}
       </div>
-
-      <ConfirmDialog
-        open={!!channelToDelete}
-        title="Delete channel?"
-        message={`This disconnects ${
-          channelToDelete?.display_name ??
-          channelToDelete?.username ??
-          (channelToDelete ? platformLabel(channelToDelete.platform) : "this channel")
-        } from Zernio and permanently deletes its conversations, contact links, and stats in Zernflow. This cannot be undone.`}
-        confirmLabel="Delete"
-        destructive
-        onConfirm={handleDelete}
-        onCancel={() => setChannelToDelete(null)}
-      />
     </div>
   );
 }
