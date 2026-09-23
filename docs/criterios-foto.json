@@ -447,7 +447,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] Sección de canales de mensajería, con Instagram vía Zernio, WhatsApp vía Evolution con su estado de sesión, y Facebook y X como opcionales"
+    "texto": "- [ ] Sección de canales de mensajería, con Instagram vía Zernio y WhatsApp vía Evolution. El estado de sesión de WhatsApp y la reconexión con código QR son de F32. Facebook y X no van (decidido el 22 de septiembre de 2026, ver §0)"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",

@@ -1,1 +1,9 @@
-[]
+[
+  {
+    "texto": "- [ ] Sección de canales de mensajería, con Instagram vía Zernio, WhatsApp vía Evolution con su estado de sesión, y Facebook y X como opcionales",
+    "destino": "reescrito",
+    "nuevo": "- [ ] Sección de canales de mensajería, con Instagram vía Zernio y WhatsApp vía Evolution. El estado de sesión de WhatsApp y la reconexión con código QR son de F32. Facebook y X no van (decidido el 22 de septiembre de 2026, ver §0)",
+    "motivo": "Alineado con las decisiones del 22/09/2026 escritas en §0: Facebook y X quedan fuera de F24, y el estado de sesión y el QR de WhatsApp van en F32.",
+    "fecha": "2026-09-23"
+  }
+]

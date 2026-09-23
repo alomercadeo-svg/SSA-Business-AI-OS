@@ -44,6 +44,16 @@ El `CLAUDE.md` del repo apuntaba al primero. O sea que la instrucción de "leé 
 
 **La regla que sale de esto, y vale para todo el proyecto:** un solo documento por artefacto, en un solo path, siempre el mismo. Las versiones las guarda git, no el nombre del archivo. Un `-v2` en el nombre es una copia manual de algo que el repo ya hace bien, y es el mecanismo por el cual se actualizó el equivocado.
 
+### Y qué cambió el 22 de septiembre
+
+Tres decisiones sobre el modelo de contacto y la pantalla de integraciones. Se tomaron ese día y quedaron registradas en `docs/estado-fase1.md`; se escriben acá el 23 de septiembre, junto con la devolución de los criterios que perdió la conciliación (`docs/auditoria-conciliacion.md`).
+
+**El handle es por canal, no por contacto.** Un contacto puede tener más de un handle, uno por canal, y ya existe dónde guardarlo: `contact_channels.platform_username`. Por eso `instagram_username` salió de `contacts` (F25 y §7.1), y con él las columnas de redes que el documento viejo ponía en el contacto.
+
+**Facebook y X quedan fuera de F24.** La sección de canales se arma leyendo `integration_configs`, así que un canal agregado como fila aparece sin tocar código. Sumarlos después es cargar un registro.
+
+**WhatsApp en F24 se reescribe para Evolution.** F24 muestra la conexión con Evolution. El estado de sesión y la reconexión con código QR se construyen en F32, en la pantalla de canales. Lo que el documento viejo pedía para la API oficial, el nombre para mostrar y su aprobación, es del plan B y no de esta pantalla.
+
 ### La objeción a Evolution, y por qué ya no aplica
 
 El documento anterior argumentaba explícitamente **a favor** de la API oficial y **en contra** de Baileys, con dos motivos: que el número disponible era el personal de la dueña, y que la coexistencia apagaría la ubicación en tiempo real que ella usa como protocolo de seguridad.
@@ -456,7 +466,7 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 **Criterios de aceptación:**
 
 - [ ] Pantalla en `/settings/integrations`, solo para Owner y Admin, con el control de rol hecho en el servidor
-- [ ] Sección de canales de mensajería, con Instagram vía Zernio, WhatsApp vía Evolution con su estado de sesión, y Facebook y X como opcionales
+- [ ] Sección de canales de mensajería, con Instagram vía Zernio y WhatsApp vía Evolution. El estado de sesión de WhatsApp y la reconexión con código QR son de F32. Facebook y X no van (decidido el 22 de septiembre de 2026, ver §0)
 - [ ] Sección de correo, con Resend y su dominio verificado
 - [ ] Sección de proveedores de IA, con OpenAI, Anthropic y Google, cada uno con su clave y su modelo por defecto
 - [ ] Todas las claves van a Vault. Ninguna viaja al navegador: la pantalla muestra "configurada" o "sin configurar" según exista el secreto, nunca su valor
@@ -1405,7 +1415,7 @@ Railway factura por consumo de recursos, no por cantidad de servicios.
 - **URL:** `/settings/integrations`
 - **Layout:** una columna con secciones plegables, una por tipo de servicio.
 - **Componentes:**
-    - Sección de canales, con una tarjeta por canal: nombre, estado, campos de conexión y botones de conectar y desconectar. La tarjeta de WhatsApp muestra además el estado de sesión y un botón de reconectar.
+    - Sección de canales, con una tarjeta por canal: nombre, estado, campos de conexión y botones de conectar y desconectar. La tarjeta de WhatsApp muestra la conexión con Evolution; el estado de sesión y el botón de reconectar con el código QR están en la pantalla de canales, que es F32 (decidido el 22 de septiembre de 2026, ver §0).
     - Sección de correo, con la clave de Resend y el dominio verificado.
     - Sección de IA, con una fila por proveedor: clave y modelo por defecto.
 - **Estados:** con servicios conectados se ve el estado de cada uno; sin nada conectado, cada tarjeta explica para qué sirve ese servicio y qué se gana conectándolo.
