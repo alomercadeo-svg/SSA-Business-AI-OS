@@ -528,6 +528,15 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
+    "texto": "- [ ] Desconectar nunca borra conversaciones ni mensajes: marca el canal como inactivo y conserva el historial. Motivo: es una decisión cerrada del proyecto que el historial viva en la base local, y migrar sin historial no es migrar. La ruta heredada `DELETE /api/v1/channels/[channelId]`, que borra la fila del canal y en cascada sus conversaciones y mensajes, se reemplaza antes de volver a habilitar el botón de la pantalla de Canales, deshabilitado desde `5a9e2af` (agregado el 23/09/2026)"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F24: Pantalla de integraciones y claves de IA"
+    ],
     "texto": "- [ ] Sección de correo, con Resend, su dominio verificado y su estado (devuelto el 23/09/2026, auditoría #27b)"
   },
   {
