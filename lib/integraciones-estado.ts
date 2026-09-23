@@ -107,7 +107,7 @@ export async function consultarProveedor(proveedor: string, clave: string): Prom
           data?: { accounts?: unknown[] };
         };
         const n = res?.data?.accounts?.length;
-        return { estado: "conectado", error: null, detalle: typeof n === "number" ? `${n} cuentas en Zernio.` : null };
+        return { estado: "conectado", error: null, detalle: typeof n === "number" ? `${n} ${n === 1 ? "cuenta" : "cuentas"} en Zernio.` : null };
       } catch (e) {
         return estadoPorFallo(e) ?? { estado: "sin_verificar", error: "Zernio respondió algo que no dice si la clave sirve." };
       }

@@ -138,6 +138,9 @@ describe("la consulta a cada proveedor", () => {
   it("Zernio: pregunta con listAccounts, que es lo que ya usa la conexión", async () => {
     h.listAccounts.mockResolvedValue({ data: { accounts: [{}, {}] } });
     expect((await consultarProveedor("zernio", "zk")).estado).toBe("conectado");
+    expect((await consultarProveedor("zernio", "zk")).detalle).toBe("2 cuentas en Zernio.");
+    h.listAccounts.mockResolvedValue({ data: { accounts: [{}] } });
+    expect((await consultarProveedor("zernio", "zk")).detalle).toBe("1 cuenta en Zernio.");
     h.listAccounts.mockRejectedValue(Object.assign(new Error("no"), { statusCode: 401 }));
     expect((await consultarProveedor("zernio", "zk")).estado).toBe("desconectado");
     h.listAccounts.mockRejectedValue(new TypeError("fetch failed"));
