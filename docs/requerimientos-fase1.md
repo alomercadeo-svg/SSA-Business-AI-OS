@@ -1715,6 +1715,13 @@ Dicho al revés: el resto del modelo del plan B se puede construir el día que s
 - [ ] Alerta configurada ante rechazos del receptor de Evolution
 - [ ] Bucket de archivos privado, con direcciones firmadas de vida corta
 - [ ] `npm run verify:security` en verde antes de cerrar cada bloque
+- [ ] JWT verificado en todas las Server Actions, además de las rutas de API (devuelto el 23/09/2026, auditoría #116b)
+- [ ] Rate limiting en webhooks (devuelto el 23/09/2026, auditoría #117)
+- [ ] CORS con dominio específico (devuelto el 23/09/2026, auditoría #120)
+- [ ] Headers de seguridad en `next.config.ts`. El criterio original decía `next.config.js`, pero el archivo del proyecto es `.ts` (devuelto el 23/09/2026, auditoría #121)
+- [ ] Service Role Key solo en servidor (devuelto el 23/09/2026, auditoría #123)
+- [ ] HTTPS en producción (devuelto el 23/09/2026, auditoría #124)
+- [ ] `.env` en `.gitignore` (devuelto el 23/09/2026, auditoría #126)
 
 ---
 

@@ -1967,5 +1967,61 @@
       "Checklist para la IA constructora"
     ],
     "texto": "- [ ] `npm run verify:security` en verde antes de cerrar cada bloque"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "ruta": [
+      "14b. Seguridad",
+      "Checklist para la IA constructora"
+    ],
+    "texto": "- [ ] JWT verificado en todas las Server Actions, además de las rutas de API (devuelto el 23/09/2026, auditoría #116b)"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "ruta": [
+      "14b. Seguridad",
+      "Checklist para la IA constructora"
+    ],
+    "texto": "- [ ] Rate limiting en webhooks (devuelto el 23/09/2026, auditoría #117)"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "ruta": [
+      "14b. Seguridad",
+      "Checklist para la IA constructora"
+    ],
+    "texto": "- [ ] CORS con dominio específico (devuelto el 23/09/2026, auditoría #120)"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "ruta": [
+      "14b. Seguridad",
+      "Checklist para la IA constructora"
+    ],
+    "texto": "- [ ] Headers de seguridad en `next.config.ts`. El criterio original decía `next.config.js`, pero el archivo del proyecto es `.ts` (devuelto el 23/09/2026, auditoría #121)"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "ruta": [
+      "14b. Seguridad",
+      "Checklist para la IA constructora"
+    ],
+    "texto": "- [ ] Service Role Key solo en servidor (devuelto el 23/09/2026, auditoría #123)"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "ruta": [
+      "14b. Seguridad",
+      "Checklist para la IA constructora"
+    ],
+    "texto": "- [ ] HTTPS en producción (devuelto el 23/09/2026, auditoría #124)"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "ruta": [
+      "14b. Seguridad",
+      "Checklist para la IA constructora"
+    ],
+    "texto": "- [ ] `.env` en `.gitignore` (devuelto el 23/09/2026, auditoría #126)"
   }
 ]
