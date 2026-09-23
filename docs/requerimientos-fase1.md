@@ -749,6 +749,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 **Criterios de aceptación:**
 
 - [ ] Tabla `contact_notes` con lista cronológica en la ficha. Cualquier miembro con acceso al contacto crea notas; solo el autor, un Admin o el Owner edita o elimina
+- [ ] **RLS: `contact_notes` hereda el scope del contacto asociado.** Un Member solo lee, crea o edita notas de los contactos donde es setter, vendedor o asignado, y eso se aplica en la base, no con un filtro en la interfaz. Se prueba con una consulta directa con el token de un Member, que no devuelve notas de contactos ajenos, y con su contraparte: un Owner o un Admin las ve todas. **Venía de F13 en `ebc9702` (`docs/requerimientos-fase1.md`, el plano de fase 1), se perdió en la conciliación de `584226f`, y se devolvió el 22 de septiembre de 2026.** Ver `docs/auditoria-conciliacion.md`
 - [ ] Ficha completa con datos, conversaciones por canal, notas, etiquetas, campos personalizados, historial y atribución
 - [ ] Marca visible si el contacto pidió no ser contactado, y marca si el teléfono está sin resolver
 - [ ] Campo `deleted_at` en contactos, notas, conversaciones y respuestas rápidas. Eliminar marca la fecha, no borra
