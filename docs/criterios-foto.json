@@ -1149,6 +1149,33 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F30: Notas, ficha de contacto y borrado suave"
     ],
+    "texto": "- [ ] Muestra todos los datos: nombre, email, teléfono, redes, país, setter, vendedor, temperatura, fecha de seguimiento. Las redes son el handle de cada canal, que vive en `contact_channels` por la decisión del 22 de septiembre (§0) (devuelto el 23/09/2026, auditoría #63a y #63b)"
+  },
+  {
+    "seccion": "F30: Notas, ficha de contacto y borrado suave",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 3: Modelo de contacto, ingesta y CRM",
+      "F30: Notas, ficha de contacto y borrado suave"
+    ],
+    "texto": "- [ ] Botón para editar todos los datos (devuelto el 23/09/2026, auditoría #67)"
+  },
+  {
+    "seccion": "F30: Notas, ficha de contacto y borrado suave",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 3: Modelo de contacto, ingesta y CRM",
+      "F30: Notas, ficha de contacto y borrado suave"
+    ],
+    "texto": "- [ ] Clic en una conversación navega al hilo en la bandeja (devuelto el 23/09/2026, auditoría #68)"
+  },
+  {
+    "seccion": "F30: Notas, ficha de contacto y borrado suave",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 3: Modelo de contacto, ingesta y CRM",
+      "F30: Notas, ficha de contacto y borrado suave"
+    ],
     "texto": "- [ ] Marca visible si el contacto pidió no ser contactado, y marca si el teléfono está sin resolver"
   },
   {
@@ -1428,6 +1455,15 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F34: Marca de no contactar"
     ],
+    "texto": "- [ ] La lista viene cargada con: \"no me escribas más\", \"dejá de mandar mensajes\", \"no quiero recibir mensajes\", \"stop\", \"unsubscribe\", \"basta\", \"no me contactes\" (devuelto el 23/09/2026, auditoría #92b)"
+  },
+  {
+    "seccion": "F34: Marca de no contactar",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F34: Marca de no contactar"
+    ],
     "texto": "- [ ] Al detectar una: se marca el contacto, se registra el motivo y la fecha, se pausan las secuencias activas y queda en el historial de auditoría"
   },
   {
@@ -1491,7 +1527,52 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
+    "texto": "- [ ] Filtro por tags: multi-select (devuelto el 23/09/2026, auditoría #76b)"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] Filtro por asignación: \"Todas\", \"Sin asignar\" y miembros del equipo. La opción \"Agente IA\" del original pasa a las funcionalidades de fases siguientes, porque esta fase no incluye agente de IA (§4.11) (devuelto el 23/09/2026, auditoría #77b)"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] Filtro por canal: multi-select de canales activos (Instagram, WhatsApp) (devuelto el 23/09/2026, auditoría #78b)"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] Filtro por fecha de último mensaje: presets y rango personalizado (devuelto el 23/09/2026, auditoría #79b)"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
     "texto": "- [ ] Filtro por estado de ventana solo para Instagram, que es donde la ventana existe"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] Filtro por estado de ventana de Instagram: abierta, cerrada, o por vencer en menos de 2 horas (devuelto el 23/09/2026, auditoría #80b)"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -1554,6 +1635,15 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F36: Respuestas rápidas"
     ],
+    "texto": "- [ ] Al seleccionar, se inserta el contenido con las variables interpoladas: `{{contact.display_name}}`, `{{contact.email}}`, `{{contact.phone}}`, `{{workspace.name}}` (devuelto el 23/09/2026, auditoría #88b)"
+  },
+  {
+    "seccion": "F36: Respuestas rápidas",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F36: Respuestas rápidas"
+    ],
     "texto": "- [ ] En la interfaz se llaman \"respuestas rápidas\", nunca \"plantillas\", para no confundirlas con las plantillas de WhatsApp del plan B"
   },
   {
@@ -1563,7 +1653,34 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F37: Importación de contactos desde planilla"
     ],
+    "texto": "- [ ] Botón \"Importar CSV\" en `/contacts` (devuelto el 23/09/2026, auditoría #99)"
+  },
+  {
+    "seccion": "F37: Importación de contactos desde planilla",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F37: Importación de contactos desde planilla"
+    ],
     "texto": "- [ ] Archivo de hasta 10 MB y 10.000 filas, con vista previa y asignación de columnas"
+  },
+  {
+    "seccion": "F37: Importación de contactos desde planilla",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F37: Importación de contactos desde planilla"
+    ],
+    "texto": "- [ ] Preview con las primeras 5 filas y mapeo de columnas sugerido (devuelto el 23/09/2026, auditoría #101b)"
+  },
+  {
+    "seccion": "F37: Importación de contactos desde planilla",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F37: Importación de contactos desde planilla"
+    ],
+    "texto": "- [ ] El usuario ajusta el mapeo, incluyendo setter, vendedor, tags y custom fields (devuelto el 23/09/2026, auditoría #102)"
   },
   {
     "seccion": "F37: Importación de contactos desde planilla",
@@ -1591,6 +1708,15 @@
       "F37: Importación de contactos desde planilla"
     ],
     "texto": "- [ ] Más de 500 filas se procesan en segundo plano, no en el momento"
+  },
+  {
+    "seccion": "F37: Importación de contactos desde planilla",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F37: Importación de contactos desde planilla"
+    ],
+    "texto": "- [ ] Cuando una importación corre en segundo plano, el usuario recibe una notificación al terminar (devuelto el 23/09/2026, auditoría #105c)"
   },
   {
     "seccion": "F37: Importación de contactos desde planilla",

@@ -764,6 +764,9 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [ ] Tabla `contact_notes` con lista cronológica en la ficha. Cualquier miembro con acceso al contacto crea notas; solo el autor, un Admin o el Owner edita o elimina
 - [ ] **RLS: `contact_notes` hereda el scope del contacto asociado.** Un Member solo lee, crea o edita notas de los contactos donde es setter, vendedor o asignado, y eso se aplica en la base, no con un filtro en la interfaz. Se prueba con una consulta directa con el token de un Member, que no devuelve notas de contactos ajenos, y con su contraparte: un Owner o un Admin las ve todas. **Venía de F13 en `ebc9702` (`docs/requerimientos-fase1.md`, el plano de fase 1), se perdió en la conciliación de `584226f`, y se devolvió el 22 de septiembre de 2026.** Ver `docs/auditoria-conciliacion.md`
 - [ ] Ficha completa con datos, conversaciones por canal, notas, etiquetas, campos personalizados, historial y atribución
+- [ ] Muestra todos los datos: nombre, email, teléfono, redes, país, setter, vendedor, temperatura, fecha de seguimiento. Las redes son el handle de cada canal, que vive en `contact_channels` por la decisión del 22 de septiembre (§0) (devuelto el 23/09/2026, auditoría #63a y #63b)
+- [ ] Botón para editar todos los datos (devuelto el 23/09/2026, auditoría #67)
+- [ ] Clic en una conversación navega al hilo en la bandeja (devuelto el 23/09/2026, auditoría #68)
 - [ ] Marca visible si el contacto pidió no ser contactado, y marca si el teléfono está sin resolver
 - [ ] Campo `deleted_at` en contactos, notas, conversaciones y respuestas rápidas. Eliminar marca la fecha, no borra
 - [ ] Los listados y las reglas de seguridad excluyen lo eliminado
@@ -848,6 +851,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 **Criterios de aceptación:**
 
 - [ ] Lista de frases de baja configurable por espacio de trabajo
+- [ ] La lista viene cargada con: "no me escribas más", "dejá de mandar mensajes", "no quiero recibir mensajes", "stop", "unsubscribe", "basta", "no me contactes" (devuelto el 23/09/2026, auditoría #92b)
 - [ ] Al detectar una: se marca el contacto, se registra el motivo y la fecha, se pausan las secuencias activas y queda en el historial de auditoría
 - [ ] Marca roja visible en la bandeja y en la ficha
 - [ ] Un Admin o el Owner puede revertirla, con registro
@@ -864,7 +868,12 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 - [ ] La bandeja lee los mensajes de la base, no del proveedor
 - [ ] Filtro por etiquetas, por asignación, por canal y por fecha del último mensaje
+- [ ] Filtro por tags: multi-select (devuelto el 23/09/2026, auditoría #76b)
+- [ ] Filtro por asignación: "Todas", "Sin asignar" y miembros del equipo. La opción "Agente IA" del original pasa a las funcionalidades de fases siguientes, porque esta fase no incluye agente de IA (§4.11) (devuelto el 23/09/2026, auditoría #77b)
+- [ ] Filtro por canal: multi-select de canales activos (Instagram, WhatsApp) (devuelto el 23/09/2026, auditoría #78b)
+- [ ] Filtro por fecha de último mensaje: presets y rango personalizado (devuelto el 23/09/2026, auditoría #79b)
 - [ ] Filtro por estado de ventana solo para Instagram, que es donde la ventana existe
+- [ ] Filtro por estado de ventana de Instagram: abierta, cerrada, o por vencer en menos de 2 horas (devuelto el 23/09/2026, auditoría #80b)
 - [ ] Filtro por "teléfono sin resolver", para poder trabajar esa cola
 - [ ] Filtros combinables, reflejados en la dirección de la página para poder compartirla, con contador y botón de limpiar
 - [ ] Búsqueda de texto dentro de los mensajes, que ahora es posible porque están guardados
@@ -898,6 +907,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [ ] Tabla `response_templates` con alta, baja y modificación en `/settings/response-templates`
 - [ ] Selector con "/" en la bandeja, con búsqueda por nombre o atajo
 - [ ] Interpolación de datos del contacto; si un dato falta, queda vacío
+- [ ] Al seleccionar, se inserta el contenido con las variables interpoladas: `{{contact.display_name}}`, `{{contact.email}}`, `{{contact.phone}}`, `{{workspace.name}}` (devuelto el 23/09/2026, auditoría #88b)
 - [ ] En la interfaz se llaman "respuestas rápidas", nunca "plantillas", para no confundirlas con las plantillas de WhatsApp del plan B
 
 #### F37: Importación de contactos desde planilla
@@ -908,10 +918,14 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Criterios de aceptación:**
 
+- [ ] Botón "Importar CSV" en `/contacts` (devuelto el 23/09/2026, auditoría #99)
 - [ ] Archivo de hasta 10 MB y 10.000 filas, con vista previa y asignación de columnas
+- [ ] Preview con las primeras 5 filas y mapeo de columnas sugerido (devuelto el 23/09/2026, auditoría #101b)
+- [ ] El usuario ajusta el mapeo, incluyendo setter, vendedor, tags y custom fields (devuelto el 23/09/2026, auditoría #102)
 - [ ] **Cada fila necesita al menos un identificador que permita deduplicar, de los enumerados en la sección 14.** El correo se valida con formato y el teléfono se normaliza a E.164 según §14, pero los dos son ejemplos, no la lista: un identificador único del sistema de origen sirve igual, y de hecho sirve mejor, porque allá ya se garantizó que es único. Una fila sin ningún identificador no se puede deduplicar y se rechaza con su motivo (devuelto el 23/09/2026, auditoría #103c)
 - [ ] Deduplicación por cualquiera de los identificadores que traiga la fila: identificador de origen, correo o teléfono, en ese orden de confianza. Si ya existe, actualiza en vez de duplicar. **El importador no decide qué cuenta como identificador:** la lista está en la sección 14 y admitir uno nuevo se escribe ahí primero
 - [ ] Más de 500 filas se procesan en segundo plano, no en el momento
+- [ ] Cuando una importación corre en segundo plano, el usuario recibe una notificación al terminar (devuelto el 23/09/2026, auditoría #105c)
 - [ ] Barra de progreso y resumen final con importados, actualizados y errores con detalle
 - [ ] Todo queda en el historial de auditoría
 
