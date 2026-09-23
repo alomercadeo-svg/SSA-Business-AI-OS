@@ -498,7 +498,7 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 **Criterios de aceptación:**
 
 - [ ] Se agregan a `contacts`: `phone`, `secondary_email`, `country`, `whatsapp_phone`, `next_followup_date`, `do_not_contact`, `do_not_contact_reason`, `do_not_contact_at`, `ai_conversation_summary`, `lead_temperature`, `attribution`, `deleted_at`, `display_name_source`. Los campos de asignación ya existen desde el Bloque 1. **`instagram_username` estaba en esta lista y se sacó el 22 de septiembre de 2026:** el handle es por canal, no por contacto. Un contacto va a tener más de uno, y ya existe dónde guardarlo: `contact_channels.platform_username`
-- [ ] El teléfono se normaliza a formato internacional en el servidor, no solo en el formulario. Sin esto la deduplicación entre canales falla, y arreglarlo después implica limpiar datos sucios
+- [ ] **El teléfono se normaliza a E.164 antes de guardarse**, en el servidor, no solo en el formulario, según la definición de §14. Sin esto, la deduplicación entre WhatsApp e Instagram falla y arreglarlo después implica migrar datos sucios (devuelto el 23/09/2026, auditoría #35b)
 - [ ] El teléfono NO es obligatorio. Un contacto de WhatsApp puede existir sin teléfono conocido
 - [ ] Campo `phone_resolved` que marca si el teléfono ya se conoce o sigue pendiente
 - [ ] Índices en teléfono, correo, `contact_channels.platform_username` y marca de borrado, y compuestos por espacio de trabajo con teléfono y con correo
@@ -736,7 +736,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Criterios de aceptación:**
 
-- [ ] Al llegar un mensaje de un canal nuevo, se busca contacto por teléfono normalizado, correo o nombre de usuario
+- [ ] Al llegar un mensaje de un canal nuevo, se busca contacto por teléfono normalizado a E.164 según §14, correo o nombre de usuario (devuelto el 23/09/2026, auditoría #13b)
 - [ ] Coincidencia exacta de teléfono o correo vincula automáticamente
 - [ ] Coincidencia solo por nombre de usuario sugiere la vinculación al operador, no la hace sola
 - [ ] Se crea el registro de canal para el contacto
@@ -888,7 +888,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 **Criterios de aceptación:**
 
 - [ ] Archivo de hasta 10 MB y 10.000 filas, con vista previa y asignación de columnas
-- [ ] **Cada fila necesita al menos un identificador que permita deduplicar, de los enumerados en la sección 14.** El correo se valida con formato y el teléfono se normaliza, pero los dos son ejemplos, no la lista: un identificador único del sistema de origen sirve igual, y de hecho sirve mejor, porque allá ya se garantizó que es único. Una fila sin ningún identificador no se puede deduplicar y se rechaza con su motivo
+- [ ] **Cada fila necesita al menos un identificador que permita deduplicar, de los enumerados en la sección 14.** El correo se valida con formato y el teléfono se normaliza a E.164 según §14, pero los dos son ejemplos, no la lista: un identificador único del sistema de origen sirve igual, y de hecho sirve mejor, porque allá ya se garantizó que es único. Una fila sin ningún identificador no se puede deduplicar y se rechaza con su motivo (devuelto el 23/09/2026, auditoría #103c)
 - [ ] Deduplicación por cualquiera de los identificadores que traiga la fila: identificador de origen, correo o teléfono, en ese orden de confianza. Si ya existe, actualiza en vez de duplicar. **El importador no decide qué cuenta como identificador:** la lista está en la sección 14 y admitir uno nuevo se escribe ahí primero
 - [ ] Más de 500 filas se procesan en segundo plano, no en el momento
 - [ ] Barra de progreso y resumen final con importados, actualizados y errores con detalle
@@ -1148,7 +1148,7 @@ Las dos funcionalidades conservan la numeración del documento original, F6b y F
 
 | Entidad | Campo | Tipo | Requerido | Descripción |
 |---|---|---|---|---|
-| contacts | phone | text | No | Teléfono en formato internacional, normalizado en servidor. Puede no existir |
+| contacts | phone | text | No | Teléfono en E.164, normalizado en servidor según la definición de §14. Puede no existir |
 | contacts | phone_resolved | boolean | Sí | Marca si el teléfono ya se conoce |
 | contacts | secondary_email | text | No | Correo alternativo |
 | contacts | country | text | No | País del lead |
@@ -1579,6 +1579,7 @@ Si esa automatización sigue corriendo después de la migración, Pipedrive se s
 | Precios variables | No aplica en esta etapa |
 | Modelo de asignación | Doble asignación independiente: setter, quien contacta, y vendedor, quien cierra. Asignación manual. La conversación además tiene un agente asignado |
 | Contacto entre canales | El identificador principal es el teléfono normalizado, después el correo, después el nombre de usuario de la red. Coincidencia exacta de los dos primeros vincula sola; por nombre de usuario solo sugiere. Al unificar, el historial de los dos contactos se junta y queda registrado |
+| Formato de teléfono | **E.164, y esta es la única definición del documento.** Signo más, código de país y número, solo dígitos, sin espacios ni separadores, hasta 15 dígitos en total. Se normaliza en el servidor antes de guardarse, no solo en el formulario: sin esto la deduplicación entre WhatsApp e Instagram falla, y arreglarlo después implica migrar datos sucios. Un número que no se puede normalizar no se guarda con un valor inventado, y el código de país por defecto es configuración (F38). F25, §7.1, F29 y F37 citan esta fila en vez de repetirla (devuelto el 23/09/2026, auditoría #13b, #35b, #103c y #119) |
 | Claves de terceros | Supabase Vault. Rotación manual desde la interfaz. Si una clave vence, el sistema avisa y degrada esa integración sin romper el resto |
 | Patrón de avisos entrantes | Control de duplicados con registro de eventos, acuse inmediato antes de procesar, procesamiento en segundo plano, y verificación de autenticidad obligatoria. En Zernio es firma criptográfica; en Evolution es un dato firmado que caduca |
 | Patrón de envíos masivos y límites | Lotes con separación aleatoria, cola de envío, corte automático ante silencio, y franja horaria. Se construye como configuración en el Bloque 4 y lo usa el motor de la Fase 2 |

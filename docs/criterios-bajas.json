@@ -5,5 +5,26 @@
     "nuevo": "- [ ] Sección de canales de mensajería, con Instagram vía Zernio y WhatsApp vía Evolution. El estado de sesión de WhatsApp y la reconexión con código QR son de F32. Facebook y X no van (decidido el 22 de septiembre de 2026, ver §0)",
     "motivo": "Alineado con las decisiones del 22/09/2026 escritas en §0: Facebook y X quedan fuera de F24, y el estado de sesión y el QR de WhatsApp van en F32.",
     "fecha": "2026-09-23"
+  },
+  {
+    "texto": "- [ ] El teléfono se normaliza a formato internacional en el servidor, no solo en el formulario. Sin esto la deduplicación entre canales falla, y arreglarlo después implica limpiar datos sucios",
+    "destino": "reescrito",
+    "nuevo": "- [ ] **El teléfono se normaliza a E.164 antes de guardarse**, en el servidor, no solo en el formulario, según la definición de §14. Sin esto, la deduplicación entre WhatsApp e Instagram falla y arreglarlo después implica migrar datos sucios (devuelto el 23/09/2026, auditoría #35b)",
+    "motivo": "Vuelve el E.164 del criterio original de F9 en ebc9702, citando la definición única de §14 (auditoría #35b).",
+    "fecha": "2026-09-23"
+  },
+  {
+    "texto": "- [ ] Al llegar un mensaje de un canal nuevo, se busca contacto por teléfono normalizado, correo o nombre de usuario",
+    "destino": "reescrito",
+    "nuevo": "- [ ] Al llegar un mensaje de un canal nuevo, se busca contacto por teléfono normalizado a E.164 según §14, correo o nombre de usuario (devuelto el 23/09/2026, auditoría #13b)",
+    "motivo": "Vuelve el E.164 con que F6 de ebc9702 vinculaba por teléfono, citando la definición única de §14 (auditoría #13b).",
+    "fecha": "2026-09-23"
+  },
+  {
+    "texto": "- [ ] **Cada fila necesita al menos un identificador que permita deduplicar, de los enumerados en la sección 14.** El correo se valida con formato y el teléfono se normaliza, pero los dos son ejemplos, no la lista: un identificador único del sistema de origen sirve igual, y de hecho sirve mejor, porque allá ya se garantizó que es único. Una fila sin ningún identificador no se puede deduplicar y se rechaza con su motivo",
+    "destino": "reescrito",
+    "nuevo": "- [ ] **Cada fila necesita al menos un identificador que permita deduplicar, de los enumerados en la sección 14.** El correo se valida con formato y el teléfono se normaliza a E.164 según §14, pero los dos son ejemplos, no la lista: un identificador único del sistema de origen sirve igual, y de hecho sirve mejor, porque allá ya se garantizó que es único. Una fila sin ningún identificador no se puede deduplicar y se rechaza con su motivo (devuelto el 23/09/2026, auditoría #103c)",
+    "motivo": "Vuelve el E.164 de la validación de F19 en ebc9702, citando la definición única de §14 (auditoría #103c).",
+    "fecha": "2026-09-23"
   }
 ]

@@ -528,7 +528,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F25: Modelo de contacto extendido"
     ],
-    "texto": "- [ ] El teléfono se normaliza a formato internacional en el servidor, no solo en el formulario. Sin esto la deduplicación entre canales falla, y arreglarlo después implica limpiar datos sucios"
+    "texto": "- [ ] **El teléfono se normaliza a E.164 antes de guardarse**, en el servidor, no solo en el formulario, según la definición de §14. Sin esto, la deduplicación entre WhatsApp e Instagram falla y arreglarlo después implica migrar datos sucios (devuelto el 23/09/2026, auditoría #35b)"
   },
   {
     "seccion": "F25: Modelo de contacto extendido",
@@ -1032,7 +1032,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F29: Detección de contacto entre canales"
     ],
-    "texto": "- [ ] Al llegar un mensaje de un canal nuevo, se busca contacto por teléfono normalizado, correo o nombre de usuario"
+    "texto": "- [ ] Al llegar un mensaje de un canal nuevo, se busca contacto por teléfono normalizado a E.164 según §14, correo o nombre de usuario (devuelto el 23/09/2026, auditoría #13b)"
   },
   {
     "seccion": "F29: Detección de contacto entre canales",
@@ -1482,7 +1482,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F37: Importación de contactos desde planilla"
     ],
-    "texto": "- [ ] **Cada fila necesita al menos un identificador que permita deduplicar, de los enumerados en la sección 14.** El correo se valida con formato y el teléfono se normaliza, pero los dos son ejemplos, no la lista: un identificador único del sistema de origen sirve igual, y de hecho sirve mejor, porque allá ya se garantizó que es único. Una fila sin ningún identificador no se puede deduplicar y se rechaza con su motivo"
+    "texto": "- [ ] **Cada fila necesita al menos un identificador que permita deduplicar, de los enumerados en la sección 14.** El correo se valida con formato y el teléfono se normaliza a E.164 según §14, pero los dos son ejemplos, no la lista: un identificador único del sistema de origen sirve igual, y de hecho sirve mejor, porque allá ya se garantizó que es único. Una fila sin ningún identificador no se puede deduplicar y se rechaza con su motivo (devuelto el 23/09/2026, auditoría #103c)"
   },
   {
     "seccion": "F37: Importación de contactos desde planilla",
