@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Lo que `compararCriterios` no ve: copias perdidas y criterios mudados.
+ * Informe de copias perdidas y criterios mudados entre dos commits.
  *
- * **Por qué existe.** `compararCriterios` (en `foto-criterios.mjs`) arma un
- * conjunto con los textos del plano y pregunta si cada línea de la foto está.
- * Eso tiene dos cegueras, las dos por diseño:
+ * **Por qué existe.** Hasta el 23/09/2026, `compararCriterios` (en
+ * `foto-criterios.mjs`) armaba un conjunto con los textos del plano y
+ * preguntaba si cada línea de la foto estaba. Eso tenía dos cegueras:
  *
  * - **Duplicados.** Si un texto aparecía dos veces y queda una, el conjunto lo
  *   sigue teniendo y la copia que se fue no cuenta como faltante.
@@ -12,21 +12,19 @@
  *   de la fase al apéndice del plan B, el texto sigue estando y nada avisa. Un
  *   criterio que se muda a una sección que no se construye se perdió igual.
  *
- * Esta comparación cuenta apariciones (multiconjunto) y compara la ruta
- * completa de encabezados de cada una. Se escribió el 23/09/2026 para verificar
- * que la lista de 128 de `docs/auditoria-conciliacion.md` estuviera completa.
- *
- * Qué es una línea de criterio: lo mismo que en `extraerCriterios`. El test
- * comprueba que los dos extractores den exactamente las mismas líneas.
+ * Este script se escribió en `8d69af7` para verificar que la lista de 128 de
+ * `docs/auditoria-conciliacion.md` estuviera completa. Desde el 23/09/2026 la
+ * guardia del plano (`compararCriterios`) compara igual, por apariciones y
+ * ruta, y usa el mismo extractor y la misma resta. Este script queda como
+ * informe: agrupa por texto, dice de qué archivo viene cada línea y marca si
+ * terminó fuera de la Fase 1.
  *
  * Uso:
  *   node scripts/ubicacion-criterios.mjs --foto-de ebc9702 --plano-de 584226f
  */
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { PLANO, PLANOS_ORIGINALES } from "./foto-criterios.mjs";
-
-const normalizar = (s) => s.replace(/\s+/g, " ").trim();
+import { PLANO, PLANOS_ORIGINALES, extraerCriterios, restar } from "./foto-criterios.mjs";
 
 /**
  * Secciones que no se construyen en la Fase 1, reconocidas por cualquier
@@ -44,35 +42,6 @@ export const FUERA_DE_FASE_1 = [
 
 export const fueraDeFase1 = (ruta) => ruta.some((h) => FUERA_DE_FASE_1.some((re) => re.test(h)));
 
-/**
- * Las mismas líneas que `extraerCriterios`, con la ruta de encabezados (niveles
- * 2 a 4) además de la sección. La ruta es lo que distingue "F6b dentro del
- * Bloque 1" de "F6b dentro del apéndice del plan B".
- */
-export function extraerConRuta(texto) {
-  const salida = [];
-  const ruta = [];
-  let enBloque = false;
-  for (const linea of texto.split("\n")) {
-    const h = linea.match(/^(#{2,4}) (.+)/);
-    if (h) {
-      ruta.length = h[1].length - 2;
-      ruta.push(h[2].trim());
-      enBloque = false;
-      continue;
-    }
-    if (/^\s*- \[ \]/.test(linea)) {
-      enBloque = true;
-    } else if (linea.trim() === "") {
-      continue;
-    } else if (!/^\s/.test(linea)) {
-      enBloque = false;
-    }
-    if (enBloque) salida.push({ seccion: ruta[ruta.length - 1] ?? "", ruta: [...ruta].filter(Boolean), texto: normalizar(linea) });
-  }
-  return salida;
-}
-
 const agrupar = (xs) => {
   const m = new Map();
   for (const x of xs) {
@@ -84,17 +53,6 @@ const agrupar = (xs) => {
 
 const clave = (c) => c.ruta.join(" > ");
 const porSeccion = (c) => c.seccion;
-
-/** Resta de multiconjuntos: las apariciones de `a` que `b` no cubre, según `llave`. */
-function restar(a, b, llave = clave) {
-  const quedan = b.map(llave);
-  return a.filter((x) => {
-    const i = quedan.indexOf(llave(x));
-    if (i < 0) return true;
-    quedan.splice(i, 1);
-    return false;
-  });
-}
 
 /**
  * Compara dos listas de líneas con ruta.
@@ -114,8 +72,8 @@ export function compararUbicaciones(viejas, nuevas) {
     const despues = N.get(texto) ?? [];
     if (despues.length < antes.length) menosCopias.push({ texto, antes, despues });
     if (!despues.length) continue;
-    const de = restar(antes, despues);
-    const a = restar(despues, antes);
+    const de = restar(antes, despues, clave);
+    const a = restar(despues, antes, clave);
     if (de.length || a.length) {
       mudanzas.push({
         texto,
@@ -141,7 +99,7 @@ export function lineasDeCommit(commit, archivos = PLANOS_ORIGINALES) {
     } catch {
       return [];
     }
-    return extraerConRuta(texto).map((c) => ({ ...c, archivo }));
+    return extraerCriterios(texto).map((c) => ({ ...c, archivo }));
   });
 }
 

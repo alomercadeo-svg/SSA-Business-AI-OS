@@ -1,17 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { PLANO, extraerCriterios, compararCriterios } from "./foto-criterios.mjs";
-import { extraerConRuta, compararUbicaciones, lineasDeCommit, fueraDeFase1 } from "./ubicacion-criterios.mjs";
+import { compararUbicaciones, lineasDeCommit, fueraDeFase1 } from "./ubicacion-criterios.mjs";
 
 /**
- * La comparación por ubicación ve lo que `compararCriterios` no ve por diseño:
- * una copia de un texto duplicado que se borra, y una línea que se muda de
- * sección. Escrito el 23/09/2026 para verificar la lista de 128 de
- * `docs/auditoria-conciliacion.md`.
+ * La comparación por ubicación ve lo que la comparación por conjunto de textos
+ * no veía: una copia de un texto duplicado que se borra, y una línea que se
+ * muda de sección. Escrito el 23/09/2026 para verificar la lista de 128 de
+ * `docs/auditoria-conciliacion.md`. Ese mismo día `compararCriterios` pasó a
+ * comparar igual; sus casos trampa están en `docs/plano-criterios.test.ts`.
  *
  * Se vio en rojo antes del verde, con dos mutaciones: `agrupar` deduplicando
- * (como hace el `Set` de `compararCriterios`) y `clave` comparando solo el
+ * (como hacía el `Set` de `compararCriterios` hasta el 23/09/2026) y `clave` comparando solo el
  * nombre de la sección en vez de la ruta. Con cualquiera de las dos fallan el
  * caso sintético y el histórico.
  */
@@ -51,14 +51,15 @@ const NUEVO = [
 ].join("\n");
 
 describe("control positivo del método, sobre un caso sintético", () => {
-  it("compararCriterios no ve ni la copia borrada ni la mudanza", () => {
+  /** Hasta el 23/09/2026 daba cero en las tres; ahora la guardia y el informe coinciden. */
+  it("compararCriterios ve lo mismo que el informe", () => {
     const r = compararCriterios(extraerCriterios(VIEJO), NUEVO);
-    expect(r.faltantes).toEqual([]);
-    expect(r.nuevas).toEqual([]);
+    expect(r.faltantes.map((c) => c.texto)).toEqual(["- [ ] Duplicada"]);
+    expect(r.mudanzas.map((c) => c.texto).sort()).toEqual(["- [ ] Cambia de padre", "- [ ] Se muda"]);
   });
 
   it("la comparación por ubicación encuentra las dos", () => {
-    const { menosCopias, mudanzas } = compararUbicaciones(extraerConRuta(VIEJO), extraerConRuta(NUEVO));
+    const { menosCopias, mudanzas } = compararUbicaciones(extraerCriterios(VIEJO), extraerCriterios(NUEVO));
     expect(menosCopias.map((m) => [m.texto, m.antes.length, m.despues.length])).toEqual([["- [ ] Duplicada", 2, 1]]);
     expect(menosCopias[0].despues.map((x: { seccion: string }) => x.seccion)).toEqual(["F1: Uno"]);
 
@@ -76,22 +77,14 @@ describe("control positivo del método, sobre un caso sintético", () => {
   });
 
   it("un plano contra sí mismo no da copias perdidas ni mudanzas", () => {
-    expect(compararUbicaciones(extraerConRuta(VIEJO), extraerConRuta(VIEJO))).toEqual({ menosCopias: [], mudanzas: [] });
+    expect(compararUbicaciones(extraerCriterios(VIEJO), extraerCriterios(VIEJO))).toEqual({ menosCopias: [], mudanzas: [] });
   });
 
   it("reconoce el apéndice por la ruta, no por el nombre de la sección", () => {
-    const [c] = extraerConRuta(NUEVO).filter((x) => x.texto === "- [ ] Se muda");
+    const [c] = extraerCriterios(NUEVO).filter((x) => x.texto === "- [ ] Se muda");
     expect(c.seccion).toBe("F6b: Algo");
     expect(fueraDeFase1(c.ruta)).toBe(true);
     expect(fueraDeFase1(["5. Funcionalidades", "Bloque 1: Fork", "F6b: Algo"])).toBe(false);
-  });
-});
-
-describe("extraerConRuta extrae las mismas líneas que extraerCriterios", () => {
-  it("en el plano actual", () => {
-    const plano = readFileSync(PLANO, "utf8");
-    const conRuta = extraerConRuta(plano).map(({ seccion, texto }) => ({ seccion, texto }));
-    expect(conRuta).toEqual(extraerCriterios(plano));
   });
 });
 
@@ -110,7 +103,7 @@ describe("el caso histórico: ebc9702 contra 584226f", () => {
     expect(viejas.filter((x) => x.archivo === "docs/requerimientos-bloques-2-3-4.md").length).toBeGreaterThan(100);
   });
 
-  it.skipIf(!hayHistoria)("encuentra la copia de F6 que compararCriterios no ve, y las mudanzas al apéndice", () => {
+  it.skipIf(!hayHistoria)("encuentra la copia de F6 que el conjunto de textos no veía, y las mudanzas al apéndice", () => {
     const { menosCopias, mudanzas } = compararUbicaciones(lineasDeCommit("ebc9702"), lineasDeCommit("584226f", [PLANO]));
     expect(menosCopias.filter((m) => !m.despues.length)).toHaveLength(128);
     const parciales = menosCopias.filter((m) => m.despues.length);
