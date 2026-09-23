@@ -528,7 +528,43 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] El estado de cada integración se actualiza en tiempo real. El mecanismo está sin decidir: ver §15 (devuelto el 23/09/2026, auditoría #32)"
+    "texto": "- [ ] El estado de cada integración se actualiza en tiempo real. Se detecta en dos momentos: al abrir la pantalla, cuando el servidor consulta a cada proveedor, y cuando una operación real falla por credenciales o por conexión (un envío por Zernio, un correo por Resend, una llamada a un proveedor de IA) (devuelto el 23/09/2026, auditoría #32)"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F24: Pantalla de integraciones y claves de IA"
+    ],
+    "texto": "- [ ] El estado se guarda en `integration_configs`, con estado (conectado, desconectado, sin verificar o sin configurar), `verificado_el` y `ultimo_error`, y llega a la pantalla abierta por Realtime, sin recargar"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F24: Pantalla de integraciones y claves de IA"
+    ],
+    "texto": "- [ ] \"Sin verificar\" significa que no se pudo preguntar, y nunca se muestra como \"desconectado\""
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F24: Pantalla de integraciones y claves de IA"
+    ],
+    "texto": "- [ ] **Control positivo:** con la pantalla abierta, se fuerza un fallo de credenciales y la tarjeta cambia sin recargar"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F24: Pantalla de integraciones y claves de IA"
+    ],
+    "texto": "- [ ] **Control negativo:** un Member suscrito a `integration_configs` no recibe el evento. Es la prueba que `scripts/verify-realtime-scope.mjs` hace para `conversations` y `messages`, repetida para esta tabla y con su canario: el mismo evento le tiene que llegar antes a un Owner suscrito, o el resultado es no concluyente"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",

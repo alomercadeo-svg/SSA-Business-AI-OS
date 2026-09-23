@@ -475,7 +475,11 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 - [ ] Todas las claves van a Vault. Ninguna viaja al navegador: la pantalla muestra "configurada" o "sin configurar" según exista el secreto, nunca su valor
 - [ ] Cada integración es un registro con su tipo. Agregar una nueva en la Etapa 2 no requiere cambiar la base de datos
 - [ ] Al guardar una clave se valida el formato, con largo mínimo y prefijo esperado donde corresponda
-- [ ] El estado de cada integración se actualiza en tiempo real. El mecanismo está sin decidir: ver §15 (devuelto el 23/09/2026, auditoría #32)
+- [ ] El estado de cada integración se actualiza en tiempo real. Se detecta en dos momentos: al abrir la pantalla, cuando el servidor consulta a cada proveedor, y cuando una operación real falla por credenciales o por conexión (un envío por Zernio, un correo por Resend, una llamada a un proveedor de IA) (devuelto el 23/09/2026, auditoría #32)
+- [ ] El estado se guarda en `integration_configs`, con estado (conectado, desconectado, sin verificar o sin configurar), `verificado_el` y `ultimo_error`, y llega a la pantalla abierta por Realtime, sin recargar
+- [ ] "Sin verificar" significa que no se pudo preguntar, y nunca se muestra como "desconectado"
+- [ ] **Control positivo:** con la pantalla abierta, se fuerza un fallo de credenciales y la tarjeta cambia sin recargar
+- [ ] **Control negativo:** un Member suscrito a `integration_configs` no recibe el evento. Es la prueba que `scripts/verify-realtime-scope.mjs` hace para `conversations` y `messages`, repetida para esta tabla y con su canario: el mismo evento le tiene que llegar antes a un Owner suscrito, o el resultado es no concluyente
 - [ ] **Estado del registro del webhook de Zernio, visible en la sección de canales:** si está registrado, contra qué URL, y cuándo se verificó por última vez. Se lee de `GET /v1/webhooks/settings`, que ya devuelve todo eso
 - [ ] Ese estado nunca muestra el secreto de firma, que esa misma respuesta trae en texto plano. A lo sumo longitud y últimos cuatro caracteres, igual que el resto de las claves
 
@@ -488,6 +492,14 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 > El problema no es que no falle: es que **la pantalla informa que el canal se sincronizó bien mientras el webhook puede no haber quedado registrado**. A partir de ahí la bandeja deja de recibir y el síntoma es, otra vez, el mismo que el de un día tranquilo. El estado real existe y es consultable; simplemente no se muestra en ningún lado.
 >
 > Por eso el arreglo es mostrarlo. Es el tercer caso de la regla de la sección 14, el de la vigilancia por ausencia, y es el único de los tres que se corrige sin construir ningún mecanismo nuevo: el dato ya está, falta la pantalla.
+
+> **El tiempo real del estado de las integraciones, decidido el 23 de septiembre de 2026.**
+>
+> **No hay tarea periódica, a propósito.** El estado se detecta cuando alguien mira, al abrir la pantalla, y cuando algo real falla. Detectar una caída cuando nadie mira es trabajo de una alerta, y para eso están F39 y `webhook_alerts`, no esta pantalla. Una tarea periódica además traería su propia prueba de vida, por la regla de §14, para vigilar algo que ya vigila otra funcionalidad. **El costo aceptado:** si una integración cambia en silencio con la pantalla abierta, el cambio no se ve hasta el próximo fallo real o la próxima recarga.
+>
+> **`integration_configs` no existe todavía** (verificado el 23 de septiembre de 2026: ninguna migración la crea). La crea F24, y para que el estado llegue por Realtime la tabla tiene que estar en la publicación `supabase_realtime`, como `conversations` y `messages`. Le aplica el mismo límite que `scripts/verify-realtime-scope.mjs` documenta para esas dos: los eventos de borrado no los filtra la RLS y le llegan a todo suscriptor, con la clave primaria y sin contenido.
+>
+> **Fuentes posibles, no verificadas.** Si Zernio o Resend avisan por webhook los cambios de estado de una cuenta o de un dominio, se suman como fuente de detección. **No está verificado que lo hagan:** no se leyó la documentación de ninguno de los dos para esto. Si lo hacen, entran como un tercer momento de detección, sin cambiar lo demás.
 
 ---
 
@@ -1860,7 +1872,7 @@ No se deciden leyendo documentación. Se instrumentan y se miran.
 
 ### Lo que se necesita antes de construir
 
-- **El mecanismo del tiempo real del estado de las integraciones, para F24.** El criterio volvió el 23 de septiembre de 2026 sin mecanismo, a propósito (auditoría #32). **Lo abierto:** el estado de un servicio externo no es una fila de nuestra base, así que algo tiene que consultarlo y escribirlo para que la pantalla se entere, y no está decidido qué lo consulta ni cada cuánto. Si termina siendo un trabajo periódico, le aplica la regla de §14 sobre la prueba de vida. **Lo decidido el 22 de septiembre:** ese estado lo ven solo Owner y Admin, también por Realtime. Fuente: `docs/estado-fase1.md`. Se decide antes de construir F24.
+- **Resuelto el 23/09/2026: el mecanismo del tiempo real del estado de las integraciones, para F24.** Se detecta al abrir la pantalla y cuando una operación real falla, se guarda en `integration_configs` y llega por Realtime. No hay tarea periódica: detectar una caída cuando nadie mira es de F39. La definición, los controles y el costo aceptado están en F24. Este hueco se había anotado acá cuando el criterio volvió sin mecanismo (auditoría #32).
 - **La pantalla de importación no está especificada, ni para F37 ni para F38.** La sección 11 no la tiene: el Bloque 4 documenta bandeja, canales y configuración del canal de WhatsApp, y ninguna pantalla de importación. El hueco es anterior a F38, pero F38 lo vuelve urgente, porque pide que esa pantalla permita cambiar el código de país por defecto para una importación puntual. **Hay que especificarla antes de construir el Bloque 4**, o esa decisión se va a tomar mientras se escribe el código, que es exactamente donde termina siendo una constante cableada.
 - El número dedicado de WhatsApp, todavía en trámite. No bloquea el Bloque 2 ni el 3, pero sí la conexión en vivo.
 - Verificación del negocio en Meta: **no hecha**. No bloquea nada del camino principal; sirve para el plan B, donde levanta el tope de 250 contactos únicos cada 24 horas. Se comprueba en Business Manager.
