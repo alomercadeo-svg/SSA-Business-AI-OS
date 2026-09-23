@@ -11,6 +11,7 @@ import {
   TITULO_TIPO,
   agruparPorTipo,
   modeloDe,
+  detalleDe,
   type Tarjeta,
 } from "@/lib/integraciones";
 import {
@@ -18,6 +19,7 @@ import {
   borrarClave,
   guardarModelo,
   desconectarCuentaInstagram,
+  verificarIntegraciones,
 } from "@/lib/actions/integraciones";
 import type { IntegrationEstado, IntegrationTipo } from "@/lib/types/database";
 
@@ -92,7 +94,7 @@ export function IntegrationsView({
             if (existe) {
               return ts.map((t) =>
                 t.id === n.id
-                  ? { ...t, nombre: n.nombre, estado: n.estado, verificado_el: n.verificado_el, ultimo_error: n.ultimo_error, modelo: modeloDe(n.config) }
+                  ? { ...t, nombre: n.nombre, estado: n.estado, verificado_el: n.verificado_el, ultimo_error: n.ultimo_error, modelo: modeloDe(n.config), detalle: detalleDe(n.config) }
                   : t
               );
             }
@@ -102,7 +104,7 @@ export function IntegrationsView({
               {
                 id: n.id, tipo: n.tipo, proveedor: n.proveedor, nombre: n.nombre, orden: n.orden,
                 estado: n.estado, verificado_el: n.verificado_el, ultimo_error: n.ultimo_error,
-                modelo: modeloDe(n.config), configurada: false, mascara: null, editable: true, conModelo: false, prefijo: null,
+                modelo: modeloDe(n.config), detalle: detalleDe(n.config), configurada: false, mascara: null, editable: true, conModelo: false, prefijo: null,
               },
             ];
           });
@@ -114,6 +116,16 @@ export function IntegrationsView({
     };
   }, [workspaceId]);
 
+  // Al abrir la pantalla, el servidor le pregunta a cada proveedor. El
+  // resultado no vuelve por acá: llega por Realtime, arriba.
+  const [verificando, iniciarVerificacion] = useTransition();
+  useEffect(() => {
+    if (errorDeCarga) return;
+    iniciarVerificacion(async () => {
+      await verificarIntegraciones();
+    });
+  }, [errorDeCarga]);
+
   const secciones = agruparPorTipo(tarjetas);
 
   return (
@@ -123,6 +135,11 @@ export function IntegrationsView({
         <p className="mt-1 text-sm text-muted-foreground">
           Los servicios externos que usa el sistema: canales, correo e inteligencia artificial.
         </p>
+        {verificando && (
+          <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" /> Preguntándole a cada proveedor…
+          </p>
+        )}
       </div>
 
       <div className="flex-1 overflow-auto">
@@ -177,6 +194,7 @@ function TarjetaView({ t, cuentasInstagram }: { t: Tarjeta; cuentasInstagram: Cu
         {t.verificado_el ? `Verificado el ${fecha(t.verificado_el)}.` : "Todavía no se verificó."}
         {t.estado === "sin_verificar" && " No se pudo preguntarle al proveedor, así que no sabemos si está conectado."}
       </p>
+      {t.detalle && <p className="mt-1 text-xs text-muted-foreground">{t.detalle}</p>}
       {t.ultimo_error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{t.ultimo_error}</p>}
 
       <div className="mt-4 space-y-4">

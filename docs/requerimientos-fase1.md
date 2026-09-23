@@ -470,7 +470,7 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 
 **Descripción:** el lugar donde se conectan todos los servicios externos.
 
-**Estado: parcial** (inspeccionado el 22 de septiembre de 2026). **El fork cubre:** `/dashboard/settings` con carga y prueba de la clave de Zernio (`settings-view.tsx`, contra `/api/v1/channels/test-key`). **Falta:** la pantalla en `/settings/integrations`, las secciones de Resend y de proveedores de IA, el registro por tipo de integración, y el estado del registro del webhook.
+**Estado: construida en el código, sin probar contra la base** (23 de septiembre de 2026). Pantalla en `/dashboard/settings/integrations`, con `/settings/integrations` redirigiendo ahí, porque todas las pantallas viven bajo `/dashboard`. La tabla es la migración 00024, **escrita y sin aplicar a producción**: hasta aplicarla, la pantalla muestra que falta, y `scripts/verify-integration-configs.mjs` no corrió. **Detección por operación fallida: solo los envíos por Zernio** (bandeja, flujos y secuencias). Resend y la IA no tienen operaciones todavía: su conexión llega con F23 y con la Fase 2. **Falta:** el estado del registro del webhook de Zernio (el criterio de abajo), que esta construcción no tocó. Antes decía: parcial, el fork cubría la carga y prueba de la clave de Zernio en `/dashboard/settings`.
 
 **Criterios de aceptación:**
 

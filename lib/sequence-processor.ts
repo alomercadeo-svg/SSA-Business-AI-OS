@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { createZernioClient } from "@/lib/zernio-client";
 import { getZernioApiKey } from "@/lib/vault";
+import { registrarFalloDeZernio } from "@/lib/integraciones-estado";
 import type { SequenceStep } from "@/lib/types/database";
 
 /**
@@ -198,6 +199,8 @@ async function sendSequenceMessage(
     });
   } catch (err) {
     console.error("Failed to send sequence message:", err);
+    // F24: un fallo por credenciales o conexión llega a la pantalla de integraciones.
+    await registrarFalloDeZernio(supabase, workspaceId, err);
 
     // Store failed message
     await supabase.from("messages").insert({

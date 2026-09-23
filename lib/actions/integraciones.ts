@@ -15,6 +15,7 @@ import { getWorkspaceOrNull, esManager } from "@/lib/workspace";
 import { setWorkspaceSecret, deleteWorkspaceSecret, getZernioApiKey } from "@/lib/vault";
 import { createZernioClient } from "@/lib/zernio-client";
 import { definicionDe, validarFormatoClave, mascaraDeClave, PROVEEDORES, type Mascara } from "@/lib/integraciones";
+import { verificarTodas } from "@/lib/integraciones-estado";
 
 const RUTA = "/dashboard/settings/integrations";
 
@@ -139,6 +140,20 @@ export async function guardarModelo(proveedor: string, modelo: string): Promise<
   if (error) return { ok: false, error: "No se pudo guardar el modelo." };
 
   revalidatePath(RUTA);
+  return { ok: true };
+}
+
+/**
+ * Al abrir la pantalla: le pregunta a cada proveedor configurado y escribe el
+ * resultado. No devuelve los estados a propósito: le llegan a la pantalla por
+ * Realtime, que es el mismo camino por el que llega un fallo de una operación
+ * real. Si Realtime no anduviera, la pantalla no se actualizaría, y eso se ve;
+ * un refresco acá lo escondería.
+ */
+export async function verificarIntegraciones(): Promise<Resultado> {
+  const ctx = await contextoManager();
+  if (!ctx.ok) return ctx;
+  await verificarTodas(ctx.contexto.supabase, ctx.workspaceId);
   return { ok: true };
 }
 

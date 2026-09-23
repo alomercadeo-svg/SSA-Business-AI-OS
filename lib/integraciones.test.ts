@@ -110,4 +110,9 @@ describe("la tarjeta que viaja al navegador", () => {
     expect(t.configurada).toBe(false);
     expect(JSON.stringify(t)).not.toContain("cosa");
   });
+
+  it("toma el detalle que escribió la detección, como el dominio verificado", () => {
+    const t = aTarjeta({ ...fila, config: { detalle: "Dominio verificado: x.com." } }, null);
+    expect(t.detalle).toBe("Dominio verificado: x.com.");
+  });
 });

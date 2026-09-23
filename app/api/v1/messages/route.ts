@@ -4,6 +4,7 @@ import { createZernioClient } from "@/lib/zernio-client";
 import { getZernioApiKey } from "@/lib/vault";
 import { messagePreview } from "@/lib/message-preview";
 import { traerMensajesDeConversacion } from "@/lib/zernio-message-map";
+import { registrarFalloDeZernio } from "@/lib/integraciones-estado";
 
 /**
  * GET /api/v1/messages?conversationId=...
@@ -201,6 +202,10 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Failed to send message via Zernio API:", error);
+    // F24: si fue por credenciales o conexión, la pantalla de integraciones se
+    // entera. Con el cliente de servicio, porque el que responde puede ser un
+    // Member, que no puede escribir en integration_configs.
+    await registrarFalloDeZernio(await createServiceClient(), conversation.workspace_id, error);
     return NextResponse.json(
       { error: `Failed to send message: ${error}` },
       { status: 500 }

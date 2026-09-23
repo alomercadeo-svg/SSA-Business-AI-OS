@@ -156,6 +156,8 @@ export interface Tarjeta {
   verificado_el: string | null;
   ultimo_error: string | null;
   modelo: string | null;
+  /** Dato no secreto que escribió la detección: el dominio verificado, cuántas cuentas. */
+  detalle: string | null;
   configurada: boolean;
   mascara: Mascara | null;
   editable: boolean;
@@ -163,11 +165,14 @@ export interface Tarjeta {
   prefijo: string | null;
 }
 
-export function modeloDe(config: unknown): string | null {
+function textoDeConfig(config: unknown, campo: string): string | null {
   if (!config || typeof config !== "object" || Array.isArray(config)) return null;
-  const m = (config as Record<string, unknown>).modelo;
-  return typeof m === "string" && m ? m : null;
+  const v = (config as Record<string, unknown>)[campo];
+  return typeof v === "string" && v ? v : null;
 }
+
+export const modeloDe = (config: unknown) => textoDeConfig(config, "modelo");
+export const detalleDe = (config: unknown) => textoDeConfig(config, "detalle");
 
 /**
  * Arma la tarjeta de una fila. Recibe la clave para saber si existe y calcular
@@ -186,6 +191,7 @@ export function aTarjeta(fila: FilaIntegracion, valorClave: string | null): Tarj
     verificado_el: fila.verificado_el,
     ultimo_error: fila.ultimo_error,
     modelo: modeloDe(fila.config),
+    detalle: detalleDe(fila.config),
     configurada: Boolean(valorClave),
     mascara: d.mostrarMascara ? mascaraDeClave(valorClave) : null,
     editable: d.editable,

@@ -59,7 +59,10 @@ vi.mock("@/lib/zernio-client", () => ({
 
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
-const { desconectarCuentaInstagram, guardarClave } = await import("./integraciones");
+const verificarTodas = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock("@/lib/integraciones-estado", () => ({ verificarTodas }));
+
+const { desconectarCuentaInstagram, guardarClave, verificarIntegraciones } = await import("./integraciones");
 
 beforeEach(() => {
   h.rol = "owner";
@@ -149,5 +152,22 @@ describe("guardar una clave", () => {
     const r = await guardarClave("openai", "x".repeat(40));
     expect(r.ok).toBe(false);
     expect(h.setSecret).not.toHaveBeenCalled();
+  });
+});
+
+describe("verificar las integraciones al abrir la pantalla", () => {
+  it("un manager dispara la verificación de su workspace", async () => {
+    verificarTodas.mockClear();
+    const r = await verificarIntegraciones();
+    expect(r.ok).toBe(true);
+    expect(verificarTodas).toHaveBeenCalledWith(expect.anything(), "ws-1");
+  });
+
+  it("un Member no la dispara", async () => {
+    verificarTodas.mockClear();
+    h.rol = "member";
+    const r = await verificarIntegraciones();
+    expect(r.ok).toBe(false);
+    expect(verificarTodas).not.toHaveBeenCalled();
   });
 });

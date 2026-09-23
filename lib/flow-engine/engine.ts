@@ -21,6 +21,7 @@ import { executeAiResponse } from "./nodes/ai-response";
 import { adaptMessage } from "./platform-adapter";
 import { createZernioClient } from "@/lib/zernio-client";
 import { getZernioApiKey } from "@/lib/vault";
+import { registrarFalloDeZernio } from "@/lib/integraciones-estado";
 
 export async function executeFlow(
   supabase: SupabaseClient<Database>,
@@ -550,6 +551,8 @@ async function executeSendMessage(
       });
     } catch (error) {
       console.error("Failed to send message:", error);
+      // F24: un fallo por credenciales o conexión llega a la pantalla de integraciones.
+      await registrarFalloDeZernio(supabase, context.workspaceId, error);
       await supabase.from("messages").insert({
         conversation_id: context.conversationId,
         direction: "outbound",
