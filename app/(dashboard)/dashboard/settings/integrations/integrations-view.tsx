@@ -18,7 +18,6 @@ import {
   guardarClave,
   borrarClave,
   guardarModelo,
-  desconectarCuentaInstagram,
   verificarIntegraciones,
 } from "@/lib/actions/integraciones";
 import type { IntegrationEstado, IntegrationTipo } from "@/lib/types/database";
@@ -335,7 +334,6 @@ function Instagram({ t, cuentas }: { t: Tarjeta; cuentas: CuentaInstagram[] }) {
   const [valor, setValor] = useState("");
   const [mensaje, setMensaje] = useState<{ ok: boolean; texto: string } | null>(null);
   const [probando, setProbando] = useState(false);
-  const [aDesconectar, setADesconectar] = useState<CuentaInstagram | null>(null);
   const router = useRouter();
 
   async function probarYGuardar() {
@@ -400,93 +398,17 @@ function Instagram({ t, cuentas }: { t: Tarjeta; cuentas: CuentaInstagram[] }) {
             <span className="text-sm">
               @{c.username} {!c.activa && <span className="text-xs text-muted-foreground">(inactiva)</span>}
             </span>
+            {/* Deshabilitado el 23/09/2026 hasta probarlo contra Zernio real con la
+                aprobación de Marcos: desconecta el único canal vivo. La acción de
+                servidor sigue existiendo, con sus tests. Lo cuida
+                desconectar-deshabilitado.test.ts. */}
             {c.activa && (
-              <button className={claseBoton} onClick={() => setADesconectar(c)}>
-                Desconectar
+              <button type="button" disabled className={claseBoton} title="Desconectar no está disponible todavía">
+                Desconectar no está disponible todavía
               </button>
             )}
           </div>
         ))}
-      </div>
-
-      {aDesconectar && (
-        <ConfirmarDesconexion
-          cuenta={aDesconectar}
-          onCerrar={() => setADesconectar(null)}
-          onHecho={() => {
-            setADesconectar(null);
-            router.refresh();
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-/**
- * Confirmación explícita que nombra la cuenta y advierte que los mensajes
- * entrantes dejan de llegar (criterio de F24). Hay que escribir el nombre: la
- * cuenta es la del negocio y un clic no puede cortar el único canal vivo. El
- * servidor vuelve a comparar el nombre; esto es la mitad de la pantalla.
- */
-function ConfirmarDesconexion({
-  cuenta,
-  onCerrar,
-  onHecho,
-}: {
-  cuenta: CuentaInstagram;
-  onCerrar: () => void;
-  onHecho: () => void;
-}) {
-  const [texto, setTexto] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [pendiente, iniciar] = useTransition();
-  const coincide = texto.trim().replace(/^@/, "").toLowerCase() === cuenta.username.toLowerCase();
-
-  return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md space-y-4 rounded-lg border border-border bg-background p-6">
-        <h3 className="text-base font-semibold">Desconectar @{cuenta.username}</h3>
-        <div className="flex gap-2 rounded-md bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-400">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>
-            Si desconectás <strong>@{cuenta.username}</strong>, los mensajes entrantes de esa cuenta dejan de llegar a
-            la bandeja hasta que se vuelva a conectar. Las conversaciones que ya están guardadas no se borran.
-          </p>
-        </div>
-        <label className="block text-xs font-medium text-muted-foreground">
-          Para confirmar, escribí el nombre de la cuenta: @{cuenta.username}
-        </label>
-        <input
-          type="text"
-          autoComplete="off"
-          value={texto}
-          onChange={(e) => {
-            setTexto(e.target.value);
-            setError(null);
-          }}
-          className={claseInput}
-        />
-        {error && <p className="text-xs text-red-600">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <button className={claseBoton} onClick={onCerrar} disabled={pendiente}>
-            Cancelar
-          </button>
-          <button
-            className={cn(claseBoton, "border-red-500/50 text-red-700 dark:text-red-400")}
-            disabled={!coincide || pendiente}
-            onClick={() =>
-              iniciar(async () => {
-                const r = await desconectarCuentaInstagram(cuenta.id, texto);
-                if (r.ok) onHecho();
-                else setError(r.error);
-              })
-            }
-          >
-            {pendiente && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            Desconectar @{cuenta.username}
-          </button>
-        </div>
       </div>
     </div>
   );
