@@ -769,6 +769,8 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [ ] Owner y Admin ven todo; un Member solo sus propias acciones
 - [ ] Nunca se elimina ni tiene borrado suave
 
+> **Nota del 22 de septiembre de 2026:** los cambios hechos en la pantalla de integraciones de F24 (claves guardadas o borradas, modelos por defecto, integraciones agregadas) son "cambios de configuración" y tienen que quedar auditados. Si F24 se construye antes que esta funcionalidad, esa conexión se agrega al construir F31. La dependencia va en este sentido: F31 depende de conocer F24, no al revés.
+
 ---
 
 ### Bloque 4: Bandeja, herramientas y reglas de seguridad

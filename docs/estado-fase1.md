@@ -106,6 +106,40 @@ Queda una decisión de segundo orden: los adjuntos. Las URL de medios de Meta ve
 
 ---
 
+## Huecos y notas del 22 de septiembre de 2026, sin resolver
+
+**Sesión medida: arranque 18:58, cierre 19:58, hora de Costa Rica.** Estaba prevista para F24 y no se construyó nada de F24. Se usó en las verificaciones previas (dependencias de F39, tamaño de F23 y F24), que encontraron los criterios perdidos, y en empezar la auditoría. La sesión se había planificado creyendo que eran las 17:00; el reloj verificado marcaba las 19:03.
+
+**El plano perdió criterios en la conciliación de `584226f`.** Confirmado en la pantalla de integraciones. En las demás funcionalidades está sin revisar. La auditoría empezó y quedó cortada por hora: estado, método y lista en `docs/auditoria-conciliacion.md`. **Va antes de F24 y del Bloque 3**, porque la línea de base del Bloque 3 asume que el alcance está completo.
+
+**F24, decisiones tomadas ese día, a aplicar en el plano cuando se construya:**
+
+- El criterio de WhatsApp se reescribe entero. El de la API oficial (nombre para mostrar y su aprobación) queda en el apéndice del plan B.
+- F24 muestra la conexión de Evolution y distingue en el modelo de datos "no pude preguntar" de "pregunté y está desconectado".
+- El estado de sesión se construye en F32.
+- Ni la clave global de Evolution ni el token de instancia se muestran nunca ni se loguean.
+- Los tres proveedores de IA van, **solo como pantalla**: tres claves a Vault y tres modelos por defecto. El cableado es de la Fase 2.
+- Facebook y X quedan afuera, y la sección de canales se arma leyendo `integration_configs`: un canal agregado como fila tiene que aparecer sin tocar código.
+- La sección de correo se construye aunque no haya clave todavía.
+
+**Sin decidir o sin definir:**
+
+- **El mecanismo del "tiempo real" del estado de las integraciones** (criterio perdido en la conciliación). Supabase Realtime solo avisa cuando cambia una fila, así que hace falta algo que consulte el estado externo y lo escriba. Lo que sí está decidido: **solo Owner y Admin lo ven**, también por Realtime.
+- **"Las notificaciones del sistema" de F23.** Los candidatos son las invitaciones al equipo, los avisos de `webhook_alerts` y la alerta de silencio de F39. Lo decide Marcos antes de F23.
+- **La marca de última ejecución de F39** no dice en qué pantalla va.
+- **El contador de F26** de mensajes sin teléfono resuelto tampoco dice en qué pantalla va.
+- **Las seis reglas de seguridad de F33** no tienen pantalla asignada. Son configuración del canal de WhatsApp.
+- **F23 no arranca hasta que el dominio `notificaciones.alomercadeo.com` esté verificado en Resend.** El 22/09 estaba en configuración.
+
+**Para verificar:**
+
+- **Que `EVOLUTION_API_URL` esté cargada en el servicio de la app en Railway.** Es variable de entorno por decisión, porque es infraestructura del despliegue y no configuración del negocio. Hoy solo la usan dos scripts, y la pantalla la va a necesitar.
+- **La versión de Node en producción no está fijada.** Pasó de `24.20.0` a `24.21.0` entre despliegues sin que nadie lo decidiera.
+
+**Para la Fase 2:** `lib/flow-engine/nodes/ai-response.ts:103` usa `createGateway`, y la decisión 4 del alcance dice conexión directa con cada proveedor. La migración va con el cableado de BYOK en el nodo.
+
+---
+
 ## Deuda anotada
 
 - `comment_logs` sin `contact_id`: se correlaciona con un lead por `author_username`. Bloque 4.
