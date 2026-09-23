@@ -609,6 +609,15 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F25: Modelo de contacto extendido"
     ],
+    "texto": "- [ ] Después de aplicar la migración de F25, `scripts/verify-lead-scope.mjs` se corre contra la base y da verde. El criterio original, \"RLS actualizada con la lógica de scope de leads de F3\", se había descartado por estar cumplido en el Bloque 1 con la 00019; eso vale solo mientras la migración nueva no abra un camino alrededor del scope, por ejemplo con una policy permisiva al lado de las de la 00019, y esta corrida es la que lo comprueba (devuelto el 23/09/2026, auditoría #38)"
+  },
+  {
+    "seccion": "F25: Modelo de contacto extendido",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 3: Modelo de contacto, ingesta y CRM",
+      "F25: Modelo de contacto extendido"
+    ],
     "texto": "- [ ] `contact_channels.platform_username` se escribe con el handle que trae el proveedor cuando lo trae: `participantUsername` en el listado y en `getInboxConversation`, `sender.username` en el webhook. Si ya tenía un valor, se reemplaza por el que trae el proveedor. **Si no lo trae, queda nulo. Nunca se deduce de la forma de otro campo**, aunque `participantName` tenga pinta de handle: hay nombres reales sin espacio, y un dato decidido por heurística falla en silencio. La identidad del canal no depende de esto: la resuelve F26 con `platformUserId`, y el handle es dato de presentación"
   },
   {

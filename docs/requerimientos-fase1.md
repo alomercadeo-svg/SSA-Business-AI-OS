@@ -507,6 +507,7 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 - [ ] Campo `phone_resolved` que marca si el teléfono ya se conoce o sigue pendiente
 - [ ] Índices en teléfono, correo, `contact_channels.platform_username` y marca de borrado, y compuestos por espacio de trabajo con teléfono y con correo
 - [ ] Los campos personalizados que ya existen se conservan sin modificar
+- [ ] Después de aplicar la migración de F25, `scripts/verify-lead-scope.mjs` se corre contra la base y da verde. El criterio original, "RLS actualizada con la lógica de scope de leads de F3", se había descartado por estar cumplido en el Bloque 1 con la 00019; eso vale solo mientras la migración nueva no abra un camino alrededor del scope, por ejemplo con una policy permisiva al lado de las de la 00019, y esta corrida es la que lo comprueba (devuelto el 23/09/2026, auditoría #38)
 
 **Criterios del nombre y del handle.** Agregados el 22 de septiembre de 2026, después de medir qué manda Zernio. El razonamiento está en la nota de abajo.
 
