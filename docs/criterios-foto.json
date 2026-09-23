@@ -402,7 +402,43 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F23: Email saliente vía Resend"
     ],
-    "texto": "- [ ] Se envían las invitaciones de equipo y las notificaciones del sistema"
+    "texto": "- [ ] Se envían las invitaciones de equipo"
+  },
+  {
+    "seccion": "F23: Email saliente vía Resend",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F23: Email saliente vía Resend"
+    ],
+    "texto": "- [ ] Existe una única función de servidor para mandar notificaciones del sistema por correo a Owner y Admin. Su primer uso son los avisos de `webhook_alerts`"
+  },
+  {
+    "seccion": "F23: Email saliente vía Resend",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F23: Email saliente vía Resend"
+    ],
+    "texto": "- [ ] **Control positivo:** se inserta una alerta en `webhook_alerts` y llega el correo"
+  },
+  {
+    "seccion": "F23: Email saliente vía Resend",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F23: Email saliente vía Resend"
+    ],
+    "texto": "- [ ] Techo contra el aluvión: como máximo un correo por tipo de aviso por hora. El aviso sigue registrado donde se originó; lo que se limita es el correo. **El valor es un supuesto inicial**, ajustable cuando haya datos de cuántos avisos llegan"
+  },
+  {
+    "seccion": "F23: Email saliente vía Resend",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F23: Email saliente vía Resend"
+    ],
+    "texto": "- [ ] La lista de notificaciones es cerrada: una notificación nueva se escribe primero como criterio de la funcionalidad que la dispara, y usa la función de F23. Hoy son dos: los avisos de `webhook_alerts`, entre ellos la alerta de silencio de F39, y el fin de una importación en segundo plano de F37"
   },
   {
     "seccion": "F23: Email saliente vía Resend",
@@ -1006,6 +1042,15 @@
       "F39: Detección de silencio del canal"
     ],
     "texto": "- [ ] Un trabajo periódico la compara contra un umbral configurable por canal, expresado en horas hábiles según la zona horaria del negocio, y abre una condición en `webhook_alerts` cuando se supera"
+  },
+  {
+    "seccion": "F39: Detección de silencio del canal",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 3: Modelo de contacto, ingesta y CRM",
+      "F39: Detección de silencio del canal"
+    ],
+    "texto": "- [ ] La alerta de silencio del canal se envía por correo vía F23"
   },
   {
     "seccion": "F39: Detección de silencio del canal",
@@ -1770,7 +1815,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F37: Importación de contactos desde planilla"
     ],
-    "texto": "- [ ] Cuando una importación corre en segundo plano, el usuario recibe una notificación al terminar (devuelto el 23/09/2026, auditoría #105c)"
+    "texto": "- [ ] Cuando una importación corre en segundo plano, el usuario recibe una notificación por correo al terminar, vía F23 (devuelto el 23/09/2026, auditoría #105c)"
   },
   {
     "seccion": "F37: Importación de contactos desde planilla",
