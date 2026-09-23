@@ -411,7 +411,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F23: Email saliente vía Resend"
     ],
-    "texto": "- [ ] Existe una única función de servidor para mandar notificaciones del sistema por correo a Owner y Admin. Su primer uso son los avisos de `webhook_alerts`"
+    "texto": "- [ ] Existe una única función de servidor para mandar notificaciones del sistema por correo, y recibe los destinatarios de forma explícita. Las alertas del sistema, los avisos de `webhook_alerts` y entre ellos el silencio del canal de F39, van a Owner y Admin; los avisos de una acción van a quien la hizo. Su primer uso son los avisos de `webhook_alerts`"
   },
   {
     "seccion": "F23: Email saliente vía Resend",
@@ -1815,7 +1815,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F37: Importación de contactos desde planilla"
     ],
-    "texto": "- [ ] Cuando una importación corre en segundo plano, el usuario recibe una notificación por correo al terminar, vía F23 (devuelto el 23/09/2026, auditoría #105c)"
+    "texto": "- [ ] Cuando una importación corre en segundo plano, quien importó recibe una notificación por correo al terminar, vía F23 (devuelto el 23/09/2026, auditoría #105c)"
   },
   {
     "seccion": "F37: Importación de contactos desde planilla",

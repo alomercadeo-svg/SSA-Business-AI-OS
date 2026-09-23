@@ -126,8 +126,8 @@ Queda una decisión de segundo orden: los adjuntos. Las URL de medios de Meta ve
 
 **Sin decidir o sin definir:**
 
-- **El mecanismo del "tiempo real" del estado de las integraciones** (criterio perdido en la conciliación). Supabase Realtime solo avisa cuando cambia una fila, así que hace falta algo que consulte el estado externo y lo escriba. Lo que sí está decidido: **solo Owner y Admin lo ven**, también por Realtime.
-- **"Las notificaciones del sistema" de F23.** Los candidatos son las invitaciones al equipo, los avisos de `webhook_alerts` y la alerta de silencio de F39. Lo decide Marcos antes de F23.
+- ~~El mecanismo del "tiempo real" del estado de las integraciones.~~ **Resuelto el 23 de septiembre de 2026, en el plano (`0ea2456`):** se detecta al abrir la pantalla y cuando una operación real falla, se guarda en `integration_configs` y llega por Realtime. Sin tarea periódica. Ver F24.
+- ~~"Las notificaciones del sistema" de F23.~~ **Resuelto el 23 de septiembre de 2026, en el plano (`997fdaf`):** una función única de F23, con destinatarios explícitos, techo de un correo por tipo de aviso por hora y lista cerrada. Ver F23.
 - **La marca de última ejecución de F39** no dice en qué pantalla va.
 - **El contador de F26** de mensajes sin teléfono resuelto tampoco dice en qué pantalla va.
 - **Las seis reglas de seguridad de F33** no tienen pantalla asignada. Son configuración del canal de WhatsApp.

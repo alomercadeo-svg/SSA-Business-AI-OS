@@ -111,7 +111,9 @@ Construidos en el Bloque 1 y verificados con `scripts/verify-lead-scope.mjs`, 24
 |---|---|---|---|
 | Owner | Dueño del negocio | Todo | |
 | Admin | Encargado o socio | Todo lo operativo, configuración, integraciones, invitar, revocar y cambiar roles | Remover miembros, tocar el rol de un Owner, ascender a alguien a Owner |
-| Member | Setter o vendedor | Ver y editar solo los contactos y conversaciones donde figura como setter, vendedor o agente asignado | Entrar a configuración, integraciones o equipo, y ver cualquier lead ajeno |
+| Member | Setter o vendedor | Ver y editar solo los contactos y conversaciones donde figura como setter, vendedor o agente asignado. Importar contactos desde una planilla (F37) | Entrar a configuración, integraciones o equipo, y ver cualquier lead ajeno |
+
+**El Member puede importar contactos.** Agregado el 23 de septiembre de 2026: este plano lo omitía. Fuente: el BRD v2, §3, fila Member ("importar CSV"), según Marcos; el BRD no está en el repo. El mismo texto está en la fila Member del §3 del plano en `ebc9702`, y eso sí está verificado. Lo que ve después de importar es un hueco abierto: ver §15.
 
 **Rol por defecto del primer usuario:** el primero que se registra queda como Owner de su propio espacio de trabajo, por un mecanismo automático que ya trae el proyecto base.
 
@@ -453,7 +455,7 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 
 - [ ] La clave de Resend se guarda en Vault desde `/settings/integrations`
 - [ ] Se envían las invitaciones de equipo
-- [ ] Existe una única función de servidor para mandar notificaciones del sistema por correo a Owner y Admin. Su primer uso son los avisos de `webhook_alerts`
+- [ ] Existe una única función de servidor para mandar notificaciones del sistema por correo, y recibe los destinatarios de forma explícita. Las alertas del sistema, los avisos de `webhook_alerts` y entre ellos el silencio del canal de F39, van a Owner y Admin; los avisos de una acción van a quien la hizo. Su primer uso son los avisos de `webhook_alerts`
 - [ ] **Control positivo:** se inserta una alerta en `webhook_alerts` y llega el correo
 - [ ] Techo contra el aluvión: como máximo un correo por tipo de aviso por hora. El aviso sigue registrado donde se originó; lo que se limita es el correo. **El valor es un supuesto inicial**, ajustable cuando haya datos de cuántos avisos llegan
 - [ ] La lista de notificaciones es cerrada: una notificación nueva se escribe primero como criterio de la funcionalidad que la dispara, y usa la función de F23. Hoy son dos: los avisos de `webhook_alerts`, entre ellos la alerta de silencio de F39, y el fin de una importación en segundo plano de F37
@@ -946,7 +948,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [ ] **Cada fila necesita al menos un identificador que permita deduplicar, de los enumerados en la sección 14.** El correo se valida con formato y el teléfono se normaliza a E.164 según §14, pero los dos son ejemplos, no la lista: un identificador único del sistema de origen sirve igual, y de hecho sirve mejor, porque allá ya se garantizó que es único. Una fila sin ningún identificador no se puede deduplicar y se rechaza con su motivo (devuelto el 23/09/2026, auditoría #103c)
 - [ ] Deduplicación por cualquiera de los identificadores que traiga la fila: identificador de origen, correo o teléfono, en ese orden de confianza. Si ya existe, actualiza en vez de duplicar. **El importador no decide qué cuenta como identificador:** la lista está en la sección 14 y admitir uno nuevo se escribe ahí primero
 - [ ] Más de 500 filas se procesan en segundo plano, no en el momento
-- [ ] Cuando una importación corre en segundo plano, el usuario recibe una notificación por correo al terminar, vía F23 (devuelto el 23/09/2026, auditoría #105c)
+- [ ] Cuando una importación corre en segundo plano, quien importó recibe una notificación por correo al terminar, vía F23 (devuelto el 23/09/2026, auditoría #105c)
 - [ ] Barra de progreso y resumen final con importados, actualizados y errores con detalle
 - [ ] Todo queda en el historial de auditoría
 
@@ -1879,9 +1881,10 @@ No se deciden leyendo documentación. Se instrumentan y se miran.
 
 ### Lo que se necesita antes de construir
 
-- **Resuelto el 23/09/2026: "las notificaciones del sistema" de F23.** Estaban sin definir, con tres candidatos: las invitaciones al equipo, los avisos de `webhook_alerts` y la alerta de silencio de F39. Ahora las invitaciones son un criterio aparte, y las notificaciones son una función única de F23 que les escribe a Owner y Admin, con techo contra el aluvión y lista cerrada. La alerta de F39 y el fin de importación de F37 la citan. El detalle está en F23.
+- **Resuelto el 23/09/2026: "las notificaciones del sistema" de F23.** Estaban sin definir, con tres candidatos: las invitaciones al equipo, los avisos de `webhook_alerts` y la alerta de silencio de F39. Ahora las invitaciones son un criterio aparte, y las notificaciones son una función única de F23 que recibe los destinatarios de forma explícita: las alertas del sistema van a Owner y Admin, y los avisos de una acción a quien la hizo. Tiene techo contra el aluvión y lista cerrada. La alerta de F39 y el fin de importación de F37 la citan. El detalle está en F23.
 - **Resuelto el 23/09/2026: el mecanismo del tiempo real del estado de las integraciones, para F24.** Se detecta al abrir la pantalla y cuando una operación real falla, se guarda en `integration_configs` y llega por Realtime. No hay tarea periódica: detectar una caída cuando nadie mira es de F39. La definición, los controles y el costo aceptado están en F24. Este hueco se había anotado acá cuando el criterio volvió sin mecanismo (auditoría #32).
 - **La pantalla de importación no está especificada, ni para F37 ni para F38.** La sección 11 no la tiene: el Bloque 4 documenta bandeja, canales y configuración del canal de WhatsApp, y ninguna pantalla de importación. El hueco es anterior a F38, pero F38 lo vuelve urgente, porque pide que esa pantalla permita cambiar el código de país por defecto para una importación puntual. **Hay que especificarla antes de construir el Bloque 4**, o esa decisión se va a tomar mientras se escribe el código, que es exactamente donde termina siendo una constante cableada.
+- **Otro hueco de la pantalla de importación, sin resolver (anotado el 23/09/2026).** Un Member puede importar (§3), pero un Member que importa contactos sin asignarse no los ve después: los contactos sin asignar los ven solo Owner y Admin, que es el valor por defecto de la configuración del espacio de trabajo en F3. Se decide al especificar la pantalla.
 - El número dedicado de WhatsApp, todavía en trámite. No bloquea el Bloque 2 ni el 3, pero sí la conexión en vivo.
 - Verificación del negocio en Meta: **no hecha**. No bloquea nada del camino principal; sirve para el plan B, donde levanta el tope de 250 contactos únicos cada 24 horas. Se comprueba en Business Manager.
 

@@ -54,5 +54,19 @@
     "nuevo": "- [ ] Cuando una importación corre en segundo plano, el usuario recibe una notificación por correo al terminar, vía F23 (devuelto el 23/09/2026, auditoría #105c)",
     "motivo": "La notificación del fin de importación pasa a usar la función única de F23, decidida el 23/09/2026.",
     "fecha": "2026-09-23"
+  },
+  {
+    "texto": "- [ ] Existe una única función de servidor para mandar notificaciones del sistema por correo a Owner y Admin. Su primer uso son los avisos de `webhook_alerts`",
+    "destino": "reescrito",
+    "nuevo": "- [ ] Existe una única función de servidor para mandar notificaciones del sistema por correo, y recibe los destinatarios de forma explícita. Las alertas del sistema, los avisos de `webhook_alerts` y entre ellos el silencio del canal de F39, van a Owner y Admin; los avisos de una acción van a quien la hizo. Su primer uso son los avisos de `webhook_alerts`",
+    "motivo": "Decidido el 23/09/2026: los destinatarios se pasan explícitos, porque el fin de una importación va a quien importó, que puede ser un Member.",
+    "fecha": "2026-09-23"
+  },
+  {
+    "texto": "- [ ] Cuando una importación corre en segundo plano, el usuario recibe una notificación por correo al terminar, vía F23 (devuelto el 23/09/2026, auditoría #105c)",
+    "destino": "reescrito",
+    "nuevo": "- [ ] Cuando una importación corre en segundo plano, quien importó recibe una notificación por correo al terminar, vía F23 (devuelto el 23/09/2026, auditoría #105c)",
+    "motivo": "Decidido el 23/09/2026: el aviso de fin de importación es un aviso de una acción y va a quien la hizo, no a Owner y Admin.",
+    "fecha": "2026-09-23"
   }
 ]
