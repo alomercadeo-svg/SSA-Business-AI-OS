@@ -170,7 +170,7 @@ Las siete cosas de la lista vieja, dónde quedaron: el adaptador de Evolution en
 
 ---
 
-## Sesión del 23 de septiembre de 2026, tarde: F24 construida
+## Sesión del 23 de septiembre de 2026, tarde: F24, construida en parte
 
 **Inicio 14:02, cierre 15:18, hora de Costa Rica.**
 
