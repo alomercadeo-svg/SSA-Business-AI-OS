@@ -51,6 +51,8 @@ Los procedimientos ejecutables no van en ninguno de los dos: van en `docs/`, uno
 
 **Verificadores:** `npm run verify:security` corre `verify-lead-scope.mjs` (24 comprobaciones) y `verify-realtime-scope.mjs` (7). No corren con `npm test`, a propósito: la suite puede estar en verde con el scope roto.
 
+**Avance de la Fase 1, contado el 23 de septiembre de 2026 sobre la línea de estado de cada funcionalidad del plano.** **25 funcionalidades a construir**: F1 a F4 y F21 a F41. Quedan afuera F5, eliminada de la fase, y F6, F6b y F6c, que son del plan B. **5 completas:** F1, F2, F3, F4 y F21. **F22 está construida con un criterio pendiente**: la idempotencia igual para los dos canales, devuelta ese día por la auditoría (#5), que nadie comprobó todavía en los dos canales. Parciales, según su línea de estado: F24, F34 y F35.
+
 **Tests al cerrar el Bloque 1:** 108 en 12 archivos. El fork traía 60 en 7. **Ese número sube con cada bloque: no lo copies, contalo con `npm test`.**
 
 ---
@@ -162,7 +164,7 @@ Queda una decisión de segundo orden: los adjuntos. Las URL de medios de Meta ve
 
 **Acá decía "correr `05-requerimientos` para generar el plano de los Bloques 2, 3 y 4", con la lista de siete cosas que tenían que entrar. Eso ya se hizo y la lista entera está cubierta.** El pendiente quedó escrito como si siguiera abierto durante toda la construcción del Bloque 2, que es lo que pasa cuando un documento de estado se escribe al cerrar un bloque y no se vuelve a mirar.
 
-**El plano es `docs/requerimientos-fase1.md` y es el único.** F1 a F39, una sola numeración. Hasta el 21 de septiembre de 2026 convivió con `docs/requerimientos-bloques-2-3-4.md`, que numeraba distinto; se conciliaron en uno y el segundo se borró. Hay un test, `docs/docs-unicos.test.ts`, que falla si aparece otro.
+**El plano es `docs/requerimientos-fase1.md` y es el único.** Una sola numeración: F1 a F5 del Bloque 1, F21 a F41 de los bloques 2 a 4, y F6, F6b y F6c en el apéndice del plan B, que conservan el número del documento viejo. Vigente desde el 23 de septiembre de 2026, cuando se sumaron F41 y F6. Hasta el 21 de septiembre de 2026 convivió con `docs/requerimientos-bloques-2-3-4.md`, que numeraba distinto; se conciliaron en uno y el segundo se borró. Hay un test, `docs/docs-unicos.test.ts`, que falla si aparece otro.
 
 Las siete cosas de la lista vieja, dónde quedaron: el adaptador de Evolution en F22, el guardado de mensajes entrantes en F27, las seis reglas de seguridad en F33, el estado de sesión en F32, la autenticación del webhook en F22, el despliegue de Railway en F21, y el modelo de ventana y plantillas en §4.12b marcado como condicional al plan B.
 
@@ -201,7 +203,9 @@ Después, el Bloque 3: modelo de contacto extendido (F25), identidad de canal y 
 
 **Línea de base fijada el 22 de septiembre de 2026, antes de arrancar el bloque.** No se toca mientras se mide.
 
-**El alcance son las ocho funcionalidades del Bloque 3 en el plano**, y ninguna más: F25, F26, F27, F28, F29, F30, F31 y F39. F26 incluye el criterio agregado ese mismo día sobre la identidad del canal, que entró **antes** de fijar esta línea de base.
+**Corregida el 23 de septiembre de 2026, con la medición sin arrancar: de ocho funcionalidades a nueve, con F41.** La estimación original ya contaba con la asignación de setter y vendedor: la tabla de bloques de §2 del plano en `ebc9702` pone el Bloque 3 en los días "3-4" y nombra "setter/vendedor" entre lo que construye. La línea de base del 22/09 se fijó sobre un plano que había perdido F11 en la conciliación de `584226f`, así que medía contra un alcance más chico que el que se había estimado. F41 no es una funcionalidad que se le suma al bloque: es la que le faltaba a la línea de base. La estimación sigue en 2 días y el pronóstico se mantiene. Ver `docs/auditoria-conciliacion.md`, #45 a #50.
+
+**El alcance son las nueve funcionalidades del Bloque 3 en el plano**, y ninguna más: F25, F26, F27, F28, F29, F30, F31, F39 y F41. F26 incluye el criterio agregado el 22 de septiembre sobre la identidad del canal, que entró **antes** de fijar esta línea de base.
 
 **La estimación son 2 días hábiles para el bloque entero**, los "días 3 a 4" de la tabla de bloques del plano. Circuló también una cifra de 1,5 días, pero no era una duración: era una lectura mal copiada del gráfico de avance, y se corrigió donde aparecía.
 
@@ -209,7 +213,7 @@ Después, el Bloque 3: modelo de contacto extendido (F25), identidad de canal y 
 |---|---|---|---|---|
 | 1 | F31, F25, F26 | El modelo de contacto y la identidad de canal. **F31 primero:** F26 escribe en la auditoría, y la tabla no existe hasta F31 | | |
 | 2 | F27, F28, F39 | El camino de entrada. F28 y F39 cuelgan de F27 | | |
-| 3 | F29, F30 | El lado de CRM, que no toca la ingesta | | |
+| 3 | F29, F30, F41 | El lado de CRM, que no toca la ingesta. F41 va con F30 porque la asignación se ve y se edita en la ficha | | |
 | **Bloque** | | | **Planificado: 2 días** | |
 
 **Por qué tres sesiones y no dos.** La partición en dos que estaba escrita acá nombraba F25 a F29 y dejaba afuera F30, F31 y F39. Nunca fue una partición completa: se escribió antes de que F39 existiera y sin contar F30 ni F31. Y **sesiones y días no son lo mismo**: las sesiones son unidades de trabajo, los dos días son la estimación. Se miden tres sesiones contra dos días planificados, y si tarda cuatro, ese es el resultado. Meter cinco funcionalidades en una sesión para que entren en dos no mejora la estimación: produce una sesión que se desborda y no enseña nada.
@@ -226,6 +230,6 @@ Después, el Bloque 3: modelo de contacto extendido (F25), identidad de canal y 
 
 **Para qué sirve, concretamente:** la próxima decisión de alcance —qué entra en la Fase 2, si el Bloque 4 se parte, cuánto dura la fase— se va a tomar con este dato o con otra proyección. Hoy todas las estimaciones del plano descienden de la misma suposición inicial y ninguna se contrastó nunca contra un bloque terminado.
 
-**Esta es también la razón por la que F32 no se adelantó al Bloque 3**, decidido el 22 de septiembre de 2026: sumarle una funcionalidad al bloque que se va a medir destruye la comparación, porque ya no serían los mismos dos días planificados. El razonamiento completo está en `docs/requerimientos-fase1.md` §4.7.
+**Esta es también la razón por la que F32 no se adelantó al Bloque 3**, decidido el 22 de septiembre de 2026: sumarle una funcionalidad al bloque que se va a medir destruye la comparación, porque ya no serían los mismos dos días planificados. El razonamiento completo está en `docs/requerimientos-fase1.md` §4.7. **F41 no contradice esto:** F32 era del Bloque 4 en la estimación original, y F41 estaba en el Bloque 3 desde el principio.
 
 Sin fecha: el Flujo 4 del plano, la conexión en vivo de WhatsApp. Espera el número dedicado **y el cierre del Bloque 4**, porque la compuerta son F27 y F32, y F32 se queda en el Bloque 4. Ver el Flujo 4, pasos 4 y 5.

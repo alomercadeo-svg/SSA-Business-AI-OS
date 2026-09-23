@@ -348,6 +348,11 @@ Recontado con script el 23/09/2026, después de buscar cada P en la prosa.
 3. ~~Clasificar.~~ Hecho, de forma provisoria.
 4. ~~Revisar la lista entera juntos, y decidir si R\* cuenta como presente.~~ Hecho el 23/09: cada
    perdida y cada R\* tiene destino A, B o C (ver "Destinos").
-5. Recién ahí corregir el plano. El commit que cree F41 corrige también la fila F11 de §16. Cada corrección pasa por la foto de criterios. Las bajas deliberadas
+5. ~~Corregir el plano.~~ Hecho el 23/09, del commit `af42bd3` al `7f03688`, uno por tema: cada A y cada B
+   volvió con el sufijo "(devuelto el 23/09/2026, auditoría #N)", y F41 corrigió la fila F11 de §16.
+   Las líneas citadas en las tablas de arriba son las de antes de la devolución.
+6. **Pendiente, para achicar este documento:** pegar el motivo de cada una de las 11 D (#2, #19, #23,
+   #31b, #34b, #34c, #36b, #38, #73b, #96, #105b) junto al criterio que la reemplaza o al lugar donde
+   se decidió. Mientras el motivo viva solo acá, esta auditoría no se puede archivar. Cada corrección pasa por la foto de criterios. Las bajas deliberadas
    (las D) van a `docs/criterios-bajas.json` solo si alguna vez estuvieron en la foto. Estas son
    anteriores a la foto, así que su registro es este documento.
