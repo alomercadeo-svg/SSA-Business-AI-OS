@@ -1,0 +1,878 @@
+[
+  {
+    "seccion": "F1: Fork y deploy de ZernFlow",
+    "texto": "- [ ] Repositorio forkeado desde `https://github.com/zernio-dev/zernflow` y clonado"
+  },
+  {
+    "seccion": "F1: Fork y deploy de ZernFlow",
+    "texto": "- [ ] Proyecto Railway creado con **un solo servicio**: la app Next.js"
+  },
+  {
+    "seccion": "F1: Fork y deploy de ZernFlow",
+    "texto": "- [ ] Proyecto Supabase creado con plan Pro"
+  },
+  {
+    "seccion": "F1: Fork y deploy de ZernFlow",
+    "texto": "- [ ] Las **16 migraciones del fork** ejecutadas sin errores, **24 tablas creadas**"
+  },
+  {
+    "seccion": "F1: Fork y deploy de ZernFlow",
+    "texto": "- [ ] Variables de entorno configuradas: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `NEXT_PUBLIC_APP_URL`"
+  },
+  {
+    "seccion": "F1: Fork y deploy de ZernFlow",
+    "texto": "- [ ] **La versión de `@zernio/node` está fijada exacta** (no con `^`): una librería 0.x puede romper compatibilidad entre versiones menores"
+  },
+  {
+    "seccion": "F1: Fork y deploy de ZernFlow",
+    "texto": "- [ ] La app carga y permite registrarse"
+  },
+  {
+    "seccion": "F1: Fork y deploy de ZernFlow",
+    "texto": "- [ ] Al registrarse se crea un workspace con el usuario como Owner"
+  },
+  {
+    "seccion": "F1: Fork y deploy de ZernFlow",
+    "texto": "- [ ] Las pantallas existentes cargan sin errores (dashboard, inbox, contacts, flows, sequences, settings)"
+  },
+  {
+    "seccion": "F2: Supabase Vault y migración de claves",
+    "texto": "- [ ] Extensión habilitada: `CREATE EXTENSION IF NOT EXISTS vault WITH SCHEMA vault`"
+  },
+  {
+    "seccion": "F2: Supabase Vault y migración de claves",
+    "texto": "- [ ] Funciones RPC creadas: `store_secret(secret_name, secret_value, workspace_id)`, `read_secret(secret_name, workspace_id)`, `delete_secret(secret_name, workspace_id)`"
+  },
+  {
+    "seccion": "F2: Supabase Vault y migración de claves",
+    "texto": "- [ ] Los secrets están aislados por `workspace_id`: un workspace no puede leer los de otro"
+  },
+  {
+    "seccion": "F2: Supabase Vault y migración de claves",
+    "texto": "- [ ] Solo Owner y Admin pueden crear, leer o eliminar secrets"
+  },
+  {
+    "seccion": "F2: Supabase Vault y migración de claves",
+    "texto": "- [ ] Un secret guardado se lee correctamente y devuelve el valor original; uno eliminado ya no es accesible"
+  },
+  {
+    "seccion": "F2: Supabase Vault y migración de claves",
+    "texto": "- [ ] Los secrets no aparecen en logs ni en respuestas de API, salvo la función de lectura explícita"
+  },
+  {
+    "seccion": "F2: Supabase Vault y migración de claves",
+    "texto": "- [ ] **Migración de las claves en texto plano**: los valores de `workspaces.late_api_key_encrypted` y `workspaces.ai_api_key` se copian a Vault"
+  },
+  {
+    "seccion": "F2: Supabase Vault y migración de claves",
+    "texto": "- [ ] **Todas las lecturas del código apuntan a Vault.** Verificar al menos: `lib/sequence-processor.ts`, `lib/flow-engine/nodes/ai-response.ts`, `lib/flow-engine/engine.ts`, `lib/comment-processor.ts`"
+  },
+  {
+    "seccion": "F2: Supabase Vault y migración de claves",
+    "texto": "- [ ] **Las columnas viejas se eliminan** de la tabla `workspaces` en la misma migración"
+  },
+  {
+    "seccion": "F2: Supabase Vault y migración de claves",
+    "texto": "- [ ] Prueba: consultar `select * from workspaces` no devuelve ninguna clave de API"
+  },
+  {
+    "seccion": "F3: Roles, workspaces y scope de leads",
+    "texto": "- [ ] El primer usuario que se registra recibe el rol Owner automáticamente"
+  },
+  {
+    "seccion": "F3: Roles, workspaces y scope de leads",
+    "texto": "- [ ] Owner puede invitar desde `/settings/team`; las invitaciones expiran en 7 días"
+  },
+  {
+    "seccion": "F3: Roles, workspaces y scope de leads",
+    "texto": "- [ ] Un usuario invitado se registra con el rol Member por defecto"
+  },
+  {
+    "seccion": "F3: Roles, workspaces y scope de leads",
+    "texto": "- [ ] Owner y Admin pueden cambiar el rol de un miembro"
+  },
+  {
+    "seccion": "F3: Roles, workspaces y scope de leads",
+    "texto": "- [ ] Solo Owner puede remover miembros"
+  },
+  {
+    "seccion": "F3: Roles, workspaces y scope de leads",
+    "texto": "- [ ] Member no puede acceder a Settings del workspace, canales, equipo ni Vault"
+  },
+  {
+    "seccion": "F3: Roles, workspaces y scope de leads",
+    "texto": "- [ ] Los datos de un workspace son invisibles para miembros de otros workspaces"
+  },
+  {
+    "seccion": "F3: Roles, workspaces y scope de leads",
+    "texto": "- [ ] Existe una función helper `can_see_contact(contact_row)` usada en las policies de SELECT, UPDATE y DELETE de `contacts`"
+  },
+  {
+    "seccion": "F3: Roles, workspaces y scope de leads",
+    "texto": "- [ ] Un Member solo lee contactos donde `setter_id = auth.uid()` o `vendedor_id = auth.uid()`"
+  },
+  {
+    "seccion": "F3: Roles, workspaces y scope de leads",
+    "texto": "- [ ] Los contactos sin asignar se rigen por una configuración del workspace (por defecto: solo Owner y Admin)"
+  },
+  {
+    "seccion": "F3: Roles, workspaces y scope de leads",
+    "texto": "- [ ] La misma lógica aplica a `conversations`, por `assigned_to` y por el contacto asociado"
+  },
+  {
+    "seccion": "F3: Roles, workspaces y scope de leads",
+    "texto": "- [ ] **Prueba por API, no solo por UI**: con el token de un Member, un `GET` directo a Supabase de un contacto ajeno devuelve vacío, no el registro"
+  },
+  {
+    "seccion": "F3: Roles, workspaces y scope de leads",
+    "texto": "- [ ] **Prueba de Realtime**: un Member suscrito a `conversations` y `messages` **no recibe eventos** de conversaciones que no le corresponden. Si Realtime no respeta la policy, se filtra del lado del servidor antes de emitir"
+  },
+  {
+    "seccion": "F3: Roles, workspaces y scope de leads",
+    "texto": "- [ ] Al reasignar un lead, cambia inmediatamente quién puede verlo"
+  },
+  {
+    "seccion": "F3: Roles, workspaces y scope de leads",
+    "texto": "- [ ] Si a un Member le quitan un lead que tenía abierto en pantalla, la vista muestra un mensaje claro, no un error crudo de permisos"
+  },
+  {
+    "seccion": "F4: Instagram vía Zernio",
+    "texto": "- [ ] Se puede conectar una cuenta de Instagram desde la UI con la API key de Zernio"
+  },
+  {
+    "seccion": "F4: Instagram vía Zernio",
+    "texto": "- [ ] Los DMs entrantes llegan en tiempo real por webhook"
+  },
+  {
+    "seccion": "F4: Instagram vía Zernio",
+    "texto": "- [ ] Los comentarios se reciben y se pueden responder"
+  },
+  {
+    "seccion": "F4: Instagram vía Zernio",
+    "texto": "- [ ] Las story replies llegan a la bandeja"
+  },
+  {
+    "seccion": "F4: Instagram vía Zernio",
+    "texto": "- [ ] Los mensajes se vinculan al contacto correcto por username de Instagram"
+  },
+  {
+    "seccion": "F4: Instagram vía Zernio",
+    "texto": "- [ ] Se pueden enviar respuestas desde la bandeja"
+  },
+  {
+    "seccion": "F4: Instagram vía Zernio",
+    "texto": "- [ ] El estado de la conexión es visible en `/settings/integrations`"
+  },
+  {
+    "seccion": "F4: Instagram vía Zernio",
+    "texto": "- [ ] Los mensajes se almacenan en `messages` con la referencia correcta a conversación y canal"
+  },
+  {
+    "seccion": "F23: Email saliente vía Resend",
+    "texto": "- [ ] La clave de Resend se guarda en Vault desde `/settings/integrations`"
+  },
+  {
+    "seccion": "F23: Email saliente vía Resend",
+    "texto": "- [ ] Se envían las invitaciones de equipo y las notificaciones del sistema"
+  },
+  {
+    "seccion": "F23: Email saliente vía Resend",
+    "texto": "- [ ] El remitente es el dominio verificado por el negocio en Resend"
+  },
+  {
+    "seccion": "F23: Email saliente vía Resend",
+    "texto": "- [ ] Si falla un envío, se registra el error y se reintenta hasta 3 veces"
+  },
+  {
+    "seccion": "F23: Email saliente vía Resend",
+    "texto": "- [ ] Los correos enviados quedan registrados para poder consultarlos"
+  },
+  {
+    "seccion": "F23: Email saliente vía Resend",
+    "texto": "- [ ] Cierra una deuda del Bloque 1: la invitación deja de depender de copiar un link a mano"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "texto": "- [ ] Pantalla en `/settings/integrations`, solo para Owner y Admin, con el control de rol hecho en el servidor"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "texto": "- [ ] Sección de canales de mensajería, con Instagram vía Zernio, WhatsApp vía Evolution con su estado de sesión, y Facebook y X como opcionales"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "texto": "- [ ] Sección de correo, con Resend y su dominio verificado"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "texto": "- [ ] Sección de proveedores de IA, con OpenAI, Anthropic y Google, cada uno con su clave y su modelo por defecto"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "texto": "- [ ] Todas las claves van a Vault. Ninguna viaja al navegador: la pantalla muestra \"configurada\" o \"sin configurar\" según exista el secreto, nunca su valor"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "texto": "- [ ] Cada integración es un registro con su tipo. Agregar una nueva en la Etapa 2 no requiere cambiar la base de datos"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "texto": "- [ ] Al guardar una clave se valida el formato, con largo mínimo y prefijo esperado donde corresponda"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "texto": "- [ ] **Estado del registro del webhook de Zernio, visible en la sección de canales:** si está registrado, contra qué URL, y cuándo se verificó por última vez. Se lee de `GET /v1/webhooks/settings`, que ya devuelve todo eso"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "texto": "- [ ] Ese estado nunca muestra el secreto de firma, que esa misma respuesta trae en texto plano. A lo sumo longitud y últimos cuatro caracteres, igual que el resto de las claves"
+  },
+  {
+    "seccion": "F25: Modelo de contacto extendido",
+    "texto": "- [ ] Se agregan a `contacts`: `phone`, `secondary_email`, `country`, `whatsapp_phone`, `next_followup_date`, `do_not_contact`, `do_not_contact_reason`, `do_not_contact_at`, `ai_conversation_summary`, `lead_temperature`, `attribution`, `deleted_at`, `display_name_source`. Los campos de asignación ya existen desde el Bloque 1. **`instagram_username` estaba en esta lista y se sacó el 22 de septiembre de 2026:** el handle es por canal, no por contacto. Un contacto va a tener más de uno, y ya existe dónde guardarlo: `contact_channels.platform_username`"
+  },
+  {
+    "seccion": "F25: Modelo de contacto extendido",
+    "texto": "- [ ] El teléfono se normaliza a formato internacional en el servidor, no solo en el formulario. Sin esto la deduplicación entre canales falla, y arreglarlo después implica limpiar datos sucios"
+  },
+  {
+    "seccion": "F25: Modelo de contacto extendido",
+    "texto": "- [ ] El teléfono NO es obligatorio. Un contacto de WhatsApp puede existir sin teléfono conocido"
+  },
+  {
+    "seccion": "F25: Modelo de contacto extendido",
+    "texto": "- [ ] Campo `phone_resolved` que marca si el teléfono ya se conoce o sigue pendiente"
+  },
+  {
+    "seccion": "F25: Modelo de contacto extendido",
+    "texto": "- [ ] Índices en teléfono, correo, `contact_channels.platform_username` y marca de borrado, y compuestos por espacio de trabajo con teléfono y con correo"
+  },
+  {
+    "seccion": "F25: Modelo de contacto extendido",
+    "texto": "- [ ] Los campos personalizados que ya existen se conservan sin modificar"
+  },
+  {
+    "seccion": "F25: Modelo de contacto extendido",
+    "texto": "- [ ] `contact_channels.platform_username` se escribe con el handle que trae el proveedor cuando lo trae: `participantUsername` en el listado y en `getInboxConversation`, `sender.username` en el webhook. Si ya tenía un valor, se reemplaza por el que trae el proveedor. **Si no lo trae, queda nulo. Nunca se deduce de la forma de otro campo**, aunque `participantName` tenga pinta de handle: hay nombres reales sin espacio, y un dato decidido por heurística falla en silencio. La identidad del canal no depende de esto: la resuelve F26 con `platformUserId`, y el handle es dato de presentación"
+  },
+  {
+    "seccion": "F25: Modelo de contacto extendido",
+    "texto": "- [ ] `contacts.display_name_source` registra de dónde salió el nombre: `provider` o `manual`. **Un nombre de origen `manual` no lo pisa nunca ningún camino automático**: ni la importación, ni el webhook, ni el relleno de F27"
+  },
+  {
+    "seccion": "F25: Modelo de contacto extendido",
+    "texto": "- [ ] `attribution` es `jsonb` con default `'{}'`, con estructura de `first_click` y `last_click`"
+  },
+  {
+    "seccion": "F25: Modelo de contacto extendido",
+    "texto": "- [ ] `first_click` se escribe una sola vez y no se modifica nunca más. Es el dato que dice de dónde salió el lead, y se pierde para siempre si se sobreescribe"
+  },
+  {
+    "seccion": "F25: Modelo de contacto extendido",
+    "texto": "- [ ] `last_click` se actualiza en cada interacción nueva que traiga parámetros de seguimiento"
+  },
+  {
+    "seccion": "F25: Modelo de contacto extendido",
+    "texto": "- [ ] No requiere política de acceso adicional: hereda la de `contacts`"
+  },
+  {
+    "seccion": "F25: Modelo de contacto extendido",
+    "texto": "- [ ] Para contactos que lleguen por un anuncio de click-to-WhatsApp se registra el origen. La marca de ventana de 72 horas que eso habilita es del plan B: ver el apéndice"
+  },
+  {
+    "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
+    "texto": "- [ ] `contact_channels` guarda el identificador crudo tal como llegó y el modo de direccionamiento, además del teléfono derivado"
+  },
+  {
+    "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
+    "texto": "- [ ] Cada mensaje guarda el identificador con el que llegó, sin sobrescribirlo"
+  },
+  {
+    "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
+    "texto": "- [ ] Un contacto sin teléfono conocido entra como contacto nuevo, con marca visible de \"teléfono sin resolver\""
+  },
+  {
+    "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
+    "texto": "- [ ] Nunca se deduplica por nombre. Un duplicado visible y reconciliable es preferible a una fusión incorrecta, que es destructiva y difícil de deshacer"
+  },
+  {
+    "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
+    "texto": "- [ ] Reconciliación posterior por tres vías, todas con registro en el historial de auditoría:"
+  },
+  {
+    "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
+    "texto": "1. Un mensaje posterior de la misma conversación que sí traiga el teléfono"
+  },
+  {
+    "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
+    "texto": "2. El aviso de actualización de contacto que manda Evolution, que aplica el mismo criterio"
+  },
+  {
+    "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
+    "texto": "3. Carga manual del teléfono por el operador desde la ficha. Esta es la que garantiza que el caso nunca queda trabado, y es barata de construir"
+  },
+  {
+    "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
+    "texto": "- [ ] Al reconciliar, si ya existe otro contacto con ese teléfono, se propone la fusión mostrando los dos lados. La fusión la confirma una persona, nunca es automática"
+  },
+  {
+    "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
+    "texto": "- [ ] Al fusionar se unifican conversaciones, notas, etiquetas y atribución"
+  },
+  {
+    "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
+    "texto": "- [ ] Instrumentación obligatoria: contador de cuántos mensajes entrantes llegan sin teléfono resuelto, visible para el Owner. Es el dato que decide si esto es marginal o si hay que invertir más"
+  },
+  {
+    "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
+    "texto": "- [ ] **La identidad de un canal es la cuenta en la plataforma, no la ranura del proveedor.** `channels` guarda el identificador de la cuenta en la plataforma (`platformUserId` en la respuesta de Zernio), y `late_account_id` queda solo como referencia al proveedor. Si una sincronización encuentra el mismo `late_account_id` con otro `platformUserId`, **no renombra la fila**: la desactiva, crea un canal nuevo para la cuenta nueva, y lo registra en el historial de auditoría. Agregado el 22 de septiembre de 2026, antes de fijar la línea de base del Bloque 3; el motivo está abajo"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "- [ ] Los mensajes entrantes se guardan en `messages`. Hoy solo se guardan los salientes"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "- [ ] Restricción de unicidad sobre la combinación de chat, identificador de mensaje y dirección, no sobre el identificador solo: ese identificador lo genera el teléfono que envía y es único por conversación, no en todo el sistema. La propia base de Evolution no deduplica, así que los duplicados son esperables"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "- [ ] La fecha del proveedor viene en segundos y se convierte al guardar"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "- [ ] Se contemplan las dos formas del aviso: el de mensaje individual trae un objeto, el de sincronización trae una lista"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "- [ ] Se guarda la referencia al mensaje citado, para poder reconstruir hilos, aunque ese mensaje todavía no exista de nuestro lado"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "- [ ] Tipos soportados: texto, imagen, audio, documento, video, sticker, ubicación y respuesta a otro mensaje"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "- [ ] La base pasa a ser la fuente de verdad de la bandeja. Después de esta funcionalidad, la bandeja no consulta más al proveedor para mostrar mensajes"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "- [ ] El camino de entrada es el mismo para Instagram y WhatsApp, sin condicionales por plataforma más allá del adaptador"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "- [ ] **Importación del historial de Instagram que ya existe.** Ver abajo: sin esto, el criterio anterior hace que la bandeja pierda las conversaciones viejas el día que se migre"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "- [ ] **Relleno oportunista del nombre y el handle, con techo.** Al procesar un `message.received` de Instagram, si el remitente tiene `contact_channels.profile_status = 'pending'`, se relee esa sola conversación con `zernio.messages.getInboxConversation` (`GET /v1/inbox/conversations/{conversationId}`, con `accountId` obligatorio). Va en el procesamiento en segundo plano, **después** del acuse de recibo, nunca antes. Si la respuesta trae `instagramProfile`:"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "- se escribe `platform_username` con `participantUsername`;"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "- se escribe `contacts.display_name` con `participantName`, **solo si** `display_name_source` es `provider`;"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "- `profile_status` pasa a `complete`."
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "Si no lo trae, se suma uno a `profile_attempts`, y **a los 3 intentos `profile_status` pasa a `unavailable` y no se reintenta más**. La señal de \"ya tiene nombre real\" es que venga `instagramProfile`, **no la forma del nombre**. Rendirse cuesta cero: el contacto se queda con el handle, que es donde está hoy. Sin el techo, cada contacto cuyo perfil nunca se complete dispararía una llamada extra a la API en cada mensaje entrante, para siempre. Con los datos de hoy, eso serían 498 de 500"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "- [ ] **Control positivo del relleno, determinista.** Se prueba con la respuesta de `getInboxConversation` **simulada**, no contra Zernio en vivo. Tres casos:"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "1. Un contacto con nombre de origen `provider` y `profile_status = 'pending'` **recibe** nombre y handle cuando la respuesta simulada trae `instagramProfile`."
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "2. **No cambia nada** cuando no lo trae, salvo `profile_attempts`."
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "3. Un nombre de origen `manual` no se pisa aunque la respuesta traiga perfil."
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "texto": "**Probar solo el tercer caso no alcanza:** no distingue entre \"está bien hecho\" y \"está todo congelado\". **Y no va contra la API real** porque, en lo medido, el perfil aparece alrededor de un segundo antes de la entrega del webhook. Un test que dependa de ganar esa carrera falla de vez en cuando, y un test así termina desactivado, que es perder el control positivo entero"
+  },
+  {
+    "seccion": "F39: Detección de silencio del canal",
+    "texto": "- [ ] Cada canal guarda la marca de tiempo del último evento entrante recibido, actualizada por el receptor"
+  },
+  {
+    "seccion": "F39: Detección de silencio del canal",
+    "texto": "- [ ] Un trabajo periódico la compara contra un umbral configurable por canal, expresado en horas hábiles según la zona horaria del negocio, y abre una condición en `webhook_alerts` cuando se supera"
+  },
+  {
+    "seccion": "F39: Detección de silencio del canal",
+    "texto": "- [ ] El mismo trabajo escribe su propia marca de última ejecución, visible en la interfaz. Esa marca es el control positivo del chequeo: **sin ella, F39 no se puede dar por verde**"
+  },
+  {
+    "seccion": "F39: Detección de silencio del canal",
+    "texto": "- [ ] Con el canal activo y el receptor detenido a propósito, la condición se abre"
+  },
+  {
+    "seccion": "F39: Detección de silencio del canal",
+    "texto": "- [ ] Con el trabajo periódico detenido a propósito, la marca de última ejecución envejece y se ve en pantalla"
+  },
+  {
+    "seccion": "F39: Detección de silencio del canal",
+    "texto": "- [ ] **El mismo trabajo consulta la lista de eventos registrada en el proveedor y la compara contra la constante esperada** (`WEBHOOK_EVENTS` de `lib/zernio-webhook.ts`). Si difieren, abre una condición en `webhook_alerts` **nombrando qué evento falta**, no un aviso genérico"
+  },
+  {
+    "seccion": "F39: Detección de silencio del canal",
+    "texto": "- [ ] Con un evento sacado a propósito de la suscripción, la condición se abre aunque el canal esté recibiendo mensajes con normalidad"
+  },
+  {
+    "seccion": "F28: Adjuntos",
+    "texto": "- [ ] El archivo se descarga al recibirlo y se guarda en Supabase Storage. Ninguna dirección que entrega el proveedor sirve a largo plazo: la de WhatsApp está cifrada y la del almacenamiento intermedio caduca a los 7 días"
+  },
+  {
+    "seccion": "F28: Adjuntos",
+    "texto": "- [ ] Bucket privado, con direcciones firmadas de vida corta para mostrar en la bandeja"
+  },
+  {
+    "seccion": "F28: Adjuntos",
+    "texto": "- [ ] Estructura de carpetas por espacio de trabajo, conversación y mensaje"
+  },
+  {
+    "seccion": "F28: Adjuntos",
+    "texto": "- [ ] Validación del tipo de archivo real, no de la extensión. Tamaño máximo configurable"
+  },
+  {
+    "seccion": "F28: Adjuntos",
+    "texto": "- [ ] Si la descarga falla, el mensaje se guarda igual con marca de \"adjunto no disponible\" y se reintenta"
+  },
+  {
+    "seccion": "F28: Adjuntos",
+    "texto": "- [ ] La descarga no bloquea el acuse del aviso"
+  },
+  {
+    "seccion": "F29: Detección de contacto entre canales",
+    "texto": "- [ ] Al llegar un mensaje de un canal nuevo, se busca contacto por teléfono normalizado, correo o nombre de usuario"
+  },
+  {
+    "seccion": "F29: Detección de contacto entre canales",
+    "texto": "- [ ] Coincidencia exacta de teléfono o correo vincula automáticamente"
+  },
+  {
+    "seccion": "F29: Detección de contacto entre canales",
+    "texto": "- [ ] Coincidencia solo por nombre de usuario sugiere la vinculación al operador, no la hace sola"
+  },
+  {
+    "seccion": "F29: Detección de contacto entre canales",
+    "texto": "- [ ] Se crea el registro de canal para el contacto"
+  },
+  {
+    "seccion": "F29: Detección de contacto entre canales",
+    "texto": "- [ ] Cada conversación queda separada por canal, los hilos no se mezclan"
+  },
+  {
+    "seccion": "F29: Detección de contacto entre canales",
+    "texto": "- [ ] La ficha muestra todas las conversaciones agrupadas por canal"
+  },
+  {
+    "seccion": "F29: Detección de contacto entre canales",
+    "texto": "- [ ] Las vinculaciones automáticas y manuales quedan en el historial de auditoría"
+  },
+  {
+    "seccion": "F30: Notas, ficha de contacto y borrado suave",
+    "texto": "- [ ] Tabla `contact_notes` con lista cronológica en la ficha. Cualquier miembro con acceso al contacto crea notas; solo el autor, un Admin o el Owner edita o elimina"
+  },
+  {
+    "seccion": "F30: Notas, ficha de contacto y borrado suave",
+    "texto": "- [ ] Ficha completa con datos, conversaciones por canal, notas, etiquetas, campos personalizados, historial y atribución"
+  },
+  {
+    "seccion": "F30: Notas, ficha de contacto y borrado suave",
+    "texto": "- [ ] Marca visible si el contacto pidió no ser contactado, y marca si el teléfono está sin resolver"
+  },
+  {
+    "seccion": "F30: Notas, ficha de contacto y borrado suave",
+    "texto": "- [ ] Campo `deleted_at` en contactos, notas, conversaciones y respuestas rápidas. Eliminar marca la fecha, no borra"
+  },
+  {
+    "seccion": "F30: Notas, ficha de contacto y borrado suave",
+    "texto": "- [ ] Los listados y las reglas de seguridad excluyen lo eliminado"
+  },
+  {
+    "seccion": "F30: Notas, ficha de contacto y borrado suave",
+    "texto": "- [ ] Tarea diaria que borra definitivamente lo que lleva más de 30 días eliminado, en cascada"
+  },
+  {
+    "seccion": "F30: Notas, ficha de contacto y borrado suave",
+    "texto": "- [ ] El historial de auditoría no se purga nunca"
+  },
+  {
+    "seccion": "F31: Historial de auditoría",
+    "texto": "- [ ] Tabla `audit_log` con índices por espacio de trabajo, por entidad y por fecha"
+  },
+  {
+    "seccion": "F31: Historial de auditoría",
+    "texto": "- [ ] Registran entrada: contacto creado, editado, eliminado, restaurado, asignado, marcado como no contactar y reconciliado por teléfono; canal conectado, desconectado o con error; cambios de configuración; importaciones; movimientos de equipo"
+  },
+  {
+    "seccion": "F31: Historial de auditoría",
+    "texto": "- [ ] Owner y Admin ven todo; un Member solo sus propias acciones"
+  },
+  {
+    "seccion": "F31: Historial de auditoría",
+    "texto": "- [ ] Nunca se elimina ni tiene borrado suave"
+  },
+  {
+    "seccion": "F32: Estado de sesión del canal y reconexión",
+    "texto": "- [ ] La pantalla de canales muestra el estado de la sesión de WhatsApp"
+  },
+  {
+    "seccion": "F32: Estado de sesión del canal y reconexión",
+    "texto": "- [ ] Aviso por evento y chequeo periódico, los dos. Ante una caída pasajera Evolution reconecta solo y no avisa, así que el aviso por sí solo no alcanza para mostrar el estado real"
+  },
+  {
+    "seccion": "F32: Estado de sesión del canal y reconexión",
+    "texto": "- [ ] Un estado desconocido se muestra como \"no se pudo verificar\", nunca como \"desconectado\""
+  },
+  {
+    "seccion": "F32: Estado de sesión del canal y reconexión",
+    "texto": "- [ ] Se contempla el estado de \"se agotaron los intentos de vinculación\", que significa empezar de nuevo"
+  },
+  {
+    "seccion": "F32: Estado de sesión del canal y reconexión",
+    "texto": "- [ ] Botón de reconectar que muestra el código QR cuando corresponde. No siempre puede entregarlo, porque depende del estado actual, y eso se explica en pantalla"
+  },
+  {
+    "seccion": "F32: Estado de sesión del canal y reconexión",
+    "texto": "- [ ] Si la sesión está caída, la bandeja lo indica de forma visible. Una bandeja silenciosa no puede parecer un día tranquilo"
+  },
+  {
+    "seccion": "F33: Reglas de seguridad de secuencia",
+    "texto": "- [ ] Corte con el silencio: después de una cantidad configurable de seguimientos sin respuesta, por defecto 3, la secuencia se detiene sola y lo registra. Es la protección más importante, porque el que nunca contesta y sigue recibiendo mensajes es el que denuncia"
+  },
+  {
+    "seccion": "F33: Reglas de seguridad de secuencia",
+    "texto": "- [ ] Texto variable: el sistema interpola datos del contacto y rota entre variantes. Se advierte si un paso manda texto idéntico a muchos destinatarios, porque eso es una huella de envío masivo"
+  },
+  {
+    "seccion": "F33: Reglas de seguridad de secuencia",
+    "texto": "- [ ] Envíos espaciados: separación aleatoria configurable entre mensajes de un mismo grupo. Nunca todo junto"
+  },
+  {
+    "seccion": "F33: Reglas de seguridad de secuencia",
+    "texto": "- [ ] Horario comercial: franja horaria configurable, respetando la zona horaria del contacto. Fuera de ella el envío se pospone, no se cancela"
+  },
+  {
+    "seccion": "F33: Reglas de seguridad de secuencia",
+    "texto": "- [ ] Opt-out duro: un pedido de no contacto corta para siempre, sin opción de forzarlo desde ninguna pantalla"
+  },
+  {
+    "seccion": "F33: Reglas de seguridad de secuencia",
+    "texto": "- [ ] Proporción de respuesta como señal de salud: se calcula y se muestra qué porcentaje de los seguimientos recibe respuesta. Si cae por debajo de un umbral configurable, se avisa. Es mejor que un tope arbitrario de mensajes, porque mide si lo que mandás le sirve a alguien"
+  },
+  {
+    "seccion": "F33: Reglas de seguridad de secuencia",
+    "texto": "- [ ] Todo es configuración por canal, no condicionales en el código"
+  },
+  {
+    "seccion": "F33: Reglas de seguridad de secuencia",
+    "texto": "- [ ] La Fase 2 construye el motor que las consume"
+  },
+  {
+    "seccion": "F34: Marca de no contactar",
+    "texto": "- [ ] Lista de frases de baja configurable por espacio de trabajo"
+  },
+  {
+    "seccion": "F34: Marca de no contactar",
+    "texto": "- [ ] Al detectar una: se marca el contacto, se registra el motivo y la fecha, se pausan las secuencias activas y queda en el historial de auditoría"
+  },
+  {
+    "seccion": "F34: Marca de no contactar",
+    "texto": "- [ ] Marca roja visible en la bandeja y en la ficha"
+  },
+  {
+    "seccion": "F34: Marca de no contactar",
+    "texto": "- [ ] Un Admin o el Owner puede revertirla, con registro"
+  },
+  {
+    "seccion": "F34: Marca de no contactar",
+    "texto": "- [ ] Al intentar enviar a un contacto marcado se bloquea el envío, sin opción de forzarlo. Con Evolution una denuncia pesa más que cien mensajes"
+  },
+  {
+    "seccion": "F34: Marca de no contactar",
+    "texto": "- [ ] Un contacto marcado nunca entra a una secuencia"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "texto": "- [ ] La bandeja lee los mensajes de la base, no del proveedor"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "texto": "- [ ] Filtro por etiquetas, por asignación, por canal y por fecha del último mensaje"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "texto": "- [ ] Filtro por estado de ventana solo para Instagram, que es donde la ventana existe"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "texto": "- [ ] Filtro por \"teléfono sin resolver\", para poder trabajar esa cola"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "texto": "- [ ] Filtros combinables, reflejados en la dirección de la página para poder compartirla, con contador y botón de limpiar"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "texto": "- [ ] Búsqueda de texto dentro de los mensajes, que ahora es posible porque están guardados"
+  },
+  {
+    "seccion": "F36: Respuestas rápidas",
+    "texto": "- [ ] Tabla `response_templates` con alta, baja y modificación en `/settings/response-templates`"
+  },
+  {
+    "seccion": "F36: Respuestas rápidas",
+    "texto": "- [ ] Selector con \"/\" en la bandeja, con búsqueda por nombre o atajo"
+  },
+  {
+    "seccion": "F36: Respuestas rápidas",
+    "texto": "- [ ] Interpolación de datos del contacto; si un dato falta, queda vacío"
+  },
+  {
+    "seccion": "F36: Respuestas rápidas",
+    "texto": "- [ ] En la interfaz se llaman \"respuestas rápidas\", nunca \"plantillas\", para no confundirlas con las plantillas de WhatsApp del plan B"
+  },
+  {
+    "seccion": "F37: Importación de contactos desde planilla",
+    "texto": "- [ ] Archivo de hasta 10 MB y 10.000 filas, con vista previa y asignación de columnas"
+  },
+  {
+    "seccion": "F37: Importación de contactos desde planilla",
+    "texto": "- [ ] **Cada fila necesita al menos un identificador que permita deduplicar, de los enumerados en la sección 14.** El correo se valida con formato y el teléfono se normaliza, pero los dos son ejemplos, no la lista: un identificador único del sistema de origen sirve igual, y de hecho sirve mejor, porque allá ya se garantizó que es único. Una fila sin ningún identificador no se puede deduplicar y se rechaza con su motivo"
+  },
+  {
+    "seccion": "F37: Importación de contactos desde planilla",
+    "texto": "- [ ] Deduplicación por cualquiera de los identificadores que traiga la fila: identificador de origen, correo o teléfono, en ese orden de confianza. Si ya existe, actualiza en vez de duplicar. **El importador no decide qué cuenta como identificador:** la lista está en la sección 14 y admitir uno nuevo se escribe ahí primero"
+  },
+  {
+    "seccion": "F37: Importación de contactos desde planilla",
+    "texto": "- [ ] Más de 500 filas se procesan en segundo plano, no en el momento"
+  },
+  {
+    "seccion": "F37: Importación de contactos desde planilla",
+    "texto": "- [ ] Barra de progreso y resumen final con importados, actualizados y errores con detalle"
+  },
+  {
+    "seccion": "F37: Importación de contactos desde planilla",
+    "texto": "- [ ] Todo queda en el historial de auditoría"
+  },
+  {
+    "seccion": "F38: Migración desde Pipedrive",
+    "texto": "- [ ] El importador de F37 mapea columnas a `pipeline_stage`, `deal_status`, `deal_value`, `deal_currency`, `deal_closed_at`, `pipedrive_person_id` y `pipedrive_deal_id`. Hoy solo mapea a las columnas centrales del contacto"
+  },
+  {
+    "seccion": "F38: Migración desde Pipedrive",
+    "texto": "- [ ] La unión de personas y tratos se hace **fuera del sistema**, en una planilla, produciendo un solo archivo con una fila por contacto. El importador no resuelve la unión"
+  },
+  {
+    "seccion": "F38: Migración desde Pipedrive",
+    "texto": "- [ ] Limpieza del teléfono antes de normalizar: se quitan el apóstrofe inicial y los caracteres Unicode invisibles de dirección de texto"
+  },
+  {
+    "seccion": "F38: Migración desde Pipedrive",
+    "texto": "- [ ] El teléfono sale de \"Móvil\" y, si está vacío, de \"Trabajo\""
+  },
+  {
+    "seccion": "F38: Migración desde Pipedrive",
+    "texto": "- [ ] Los números que ya traen código de país se usan tal como vienen"
+  },
+  {
+    "seccion": "F38: Migración desde Pipedrive",
+    "texto": "- [ ] **El código de país por defecto es configuración, no una constante en el código.** Vive como ajuste del espacio de trabajo, y la pantalla de importación permite cambiarlo para esa importación puntual. Hoy el 99 por ciento de los leads es de Costa Rica, pero la pauta puede dirigirse a otros países de la región, y ahí un `+506` cableado convertiría un número panameño de ocho dígitos en un número costarricense **válido y equivocado**, que es peor que un error. Es el mismo criterio que el proyecto ya aplica a las ventanas de mensajería: configuración del canal, no condicionales en el código"
+  },
+  {
+    "seccion": "F38: Migración desde Pipedrive",
+    "texto": "- [ ] Cada fila que se normalizó usando el valor por defecto queda marcada en el resumen de la importación, para poder revisar cuáles fueron"
+  },
+  {
+    "seccion": "F38: Migración desde Pipedrive",
+    "texto": "- [ ] **La normalización nunca adivina en silencio:** si un número no se puede normalizar, la fila queda con el error en el resumen, no con un valor inventado"
+  },
+  {
+    "seccion": "F38: Migración desde Pipedrive",
+    "texto": "- [ ] Todos los contactos migrados reciben una etiqueta de origen con la fecha"
+  },
+  {
+    "seccion": "F38: Migración desde Pipedrive",
+    "texto": "- [ ] `pipeline_stage` y `deal_status` rechazan cualquier valor fuera de su lista, en la base de datos"
+  },
+  {
+    "seccion": "F38: Migración desde Pipedrive",
+    "texto": "- [ ] **Control de la migración, afirmativo:** la cantidad de filas con `pipedrive_deal_id` no nulo coincide con la cantidad de tratos no \"IG DM\" del export. Si no coinciden, falta algo y se sabe cuánto. Sin esta comprobación, \"el importador dijo 399 filas\" no distingue entre 399 de 399 y 399 de 412"
+  },
+  {
+    "seccion": "F38: Migración desde Pipedrive",
+    "texto": "- [ ] La importación es repetible: correrla dos veces actualiza en vez de duplicar, y el conteo de control da lo mismo"
+  },
+  {
+    "seccion": "F38: Migración desde Pipedrive",
+    "texto": "- [ ] Cada motivo de pérdida entra como una nota en `contact_notes`, con una marca de que vino de la migración. Son 401 tratos con 78 valores distintos de texto libre: **no se crea una columna para esto**, porque 78 valores de texto libre no son un vocabulario. Es la única fuente que el negocio tiene de *por qué* los leads no convierten, y es justo lo que el agente de IA de la Fase 3 va a querer leer"
+  },
+  {
+    "seccion": "F38: Migración desde Pipedrive",
+    "texto": "- [ ] **Se escribe explícito y se prueba:** un contacto sin ningún canal no puede darse de alta en una secuencia. Son 145 de las 526, que no tienen ni teléfono ni correo: nunca van a corresponder con un mensaje entrante y no se les puede escribir. Estructuralmente ya no debería poder, porque una secuencia necesita un canal, pero eso es una suposición sobre el motor y el requerimiento no se apoya en suposiciones"
+  },
+  {
+    "seccion": "F38: Migración desde Pipedrive",
+    "texto": "- [ ] La prueba lleva su control afirmativo al lado: un contacto **con** canal sí se da de alta"
+  },
+  {
+    "seccion": "F40: Ventana de conversación de Instagram",
+    "texto": "- [ ] Campos `window_expires_at` y `window_source` agregados a `conversations`"
+  },
+  {
+    "seccion": "F40: Ventana de conversación de Instagram",
+    "texto": "- [ ] `window_expires_at` se recalcula con cada mensaje entrante: 24 horas desde el mensaje"
+  },
+  {
+    "seccion": "F40: Ventana de conversación de Instagram",
+    "texto": "- [ ] En la bandeja, cada conversación muestra un indicador del estado de la ventana: abierta con el tiempo restante, o cerrada"
+  },
+  {
+    "seccion": "F40: Ventana de conversación de Instagram",
+    "texto": "- [ ] Con la ventana abierta, el campo de respuesta acepta texto libre normalmente"
+  },
+  {
+    "seccion": "F40: Ventana de conversación de Instagram",
+    "texto": "- [ ] Con la ventana cerrada, el campo se deshabilita y se explica por qué, sin ofrecer alternativa, porque en Instagram no hay plantillas"
+  },
+  {
+    "seccion": "F40: Ventana de conversación de Instagram",
+    "texto": "- [ ] Un mensaje que falla por ventana expirada muestra un error claro en la interfaz, no un error genérico"
+  },
+  {
+    "seccion": "F40: Ventana de conversación de Instagram",
+    "texto": "- [ ] La respuesta privada a un comentario se permite hasta 7 días desde el comentario, una sola vez por comentario, y el sistema lo controla con `comment_logs`"
+  },
+  {
+    "seccion": "F40: Ventana de conversación de Instagram",
+    "texto": "- [ ] **Control positivo:** con una conversación cuya ventana está abierta, el envío funciona. Probar solo el bloqueo no distingue entre estar bien implementado y estar todo deshabilitado"
+  },
+  {
+    "seccion": "F40: Ventana de conversación de Instagram",
+    "texto": "- [ ] Los campos se agregan igual para WhatsApp aunque no se usen, porque son los mismos que necesita el plan B. Ver el apéndice del plan B"
+  },
+  {
+    "seccion": "F6b: Plantillas de WhatsApp",
+    "texto": "- [ ] Nueva tabla `whatsapp_templates` (ver 7.3)"
+  },
+  {
+    "seccion": "F6b: Plantillas de WhatsApp",
+    "texto": "- [ ] Pantalla de gestión en `/settings/whatsapp-templates` con listado, estado y categoría"
+  },
+  {
+    "seccion": "F6b: Plantillas de WhatsApp",
+    "texto": "- [ ] El estado de cada plantilla se sincroniza desde Zernio: borrador, enviada, aprobada, rechazada, pausada"
+  },
+  {
+    "seccion": "F6b: Plantillas de WhatsApp",
+    "texto": "- [ ] Cuando Meta rechaza una plantilla, el motivo queda visible en el sistema"
+  },
+  {
+    "seccion": "F6b: Plantillas de WhatsApp",
+    "texto": "- [ ] La calificación de calidad de la plantilla, cuando Zernio la expone, se muestra en el listado"
+  },
+  {
+    "seccion": "F6b: Plantillas de WhatsApp",
+    "texto": "- [ ] Editar una plantilla aprobada crea una versión nueva que vuelve a estado \"enviada\""
+  },
+  {
+    "seccion": "F6b: Plantillas de WhatsApp",
+    "texto": "- [ ] **El modelo está listo para que un paso de secuencia referencie una plantilla por ID**, aunque las secuencias se construyan en Fase 2"
+  },
+  {
+    "seccion": "F6b: Plantillas de WhatsApp",
+    "texto": "- [ ] La categoría (marketing, utility, authentication) es obligatoria y visible, porque determina el costo"
+  },
+  {
+    "seccion": "F6c: Ventana de conversación",
+    "texto": "- [ ] Campos `window_expires_at` y `window_source` agregados a `conversations` (ver 7.2)"
+  },
+  {
+    "seccion": "F6c: Ventana de conversación",
+    "texto": "- [ ] `window_expires_at` se recalcula con cada mensaje entrante: 24 horas desde el mensaje, o 72 si `window_source = 'ctwa'` (click-to-WhatsApp)"
+  },
+  {
+    "seccion": "F6c: Ventana de conversación",
+    "texto": "- [ ] En la bandeja, cada conversación muestra un indicador del estado de la ventana: abierta con tiempo restante, o cerrada"
+  },
+  {
+    "seccion": "F6c: Ventana de conversación",
+    "texto": "- [ ] Con la ventana **abierta**, el campo de respuesta acepta texto libre normalmente"
+  },
+  {
+    "seccion": "F6c: Ventana de conversación",
+    "texto": "- [ ] Con la ventana **cerrada en WhatsApp**, el campo de texto libre se deshabilita y se ofrece un selector de plantillas aprobadas, indicando el costo estimado"
+  },
+  {
+    "seccion": "F6c: Ventana de conversación",
+    "texto": "- [ ] Con la ventana **cerrada en Instagram**, el campo se deshabilita y se explica por qué, sin ofrecer alternativa"
+  },
+  {
+    "seccion": "F6c: Ventana de conversación",
+    "texto": "- [ ] Un mensaje que falla por ventana expirada muestra un error claro en la interfaz, no un error genérico"
+  },
+  {
+    "seccion": "F6c: Ventana de conversación",
+    "texto": "- [ ] La respuesta privada a un comentario de Instagram se permite hasta 7 días desde el comentario, una sola vez por comentario, y el sistema lo controla con `comment_logs`"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "texto": "- [ ] Seguridad por filas activada en todas las tablas de Supabase"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "texto": "- [ ] Políticas escritas y probadas para cada tabla nueva"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "texto": "- [ ] Sesión verificada en todas las rutas de API"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "texto": "- [ ] Control de rol en el servidor, no solo escondiendo botones"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "texto": "- [ ] Validación de datos en el servidor, no solo en el cliente"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "texto": "- [ ] Secretos en Vault, no en variables de entorno de la aplicación"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "texto": "- [ ] Los logs no incluyen credenciales ni cuerpos completos de avisos entrantes"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "texto": "- [ ] Verificación de autenticidad en los dos receptores de avisos"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "texto": "- [ ] Alerta configurada ante rechazos del receptor de Evolution"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "texto": "- [ ] Bucket de archivos privado, con direcciones firmadas de vida corta"
+  },
+  {
+    "seccion": "Checklist para la IA constructora",
+    "texto": "- [ ] `npm run verify:security` en verde antes de cerrar cada bloque"
+  }
+]

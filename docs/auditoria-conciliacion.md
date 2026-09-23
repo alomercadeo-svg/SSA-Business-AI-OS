@@ -69,6 +69,23 @@ de seguir.
 El único criterio de F8 que el método dio por presente fue "Pantalla en `/settings/integrations`…",
 contenido en el 1.
 
+## Una fuente mejor para la lista, encontrada al construir la foto
+
+La foto de criterios (`scripts/foto-criterios.mjs`, 22/09/2026 después de las 20:00) compara por
+**texto exacto**. Corrida con la foto de `ebc9702` contra el plano de `584226f`:
+
+```bash
+node scripts/foto-criterios.mjs --foto-de ebc9702 --plano-de 584226f
+```
+
+da **128 líneas de criterio que la conciliación sacó o cambió**, con el criterio de tiempo real entre
+ellas, y **13 líneas nuevas**. Es la lista exacta de lo que tocó `584226f`, sin umbral y sin ruido de
+sinónimos. **Hay que tomar en cuenta un sesgo:** los dos planos viejos se superponían (dos numeraciones
+para funcionalidades que se repetían), así que parte de las 128 son duplicados que la conciliación
+unificó a propósito. Eso lo decide la revisión. **Propuesta, sin decidir:** usar estas 128 como lista
+de trabajo de la auditoría, y dejar el script por similitud solo para sugerir a qué criterio actual
+corresponde cada una.
+
 ## Cómo seguir
 
 1. Revisar juntos los tres primeros de la lista y fijar el criterio de clasificación.
