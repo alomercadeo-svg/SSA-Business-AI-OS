@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import {
   Check,
   Copy,
@@ -189,6 +190,17 @@ export function ChannelsView({
             <p className="mt-1 text-sm text-muted-foreground">
               Your connected social media accounts from Zernio
             </p>
+            {/* Desde el 05/10/2026 esta pantalla no borra canales: la ruta DELETE
+                responde 405 y la base rechaza borrar un canal con historia (00025).
+                Desconectar es la acción de Integraciones, que marca el canal
+                inactivo. Lo cuida desconectar-deshabilitado.test.ts. */}
+            <p className="mt-1 text-xs text-muted-foreground">
+              Para desconectar una cuenta, usá{" "}
+              <Link href="/dashboard/settings/integrations" className="text-primary underline underline-offset-2">
+                Integraciones
+              </Link>
+              . Desconectar no borra las conversaciones.
+            </p>
           </div>
           <div className="flex items-center gap-3">
             {syncMessage && (
@@ -335,19 +347,6 @@ export function ChannelsView({
                         ) : (
                           <PowerOff className="h-4 w-4" />
                         )}
-                      </button>
-                      {/* Deshabilitado el 23/09/2026. La ruta DELETE heredada del fork
-                          borra el canal y, en cascada, sus conversaciones y mensajes; el
-                          historial vive en la base local por decisión cerrada. Se vuelve a
-                          habilitar cuando esa ruta se reemplace por una que marque el canal
-                          inactivo (criterio de F24). Lo cuida desconectar-deshabilitado.test.ts. */}
-                      <button
-                        type="button"
-                        disabled
-                        className="cursor-not-allowed rounded-lg px-2 py-1 text-[10px] text-muted-foreground"
-                        title="Desconectar no está disponible todavía"
-                      >
-                        Desconectar no está disponible todavía
                       </button>
                     </div>
                   </div>

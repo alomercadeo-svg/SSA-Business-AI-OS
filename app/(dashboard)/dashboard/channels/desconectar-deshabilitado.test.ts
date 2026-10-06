@@ -59,9 +59,15 @@ describe("la ruta que borra un canal con su historial", () => {
     ).toEqual([]);
   });
 
-  it("el botón dice que desconectar no está disponible", () => {
+  /**
+   * Desde el 05/10/2026 la pantalla de Canales no tiene botón de borrar ni el
+   * deshabilitado que lo reemplazó: manda a Integraciones para desconectar.
+   */
+  it("la pantalla de Canales no tiene botón de borrar y manda a Integraciones", () => {
     const vista = readFileSync(join(RAIZ, "app/(dashboard)/dashboard/channels/channels-view.tsx"), "utf8");
-    expect(vista).toContain("Desconectar no está disponible todavía");
+    expect(vista).not.toContain("Desconectar no está disponible todavía");
+    expect(vista).not.toMatch(/Trash2/);
+    expect(vista).toContain('href="/dashboard/settings/integrations"');
   });
 });
 
