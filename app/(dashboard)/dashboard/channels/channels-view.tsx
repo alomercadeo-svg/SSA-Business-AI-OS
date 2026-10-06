@@ -2,13 +2,13 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { activarCanal } from "@/lib/actions/canales";
 import {
   Check,
   Copy,
   Plug,
   Plus,
   Power,
-  PowerOff,
   RefreshCw,
   Loader2,
 } from "lucide-react";
@@ -161,21 +161,19 @@ export function ChannelsView({
     }
   }
 
-  async function handleToggleActive(channel: Channel) {
+  // Solo encender. Apagar un canal es una desconexión de hecho (los receptores
+  // rechazan los mensajes de un canal inactivo) y se quitó de esta pantalla el
+  // 05/10/2026; desconectar es la acción de Integraciones. Encender sí hace
+  // falta: la sincronización con Zernio puede apagar un canal sola y nada lo
+  // vuelve a encender.
+  async function handleActivar(channel: Channel) {
     setTogglingId(channel.id);
-    const supabase = createClient();
-
-    const { error } = await supabase
-      .from("channels")
-      .update({ is_active: !channel.is_active })
-      .eq("id", channel.id);
-
-    if (!error) {
-      setChannels((prev) =>
-        prev.map((c) =>
-          c.id === channel.id ? { ...c, is_active: !c.is_active } : c
-        )
-      );
+    const r = await activarCanal(channel.id);
+    if (r.ok) {
+      setChannels((prev) => prev.map((c) => (c.id === channel.id ? { ...c, is_active: true } : c)));
+    } else {
+      setSyncMessage(r.error);
+      setTimeout(() => setSyncMessage(null), 4000);
     }
     setTogglingId(null);
   }
@@ -327,27 +325,17 @@ export function ChannelsView({
                     </div>
 
                     <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleToggleActive(channel)}
-                        disabled={togglingId === channel.id}
-                        className={cn(
-                          "rounded-lg p-2 transition-colors",
-                          channel.is_active
-                            ? "text-green-600 hover:bg-green-100"
-                            : "text-muted-foreground hover:bg-muted"
-                        )}
-                        title={
-                          channel.is_active
-                            ? "Channel is active. Click to deactivate."
-                            : "Channel is inactive. Click to activate."
-                        }
-                      >
-                        {channel.is_active ? (
+                      {!channel.is_active && (
+                        <button
+                          onClick={() => handleActivar(channel)}
+                          disabled={togglingId === channel.id}
+                          className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted"
+                          title="El canal está inactivo: no se reciben sus mensajes. Activarlo vuelve a aceptarlos."
+                        >
                           <Power className="h-4 w-4" />
-                        ) : (
-                          <PowerOff className="h-4 w-4" />
-                        )}
-                      </button>
+                          Activar
+                        </button>
+                      )}
                     </div>
                   </div>
 

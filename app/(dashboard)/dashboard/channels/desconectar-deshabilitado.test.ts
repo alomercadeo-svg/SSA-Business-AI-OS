@@ -98,3 +98,33 @@ describe("el botón Desconectar de la pantalla de integraciones", () => {
     expect(readFileSync(join(RAIZ, VISTA), "utf8")).toContain("Desconectar no está disponible todavía");
   });
 });
+
+/**
+ * Apagar un canal es una desconexión de hecho: el receptor de Zernio responde
+ * 404 a un canal inactivo y el de Evolution 503 (después de unos 20 minutos de
+ * reintentos, el mensaje se pierde). Desde el 05/10/2026 ninguna pantalla
+ * escribe is_active = false ni lo invierte; queda solo "Activar", y el único
+ * camino que apaga es la acción de desconectar de F24, en el servidor.
+ */
+describe("el interruptor de la pantalla de Canales", () => {
+  const archivos = [...archivosDeInterfaz(join(RAIZ, "app")), ...archivosDeInterfaz(join(RAIZ, "components"))];
+
+  /**
+   * La regla mira escrituras sobre `channels`, no cualquier `is_active`: la
+   * pantalla de Growth activa y desactiva disparadores de flujos (`triggers`),
+   * que es otra cosa. La primera versión de la regla la marcaba; se angostó
+   * comprobando antes que siga atrapando la versión vieja de la pantalla de
+   * Canales (`.from("channels").update({ is_active: !channel.is_active })`).
+   */
+  it("ningún archivo de interfaz escribe is_active = false en channels ni lo invierte", () => {
+    const re = /from\(\s*["']channels["']\s*\)[\s\S]{0,300}?is_active:\s*(false|!)/;
+    const infractores = archivos.filter((a) => re.test(readFileSync(a, "utf8"))).map((a) => relative(RAIZ, a));
+    expect(infractores).toEqual([]);
+  });
+
+  it("la pantalla de Canales activa a través de la acción de servidor", () => {
+    const vista = readFileSync(join(RAIZ, "app/(dashboard)/dashboard/channels/channels-view.tsx"), "utf8");
+    expect(vista).toContain("activarCanal");
+    expect(vista).not.toContain("handleToggleActive");
+  });
+});
