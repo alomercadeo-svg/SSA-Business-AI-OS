@@ -24,11 +24,18 @@ import {
 } from "@/lib/actions/integraciones";
 import type { IntegrationEstado, IntegrationTipo } from "@/lib/types/database";
 import { EstadoWebhook } from "./estado-webhook";
+import { AvisoCanalInactivo } from "./aviso-canal-inactivo";
 
 interface CuentaInstagram {
   id: string;
   username: string;
   activa: boolean;
+}
+
+interface CanalWhatsApp {
+  id: string;
+  nombre: string;
+  activo: boolean;
 }
 
 const ICONO_TIPO: Record<IntegrationTipo, typeof Plug> = { canal: Plug, correo: Mail, ia: Bot };
@@ -54,11 +61,13 @@ export function IntegrationsView({
   workspaceId,
   tarjetas: iniciales,
   cuentasInstagram,
+  canalesWhatsApp,
   errorDeCarga = false,
 }: {
   workspaceId: string;
   tarjetas: Tarjeta[];
   cuentasInstagram: CuentaInstagram[];
+  canalesWhatsApp: CanalWhatsApp[];
   errorDeCarga?: boolean;
 }) {
   const [tarjetas, setTarjetas] = useState(iniciales);
@@ -172,7 +181,7 @@ export function IntegrationsView({
                   <h2 className="text-sm font-semibold">{TITULO_TIPO[s.tipo]}</h2>
                 </div>
                 {s.filas.map((t) => (
-                  <TarjetaView key={t.id} t={t} cuentasInstagram={cuentasInstagram} />
+                  <TarjetaView key={t.id} t={t} cuentasInstagram={cuentasInstagram} canalesWhatsApp={canalesWhatsApp} />
                 ))}
               </section>
             );
@@ -183,7 +192,15 @@ export function IntegrationsView({
   );
 }
 
-function TarjetaView({ t, cuentasInstagram }: { t: Tarjeta; cuentasInstagram: CuentaInstagram[] }) {
+function TarjetaView({
+  t,
+  cuentasInstagram,
+  canalesWhatsApp,
+}: {
+  t: Tarjeta;
+  cuentasInstagram: CuentaInstagram[];
+  canalesWhatsApp: CanalWhatsApp[];
+}) {
   return (
     <div className="rounded-lg border border-border p-4">
       <div className="flex items-center justify-between gap-3">
@@ -201,7 +218,7 @@ function TarjetaView({ t, cuentasInstagram }: { t: Tarjeta; cuentasInstagram: Cu
 
       <div className="mt-4 space-y-4">
         {t.proveedor === "zernio" && <Instagram t={t} cuentas={cuentasInstagram} />}
-        {t.proveedor === "evolution" && <WhatsApp t={t} />}
+        {t.proveedor === "evolution" && <WhatsApp t={t} canales={canalesWhatsApp} />}
         {t.proveedor !== "zernio" && t.proveedor !== "evolution" && t.editable && <ClaveEditable t={t} />}
         {t.conModelo && <Modelo t={t} />}
       </div>
@@ -317,9 +334,15 @@ function Modelo({ t }: { t: Tarjeta }) {
   );
 }
 
-function WhatsApp({ t }: { t: Tarjeta }) {
+function WhatsApp({ t, canales }: { t: Tarjeta; canales: CanalWhatsApp[] }) {
   return (
     <div className="space-y-1 text-xs text-muted-foreground">
+      {canales.map((c) => (
+        <div key={c.id} className="space-y-1">
+          {c.nombre && <p>Instancia {c.nombre}</p>}
+          <AvisoCanalInactivo activo={c.activo} />
+        </div>
+      ))}
       <p>{textoConexionEvolution(t.estado)}</p>
       <p>
         La clave de Evolution se configura con el despliegue y no se muestra nunca. El estado de la sesión de
@@ -400,8 +423,9 @@ function Instagram({ t, cuentas }: { t: Tarjeta; cuentas: CuentaInstagram[] }) {
         )}
         {cuentas.map((c) => (
           <div key={c.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2">
-            <span className="text-sm">
-              @{c.username} {!c.activa && <span className="text-xs text-muted-foreground">(inactiva)</span>}
+            <span className="space-y-1 text-sm">
+              <span className="block">@{c.username}</span>
+              <AvisoCanalInactivo activo={c.activa} />
             </span>
             {/* Deshabilitado el 23/09/2026 hasta probarlo contra Zernio real con la
                 aprobación de Marcos: desconecta el único canal vivo. La acción de

@@ -32,7 +32,7 @@ export default async function IntegrationsPage() {
     // El caso esperable es que falte la migración 00024. Se dice así, sin el
     // error técnico crudo, que igual queda en el log del servidor.
     console.error("integraciones: no se pudo leer integration_configs:", error.message);
-    return <IntegrationsView workspaceId={workspaceId} tarjetas={[]} cuentasInstagram={[]} errorDeCarga />;
+    return <IntegrationsView workspaceId={workspaceId} tarjetas={[]} cuentasInstagram={[]} canalesWhatsApp={[]} errorDeCarga />;
   }
 
   const tarjetas = await Promise.all(
@@ -51,11 +51,19 @@ export default async function IntegrationsPage() {
     .eq("provider", "zernio")
     .order("created_at");
 
+  const { data: canalesWhatsApp } = await supabase
+    .from("channels")
+    .select("id, instance_name, is_active")
+    .eq("workspace_id", workspaceId)
+    .eq("provider", "evolution")
+    .order("created_at");
+
   return (
     <IntegrationsView
       workspaceId={workspaceId}
       tarjetas={tarjetas}
       cuentasInstagram={(cuentas ?? []).map((c) => ({ id: c.id, username: c.username ?? "", activa: c.is_active }))}
+      canalesWhatsApp={(canalesWhatsApp ?? []).map((c) => ({ id: c.id, nombre: c.instance_name ?? "", activo: c.is_active }))}
     />
   );
 }
