@@ -508,12 +508,18 @@ async function cleanup() {
       body: JSON.stringify({ unassigned_leads_visible_to_members: flagOriginal }),
     }).catch(() => {});
   }
-  // El canal cascadea conversaciones y mensajes; el flujo y la difusión
-  // cascadean sus sesiones y destinatarios; el contacto cascadea el resto.
-  for (const id of limpiar.canales) await admin(`channels?id=eq.${id}`, { method: "DELETE" }).catch(() => {});
+  // El flujo y la difusión cascadean sus sesiones y destinatarios; el contacto
+  // cascadea sus conversaciones, mensajes y el resto. El canal va último: desde
+  // la 00025 un canal con historia no se borra (RESTRICT), y antes este orden
+  // estaba al revés y se apoyaba en la cascada del canal. Si no se borra, se
+  // dice, en vez de dejar datos de prueba en producción con un .catch mudo.
   for (const id of limpiar.flujos) await admin(`flows?id=eq.${id}`, { method: "DELETE" }).catch(() => {});
   for (const id of limpiar.difusiones) await admin(`broadcasts?id=eq.${id}`, { method: "DELETE" }).catch(() => {});
   for (const id of limpiar.contactos) await admin(`contacts?id=eq.${id}`, { method: "DELETE" }).catch(() => {});
+  for (const id of limpiar.canales) {
+    const r = await admin(`channels?id=eq.${id}`, { method: "DELETE" }).catch(() => ({ status: 0 }));
+    if (r.status >= 300 || r.status === 0) check(false, `se borra el canal de prueba ${id}`, `HTTP ${r.status}: quedó en la base`);
+  }
   for (const id of limpiar.usuarios) await auth(`admin/users/${id}`, { method: "DELETE" }).catch(() => {});
   for (const id of limpiar.workspaces) await admin(`workspaces?id=eq.${id}`, { method: "DELETE" }).catch(() => {});
   // Por si el INSERT del Member sobre la cola llegara a pasar: sin esto, una

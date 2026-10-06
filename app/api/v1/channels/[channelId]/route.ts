@@ -11,7 +11,9 @@ import { NextResponse } from "next/server";
  *
  * El único camino para desconectar es la acción de F24
  * (`desconectarCuentaInstagram`, en la pantalla de integraciones), que marca
- * el canal inactivo y no borra nada.
+ * el canal inactivo y no borra nada. Y aunque alguien borrara un canal por
+ * otra vía, la base lo impide desde la migración 00025: las tablas con
+ * historia tienen su clave hacia `channels` en RESTRICT.
  *
  * Quitada el 5 de octubre de 2026. Lo cuida `route.test.ts`.
  */

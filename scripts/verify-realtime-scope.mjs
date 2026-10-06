@@ -342,8 +342,16 @@ async function cleanup() {
   try {
     if (cliente) await cliente.removeAllChannels();
   } catch {}
-  for (const id of limpiar.canales) await admin(`channels?id=eq.${id}`, { method: "DELETE" }).catch(() => {});
+  // Primero los contactos, que se llevan sus conversaciones y mensajes por
+  // contact_id; recién después el canal. Desde la 00025 un canal con historia
+  // no se borra (RESTRICT), y antes este orden estaba al revés y se apoyaba en
+  // la cascada del canal. Si el canal no se borra, se dice: un .catch mudo
+  // dejaría datos de prueba en producción sin que nadie se entere.
   for (const id of limpiar.contactos) await admin(`contacts?id=eq.${id}`, { method: "DELETE" }).catch(() => {});
+  for (const id of limpiar.canales) {
+    const r = await admin(`channels?id=eq.${id}`, { method: "DELETE" }).catch(() => ({ status: 0 }));
+    if (r.status >= 300 || r.status === 0) check(false, `se borra el canal de prueba ${id}`, `HTTP ${r.status}: quedó en la base`);
+  }
   for (const id of limpiar.usuarios) await auth(`admin/users/${id}`, { method: "DELETE" }).catch(() => {});
   for (const id of limpiar.workspaces) await admin(`workspaces?id=eq.${id}`, { method: "DELETE" }).catch(() => {});
   console.log(
