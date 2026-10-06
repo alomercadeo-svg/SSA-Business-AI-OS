@@ -51,7 +51,7 @@ Los procedimientos ejecutables no van en ninguno de los dos: van en `docs/`, uno
 
 **Verificadores:** `npm run verify:security` corre `verify-lead-scope.mjs` (24 comprobaciones) y `verify-realtime-scope.mjs` (7). No corren con `npm test`, a propósito: la suite puede estar en verde con el scope roto.
 
-**Avance de la Fase 1, contado el 23 de septiembre de 2026 sobre la línea de estado de cada funcionalidad del plano.** **25 funcionalidades a construir**: F1 a F4 y F21 a F41. Quedan afuera F5, eliminada de la fase, y F6, F6b y F6c, que son del plan B. **5 completas:** F1, F2, F3, F4 y F21. **F22 está construida con un criterio pendiente**: la idempotencia igual para los dos canales, devuelta ese día por la auditoría (#5), que nadie comprobó todavía en los dos canales. Parciales, según su línea de estado: F24, F34 y F35.
+**Al 5 de octubre de 2026 el avance sigue en 5 de 25:** F24 tiene todos sus criterios cumplidos salvo probar "Desconectar" contra Zernio real, y no cuenta como completa. **Avance de la Fase 1, contado el 23 de septiembre de 2026 sobre la línea de estado de cada funcionalidad del plano.** **25 funcionalidades a construir**: F1 a F4 y F21 a F41. Quedan afuera F5, eliminada de la fase, y F6, F6b y F6c, que son del plan B. **5 completas:** F1, F2, F3, F4 y F21. **F22 está construida con un criterio pendiente**: la idempotencia igual para los dos canales, devuelta ese día por la auditoría (#5), que nadie comprobó todavía en los dos canales. Parciales, según su línea de estado: F24, F34 y F35.
 
 **Tests al cerrar el Bloque 1:** 108 en 12 archivos. El fork traía 60 en 7. **Ese número sube con cada bloque: no lo copies, contalo con `npm test`.**
 
@@ -235,6 +235,34 @@ Los dos los cuida `app/(dashboard)/dashboard/channels/desconectar-deshabilitado.
 - `scripts/verify-channels-restrict.mjs` ya no usa el workspace real: crea el suyo. **Antes de aplicar falló por la razón correcta:** el canal se borró y se llevó la conversación y el mensaje en cascada. **Después pasó 10 de 10:** el canal con historia no se borra, el vacío sí, y el workspace entero se borra sin dejar nada.
 - `verify-lead-scope.mjs` (24 de 24) y `verify-realtime-scope.mjs` (7 de 7), con su limpieza nueva, que borra el canal al final.
 - **Recuentos de 19:34 y de 19:36, idénticos:** 1 usuario, 1 workspace y 2 canales; en el workspace del negocio, 262 contactos, 262 conversaciones y 0 mensajes; del canal @alomercadeo, 262 conversaciones y 0 mensajes.
+
+### Incidente del despliegue, el 5 de octubre de 2026
+
+**Qué pasó.** A las 19:52:19 se subió `8c05383`, el último de siete commits que incluían el hook de pre-commit (`8e7b75e`). Producción no cambió de build: a los ocho minutos de esperar seguía en `KZ9QhQvLeWBbj54KKSO9W`, el de `d9fcb6b`, desplegado a las 19:41. **Producción siguió sirviendo `d9fcb6b` todo el tiempo y no se cayó**: `/login` respondió 200 en cada comprobación.
+
+**La causa, inferida y reproducida en parte.** El hook se instalaba con un script `prepare` nuevo, `git config core.hooksPath .githooks`. `npm install` corre `prepare` siempre, también en el build de Railway, y ese comando, fuera de un repositorio de git, sale con 128: eso está reproducido. Que Railway construya sin `.git`, y que por eso fallara la instalación, es inferencia: el despliegue fallido no se miró en Railway.
+
+**El arreglo, `e96b0e9`, subido a las 20:01:50.** El `prepare` instala el hook solo si hay repositorio y nunca falla; lo cuida `scripts/prepare.test.ts`, en rojo con el `prepare` anterior. A las 20:03 producción ya servía un build nuevo. **Duración:** unos 11 minutos entre la subida que no se desplegó y el build nuevo.
+
+**Lo que dejó:** subir no es desplegar, y la única señal fue esperar con una condición. La propuesta del script de cierre está más abajo.
+
+### F24 al cierre del 5 de octubre de 2026
+
+**Todos sus criterios están cumplidos, según Marcos, salvo probar "Desconectar" contra Zernio real.** Esa prueba queda pendiente por decisión de Marcos: requiere una segunda cuenta de Instagram, no la de ALO Mercadeo, porque desconectar corta el único canal vivo. El botón sigue deshabilitado, y con él el criterio de la confirmación que nombra la cuenta. **F24 no cuenta como completa: el avance sigue en 5 de 25.**
+
+### Propuesta, sin construir: verificar el despliegue al cerrar
+
+Un script de cierre, `scripts/verificar-despliegue.mjs`, que se corre después de subir:
+
+1. Antes de subir, lee el identificador del build que sirve producción, en el HTML de `/login` (`"b":"…"`).
+2. Después de subir, lo vuelve a leer cada 10 segundos.
+3. Sale con 0 cuando cambia y `/login` responde 200; sale con 1 si en 5 minutos no cambió, diciendo que lo subido no está desplegado y que hay que mirar Railway.
+
+Límite que conviene saber: el identificador del build no dice qué commit sirve. Para eso hace falta la API de Railway, con un token que hoy no tenemos. El script detecta "no se desplegó nada nuevo", que es lo que pasó el 05/10; no detecta "se desplegó otro commit".
+
+**Cierre de la sesión del 5 de octubre: 20:14, hora de Costa Rica.**
+
+---
 
 ## Siguiente paso
 
