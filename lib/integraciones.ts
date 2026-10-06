@@ -199,3 +199,22 @@ export function aTarjeta(fila: FilaIntegracion, valorClave: string | null): Tarj
     prefijo: d.prefijo ?? null,
   };
 }
+
+/**
+ * El texto de la tarjeta de WhatsApp, según el estado. No según que exista la
+ * clave: con la clave cargada y `EVOLUTION_API_URL` faltando, el estado es
+ * "sin configurar" y la tarjeta tiene que decirlo (visto en producción el
+ * 05/10/2026, cuando decía "configurada").
+ */
+export function textoConexionEvolution(estado: IntegrationEstado): string {
+  switch (estado) {
+    case "conectado":
+      return "Evolution responde y acepta la clave.";
+    case "desconectado":
+      return "Evolution rechazó la clave.";
+    case "sin_verificar":
+      return "No se pudo preguntarle a Evolution, así que no sabemos si responde.";
+    case "sin_configurar":
+      return "La conexión con Evolution no está configurada.";
+  }
+}

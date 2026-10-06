@@ -12,6 +12,7 @@ import {
   agruparPorTipo,
   modeloDe,
   detalleDe,
+  textoConexionEvolution,
   type Tarjeta,
 } from "@/lib/integraciones";
 import {
@@ -317,7 +318,7 @@ function Modelo({ t }: { t: Tarjeta }) {
 function WhatsApp({ t }: { t: Tarjeta }) {
   return (
     <div className="space-y-1 text-xs text-muted-foreground">
-      <p>{t.configurada ? "Conexión con Evolution configurada." : "La conexión con Evolution no está configurada."}</p>
+      <p>{textoConexionEvolution(t.estado)}</p>
       <p>
         La clave de Evolution se configura con el despliegue y no se muestra nunca. El estado de la sesión de
         WhatsApp y la reconexión con código QR están en{" "}

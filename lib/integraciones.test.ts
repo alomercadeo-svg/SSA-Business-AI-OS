@@ -7,6 +7,7 @@ import {
   filasPorDefecto,
   agruparPorTipo,
   aTarjeta,
+  textoConexionEvolution,
 } from "./integraciones";
 
 /**
@@ -114,5 +115,27 @@ describe("la tarjeta que viaja al navegador", () => {
   it("toma el detalle que escribió la detección, como el dominio verificado", () => {
     const t = aTarjeta({ ...fila, config: { detalle: "Dominio verificado: x.com." } }, null);
     expect(t.detalle).toBe("Dominio verificado: x.com.");
+  });
+});
+
+/**
+ * El texto de la tarjeta de WhatsApp depende del estado, no de que exista la
+ * clave. El 05/10/2026 la tarjeta decía "Conexión con Evolution configurada."
+ * con `EVOLUTION_API_URL` faltando en producción, porque solo miraba la clave.
+ */
+describe("el texto de la conexión con Evolution", () => {
+  it("solo dice que Evolution acepta la clave si el estado es conectado", () => {
+    expect(textoConexionEvolution("conectado")).toMatch(/acepta la clave/);
+    for (const e of ["desconectado", "sin_verificar", "sin_configurar"] as const) {
+      expect(textoConexionEvolution(e), e).not.toMatch(/acepta la clave/);
+    }
+  });
+
+  it("sin configurar dice que falta configurar, aunque la clave exista", () => {
+    expect(textoConexionEvolution("sin_configurar")).toMatch(/no está configurada/);
+  });
+
+  it("sin verificar no se presenta como desconectada", () => {
+    expect(textoConexionEvolution("sin_verificar")).not.toMatch(/desconect/i);
   });
 });
