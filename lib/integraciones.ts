@@ -158,6 +158,8 @@ export interface Tarjeta {
   modelo: string | null;
   /** Dato no secreto que escribió la detección: el dominio verificado, cuántas cuentas. */
   detalle: string | null;
+  /** El registro del webhook de Zernio, si es la integración de Zernio y ya se leyó. */
+  webhook: EstadoWebhook | null;
   configurada: boolean;
   mascara: Mascara | null;
   editable: boolean;
@@ -192,6 +194,7 @@ export function aTarjeta(fila: FilaIntegracion, valorClave: string | null): Tarj
     ultimo_error: fila.ultimo_error,
     modelo: modeloDe(fila.config),
     detalle: detalleDe(fila.config),
+    webhook: webhookDe(fila.config),
     configurada: Boolean(valorClave),
     mascara: d.mostrarMascara ? mascaraDeClave(valorClave) : null,
     editable: d.editable,
@@ -217,4 +220,76 @@ export function textoConexionEvolution(estado: IntegrationEstado): string {
     case "sin_configurar":
       return "La conexión con Evolution no está configurada.";
   }
+}
+
+/** La ruta del receptor de Zernio. El webhook "nuestro" es el que apunta acá. */
+export const RUTA_WEBHOOK_ZERNIO = "/api/webhooks/late";
+
+/** El registro del webhook de Zernio, resumido. Nunca el secreto: a lo sumo su máscara. */
+export interface EstadoWebhook {
+  registrado: boolean;
+  url: string | null;
+  activo: boolean | null;
+  eventos: string[];
+  secreto: Mascara | null;
+  /** Cuántos webhooks más hay registrados, que no apuntan al receptor. */
+  otros: number;
+  /** Cuándo se leyó. */
+  verificado_el: string | null;
+  /** Si no se pudo leer, el motivo. */
+  error: string | null;
+}
+
+/**
+ * Resume la respuesta de `GET /v1/webhooks/settings`. El webhook que cuenta es
+ * el que apunta a la ruta del receptor; el host no se compara contra
+ * `NEXT_PUBLIC_APP_URL`, que en desarrollo puede ser localhost.
+ */
+export function resumenWebhook(cuerpo: unknown): Omit<EstadoWebhook, "verificado_el" | "error"> {
+  const lista = Array.isArray((cuerpo as { webhooks?: unknown })?.webhooks)
+    ? ((cuerpo as { webhooks: unknown[] }).webhooks as Record<string, unknown>[])
+    : [];
+  const rutaDe = (u: unknown) => {
+    try {
+      return typeof u === "string" ? new URL(u).pathname : null;
+    } catch {
+      return null;
+    }
+  };
+  const nuestro = lista.find((w) => rutaDe(w?.url) === RUTA_WEBHOOK_ZERNIO);
+  if (!nuestro) return { registrado: false, url: null, activo: null, eventos: [], secreto: null, otros: lista.length };
+  return {
+    registrado: true,
+    url: typeof nuestro.url === "string" ? nuestro.url : null,
+    activo: typeof nuestro.isActive === "boolean" ? nuestro.isActive : null,
+    eventos: Array.isArray(nuestro.events) ? nuestro.events.filter((e): e is string => typeof e === "string") : [],
+    secreto: mascaraDeClave(typeof nuestro.secret === "string" ? nuestro.secret : null),
+    otros: lista.length - 1,
+  };
+}
+
+/**
+ * Lee el registro del webhook de `config`, campo por campo. Lo que no está en
+ * esta lista no sale, aunque esté en la base: `config` viaja al navegador por
+ * Realtime y en la tarjeta.
+ */
+export function webhookDe(config: unknown): EstadoWebhook | null {
+  if (!config || typeof config !== "object" || Array.isArray(config)) return null;
+  const w = (config as Record<string, unknown>).webhook;
+  if (!w || typeof w !== "object" || Array.isArray(w)) return null;
+  const v = w as Record<string, unknown>;
+  const s = v.secreto as Record<string, unknown> | null | undefined;
+  return {
+    registrado: v.registrado === true,
+    url: typeof v.url === "string" ? v.url : null,
+    activo: typeof v.activo === "boolean" ? v.activo : null,
+    eventos: Array.isArray(v.eventos) ? v.eventos.filter((e): e is string => typeof e === "string") : [],
+    secreto:
+      s && typeof s === "object" && typeof s.largo === "number"
+        ? { largo: s.largo, ultimos4: typeof s.ultimos4 === "string" && s.ultimos4.length === 4 ? s.ultimos4 : null }
+        : null,
+    otros: typeof v.otros === "number" ? v.otros : 0,
+    verificado_el: typeof v.verificado_el === "string" ? v.verificado_el : null,
+    error: typeof v.error === "string" ? v.error : null,
+  };
 }

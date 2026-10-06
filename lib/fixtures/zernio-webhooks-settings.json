@@ -1,0 +1,28 @@
+{
+  "medido_el": "2026-10-05",
+  "origen": "Respuesta real de GET /v1/webhooks/settings de Zernio (webhooks.getWebhookSettings del SDK @zernio/node 0.2.519), solo lectura.",
+  "comando": "node ./.captura-webhook.mjs (script temporal en la raíz del repo, borrado después; lee la clave de Zernio de Vault con el service role)",
+  "reemplazos": "El secreto de firma y los valores de customHeaders se reemplazaron por marcadores ANTES de escribir este archivo. El marcador del secreto conserva el largo original. El valor real nunca se guardó ni se imprimió.",
+  "cuerpo": {
+    "webhooks": [
+      {
+        "_id": "6aa9ef89c03cb833f2611a59",
+        "name": "Zernflow",
+        "url": "https://app.alomercadeo.com/api/webhooks/late",
+        "secret": "MARCADOR-SECRETO-00000000000000000000000000000000000000000000000",
+        "events": [
+          "message.received",
+          "comment.received",
+          "message.sent"
+        ],
+        "isActive": true,
+        "disabledResourceGroups": [],
+        "profileIds": [],
+        "accountIds": [],
+        "customHeaders": {},
+        "failureCount": 0,
+        "lastFiredAt": "2026-10-05T23:16:26.623Z"
+      }
+    ]
+  }
+}

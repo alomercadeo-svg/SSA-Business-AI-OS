@@ -16,11 +16,15 @@ import { join } from "node:path";
 
 const h = vi.hoisted(() => ({
   listAccounts: vi.fn(),
+  getWebhookSettings: vi.fn(),
   secretos: {} as Record<string, string | null>,
 }));
 
 vi.mock("@/lib/zernio-client", () => ({
-  createZernioClient: () => ({ accounts: { listAccounts: h.listAccounts } }),
+  createZernioClient: () => ({
+    accounts: { listAccounts: h.listAccounts },
+    webhooks: { getWebhookSettings: h.getWebhookSettings },
+  }),
 }));
 
 vi.mock("@/lib/vault", async (original) => ({
@@ -44,6 +48,8 @@ beforeEach(() => {
   fetchFalso.mockReset();
   vi.stubGlobal("fetch", fetchFalso);
   h.listAccounts.mockReset();
+  h.getWebhookSettings.mockReset();
+  h.getWebhookSettings.mockResolvedValue({ data: { webhooks: [] } });
   h.secretos = {};
   delete process.env.EVOLUTION_API_URL;
 });
@@ -275,5 +281,62 @@ describe("el mapeo de Resend", () => {
     const r = await consultarProveedor("resend", "re_inventada");
     expect(r.estado).toBe("desconectado");
     expect(JSON.stringify(r)).not.toContain("re_inventada");
+  });
+});
+
+/**
+ * El registro del webhook se lee al abrir la pantalla, junto con la consulta a
+ * Zernio. Control negativo: el secreto de firma que trae la respuesta no
+ * aparece en el resultado, en lo que se guarda ni en ningún log. El dato es la
+ * respuesta real del 05/10/2026, con el secreto reemplazado por un marcador.
+ */
+describe("el registro del webhook de Zernio, al abrir la pantalla", () => {
+  const webhooks = JSON.parse(readFileSync(join(__dirname, "fixtures/zernio-webhooks-settings.json"), "utf8"));
+  const MARCADOR = "MARCADOR-SECRETO";
+
+  it("lo lee con getWebhookSettings y lo devuelve resumido, sin el secreto", async () => {
+    h.listAccounts.mockResolvedValue({ data: { accounts: [{}] } });
+    h.getWebhookSettings.mockResolvedValue({ data: webhooks.cuerpo });
+    const r = await consultarProveedor("zernio", "zk");
+    expect(h.getWebhookSettings).toHaveBeenCalledTimes(1);
+    expect(r.extra?.webhook).toMatchObject({ registrado: true, url: "https://app.alomercadeo.com/api/webhooks/late", activo: true });
+    expect(JSON.stringify(r)).not.toContain(MARCADOR);
+  });
+
+  it("el secreto no aparece en ningún log, ni en lo que se guarda en la base", async () => {
+    h.listAccounts.mockResolvedValue({ data: { accounts: [{}] } });
+    h.getWebhookSettings.mockResolvedValue({ data: webhooks.cuerpo });
+    h.secretos = { zernio_api_key: "zk" };
+    // Las llamadas se guardan acá y no en `mock.calls`: `mockRestore()` borra
+    // ese registro, y la primera versión de este test revisaba una lista vacía
+    // después de restaurar, así que pasaba aunque se logueara el secreto
+    // (visto con un console.log puesto a propósito, el 05/10/2026).
+    const llamadas: unknown[][] = [];
+    const espias = (["log", "info", "warn", "error", "debug"] as const).map((m) =>
+      vi.spyOn(console, m).mockImplementation((...args: unknown[]) => {
+        llamadas.push(args);
+      })
+    );
+    const s = supabaseFalso([{ proveedor: "zernio", tipo: "canal", nombre: "Instagram" }]);
+    try {
+      console.log("canario-de-log");
+      await verificarTodas(s as never, "ws-1");
+    } finally {
+      for (const e of espias) e.mockRestore();
+    }
+    // Canario: si el espía no capturara nada, "no aparece" se cumpliría por vacío.
+    expect(JSON.stringify(llamadas)).toContain("canario-de-log");
+    expect(JSON.stringify(llamadas)).not.toContain(MARCADOR);
+    expect(JSON.stringify(s.updates)).not.toContain(MARCADOR);
+    // Control positivo: lo que se guarda sí lleva el registro.
+    expect(JSON.stringify(s.updates)).toContain("app.alomercadeo.com/api/webhooks/late");
+  });
+
+  it("si no se puede leer, el estado de Zernio no cambia y queda dicho", async () => {
+    h.listAccounts.mockResolvedValue({ data: { accounts: [{}] } });
+    h.getWebhookSettings.mockRejectedValue(new TypeError("fetch failed"));
+    const r = await consultarProveedor("zernio", "zk");
+    expect(r.estado).toBe("conectado");
+    expect(r.extra?.webhook).toMatchObject({ error: expect.any(String) });
   });
 });

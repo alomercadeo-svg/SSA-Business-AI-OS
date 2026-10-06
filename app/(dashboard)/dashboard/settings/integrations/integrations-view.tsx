@@ -12,6 +12,7 @@ import {
   agruparPorTipo,
   modeloDe,
   detalleDe,
+  webhookDe,
   textoConexionEvolution,
   type Tarjeta,
 } from "@/lib/integraciones";
@@ -22,6 +23,7 @@ import {
   verificarIntegraciones,
 } from "@/lib/actions/integraciones";
 import type { IntegrationEstado, IntegrationTipo } from "@/lib/types/database";
+import { EstadoWebhook } from "./estado-webhook";
 
 interface CuentaInstagram {
   id: string;
@@ -94,7 +96,7 @@ export function IntegrationsView({
             if (existe) {
               return ts.map((t) =>
                 t.id === n.id
-                  ? { ...t, nombre: n.nombre, estado: n.estado, verificado_el: n.verificado_el, ultimo_error: n.ultimo_error, modelo: modeloDe(n.config), detalle: detalleDe(n.config) }
+                  ? { ...t, nombre: n.nombre, estado: n.estado, verificado_el: n.verificado_el, ultimo_error: n.ultimo_error, modelo: modeloDe(n.config), detalle: detalleDe(n.config), webhook: webhookDe(n.config) }
                   : t
               );
             }
@@ -104,7 +106,7 @@ export function IntegrationsView({
               {
                 id: n.id, tipo: n.tipo, proveedor: n.proveedor, nombre: n.nombre, orden: n.orden,
                 estado: n.estado, verificado_el: n.verificado_el, ultimo_error: n.ultimo_error,
-                modelo: modeloDe(n.config), detalle: detalleDe(n.config), configurada: false, mascara: null, editable: true, conModelo: false, prefijo: null,
+                modelo: modeloDe(n.config), detalle: detalleDe(n.config), webhook: webhookDe(n.config), configurada: false, mascara: null, editable: true, conModelo: false, prefijo: null,
               },
             ];
           });
@@ -382,6 +384,8 @@ function Instagram({ t, cuentas }: { t: Tarjeta; cuentas: CuentaInstagram[] }) {
         </button>
         {mensaje && <p className={cn("text-xs", mensaje.ok ? "text-emerald-600" : "text-red-600")}>{mensaje.texto}</p>}
       </div>
+
+      <EstadoWebhook webhook={t.webhook} />
 
       <div className="space-y-2">
         <p className="text-xs font-medium text-muted-foreground">Cuentas</p>

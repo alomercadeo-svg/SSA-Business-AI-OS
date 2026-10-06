@@ -35,13 +35,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, IntegrationEstado } from "@/lib/types/database";
 import { getWorkspaceSecret } from "@/lib/vault";
 import { createZernioClient } from "@/lib/zernio-client";
-import { definicionDe } from "@/lib/integraciones";
+import { definicionDe, resumenWebhook } from "@/lib/integraciones";
 
 export interface Deteccion {
   estado: IntegrationEstado;
   error: string | null;
   /** Dato no secreto para mostrar: el dominio verificado, cuántas cuentas. */
   detalle?: string | null;
+  /** Otros datos no secretos que se guardan en `config`, como el registro del webhook. */
+  extra?: Record<string, unknown>;
 }
 
 const ESPERA_MS = 8000;
@@ -105,11 +107,17 @@ export async function consultarProveedor(proveedor: string, clave: string): Prom
   switch (proveedor) {
     case "zernio": {
       try {
-        const res = (await conTiempo(createZernioClient(clave).accounts.listAccounts())) as {
+        const zernio = createZernioClient(clave);
+        const res = (await conTiempo(zernio.accounts.listAccounts())) as {
           data?: { accounts?: unknown[] };
         };
         const n = res?.data?.accounts?.length;
-        return { estado: "conectado", error: null, detalle: typeof n === "number" ? `${n} ${n === 1 ? "cuenta" : "cuentas"} en Zernio.` : null };
+        return {
+          estado: "conectado",
+          error: null,
+          detalle: typeof n === "number" ? `${n} ${n === 1 ? "cuenta" : "cuentas"} en Zernio.` : null,
+          extra: { webhook: await leerWebhook(zernio) },
+        };
       } catch (e) {
         return estadoPorFallo(e) ?? { estado: "sin_verificar", error: "Zernio respondió algo que no dice si la clave sirve." };
       }
@@ -199,11 +207,30 @@ export function estadoResend(status: number, cuerpo: unknown): Deteccion {
   return estadoPorHttp(status);
 }
 
+/**
+ * El registro del webhook de Zernio, leído con `GET /v1/webhooks/settings`
+ * (`webhooks.getWebhookSettings`, verificado en el SDK). Solo lectura.
+ *
+ * La respuesta trae el secreto de firma en texto plano. Acá se resume y se
+ * descarta: sale como máscara (largo y últimos cuatro) y nunca se registra.
+ * Si no se puede leer, el estado de Zernio no cambia: queda dicho en el
+ * registro del webhook.
+ */
+async function leerWebhook(zernio: ReturnType<typeof createZernioClient>) {
+  const verificado_el = new Date().toISOString();
+  try {
+    const res = (await conTiempo(zernio.webhooks.getWebhookSettings())) as { data?: unknown };
+    return { ...resumenWebhook(res?.data ?? res), verificado_el, error: null };
+  } catch {
+    return { registrado: false, url: null, activo: null, eventos: [], secreto: null, otros: 0, verificado_el, error: "No se pudo leer el registro del webhook en Zernio." };
+  }
+}
+
 type Cliente = SupabaseClient<Database>;
 
-function conDetalle(config: unknown, detalle: string | null | undefined) {
+function conDetalle(config: unknown, detalle: string | null | undefined, extra?: Record<string, unknown>) {
   const base = config && typeof config === "object" && !Array.isArray(config) ? (config as Record<string, unknown>) : {};
-  return { ...base, detalle: detalle ?? null };
+  return { ...base, ...(extra ?? {}), detalle: detalle ?? null };
 }
 
 /**
@@ -231,7 +258,7 @@ export async function verificarTodas(supabase: Cliente, workspaceId: string): Pr
           estado: r.estado,
           ultimo_error: r.error,
           verificado_el: ahora,
-          config: conDetalle(f.config, r.detalle),
+          config: conDetalle(f.config, r.detalle, r.extra),
           updated_at: ahora,
         })
         .eq("workspace_id", workspaceId)
