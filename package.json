@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit -p .",
     "test:watch": "vitest",
     "verify:security": "node scripts/verify-lead-scope.mjs && node scripts/verify-realtime-scope.mjs && node scripts/verify-evolution-alertas.mjs && node scripts/verify-evolution-deploy.mjs && node scripts/verify-integration-configs.mjs && node scripts/verify-channels-restrict.mjs",
-    "prepare": "git config core.hooksPath .githooks"
+    "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || true"
   },
   "dependencies": {
     "@icons-pack/react-simple-icons": "^13.11.2",
