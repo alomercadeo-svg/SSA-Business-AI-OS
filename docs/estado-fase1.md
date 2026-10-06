@@ -219,6 +219,14 @@ Los dos los cuida `app/(dashboard)/dashboard/channels/desconectar-deshabilitado.
 
 ---
 
+## Sesión del 5 de octubre de 2026
+
+**Inicio 18:24, hora de Costa Rica.** Sin commits sin subir al abrir; el último era `e610d22`.
+
+**Verificado por Marcos ese día a las 18:19:** la detección de estado al abrir la pantalla de integraciones funciona en producción, y `EVOLUTION_API_URL` falta en el servicio de la app en Railway. Según `docs/despliegue-evolution.md` §4, el valor es la URL pública del servicio de Evolution, la misma que su `SERVER_URL`: con `https://`, sin barra final y sin puerto. La carga Marcos.
+
+---
+
 ## Siguiente paso
 
 **`docs/purga-y-reconexion-instagram.md` está cerrado**, desde el 22 de septiembre de 2026, con el despliegue verificado. Railway despliega `bloque-1-foundation` con despliegue automático al subir, verificado ese día en la interfaz. El último despliegue verificado es `d3eb410`, el 23 de septiembre de 2026, con la tarjeta ACTIVE en "Deployment successful" (captura de Marcos).
