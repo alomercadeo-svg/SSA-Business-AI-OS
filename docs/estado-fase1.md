@@ -205,7 +205,7 @@ Las siete cosas de la lista vieja, dónde quedaron: el adaptador de Evolution en
 
 Los dos los cuida `app/(dashboard)/dashboard/channels/desconectar-deshabilitado.test.ts`, visto en rojo antes de cada cambio.
 
-**Resend: el mapeo de estados está propuesto y pendiente de la decisión de Marcos.**
+**Resend: el mapeo de estados estaba propuesto y pendiente de la decisión de Marcos.** Decidido e implementado el 5 de octubre de 2026, con una fila más para el 400 de una clave inválida, medido ese día: ver F24 en el plano.
 
 - **Lo verificado en la documentación de errores:** un 401 `restricted_api_key` es una clave de solo envío, y un 403 `restricted_api_key` o `suspended_api_key` es una clave no activa o suspendida.
 - **Lo que no documenta:** qué devuelve una clave inválida.

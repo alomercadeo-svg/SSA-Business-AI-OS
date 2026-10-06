@@ -520,6 +520,19 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 > **`integration_configs` no existe todavía** (verificado el 23 de septiembre de 2026: ninguna migración la crea). La crea F24, y para que el estado llegue por Realtime la tabla tiene que estar en la publicación `supabase_realtime`, como `conversations` y `messages`. Le aplica el mismo límite que `scripts/verify-realtime-scope.mjs` documenta para esas dos: los eventos de borrado no los filtra la RLS y le llegan a todo suscriptor, con la clave primaria y sin contenido.
 >
 > **Fuentes posibles, no verificadas.** Si Zernio o Resend avisan por webhook los cambios de estado de una cuenta o de un dominio, se suman como fuente de detección. **No está verificado que lo hagan:** no se leyó la documentación de ninguno de los dos para esto. Si lo hacen, entran como un tercer momento de detección, sin cambiar lo demás.
+>
+> **El mapeo de Resend, decidido el 5 de octubre de 2026.** Un 401 o un 403 de `GET /domains` no alcanzan para decir "desconectado", porque Resend usa esos códigos también para claves válidas con permisos limitados. Lo implementa `estadoResend` en `lib/integraciones-estado.ts`:
+>
+> | Respuesta | Estado | Cómo se sabe |
+> |---|---|---|
+> | 200 | Conectado, con el dominio verificado si lo hay | Documentado y en uso |
+> | 400 `validation_error`, mensaje exacto "API key is invalid" | Desconectado | **Medido** el 05/10/2026 con una clave inventada (`lib/fixtures/resend-domains-clave-invalida.json`) |
+> | Cualquier otro 400 | Sin verificar | `validation_error` cubre también otras validaciones |
+> | 401 `restricted_api_key`, clave de solo envío | Conectado, con la nota de que el dominio no se puede consultar | **Documentada, no medida: se mide en F23 con la clave real** |
+> | Cualquier otro 401 | Sin verificar | |
+> | 403 `restricted_api_key` (no activa) o `suspended_api_key` | Desconectado | Documentado, no medido |
+> | 403 `invalid_permission` u otro | Sin verificar | Documentado, no medido |
+> | 429, 5xx, red caída o tiempo agotado | Sin verificar | Como el resto de los proveedores |
 
 ---
 

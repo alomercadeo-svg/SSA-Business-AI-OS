@@ -1,0 +1,7 @@
+{
+  "medido_el": "2026-10-05",
+  "origen": "Respuesta real de Resend, medida una sola vez con una clave inventada al azar en el momento (no es de nadie).",
+  "comando": "CLAVE=\"re_inventada_$(openssl rand -hex 12)\"; curl -s -w \"\\nHTTP %{http_code}\\n\" -H \"Authorization: Bearer $CLAVE\" https://api.resend.com/domains",
+  "status": 400,
+  "cuerpo": { "statusCode": 400, "message": "API key is invalid", "name": "validation_error" }
+}

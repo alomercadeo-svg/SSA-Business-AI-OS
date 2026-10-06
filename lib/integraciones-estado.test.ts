@@ -28,9 +28,11 @@ vi.mock("@/lib/vault", async (original) => ({
   getWorkspaceSecret: async (_s: unknown, _ws: string, nombre: string) => h.secretos[nombre] ?? null,
 }));
 
-const { estadoPorHttp, estadoPorFallo, consultarProveedor, verificarTodas, registrarFalloDeZernio } = await import(
+const { estadoPorHttp, estadoPorFallo, consultarProveedor, verificarTodas, registrarFalloDeZernio, estadoResend } = await import(
   "./integraciones-estado"
 );
+
+const claveInvalida = JSON.parse(readFileSync(join(__dirname, "fixtures/resend-domains-clave-invalida.json"), "utf8"));
 
 const fetchFalso = vi.fn();
 const respuesta = (status: number, cuerpo: unknown = {}) => {
@@ -225,4 +227,53 @@ describe("los envíos por Zernio avisan sus fallos a integraciones", () => {
       expect(readFileSync(join(__dirname, "..", archivo), "utf8")).toMatch(/registrarFalloDeZernio\(/);
     });
   }
+});
+
+/**
+ * El mapeo de Resend. Un 401 o un 403 no alcanzan para decir "desconectado":
+ * Resend usa los mismos códigos para claves válidas con permisos limitados.
+ *
+ * Qué está medido y qué no:
+ *   - 400 "API key is invalid": MEDIDO el 05/10/2026 con una clave inventada
+ *     (`lib/fixtures/resend-domains-clave-invalida.json`, con el comando).
+ *   - 401 `restricted_api_key` (clave de solo envío), 403 `restricted_api_key`
+ *     (no activa), 403 `suspended_api_key`, 403 `invalid_permission`:
+ *     documentados en https://resend.com/docs/api-reference/errors, NO medidos.
+ *     El 401 de solo envío se mide en F23 con la clave real.
+ */
+describe("el mapeo de Resend", () => {
+  it("la respuesta real a una clave inválida (medida el 05/10/2026) es desconectado", () => {
+    expect(claveInvalida.status).toBe(400);
+    expect(estadoResend(claveInvalida.status, claveInvalida.cuerpo).estado).toBe("desconectado");
+  });
+
+  it("cualquier otro 400 es sin verificar: validation_error también cubre otras validaciones", () => {
+    expect(estadoResend(400, { name: "validation_error", message: "Otra cosa" }).estado).toBe("sin_verificar");
+    expect(estadoResend(400, null).estado).toBe("sin_verificar");
+  });
+
+  it("401 restricted_api_key es una clave de solo envío: conectado, con nota (documentado, no medido)", () => {
+    const r = estadoResend(401, { name: "restricted_api_key", message: "This API key is restricted to only send emails" });
+    expect(r.estado).toBe("conectado");
+    expect(r.detalle).toMatch(/solo envío/);
+  });
+
+  it("otro 401, o sin cuerpo legible, es sin verificar", () => {
+    expect(estadoResend(401, { name: "missing_api_key" }).estado).toBe("sin_verificar");
+    expect(estadoResend(401, null).estado).toBe("sin_verificar");
+  });
+
+  it("403 de clave no activa o suspendida es desconectado; invalid_permission es sin verificar", () => {
+    expect(estadoResend(403, { name: "restricted_api_key", message: "API key is not active" }).estado).toBe("desconectado");
+    expect(estadoResend(403, { name: "suspended_api_key" }).estado).toBe("desconectado");
+    expect(estadoResend(403, { name: "invalid_permission" }).estado).toBe("sin_verificar");
+    expect(estadoResend(403, null).estado).toBe("sin_verificar");
+  });
+
+  it("consultarProveedor lee el cuerpo y aplica el mapeo", async () => {
+    fetchFalso.mockResolvedValue(respuesta(claveInvalida.status, claveInvalida.cuerpo));
+    const r = await consultarProveedor("resend", "re_inventada");
+    expect(r.estado).toBe("desconectado");
+    expect(JSON.stringify(r)).not.toContain("re_inventada");
+  });
 });

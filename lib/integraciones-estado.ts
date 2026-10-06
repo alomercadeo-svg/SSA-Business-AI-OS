@@ -22,11 +22,10 @@
  *   - Evolution: GET {EVOLUTION_API_URL}/instance/fetchInstances con `apikey`,
  *                lo mismo que usa `scripts/verify-evolution-deploy.mjs`.
  *
- * SIN VERIFICAR: que una clave de Resend restringida a envío pueda listar
- * dominios. Si no puede, Resend respondería 401 y la pantalla diría
- * "desconectado" con una clave que sirve para enviar. Tampoco está documentada
- * la lista completa de estados de dominio: se considera verificado solo el que
- * dice exactamente `verified`.
+ * RESEND tiene su propio mapeo, `estadoResend`, porque un 401 o un 403 no
+ * alcanzan para decir "desconectado". La lista completa de estados de dominio
+ * no está documentada: se considera verificado solo el que dice exactamente
+ * `verified`.
  *
  * NUNCA se lee el cuerpo de la respuesta de Evolution: `fetchInstances` trae el
  * token de cada instancia. Nunca se escribe una clave en `ultimo_error`, en
@@ -80,10 +79,13 @@ export function estadoPorFallo(e: unknown): Deteccion | null {
   return null;
 }
 
-async function porHttp(url: string, headers: Record<string, string>): Promise<{ d: Deteccion; res?: { json: () => Promise<unknown> } }> {
+async function porHttp(
+  url: string,
+  headers: Record<string, string>
+): Promise<{ d: Deteccion; status?: number; res?: { json: () => Promise<unknown> } }> {
   try {
     const res = await fetch(url, { headers, signal: AbortSignal.timeout(ESPERA_MS) });
-    return { d: estadoPorHttp(res.status), res };
+    return { d: estadoPorHttp(res.status), status: res.status, res };
   } catch (e) {
     return { d: estadoPorFallo(e) ?? { estado: "sin_verificar", error: "No se pudo preguntarle al proveedor." } };
   }
@@ -120,7 +122,16 @@ export async function consultarProveedor(proveedor: string, clave: string): Prom
       return d;
     }
     case "resend": {
-      const { d, res } = await porHttp("https://api.resend.com/domains", { Authorization: `Bearer ${clave}` });
+      const { d, status, res } = await porHttp("https://api.resend.com/domains", { Authorization: `Bearer ${clave}` });
+      if (res && (status === 400 || status === 401 || status === 403)) {
+        let cuerpo: unknown = null;
+        try {
+          cuerpo = await res.json();
+        } catch {
+          cuerpo = null;
+        }
+        return estadoResend(status, cuerpo);
+      }
       if (d.estado !== "conectado" || !res) return d;
       try {
         const cuerpo = (await res.json()) as { data?: { name?: string; status?: string }[] };
@@ -139,6 +150,53 @@ export async function consultarProveedor(proveedor: string, clave: string): Prom
     default:
       return { estado: "sin_verificar", error: "Todavía no hay forma de preguntarle a este proveedor." };
   }
+}
+
+/**
+ * El mapeo de Resend para `GET /domains`. Un 401 o un 403 no alcanzan para
+ * decir "desconectado": Resend usa esos códigos también para claves válidas
+ * con permisos limitados. "Desconectado" es solo cuando Resend dice que la
+ * clave es inválida, no está activa o está suspendida.
+ *
+ * Qué está medido y qué no (los nombres de error, contra
+ * https://resend.com/docs/api-reference/errors):
+ *   - 400 `validation_error` "API key is invalid": MEDIDO el 05/10/2026 con una
+ *     clave inventada (`lib/fixtures/resend-domains-clave-invalida.json`). Se
+ *     exige el mensaje exacto porque `validation_error` cubre también otras
+ *     validaciones; si Resend lo cambia, cae en "sin verificar", el lado seguro.
+ *   - 401 `restricted_api_key`, clave de solo envío: documentado, no medido. Se
+ *     mide en F23 con la clave real.
+ *   - 403 `restricted_api_key` (no activa), `suspended_api_key` e
+ *     `invalid_permission`: documentados, no medidos.
+ */
+export function estadoResend(status: number, cuerpo: unknown): Deteccion {
+  const c = cuerpo && typeof cuerpo === "object" ? (cuerpo as { name?: unknown; message?: unknown }) : {};
+  const nombre = typeof c.name === "string" ? c.name : null;
+  const mensaje = typeof c.message === "string" ? c.message : null;
+
+  if (status === 400) {
+    if (nombre === "validation_error" && mensaje === "API key is invalid") {
+      return { estado: "desconectado", error: "Resend dice que la clave es inválida." };
+    }
+    return { estado: "sin_verificar", error: "Resend respondió HTTP 400, que no dice si la clave sirve." };
+  }
+  if (status === 401) {
+    if (nombre === "restricted_api_key") {
+      // Documentado, no medido: se mide en F23 con la clave real.
+      return {
+        estado: "conectado",
+        error: null,
+        detalle: "Clave de solo envío: el estado del dominio no se puede consultar con esta clave.",
+      };
+    }
+    return { estado: "sin_verificar", error: "Resend rechazó la consulta (HTTP 401) y no dice por qué." };
+  }
+  if (status === 403) {
+    if (nombre === "restricted_api_key") return { estado: "desconectado", error: "Resend dice que la clave no está activa." };
+    if (nombre === "suspended_api_key") return { estado: "desconectado", error: "Resend dice que la clave está suspendida." };
+    return { estado: "sin_verificar", error: "Resend respondió HTTP 403: la clave no tiene permiso para consultar dominios." };
+  }
+  return estadoPorHttp(status);
 }
 
 type Cliente = SupabaseClient<Database>;
