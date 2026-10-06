@@ -510,7 +510,7 @@ async function cleanup() {
   }
   // El flujo y la difusión cascadean sus sesiones y destinatarios; el contacto
   // cascadea sus conversaciones, mensajes y el resto. El canal va último: desde
-  // la 00025 un canal con historia no se borra (RESTRICT), y antes este orden
+  // la 00025 un canal con historia no se borra (NO ACTION), y antes este orden
   // estaba al revés y se apoyaba en la cascada del canal. Si no se borra, se
   // dice, en vez de dejar datos de prueba en producción con un .catch mudo.
   for (const id of limpiar.flujos) await admin(`flows?id=eq.${id}`, { method: "DELETE" }).catch(() => {});

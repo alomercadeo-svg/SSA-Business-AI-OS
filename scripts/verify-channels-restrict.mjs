@@ -1,28 +1,33 @@
 #!/usr/bin/env node
 /**
  * Verificación de la 00025 en la base: borrar un canal con historial falla, y
- * el historial sigue ahí.
+ * el historial sigue ahí. Borrar un workspace entero sigue funcionando.
  *
- *   1. Un canal de prueba con una conversación y un mensaje: borrarlo tiene que
- *      FALLAR, y después la conversación y el mensaje tienen que seguir.
- *   2. Control positivo: un canal de prueba sin historia se borra bien. Sin
- *      esto, "no se pudo borrar" no distingue entre RESTRICT y cualquier otra
- *      cosa que impida borrar (permisos, una ruta equivocada).
+ * TODO PASA EN UN WORKSPACE DE PRUEBA PROPIO (`verificador-<sufijo>`), creado
+ * por el script. No toca el workspace real ni ningún dato del negocio.
  *
- * Qué cambia el propio script, y por qué el orden: el paso 1 intenta un borrado
- * que, si la protección faltara, se llevaría la conversación en cascada. Por
- * eso la conversación se lee DESPUÉS del intento, y si el borrado pasó, el
- * resultado es un rojo, no "no concluyente".
+ *   a. Un canal con una conversación y un mensaje: borrarlo tiene que FALLAR, y
+ *      después la conversación y el mensaje tienen que seguir.
+ *   b. Control positivo: un canal sin historia se borra. Sin esto, "no se pudo
+ *      borrar" no distingue la protección de cualquier otra cosa que impida
+ *      borrar (permisos, una ruta equivocada).
+ *   c. Borrar directo el workspace de prueba, con canal, contacto, conversación
+ *      y mensaje adentro: tiene que funcionar, y no tiene que quedar nada. Es
+ *      el motivo de NO ACTION en vez de RESTRICT: borrar un workspace entero es
+ *      una decisión legítima del Owner, y la protección no la puede trabar.
  *
- * ESTADO ESPERADO: pasa con la 00025 aplicada. Sin ella el paso 1 falla: el
- * canal se borra y la conversación desaparece. Ese es el rojo previo.
+ * Qué cambia el propio script, y por qué el orden: el escenario (a) intenta un
+ * borrado que, sin la protección, se llevaría la conversación en cascada. Por
+ * eso la conversación y el mensaje se leen DESPUÉS del intento, y si el borrado
+ * pasó, el resultado es un rojo. El (c) usa los datos que dejó el (a), que son
+ * exactamente los que tiene que poder borrar.
+ *
+ * ESTADO ESPERADO: pasa con la 00025 aplicada. Sin ella, el (a) falla por la
+ * razón correcta: el canal se borra y la conversación y el mensaje desaparecen
+ * en cascada. Ese es el rojo previo.
  *
  * Uso:
  *   node scripts/verify-channels-restrict.mjs
- *
- * Crea y borra sus propios datos. La limpieza borra primero el contacto (que
- * se lleva conversación y mensaje por su propia clave, la que usa la purga de
- * F30) y recién después el canal, que ya no tiene historia.
  */
 
 import { readFileSync } from "node:fs";
@@ -81,86 +86,97 @@ async function admin(path, init = {}) {
   return { status: res.status, data };
 }
 
-const sufijo = randomUUID().slice(0, 8);
-const limpiar = { contactos: [], canales: [] };
+async function crear(tabla, fila) {
+  const { status, data } = await admin(tabla, { method: "POST", body: JSON.stringify(fila) });
+  if (status >= 300 || !data?.[0]?.id) throw new Error(`no se pudo crear en ${tabla}: HTTP ${status}`);
+  return data[0].id;
+}
 
-async function crearCanal(nombre) {
-  const { status, data } = await admin("channels", {
-    method: "POST",
-    body: JSON.stringify({
-      workspace_id: workspaceA,
+const existe = async (tabla, id) => ((await admin(`${tabla}?select=id&id=eq.${id}`)).data ?? []).length === 1;
+
+const sufijo = randomUUID().slice(0, 8);
+const NOMBRE_WS = `verificador-${sufijo}`;
+let wsPrueba = null;
+let totalWorkspacesInicial = null;
+
+async function main() {
+  totalWorkspacesInicial = ((await admin("workspaces?select=id")).data ?? []).length;
+
+  wsPrueba = await crear("workspaces", { name: NOMBRE_WS, slug: NOMBRE_WS });
+  console.log(`Workspace de prueba propio: ${NOMBRE_WS} (${wsPrueba})\n`);
+
+  const canal = (nombre) =>
+    crear("channels", {
+      workspace_id: wsPrueba,
       platform: "instagram",
       late_account_id: `restrict-${nombre}-${sufijo}`,
       username: `restrict-${nombre}-${sufijo}`,
       is_active: false,
-    }),
-  });
-  if (status >= 300 || !data?.[0]?.id) throw new Error(`no se pudo crear el canal ${nombre}: HTTP ${status}`);
-  limpiar.canales.push(data[0].id);
-  return data[0].id;
-}
+    });
 
-let workspaceA = null;
-
-async function main() {
-  const { data: wss } = await admin("workspaces?select=id,name");
-  workspaceA = wss[0].id;
-  console.log(`Workspace: ${wss[0].name} (${workspaceA})\n`);
-
-  // ── 1. Un canal con historia no se borra ──────────────────────────────────
-  console.log("1. Canal con una conversación y un mensaje");
-  const canalConHistoria = await crearCanal("con-historia");
-  const { data: contacto } = await admin("contacts", {
-    method: "POST",
-    body: JSON.stringify({ workspace_id: workspaceA, display_name: `restrict-${sufijo}` }),
+  // ── a. Un canal con historia no se borra ──────────────────────────────────
+  console.log("a. Canal con una conversación y un mensaje");
+  const canalConHistoria = await canal("con-historia");
+  const contacto = await crear("contacts", { workspace_id: wsPrueba, display_name: `restrict-${sufijo}` });
+  const conv = await crear("conversations", {
+    workspace_id: wsPrueba, channel_id: canalConHistoria, contact_id: contacto, platform: "instagram",
   });
-  limpiar.contactos.push(contacto[0].id);
-  const { data: conv } = await admin("conversations", {
-    method: "POST",
-    body: JSON.stringify({ workspace_id: workspaceA, channel_id: canalConHistoria, contact_id: contacto[0].id, platform: "instagram" }),
-  });
-  const { data: msg } = await admin("messages", {
-    method: "POST",
-    body: JSON.stringify({ conversation_id: conv[0].id, direction: "inbound", text: `restrict ${sufijo}` }),
-  });
+  const msg = await crear("messages", { conversation_id: conv, direction: "inbound", text: `restrict ${sufijo}` });
 
   const borrado = await admin(`channels?id=eq.${canalConHistoria}`, { method: "DELETE" });
-  const sigueConv = await admin(`conversations?select=id&id=eq.${conv[0].id}`);
-  const sigueMsg = await admin(`messages?select=id&id=eq.${msg[0].id}`);
-  const sigueCanal = await admin(`channels?select=id&id=eq.${canalConHistoria}`);
-
   check(borrado.status >= 400, "borrar el canal con historia falla",
     `HTTP ${borrado.status}; con la 00025 tendría que ser un error de clave foránea`);
-  check(sigueCanal.data?.length === 1, "el canal sigue ahí");
-  check(sigueConv.data?.length === 1, "la conversación sigue ahí", "se fue en cascada: falta la protección");
-  check(sigueMsg.data?.length === 1, "el mensaje sigue ahí", "se fue en cascada: falta la protección");
+  check(await existe("channels", canalConHistoria), "el canal sigue ahí");
+  check(await existe("conversations", conv), "la conversación sigue ahí", "se fue en cascada: falta la protección");
+  check(await existe("messages", msg), "el mensaje sigue ahí", "se fue en cascada: falta la protección");
 
-  // ── 2. Control positivo: un canal sin historia se borra ───────────────────
-  console.log("\n2. Control positivo: canal sin historia");
-  const canalVacio = await crearCanal("sin-historia");
+  // ── b. Control positivo: un canal sin historia se borra ───────────────────
+  console.log("\nb. Control positivo: canal sin historia");
+  const canalVacio = await canal("sin-historia");
   const borradoVacio = await admin(`channels?id=eq.${canalVacio}`, { method: "DELETE" });
-  const sigueVacio = await admin(`channels?select=id&id=eq.${canalVacio}`);
-  const positivo = borradoVacio.status < 300 && sigueVacio.data?.length === 0;
+  const positivo = borradoVacio.status < 300 && !(await existe("channels", canalVacio));
   check(positivo, "un canal sin historia se borra", `HTTP ${borradoVacio.status}`);
-  if (positivo) limpiar.canales = limpiar.canales.filter((id) => id !== canalVacio);
   if (!positivo) {
-    console.log("  NO CONCLUYENTE: si tampoco se borra un canal vacío, el fallo del paso 1 no se puede atribuir a RESTRICT.");
+    console.log("  NO CONCLUYENTE: si tampoco se borra un canal vacío, el fallo de (a) no se puede atribuir a la protección.");
     noConcluyente = true;
   }
+
+  // ── c. Borrar el workspace entero funciona y no deja nada ─────────────────
+  console.log("\nc. Borrar el workspace de prueba, con canal, contacto, conversación y mensaje");
+  const canalDeC = (await existe("channels", canalConHistoria)) ? canalConHistoria : await canal("para-c");
+  const borradoWs = await admin(`workspaces?id=eq.${wsPrueba}`, { method: "DELETE" });
+  check(borradoWs.status < 300, "borrar el workspace de prueba funciona",
+    `HTTP ${borradoWs.status}: la protección traba el borrado de un workspace entero`);
+  const quedan = {
+    workspace: await existe("workspaces", wsPrueba),
+    canal: await existe("channels", canalDeC),
+    contacto: await existe("contacts", contacto),
+    conversacion: await existe("conversations", conv),
+    mensaje: await existe("messages", msg),
+  };
+  check(!Object.values(quedan).some(Boolean), "no queda nada del workspace de prueba", JSON.stringify(quedan));
+  if (!quedan.workspace) wsPrueba = null;
 }
 
 async function cleanup() {
   console.log("\nLimpieza");
-  // Primero el contacto: se lleva conversación y mensaje por contact_id. Recién
-  // después el canal, que ya no tiene historia y se puede borrar.
-  for (const id of limpiar.contactos) await admin(`contacts?id=eq.${id}`, { method: "DELETE" });
-  for (const id of limpiar.canales) {
-    const r = await admin(`channels?id=eq.${id}`, { method: "DELETE" });
-    if (r.status >= 300) check(false, `se borra el canal de prueba ${id}`, `HTTP ${r.status}: quedó en la base`);
+  if (wsPrueba) {
+    // Solo si (c) no llegó a borrarlo: contactos primero (se llevan sus
+    // conversaciones y mensajes), después canales, después el workspace.
+    await admin(`contacts?workspace_id=eq.${wsPrueba}`, { method: "DELETE" });
+    await admin(`channels?workspace_id=eq.${wsPrueba}`, { method: "DELETE" });
+    const r = await admin(`workspaces?id=eq.${wsPrueba}`, { method: "DELETE" });
+    if (r.status >= 300) check(false, "se borra el workspace de prueba en la limpieza", `HTTP ${r.status}`);
   }
-  const quedan = await admin(`channels?select=id&username=like.restrict-*-${sufijo}`);
-  check(Array.isArray(quedan.data) && quedan.data.length === 0, "no quedaron canales de prueba",
-    `quedaron ${quedan.data?.length}`);
+  const wsQuedan = (await admin(`workspaces?select=id&name=like.verificador-*`)).data ?? [];
+  check(wsQuedan.length === 0, "no quedó ningún workspace de prueba", `quedaron ${wsQuedan.length}`);
+  const canalesQuedan = (await admin(`channels?select=id&username=like.restrict-*`)).data ?? [];
+  check(canalesQuedan.length === 0, "no quedó ningún canal de prueba", `quedaron ${canalesQuedan.length}`);
+  if (totalWorkspacesInicial !== null) {
+    const total = ((await admin("workspaces?select=id")).data ?? []).length;
+    check(total === totalWorkspacesInicial, "la cantidad de workspaces es la del principio",
+      `al empezar ${totalWorkspacesInicial}, al terminar ${total}`);
+  }
 }
 
 try {

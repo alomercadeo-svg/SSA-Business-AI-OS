@@ -344,7 +344,7 @@ async function cleanup() {
   } catch {}
   // Primero los contactos, que se llevan sus conversaciones y mensajes por
   // contact_id; recién después el canal. Desde la 00025 un canal con historia
-  // no se borra (RESTRICT), y antes este orden estaba al revés y se apoyaba en
+  // no se borra (NO ACTION), y antes este orden estaba al revés y se apoyaba en
   // la cascada del canal. Si el canal no se borra, se dice: un .catch mudo
   // dejaría datos de prueba en producción sin que nadie se entere.
   for (const id of limpiar.contactos) await admin(`contacts?id=eq.${id}`, { method: "DELETE" }).catch(() => {});
