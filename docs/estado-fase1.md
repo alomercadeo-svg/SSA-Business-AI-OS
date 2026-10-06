@@ -229,6 +229,13 @@ Los dos los cuida `app/(dashboard)/dashboard/channels/desconectar-deshabilitado.
 
 ---
 
+**La protección del historial, aplicada el 05/10/2026.** La ruta `DELETE /api/v1/channels/[channelId]` responde 405 (`96494a7`). La 00025 pasa a NO ACTION las claves de `channel_id` de las seis tablas con historia (`3c04e31`): NO ACTION y no RESTRICT, porque protege igual y no traba el borrado de un workspace entero. La pantalla de Canales ya no tiene botón de borrar (`0c29097`).
+
+- El `--dry-run` listó solo la 00025, y se aplicó con la aprobación de Marcos.
+- `scripts/verify-channels-restrict.mjs` ya no usa el workspace real: crea el suyo. **Antes de aplicar falló por la razón correcta:** el canal se borró y se llevó la conversación y el mensaje en cascada. **Después pasó 10 de 10:** el canal con historia no se borra, el vacío sí, y el workspace entero se borra sin dejar nada.
+- `verify-lead-scope.mjs` (24 de 24) y `verify-realtime-scope.mjs` (7 de 7), con su limpieza nueva, que borra el canal al final.
+- **Recuentos de 19:34 y de 19:36, idénticos:** 1 usuario, 1 workspace y 2 canales; en el workspace del negocio, 262 contactos, 262 conversaciones y 0 mensajes; del canal @alomercadeo, 262 conversaciones y 0 mensajes.
+
 ## Siguiente paso
 
 **`docs/purga-y-reconexion-instagram.md` está cerrado**, desde el 22 de septiembre de 2026, con el despliegue verificado. Railway despliega `bloque-1-foundation` con despliegue automático al subir, verificado ese día en la interfaz. El último despliegue verificado es `d3eb410`, el 23 de septiembre de 2026, con la tarjeta ACTIVE en "Deployment successful" (captura de Marcos).
