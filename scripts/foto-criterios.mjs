@@ -28,6 +28,12 @@
  *   node scripts/foto-criterios.mjs --escribir   regenera la foto, solo si cada
  *                                                línea que se fue o se movió está
  *                                                en las bajas
+ *   node scripts/foto-criterios.mjs --indice     compara lo que está preparado para
+ *                                                commitear (plano, foto y bajas del
+ *                                                índice de git, no del disco). Sale
+ *                                                con 1 si algo se fue o se movió sin
+ *                                                explicar, o si hay criterios nuevos
+ *                                                sin foto. Lo usa .githooks/pre-commit
  *   node scripts/foto-criterios.mjs --foto-de <commit> --plano-de <commit>
  *        compara el plano de un commit contra la foto armada con los planos de
  *        otro. Es el caso de prueba histórico: ebc9702 contra 584226f.
@@ -187,6 +193,36 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   };
   const fotoDe = arg("--foto-de");
   const planoDe = arg("--plano-de");
+
+  if (process.argv.includes("--indice")) {
+    // Lo que va a quedar en el commit, no lo que hay en disco: un arreglo sin
+    // agregar no salva un commit roto.
+    const delIndice = (ruta) => {
+      try {
+        return git(["show", `:${ruta}`]);
+      } catch {
+        return null;
+      }
+    };
+    const planoI = delIndice(PLANO);
+    const fotoI = delIndice(FOTO);
+    const bajasI = delIndice(BAJAS);
+    if (planoI === null) {
+      console.log(`${PLANO} no está en el índice: no hay nada que comparar.`);
+      process.exit(0);
+    }
+    if (fotoI === null) {
+      console.log(`No hay ${FOTO} en el índice. Correr --escribir y agregarla.`);
+      process.exit(1);
+    }
+    const r = compararCriterios(JSON.parse(fotoI), planoI, bajasI ? JSON.parse(bajasI) : []);
+    informar(r);
+    if (sinExplicar(r) || r.nuevas.length) {
+      console.log(`\nNo se commitea. Explicá lo que se fue o se movió en ${BAJAS}, corré --escribir y agregá la foto al commit.`);
+      process.exit(1);
+    }
+    process.exit(0);
+  }
 
   if (fotoDe && planoDe) {
     const r = compararCriterios(fotoDeCommit(fotoDe), git(["show", `${planoDe}:${PLANO}`]));

@@ -1,0 +1,21 @@
+#!/bin/sh
+# Guardia de la foto de criterios, antes de cada commit que toca el plano.
+#
+# Corta por el código de salida de la guardia, no por el texto que imprime.
+# El 05/10/2026 se commiteó 334c236 con la guardia negándose y la suite en
+# rojo, porque la cadena de comandos miraba si un filtro de la salida encontraba
+# texto. Ver CLAUDE.md y scripts/pre-commit.test.ts.
+#
+# Corre si el commit toca el plano, la foto o las bajas, y compara lo que está
+# en el commit (el índice de git), no el disco. Se instala con `npm install`
+# (script prepare: git config core.hooksPath .githooks).
+
+if git diff --cached --name-only | grep -qxE 'docs/(requerimientos-fase1\.md|criterios-foto\.json|criterios-bajas\.json)'; then
+  node scripts/foto-criterios.mjs --indice
+  estado=$?
+  if [ "$estado" -ne 0 ]; then
+    echo "pre-commit: la guardia de la foto de criterios salió con $estado. No se commitea." >&2
+    exit "$estado"
+  fi
+fi
+exit 0
