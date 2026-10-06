@@ -474,7 +474,7 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 - [ ] Los correos enviados quedan registrados para poder consultarlos
 - [ ] Cierra una deuda del Bloque 1: la invitación deja de depender de copiar un link a mano
 
-**Dependencia externa:** el criterio del remitente con dominio verificado, `notificaciones.alomercadeo.com`, no se cumple hasta que se carguen en Cloudflare los tres registros DNS del ticket. Hasta entonces no sale ningún correo con ese remitente, ni invitaciones ni notificaciones.
+**Dependencia externa:** el criterio del remitente con dominio verificado, `notificaciones.alomercadeo.com`, no se cumple hasta que se carguen en Cloudflare los tres registros DNS del ticket. Hasta entonces no sale ningún correo con ese remitente, ni invitaciones ni notificaciones. **Cumplida el 5 de octubre de 2026:** el dominio quedó verificado en Resend a las 18:45, y F23 ya no tiene dependencias externas.
 
 #### F24: Pantalla de integraciones y claves de IA
 
