@@ -68,5 +68,12 @@
     "nuevo": "- [ ] Cuando una importación corre en segundo plano, quien importó recibe una notificación por correo al terminar, vía F23 (devuelto el 23/09/2026, auditoría #105c)",
     "motivo": "Decidido el 23/09/2026: el aviso de fin de importación es un aviso de una acción y va a quien la hizo, no a Owner y Admin.",
     "fecha": "2026-09-23"
+  },
+  {
+    "texto": "- [ ] Desconectar nunca borra conversaciones ni mensajes: marca el canal como inactivo y conserva el historial. Motivo: es una decisión cerrada del proyecto que el historial viva en la base local, y migrar sin historial no es migrar. La ruta heredada `DELETE /api/v1/channels/[channelId]`, que borra la fila del canal y en cascada sus conversaciones y mensajes, se reemplaza antes de volver a habilitar el botón de la pantalla de Canales, deshabilitado desde `5a9e2af` (agregado el 23/09/2026)",
+    "destino": "reescrito",
+    "nuevo": "- [ ] Desconectar nunca borra conversaciones ni mensajes: marca el canal como inactivo y conserva el historial. Motivo: es una decisión cerrada del proyecto que el historial viva en la base local, y migrar sin historial no es migrar. La ruta heredada `DELETE /api/v1/channels/[channelId]`, que borra la fila del canal y en cascada sus conversaciones y mensajes, se reemplaza antes de volver a habilitar el botón de la pantalla de Canales, deshabilitado desde `5a9e2af` (agregado el 23/09/2026). **Cumplido el 05/10/2026, y la protección vive en la base:** la ruta responde 405 (`96494a7`), la migración 00025 pasa a RESTRICT las claves de `channel_id` de las seis tablas con historia (`ff737db`), y la pantalla de Canales ya no tiene botón de borrar y manda a Integraciones (`0c29097`). La protección de la base rige desde que se aplique la 00025, que al 05/10/2026 espera la aprobación de Marcos",
+    "motivo": "Se marca cumplido el 05/10/2026 en el texto, con el motivo de que la protección vive en la base (00025), y lo que falta para que rija: aplicar la 00025. Queda sin tildar a propósito: la guardia de la foto solo reconoce líneas `- [ ]`, y la protección no rige hasta aplicar la migración.",
+    "fecha": "2026-10-05"
   }
 ]
