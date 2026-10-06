@@ -533,6 +533,13 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 > | 403 `restricted_api_key` (no activa) o `suspended_api_key` | Desconectado | Documentado, no medido |
 > | 403 `invalid_permission` u otro | Sin verificar | Documentado, no medido |
 > | 429, 5xx, red caída o tiempo agotado | Sin verificar | Como el resto de los proveedores |
+>
+> **Qué activa y qué desactiva un canal, verificado en el código el 5 de octubre de 2026.** Un canal inactivo es un canal que no recibe: el receptor de Zernio responde 404 a sus mensajes y el de Evolution 503, y después de unos 20 minutos de reintentos el mensaje se pierde.
+>
+> - **La sincronización** (`app/api/v1/channels/sync/route.ts`) corre al apretar "Sync" en Canales, al sincronizar desde la bandeja, y sola al volver de conectar una cuenta (`channels/callback`). No hay ninguna tarea programada que la corra. Crea activas las cuentas nuevas. A las existentes les actualiza solo el nombre de usuario, el nombre visible y la foto: **nunca las vuelve a activar**. Y desactiva los canales de Zernio cuya cuenta ya no aparece en Zernio (`debeDesactivarseCanal`).
+> - **"Probar y guardar"** (`test-key`) solo crea activas las cuentas nuevas. A las existentes no las toca.
+> - **Nada más reactiva un canal**, salvo "Activar" en la pantalla de Canales (`activarCanal`), que se muestra solo cuando el canal está inactivo. Apagar desde la interfaz solo es posible con la acción de desconectar de esta funcionalidad, hoy deshabilitada.
+> - **La consecuencia que importa, y es inferencia:** Zernio reusa el identificador de la cuenta al reconectar (medido en F26). Si una cuenta se desconecta y se vuelve a conectar, la sincronización encuentra la fila vieja, inactiva, y la deja así; los mensajes se rechazan sin aviso hasta que alguien aprieta "Activar". Integraciones lo muestra: "Inactivo: no se reciben mensajes de este canal".
 
 ---
 
