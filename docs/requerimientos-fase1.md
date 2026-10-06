@@ -6,7 +6,7 @@
 
 **Versión:** 2.0, regenerada tras el cambio de canal de WhatsApp
 **Fecha:** 16 de septiembre de 2026
-**Revisión:** 17 de septiembre de 2026, migración desde Pipedrive y decisión de Calendly
+**Revisión:** 23 de septiembre de 2026, devolución de los criterios que perdió la conciliación y definiciones de F23 y F24. La anterior, del 17 de septiembre, sumó la migración desde Pipedrive y la decisión de Calendly
 **Cliente:** negocio de servicios digitales (single-tenant)
 
 > Este documento cubre la Fase 1 completa, de los bloques 1 a 4, y reemplaza a los dos planos que convivían hasta el 21 de septiembre de 2026. El Bloque 1 está construido, probado y publicado, y se conserva acá especificado porque el plano tiene que describir la fase entera y no solo lo que falta. El registro de lo construido está en `docs/estado-fase1.md`, y las decisiones con su razonamiento en los documentos del proyecto.
@@ -53,6 +53,16 @@ Tres decisiones sobre el modelo de contacto y la pantalla de integraciones. Se t
 **Facebook y X quedan fuera de F24.** La sección de canales se arma leyendo `integration_configs`, así que un canal agregado como fila aparece sin tocar código. Sumarlos después es cargar un registro.
 
 **WhatsApp en F24 se reescribe para Evolution.** F24 muestra la conexión con Evolution. El estado de sesión y la reconexión con código QR se construyen en F32, en la pantalla de canales. Lo que el documento viejo pedía para la API oficial, el nombre para mostrar y su aprobación, es del plan B y no de esta pantalla.
+
+### Y qué cambió el 23 de septiembre
+
+**Lo que la conciliación del 21 había perdido volvió al plano.** La auditoría (`docs/auditoria-conciliacion.md`) clasificó cada obligación de los dos planos viejos, y lo que tenía destino de vuelta se devolvió en los commits `af42bd3` a `7f03688`, uno por tema. Cada criterio devuelto termina en "(devuelto el 23/09/2026, auditoría #N)", así que se puede ir de cualquiera de ellos a su fila en la auditoría.
+
+**F41, asignación de setter y vendedor, entra en el Bloque 3.** La conciliación la había dado por construida con F3, y lo construido eran las columnas y el scope, no la asignación desde la interfaz. Estaba en la estimación original del bloque.
+
+**Se definieron dos mecanismos que estaban abiertos.** El tiempo real del estado de las integraciones (F24, `0ea2456`): se detecta al abrir la pantalla y cuando una operación real falla, sin tarea periódica. Y las notificaciones del sistema (F23, `997fdaf` y `a01a8cb`): una función única, con destinatarios explícitos, techo contra el aluvión y lista cerrada.
+
+**Desconectar un canal nunca borra el historial** (F24, `0107e75`). La ruta heredada del fork que borraba el canal en cascada se reemplaza antes de habilitar cualquier botón de desconexión, y los dos que había quedaron deshabilitados en producción.
 
 ### La objeción a Evolution, y por qué ya no aplica
 
