@@ -202,6 +202,22 @@ describe("el detector, contra el caso real que lo originó", () => {
     expect(mudanzas).toHaveLength(16);
   });
 
+  /**
+   * Los criterios tildados también están protegidos. Hasta el 05/10/2026 el
+   * extractor solo reconocía "- [ ]", así que un "- [x]" (F21, F22) se podía
+   * borrar sin que nada avisara, y tildar un criterio lo sacaba de la foto.
+   */
+  it("un criterio tildado cuenta como criterio, con sus sub-viñetas", () => {
+    const texto = "#### F1: x\n\n- [x] Hecho\n    - detalle\n- [X] También hecho\n- [ ] Pendiente";
+    expect(extraerCriterios(texto).map((c) => c.texto)).toEqual(["- [x] Hecho", "- detalle", "- [X] También hecho", "- [ ] Pendiente"]);
+  });
+
+  it("borrar un criterio tildado es un faltante", () => {
+    const viejo = "#### F1: x\n\n- [x] Hecho\n- [ ] Pendiente";
+    const nuevo = "#### F1: x\n\n- [ ] Pendiente";
+    expect(compararCriterios(extraerCriterios(viejo), nuevo).faltantes.map((c) => c.texto)).toEqual(["- [x] Hecho"]);
+  });
+
   it("una sub-viñeta o un párrafo de continuación cuentan como parte del criterio", () => {
     const texto = "#### F1: x\n\n- [ ] Criterio\n    - detalle\n\n  continuación\n\nProsa que no es criterio\n    - viñeta suelta";
     expect(extraerCriterios(texto).map((c) => c.texto)).toEqual(["- [ ] Criterio", "- detalle", "continuación"]);

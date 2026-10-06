@@ -17,8 +17,11 @@
  * de hoy en adelante; lo perdido antes lo busca la auditoría.
  *
  * **Qué es una línea de criterio.** Cada línea no vacía de un bloque que
- * empieza con `- [ ]`: la línea misma, sus sub-viñetas y sus párrafos de
- * continuación con sangría. Se compara el texto exacto, con los espacios
+ * empieza con `- [ ]`, `- [x]` o `- [X]`: la línea misma, sus sub-viñetas y sus
+ * párrafos de continuación con sangría. Los tildados cuentan desde el
+ * 05/10/2026: antes quedaban fuera de la foto y se podían borrar sin aviso.
+ * Tildar un criterio cambia su texto, así que se explica como reescrito en las
+ * bajas. Se compara el texto exacto, con los espacios
  * normalizados. Exacto a propósito: sacar "y estado" de un criterio es
  * justamente la clase de pérdida que pasó, y una comparación aproximada la
  * dejaría pasar.
@@ -67,7 +70,7 @@ export function extraerCriterios(texto) {
       enBloque = false;
       continue;
     }
-    if (/^\s*- \[ \]/.test(linea)) {
+    if (/^\s*- \[[ xX]\]/.test(linea)) {
       enBloque = true;
     } else if (linea.trim() === "") {
       continue; // una línea en blanco no corta el bloque; lo corta lo que venga sin sangría

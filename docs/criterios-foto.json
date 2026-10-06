@@ -378,6 +378,150 @@
     "texto": "- [ ] Los mensajes se almacenan en `messages` con la referencia correcta a conversación y canal"
   },
   {
+    "seccion": "F21: Despliegue de Evolution API en Railway",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F21: Despliegue de Evolution API en Railway"
+    ],
+    "texto": "- [x] Servicio desplegado con la imagen fijada en `evoapicloud/evolution-api:v2.3.7`, nunca en `latest`. El tag `latest` apunta hoy a una versión cuyo identificador no coincide con ninguna publicación oficial etiquetada"
+  },
+  {
+    "seccion": "F21: Despliegue de Evolution API en Railway",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F21: Despliegue de Evolution API en Railway"
+    ],
+    "texto": "- [x] Dos servicios, no tres: Evolution y su PostgreSQL. Se configura `CACHE_LOCAL_ENABLED=true` y `CACHE_REDIS_ENABLED=false`. Redis es solo caché de rendimiento y no hace falta"
+  },
+  {
+    "seccion": "F21: Despliegue de Evolution API en Railway",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F21: Despliegue de Evolution API en Railway"
+    ],
+    "texto": "- [x] `AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=false`. **Se pone igual, pero no protege nada: ver el hallazgo abajo.** La protección real del token de la instancia es la regla operativa de nunca registrar el cuerpo crudo de un aviso de Evolution"
+  },
+  {
+    "seccion": "F21: Despliegue de Evolution API en Railway",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F21: Despliegue de Evolution API en Railway"
+    ],
+    "texto": "- [x] **Ningún log escribe el cuerpo crudo de un aviso de Evolution.** No es una recomendación de higiene: es la única defensa que existe para ese token, porque viaja en el cuerpo de cada aviso y no hay forma de apagarlo"
+  },
+  {
+    "seccion": "F21: Despliegue de Evolution API en Railway",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F21: Despliegue de Evolution API en Railway"
+    ],
+    "texto": "- [x] `WEBHOOK_GLOBAL_ENABLED=false`. El aviso global no manda datos de autenticación, así que no se puede verificar"
+  },
+  {
+    "seccion": "F21: Despliegue de Evolution API en Railway",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F21: Despliegue de Evolution API en Railway"
+    ],
+    "texto": "- [x] La clave de la instancia y el secreto de los avisos se guardan en Supabase Vault, nunca en variables de entorno de la aplicación"
+  },
+  {
+    "seccion": "F21: Despliegue de Evolution API en Railway",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F21: Despliegue de Evolution API en Railway"
+    ],
+    "texto": "- [x] Instancia creada con sincronización de historial activada y grupos ignorados"
+  },
+  {
+    "seccion": "F21: Despliegue de Evolution API en Railway",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F21: Despliegue de Evolution API en Railway"
+    ],
+    "texto": "- [x] Aviso de mensajes configurado por instancia, incluyendo el dato de autenticación"
+  },
+  {
+    "seccion": "F21: Despliegue de Evolution API en Railway",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F21: Despliegue de Evolution API en Railway"
+    ],
+    "texto": "- [x] El archivo `.env.example` documenta cada variable nueva, con qué es y dónde se consigue"
+  },
+  {
+    "seccion": "F21: Despliegue de Evolution API en Railway",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F21: Despliegue de Evolution API en Railway"
+    ],
+    "texto": "- [x] La documentación de despliegue queda en `docs/despliegue-evolution.md`, con pasos reproducibles"
+  },
+  {
+    "seccion": "F22: Receptor de mensajes entrantes, autenticado",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F22: Receptor de mensajes entrantes, autenticado"
+    ],
+    "texto": "- [x] Ruta nueva en `app/api/webhooks/evolution/`"
+  },
+  {
+    "seccion": "F22: Receptor de mensajes entrantes, autenticado",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F22: Receptor de mensajes entrantes, autenticado"
+    ],
+    "texto": "- [x] Verificación del dato de autenticación que manda Evolution, fijando el algoritmo esperado y usando el secreto guardado en Vault. Sin autenticación válida, se rechaza"
+  },
+  {
+    "seccion": "F22: Receptor de mensajes entrantes, autenticado",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F22: Receptor de mensajes entrantes, autenticado"
+    ],
+    "texto": "- [x] Procedimiento de cambio de secreto documentado y soportado: durante el cambio se aceptan el secreto viejo y el nuevo. Un rechazo de autenticación cancela los reintentos de Evolution y el mensaje se pierde para siempre, así que un cambio mal hecho pierde mensajes en silencio"
+  },
+  {
+    "seccion": "F22: Receptor de mensajes entrantes, autenticado",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F22: Receptor de mensajes entrantes, autenticado"
+    ],
+    "texto": "- [x] Alerta ante cualquier rechazo, con lo que significa cada una escrito en la pantalla: en el rechazo de autenticación, cada ocurrencia es un mensaje de un lead que se perdió; en la instancia desconocida todavía no se perdió ninguno, y lo que se muestra es el plazo que queda para corregir"
+  },
+  {
+    "seccion": "F22: Receptor de mensajes entrantes, autenticado",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F22: Receptor de mensajes entrantes, autenticado"
+    ],
+    "texto": "- [x] Nunca se registra en los logs el contenido completo del aviso, porque incluye credenciales"
+  },
+  {
+    "seccion": "F22: Receptor de mensajes entrantes, autenticado",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F22: Receptor de mensajes entrantes, autenticado"
+    ],
+    "texto": "- [x] Control de duplicados reusando el registro de eventos que ya existe"
+  },
+  {
     "seccion": "F22: Receptor de mensajes entrantes, autenticado",
     "ruta": [
       "5. Funcionalidades y criterios de aceptación",
@@ -385,6 +529,78 @@
       "F22: Receptor de mensajes entrantes, autenticado"
     ],
     "texto": "- [ ] La idempotencia por `webhook_events` funciona igual para los dos canales (devuelto el 23/09/2026, auditoría #5)"
+  },
+  {
+    "seccion": "F22: Receptor de mensajes entrantes, autenticado",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F22: Receptor de mensajes entrantes, autenticado"
+    ],
+    "texto": "- [x] Responde con acuse inmediato antes de procesar. El mecanismo de reintentos de Evolution queda bloqueado mientras espera"
+  },
+  {
+    "seccion": "F22: Receptor de mensajes entrantes, autenticado",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F22: Receptor de mensajes entrantes, autenticado"
+    ],
+    "texto": "- [x] Tests: autenticación válida, inválida, ausente, vencida, con algoritmo distinto, y evento repetido"
+  },
+  {
+    "seccion": "F22: Receptor de mensajes entrantes, autenticado",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F22: Receptor de mensajes entrantes, autenticado"
+    ],
+    "texto": "- [x] Un aviso para una instancia que no conocemos responde **servicio no disponible**, no un rechazo definitivo. La diferencia son los mensajes de una ventana de unos veinte minutos de reintentos, que es el tiempo que hay para corregir el nombre. El rechazo de autenticación **sí** sigue siendo definitivo, y a propósito: darle reintentos a algo indistinguible de una falsificación sería regalarle diez entregas por evento a quien esté probando"
+  },
+  {
+    "seccion": "F22: Receptor de mensajes entrantes, autenticado",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F22: Receptor de mensajes entrantes, autenticado"
+    ],
+    "texto": "- [x] La condición de instancia desconocida **no se cierra sola**, solo a mano. El motivo está en 7.2 y no es una omisión"
+  },
+  {
+    "seccion": "F22: Receptor de mensajes entrantes, autenticado",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F22: Receptor de mensajes entrantes, autenticado"
+    ],
+    "texto": "- [x] Esa condición no se actualiza más de una vez por minuto, porque se alcanza antes de autenticar y cualquiera puede provocar la escritura"
+  },
+  {
+    "seccion": "F22: Receptor de mensajes entrantes, autenticado",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F22: Receptor de mensajes entrantes, autenticado"
+    ],
+    "texto": "- [x] El nombre de instancia se acota al guardarlo y se muestra delimitado: lo elige quien manda el aviso y termina en el dashboard"
+  },
+  {
+    "seccion": "F22: Receptor de mensajes entrantes, autenticado",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F22: Receptor de mensajes entrantes, autenticado"
+    ],
+    "texto": "- [x] Las alertas sin espacio de trabajo no son legibles por la vía normal de permisos. Las muestra la pantalla comprobando el rol en el servidor"
+  },
+  {
+    "seccion": "F22: Receptor de mensajes entrantes, autenticado",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F22: Receptor de mensajes entrantes, autenticado"
+    ],
+    "texto": "- [x] La versión de Evolution que el código espera vive en el repositorio, y hay una comprobación automática que falla si lo desplegado no coincide. Reemplaza al procedimiento escrito que dependía de que alguien leyera un documento antes de cambiar una versión"
   },
   {
     "seccion": "F23: Email saliente vía Resend",
