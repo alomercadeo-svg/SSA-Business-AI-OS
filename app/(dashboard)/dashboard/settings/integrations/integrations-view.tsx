@@ -13,12 +13,16 @@ import {
   modeloDe,
   detalleDe,
   webhookDe,
+  remitenteDe,
+  dominioDeRemitente,
   textoConexionEvolution,
   type Tarjeta,
 } from "@/lib/integraciones";
 import {
   guardarClave,
   borrarClave,
+  probarYGuardarResend,
+  guardarRemitenteResend,
   guardarModelo,
   verificarIntegraciones,
 } from "@/lib/actions/integraciones";
@@ -105,7 +109,7 @@ export function IntegrationsView({
             if (existe) {
               return ts.map((t) =>
                 t.id === n.id
-                  ? { ...t, nombre: n.nombre, estado: n.estado, verificado_el: n.verificado_el, ultimo_error: n.ultimo_error, modelo: modeloDe(n.config), detalle: detalleDe(n.config), webhook: webhookDe(n.config) }
+                  ? { ...t, nombre: n.nombre, estado: n.estado, verificado_el: n.verificado_el, ultimo_error: n.ultimo_error, modelo: modeloDe(n.config), detalle: detalleDe(n.config), webhook: webhookDe(n.config), remitente: remitenteDe(n.config) }
                   : t
               );
             }
@@ -115,7 +119,7 @@ export function IntegrationsView({
               {
                 id: n.id, tipo: n.tipo, proveedor: n.proveedor, nombre: n.nombre, orden: n.orden,
                 estado: n.estado, verificado_el: n.verificado_el, ultimo_error: n.ultimo_error,
-                modelo: modeloDe(n.config), detalle: detalleDe(n.config), webhook: webhookDe(n.config), configurada: false, mascara: null, editable: true, conModelo: false, prefijo: null,
+                modelo: modeloDe(n.config), detalle: detalleDe(n.config), webhook: webhookDe(n.config), remitente: remitenteDe(n.config), configurada: false, mascara: null, editable: true, conModelo: false, prefijo: null,
               },
             ];
           });
@@ -219,7 +223,8 @@ function TarjetaView({
       <div className="mt-4 space-y-4">
         {t.proveedor === "zernio" && <Instagram t={t} cuentas={cuentasInstagram} />}
         {t.proveedor === "evolution" && <WhatsApp t={t} canales={canalesWhatsApp} />}
-        {t.proveedor !== "zernio" && t.proveedor !== "evolution" && t.editable && <ClaveEditable t={t} />}
+        {t.proveedor === "resend" && <Resend t={t} />}
+        {t.proveedor !== "zernio" && t.proveedor !== "evolution" && t.proveedor !== "resend" && t.editable && <ClaveEditable t={t} />}
         {t.conModelo && <Modelo t={t} />}
       </div>
     </div>
@@ -281,6 +286,107 @@ function ClaveEditable({ t }: { t: Tarjeta }) {
             disabled={pendiente}
             onClick={() => {
               if (!window.confirm(`¿Borrar la clave de ${t.nombre}? La integración queda sin configurar.`)) return;
+              iniciar(async () => {
+                const r = await borrarClave(t.proveedor);
+                setMensaje(r.ok ? { ok: true, texto: "Clave borrada." } : { ok: false, texto: r.error });
+                if (r.ok) router.refresh();
+              });
+            }}
+          >
+            Borrar clave
+          </button>
+        )}
+      </div>
+      {mensaje && <p className={cn("text-xs", mensaje.ok ? "text-emerald-600" : "text-red-600")}>{mensaje.texto}</p>}
+    </div>
+  );
+}
+
+/** El remitente que se propone si todavía no hay uno guardado. */
+const REMITENTE_SUGERIDO = "ALO Mercadeo <avisos@notificaciones.alomercadeo.com>";
+
+/**
+ * Correo por Resend (F23). "Probar y guardar" prueba la clave contra Resend
+ * antes de guardarla (`probarYGuardarResend`): una clave que Resend rechaza no
+ * se guarda. El remitente va al lado porque sin él no sale ningún correo.
+ */
+function Resend({ t }: { t: Tarjeta }) {
+  const [valor, setValor] = useState("");
+  const [remitente, setRemitente] = useState(t.remitente ?? REMITENTE_SUGERIDO);
+  const [mensaje, setMensaje] = useState<{ ok: boolean; texto: string } | null>(null);
+  const [pendiente, iniciar] = useTransition();
+  const router = useRouter();
+  const dominio = dominioDeRemitente(t.remitente);
+  const remitenteCambio = remitente.trim() !== (t.remitente ?? "");
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">
+        Sirve para las invitaciones al equipo y los avisos del sistema, como un canal caído o una importación terminada.
+        {dominio ? ` Sale desde ${dominio}.` : " Todavía no tiene remitente."}
+      </p>
+      <EstadoClave t={t} />
+      <input
+        type="password"
+        autoComplete="off"
+        value={valor}
+        onChange={(e) => {
+          setValor(e.target.value);
+          setMensaje(null);
+        }}
+        placeholder={t.configurada ? "Pegá una clave nueva para reemplazar la actual" : "re_…"}
+        className={claseInput}
+      />
+      <label className="block text-xs font-medium text-muted-foreground">Remitente</label>
+      <input
+        type="text"
+        value={remitente}
+        onChange={(e) => {
+          setRemitente(e.target.value);
+          setMensaje(null);
+        }}
+        placeholder={REMITENTE_SUGERIDO}
+        className={claseInput}
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          className={claseBoton}
+          disabled={!valor.trim() || pendiente}
+          onClick={() =>
+            iniciar(async () => {
+              const r = await probarYGuardarResend(valor, remitente);
+              setMensaje(r.ok ? { ok: true, texto: "Resend respondió. La clave quedó guardada en Vault." } : { ok: false, texto: r.error });
+              if (r.ok) {
+                setValor("");
+                router.refresh();
+              }
+            })
+          }
+        >
+          {pendiente && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          Probar y guardar
+        </button>
+        {t.configurada && !valor.trim() && remitenteCambio && (
+          <button
+            className={claseBoton}
+            disabled={pendiente}
+            onClick={() =>
+              iniciar(async () => {
+                const r = await guardarRemitenteResend(remitente);
+                setMensaje(r.ok ? { ok: true, texto: "Remitente guardado." } : { ok: false, texto: r.error });
+                if (r.ok) router.refresh();
+              })
+            }
+          >
+            Guardar remitente
+          </button>
+        )}
+        {t.configurada && (
+          <button
+            className={claseBoton}
+            disabled={pendiente}
+            onClick={() => {
+              if (!window.confirm("¿Borrar la clave de Resend? Dejan de salir las invitaciones y los avisos por correo.")) return;
               iniciar(async () => {
                 const r = await borrarClave(t.proveedor);
                 setMensaje(r.ok ? { ok: true, texto: "Clave borrada." } : { ok: false, texto: r.error });

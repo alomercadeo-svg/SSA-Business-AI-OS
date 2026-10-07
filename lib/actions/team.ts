@@ -1,7 +1,9 @@
 "use server";
 
+import { after } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { esManager, getWorkspace } from "@/lib/workspace";
+import { enviarCorreo, contenidoDeInvitacion, aHtml } from "@/lib/correo";
 
 /**
  * Roles asignables desde la UI. `owner` no está: no se otorga invitando ni
@@ -83,7 +85,37 @@ export async function inviteTeamMember(
     return { error: insertError.message };
   }
 
-  return { ok: true, invite };
+  // F23: la invitación llega por correo a quien se invita. El primer intento
+  // corre acá, para poder decir en pantalla si salió; los reintentos van en
+  // segundo plano. Si el correo no sale, la invitación igual queda creada y el
+  // link se puede copiar desde la lista: el correo es el camino, no la
+  // condición.
+  const { asunto, parrafos } = contenidoDeInvitacion({
+    inviteId: invite.id,
+    espacio: workspace.name,
+    invitador:
+      (user.user_metadata?.full_name as string | undefined) ??
+      (user.user_metadata?.name as string | undefined) ??
+      user.email ??
+      "Alguien del equipo",
+    rol: invite.role,
+    vence: invite.expires_at,
+  });
+  const correo = await enviarCorreo(
+    {
+      workspaceId,
+      tipo: "invitacion",
+      para: [trimmedEmail],
+      paraEtiqueta: trimmedEmail,
+      asunto,
+      texto: parrafos.join("\n\n"),
+      html: aHtml(parrafos),
+      inviteId: invite.id,
+    },
+    { reintentarEnSegundoPlano: (fn) => after(fn) }
+  );
+
+  return { ok: true, invite, correo: { estado: correo.estado, error: correo.error } };
 }
 
 /**

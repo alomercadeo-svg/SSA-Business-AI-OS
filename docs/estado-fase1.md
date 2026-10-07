@@ -366,6 +366,8 @@ Ningún criterio se reescribió ni se dio de baja; hay 17 nuevos: 1 en F24, 3 en
 **Tests:** `npm test` da 367 de 367, con cero errores de tipos. El test de documento único no toma los archivos de `docs/diseno/`: mira solo los `.md` sueltos en `docs/`.
 
 **Para la apertura de la próxima sesión:** anotar acá el hash del commit que cierra este registro, la salida de su corrida de `scripts/verificar-despliegue.mjs` y lo que Marcos vea en el historial de despliegues de Railway.
+- **Completado en la apertura de la sesión del 7 de octubre, noche.** El commit que cierra este registro es `9f4d8b1` (verificado con `git log`: 07/10/2026 12:24:18, hora de Costa Rica). Se subió con `scripts/verificar-despliegue.mjs` (push `ec52fae..9f4d8b1`), que salió con 0: a las 12:24:22 leyó el build `V2jNhh18na3eDZDzwlxQy`, y a los 124 segundos (12:26:28) el build pasó a `FbnAgTtCi9iW6aH_sahw7`, con `/login` en 200. **Esos números salen de la memoria que dejó la sesión de la tarde, no del repo.**
+- **Railway, dicho por Marcos:** el 07/10 a las 12:28 vio la tarjeta ACTIVE con el commit «docs(plano): lo que agrega el prototipo, F42 para contestar por What…», «Deployment successful», subido 3 minutos antes. Desde `ec52fae` hubo un solo push.
 
 ---
 

@@ -37,6 +37,7 @@ const { estadoPorHttp, estadoPorFallo, consultarProveedor, verificarTodas, regis
 );
 
 const claveInvalida = JSON.parse(readFileSync(join(__dirname, "fixtures/resend-domains-clave-invalida.json"), "utf8"));
+const claveSoloEnvio = JSON.parse(readFileSync(join(__dirname, "fixtures/resend-domains-clave-solo-envio.json"), "utf8"));
 
 const fetchFalso = vi.fn();
 const respuesta = (status: number, cuerpo: unknown = {}) => {
@@ -242,10 +243,11 @@ describe("los envíos por Zernio avisan sus fallos a integraciones", () => {
  * Qué está medido y qué no:
  *   - 400 "API key is invalid": MEDIDO el 05/10/2026 con una clave inventada
  *     (`lib/fixtures/resend-domains-clave-invalida.json`, con el comando).
- *   - 401 `restricted_api_key` (clave de solo envío), 403 `restricted_api_key`
- *     (no activa), 403 `suspended_api_key`, 403 `invalid_permission`:
- *     documentados en https://resend.com/docs/api-reference/errors, NO medidos.
- *     El 401 de solo envío se mide en F23 con la clave real.
+ *   - 401 `restricted_api_key`, clave de solo envío: MEDIDO el 07/10/2026 con
+ *     la clave real, en F23 (`lib/fixtures/resend-domains-clave-solo-envio.json`).
+ *   - 403 `restricted_api_key` (no activa), 403 `suspended_api_key`, 403
+ *     `invalid_permission`: documentados en
+ *     https://resend.com/docs/api-reference/errors, NO medidos.
  */
 describe("el mapeo de Resend", () => {
   it("la respuesta real a una clave inválida (medida el 05/10/2026) es desconectado", () => {
@@ -258,10 +260,17 @@ describe("el mapeo de Resend", () => {
     expect(estadoResend(400, null).estado).toBe("sin_verificar");
   });
 
-  it("401 restricted_api_key es una clave de solo envío: conectado, con nota (documentado, no medido)", () => {
-    const r = estadoResend(401, { name: "restricted_api_key", message: "This API key is restricted to only send emails" });
+  it("la respuesta real a una clave de solo envío (medida el 07/10/2026) es conectado, con nota", () => {
+    expect(claveSoloEnvio.status).toBe(401);
+    const r = estadoResend(claveSoloEnvio.status, claveSoloEnvio.cuerpo);
     expect(r.estado).toBe("conectado");
     expect(r.detalle).toMatch(/solo envío/);
+  });
+
+  it("consultarProveedor, con la respuesta medida de solo envío, da conectado", async () => {
+    fetchFalso.mockResolvedValue(respuesta(claveSoloEnvio.status, claveSoloEnvio.cuerpo));
+    const r = await consultarProveedor("resend", "re_inventada");
+    expect(r.estado).toBe("conectado");
   });
 
   it("otro 401, o sin cuerpo legible, es sin verificar", () => {

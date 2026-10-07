@@ -68,6 +68,11 @@ vi.mock("@/lib/vault", async (importOriginal) => {
   };
 });
 
+const notificarAlerta = vi.fn(async () => null);
+vi.mock("@/lib/correo", () => ({
+  notificarAlerta: (...args: unknown[]) => notificarAlerta(...(args as [])),
+}));
+
 const procesarEventoEvolution = vi.fn();
 vi.mock("@/lib/evolution-processor", () => ({
   procesarEventoEvolution: (...args: unknown[]) => procesarEventoEvolution(...args),
@@ -105,7 +110,8 @@ function crearSupabaseFalso() {
     from: constructor,
     rpc: async (fn: string, args: Record<string, unknown>) => {
       estado.rpcs.push({ fn, args });
-      return { data: null, error: null };
+      // `record_webhook_alert` devuelve el id de la condición abierta (00023).
+      return { data: fn === "record_webhook_alert" ? "alerta-1" : null, error: null };
     },
   };
 }
@@ -205,6 +211,7 @@ const alertasCerradas = () => estado.rpcs.filter((r) => r.fn === "resolve_webhoo
 beforeEach(() => {
   pendientes.length = 0;
   procesarEventoEvolution.mockClear();
+  notificarAlerta.mockClear();
   estado.canal = {
     id: "ch-evo-1",
     workspace_id: "ws-1",
@@ -292,9 +299,47 @@ describe("autenticación del token", () => {
 
   it("nunca procesa nada cuando rechaza", async () => {
     await POST(pedido(cuerpo(), null));
-    expect(pendientes).toHaveLength(0);
+    // Desde F23 un rechazo deja UN trabajo en segundo plano: el aviso por
+    // correo de la alerta. El procesamiento del mensaje, ninguno.
+    expect(pendientes).toHaveLength(1);
     await correrPendientes();
     expect(procesarEventoEvolution).not.toHaveBeenCalled();
+    expect(notificarAlerta).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ── F23: el aviso por correo de las alertas ─────────────────────────────────
+
+describe("aviso por correo de las alertas (F23)", () => {
+  it("el rechazo de autenticación avisa por correo, después de responder", async () => {
+    const res = await POST(pedido(cuerpo(), await firmar(OTRO_SECRETO)));
+    expect(res.status).toBe(401);
+
+    // Antes de correr lo pendiente no se mandó nada: el 401 no espera al correo.
+    expect(notificarAlerta).not.toHaveBeenCalled();
+    await correrPendientes();
+    expect(notificarAlerta).toHaveBeenCalledWith("alerta-1");
+  });
+
+  it("sin secreto en Vault también avisa: es la misma alerta, con workspace", async () => {
+    estado.secretoActual = null;
+    await POST(pedido(cuerpo(), await firmar()));
+    await correrPendientes();
+    expect(notificarAlerta).toHaveBeenCalledWith("alerta-1");
+  });
+
+  // La instancia desconocida se abre ANTES de autenticar: cualquiera que
+  // conozca la URL la provoca. No tiene workspace y no avisa por correo
+  // (decidido con Marcos el 07/10/2026). La alerta sí se registra: es el
+  // control de que el camino corrió.
+  it("la instancia desconocida registra la alerta y no avisa por correo", async () => {
+    estado.canal = null;
+    const res = await POST(pedido(cuerpo({ instancia: "inventada" }), await firmar()));
+    expect(res.status).toBe(503);
+    expect(alertasRegistradas()).toHaveLength(1);
+
+    await correrPendientes();
+    expect(notificarAlerta).not.toHaveBeenCalled();
   });
 });
 

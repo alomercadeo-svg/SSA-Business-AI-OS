@@ -30,6 +30,19 @@ export type WebhookAlertCondition =
 export type IntegrationEstado = "conectado" | "desconectado" | "sin_verificar" | "sin_configurar";
 export type IntegrationTipo = "canal" | "correo" | "ia";
 
+/**
+ * Tipos de correo (F23, migración 00027). La lista es cerrada y la hace cumplir
+ * un `check` de la base: un tipo nuevo necesita su criterio en el plano y una
+ * migración.
+ */
+export type EmailTipo = "invitacion" | "alerta_webhook";
+/**
+ * Estado de un correo (F23). `omitido_techo`: ya salió uno del mismo tipo en la
+ * última hora. `omitido_prueba`: todos los destinatarios eran de dominios
+ * reservados para pruebas.
+ */
+export type EmailEstado = "pendiente" | "enviado" | "fallido" | "omitido_techo" | "omitido_prueba";
+
 export type FlowStatus = "draft" | "published" | "archived";
 export type ConversationStatus = "open" | "closed" | "snoozed";
 export type MessageDirection = "inbound" | "outbound";
@@ -1071,6 +1084,60 @@ export interface Database {
           },
         ];
       };
+      email_log: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          tipo: EmailTipo;
+          clave_techo: string | null;
+          alerta_id: string | null;
+          invite_id: string | null;
+          para: string[];
+          /** Lo que muestra la columna «Para»: «Owner y Admin», un nombre o la dirección */
+          para_etiqueta: string;
+          asunto: string;
+          estado: EmailEstado;
+          intentos: number;
+          /** Motivo corto. Nunca la clave ni el cuerpo entero de la respuesta */
+          ultimo_error: string | null;
+          resend_id: string | null;
+          created_at: string;
+          enviado_el: string | null;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          tipo: EmailTipo;
+          clave_techo?: string | null;
+          alerta_id?: string | null;
+          invite_id?: string | null;
+          para?: string[];
+          para_etiqueta: string;
+          asunto: string;
+          estado?: EmailEstado;
+          intentos?: number;
+          ultimo_error?: string | null;
+          resend_id?: string | null;
+          created_at?: string;
+          enviado_el?: string | null;
+        };
+        Update: {
+          estado?: EmailEstado;
+          intentos?: number;
+          ultimo_error?: string | null;
+          resend_id?: string | null;
+          enviado_el?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "email_log_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       integration_configs: {
         Row: {
           id: string;
@@ -1281,6 +1348,19 @@ export interface Database {
         };
         /** Id de la condición abierta, sea nueva o la que ya estaba */
         Returns: string;
+      };
+      reservar_correo_aviso: {
+        Args: {
+          p_workspace_id: string;
+          p_tipo: EmailTipo;
+          p_clave: string | null;
+          p_alerta_id: string | null;
+          p_para: string[];
+          p_para_etiqueta: string;
+          p_asunto: string;
+        };
+        /** La fila creada, y si quedó reservada para enviar o como `omitido_techo` */
+        Returns: { id: string; reservado: boolean }[];
       };
       resolve_webhook_alert: {
         Args: {

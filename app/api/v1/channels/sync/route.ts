@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { requireManager } from "@/lib/workspace";
 import { CHANNEL_PUBLIC_COLUMNS } from "@/lib/safe-columns";
 import { createZernioClient } from "@/lib/zernio-client";
@@ -16,6 +16,7 @@ import {
   planDeSincronizacion,
 } from "@/lib/channel-rules";
 import { createServiceClient } from "@/lib/supabase/server";
+import { notificarAlerta } from "@/lib/correo";
 
 /**
  * POST /api/v1/channels/sync
@@ -164,23 +165,32 @@ export async function POST() {
     // La alerta va con el cliente de servicio porque `record_webhook_alert` solo
     // la ejecuta `service_role` (00022). Si falla, el aviso en pantalla sale
     // igual: la alerta es el segundo canal del aviso, no el único.
+    //
+    // Al abrirla, el aviso por correo a Owner y Admin (F23) va en `after()`,
+    // con el techo de un correo por tipo por hora.
     try {
       const servicio = await createServiceClient();
-      const { error: alertaErr } = plan.ceroCuentas
-        ? await servicio.rpc("record_webhook_alert", {
-            p_source: "zernio",
-            p_condition: ALERTA_CERO_CUENTAS,
-            p_workspace_id: workspace.id,
-            p_detail: AVISO_CERO_CUENTAS,
-          })
-        : plan.vigentes.size > 0
-          ? await servicio.rpc("resolve_webhook_alert", {
-              p_source: "zernio",
-              p_condition: ALERTA_CERO_CUENTAS,
-              p_workspace_id: workspace.id,
-            })
-          : { error: null };
-      if (alertaErr) console.error("[channels/sync] alert update failed:", alertaErr);
+      if (plan.ceroCuentas) {
+        const { data: alertaId, error: alertaErr } = await servicio.rpc("record_webhook_alert", {
+          p_source: "zernio",
+          p_condition: ALERTA_CERO_CUENTAS,
+          p_workspace_id: workspace.id,
+          p_detail: AVISO_CERO_CUENTAS,
+        });
+        if (alertaErr) console.error("[channels/sync] alert update failed:", alertaErr);
+        else if (typeof alertaId === "string") {
+          after(async () => {
+            await notificarAlerta(alertaId);
+          });
+        }
+      } else if (plan.vigentes.size > 0) {
+        const { error: alertaErr } = await servicio.rpc("resolve_webhook_alert", {
+          p_source: "zernio",
+          p_condition: ALERTA_CERO_CUENTAS,
+          p_workspace_id: workspace.id,
+        });
+        if (alertaErr) console.error("[channels/sync] alert update failed:", alertaErr);
+      }
     } catch (err) {
       console.error("[channels/sync] alert update failed:", err);
     }

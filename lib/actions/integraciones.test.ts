@@ -60,9 +60,16 @@ vi.mock("@/lib/zernio-client", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
 const verificarTodas = vi.hoisted(() => vi.fn(async () => {}));
-vi.mock("@/lib/integraciones-estado", () => ({ verificarTodas }));
+const consultarProveedor = vi.hoisted(() =>
+  vi.fn(async (): Promise<{ estado: string; error: string | null; detalle?: string | null }> => ({
+    estado: "conectado",
+    error: null,
+  }))
+);
+vi.mock("@/lib/integraciones-estado", () => ({ verificarTodas, consultarProveedor }));
 
-const { desconectarCuentaInstagram, guardarClave, verificarIntegraciones } = await import("./integraciones");
+const { desconectarCuentaInstagram, guardarClave, verificarIntegraciones, probarYGuardarResend, guardarRemitenteResend } =
+  await import("./integraciones");
 
 beforeEach(() => {
   h.rol = "owner";
@@ -73,6 +80,7 @@ beforeEach(() => {
   h.deleteAccount.mockResolvedValue({ data: {} });
   h.setSecret.mockClear();
   h.zernioKey = "zk-simulada";
+  consultarProveedor.mockClear();
 });
 
 describe("desconectar una cuenta de Instagram", () => {
@@ -133,10 +141,12 @@ describe("guardar una clave", () => {
   });
 
   it("guarda en Vault y devuelve a lo sumo largo y últimos cuatro, nunca la clave", async () => {
-    const valor = "re_ESTOESUNSECRETOQUENOSEVE9876";
-    const r = await guardarClave("resend", valor);
+    // Con Anthropic y no con Resend: desde F23 la de Resend se guarda con
+    // "Probar y guardar", y su propio test de abajo exige lo mismo.
+    const valor = "sk-ant-ESTOESUNSECRETOQUENOSEVE9876";
+    const r = await guardarClave("anthropic", valor);
     expect(r.ok).toBe(true);
-    expect(h.setSecret).toHaveBeenCalledWith(expect.anything(), "ws-1", "resend_api_key", valor);
+    expect(h.setSecret).toHaveBeenCalledWith(expect.anything(), "ws-1", "anthropic_api_key", valor);
     expect(JSON.stringify(r)).not.toContain("SECRETO");
     expect(r.ok && r.mascara).toEqual({ largo: valor.length, ultimos4: "9876" });
   });
@@ -169,5 +179,74 @@ describe("verificar las integraciones al abrir la pantalla", () => {
     const r = await verificarIntegraciones();
     expect(r.ok).toBe(false);
     expect(verificarTodas).not.toHaveBeenCalled();
+  });
+});
+
+// ── Resend (F23) ────────────────────────────────────────────────────────────
+
+const CLAVE_RESEND = "re_clave_simulada_0123456789";
+const REMITENTE = "ALO Mercadeo <avisos@notificaciones.alomercadeo.com>";
+
+describe("Probar y guardar de Resend", () => {
+  it("con una clave que Resend acepta, la guarda junto con el remitente (control positivo)", async () => {
+    consultarProveedor.mockResolvedValueOnce({
+      estado: "conectado",
+      error: null,
+      detalle: "Clave de solo envío: el estado del dominio no se puede consultar con esta clave.",
+    });
+    const r = await probarYGuardarResend(CLAVE_RESEND, REMITENTE);
+
+    expect(r.ok).toBe(true);
+    expect(JSON.stringify(r)).not.toContain("simulada");
+    expect(consultarProveedor).toHaveBeenCalledWith("resend", CLAVE_RESEND);
+    expect(h.setSecret).toHaveBeenCalledWith(expect.anything(), "ws-1", "resend_api_key", CLAVE_RESEND);
+    const update = h.updates.find((u) => u.tabla === "integration_configs");
+    expect(update?.valores).toMatchObject({ estado: "conectado", config: expect.objectContaining({ remitente: REMITENTE }) });
+  });
+
+  it("con una clave que Resend rechaza, no guarda nada y lo dice como el prototipo", async () => {
+    consultarProveedor.mockResolvedValueOnce({ estado: "desconectado", error: "Resend dice que la clave es inválida." });
+    const r = await probarYGuardarResend(CLAVE_RESEND, REMITENTE);
+
+    expect(r).toEqual({
+      ok: false,
+      error: "No pudimos conectar con Resend: la clave no es válida. Revisá que la copiaste completa.",
+    });
+    expect(h.setSecret).not.toHaveBeenCalled();
+    expect(h.updates).toHaveLength(0);
+  });
+
+  it("si no se pudo preguntar, guarda igual y queda sin verificar", async () => {
+    consultarProveedor.mockResolvedValueOnce({ estado: "sin_verificar", error: "Resend no respondió a tiempo." });
+    const r = await probarYGuardarResend(CLAVE_RESEND, REMITENTE);
+    expect(r.ok).toBe(true);
+    expect(h.updates[0].valores).toMatchObject({ estado: "sin_verificar" });
+  });
+
+  it("con un remitente mal escrito no le pregunta a Resend", async () => {
+    const r = await probarYGuardarResend(CLAVE_RESEND, "ALO Mercadeo");
+    expect(r.ok).toBe(false);
+    expect(consultarProveedor).not.toHaveBeenCalled();
+    expect(h.setSecret).not.toHaveBeenCalled();
+  });
+
+  it("un Member no puede", async () => {
+    h.rol = "member";
+    const r = await probarYGuardarResend(CLAVE_RESEND, REMITENTE);
+    expect(r.ok).toBe(false);
+    expect(consultarProveedor).not.toHaveBeenCalled();
+  });
+
+  it("la clave de Resend ya no se guarda sin probar", async () => {
+    const r = await guardarClave("resend", CLAVE_RESEND);
+    expect(r.ok).toBe(false);
+    expect(h.setSecret).not.toHaveBeenCalled();
+  });
+
+  it("el remitente se puede cambiar sin tocar la clave", async () => {
+    const r = await guardarRemitenteResend(REMITENTE);
+    expect(r.ok).toBe(true);
+    expect(h.setSecret).not.toHaveBeenCalled();
+    expect(h.updates[0].valores).toMatchObject({ config: { remitente: REMITENTE } });
   });
 });

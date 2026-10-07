@@ -14,8 +14,15 @@ import { revalidatePath } from "next/cache";
 import { getWorkspaceOrNull, esManager } from "@/lib/workspace";
 import { setWorkspaceSecret, deleteWorkspaceSecret, getZernioApiKey } from "@/lib/vault";
 import { createZernioClient } from "@/lib/zernio-client";
-import { definicionDe, validarFormatoClave, mascaraDeClave, PROVEEDORES, type Mascara } from "@/lib/integraciones";
-import { verificarTodas } from "@/lib/integraciones-estado";
+import {
+  definicionDe,
+  validarFormatoClave,
+  validarRemitente,
+  mascaraDeClave,
+  PROVEEDORES,
+  type Mascara,
+} from "@/lib/integraciones";
+import { verificarTodas, consultarProveedor } from "@/lib/integraciones-estado";
 
 const RUTA = "/dashboard/settings/integrations";
 
@@ -51,9 +58,10 @@ async function definicionDelWorkspace(
 }
 
 /**
- * Guarda la clave de un proveedor en Vault. La de Zernio no pasa por acá: se
- * guarda con "Probar y guardar", que primero la valida contra Zernio y después
- * sincroniza los canales (`/api/v1/channels/test-key`).
+ * Guarda la clave de un proveedor en Vault. Las de Zernio y Resend no pasan por
+ * acá: se guardan con "Probar y guardar", que primero las prueba contra el
+ * proveedor. La de Zernio además sincroniza los canales
+ * (`/api/v1/channels/test-key`); la de Resend es `probarYGuardarResend`.
  */
 export async function guardarClave(proveedor: string, valor: string): Promise<Resultado<{ mascara: Mascara | null }>> {
   const ctx = await contextoManager();
@@ -65,6 +73,7 @@ export async function guardarClave(proveedor: string, valor: string): Promise<Re
   if (!d) return { ok: false, error: "Esa integración no existe." };
   if (!d.editable) return { ok: false, error: `La clave de ${d.nombre} no se carga desde esta pantalla.` };
   if (proveedor === "zernio") return { ok: false, error: "La clave de Zernio se guarda con \"Probar y guardar\"." };
+  if (proveedor === "resend") return { ok: false, error: "La clave de Resend se guarda con \"Probar y guardar\"." };
 
   const motivo = validarFormatoClave(d, valor);
   if (motivo) return { ok: false, error: motivo };
@@ -81,6 +90,99 @@ export async function guardarClave(proveedor: string, valor: string): Promise<Re
 
   revalidatePath(RUTA);
   return { ok: true, mascara: mascaraDeClave(clave) };
+}
+
+function configComoObjeto(config: unknown): Record<string, unknown> {
+  return config && typeof config === "object" && !Array.isArray(config) ? (config as Record<string, unknown>) : {};
+}
+
+/**
+ * "Probar y guardar" de Resend (F23). Prueba la clave contra Resend ANTES de
+ * guardarla, por el mismo camino que la verificación al abrir la pantalla
+ * (`consultarProveedor`, que consulta `GET /domains`). Si Resend dice que la
+ * clave es inválida, no se guarda nada.
+ *
+ * Una clave de solo envío responde 401 `restricted_api_key` a esa consulta, y
+ * eso es "conectado": la clave sirve para mandar, que es lo único que se le
+ * pide (mapeo en `estadoResend`).
+ *
+ * El remitente viaja en la misma acción porque sin él no sale ningún correo.
+ * No es secreto: va en `config`.
+ */
+export async function probarYGuardarResend(
+  valor: string,
+  remitente: string
+): Promise<Resultado<{ mascara: Mascara | null; estado: string; detalle: string | null }>> {
+  const ctx = await contextoManager();
+  if (!ctx.ok) return ctx;
+  const { supabase } = ctx.contexto;
+  const workspaceId = ctx.workspaceId;
+
+  const motivo = validarFormatoClave(PROVEEDORES.resend, valor);
+  if (motivo) return { ok: false, error: motivo };
+  const motivoRemitente = validarRemitente(remitente);
+  if (motivoRemitente) return { ok: false, error: motivoRemitente };
+
+  const clave = valor.trim();
+  const d = await consultarProveedor("resend", clave);
+  if (d.estado === "desconectado") {
+    return { ok: false, error: "No pudimos conectar con Resend: la clave no es válida. Revisá que la copiaste completa." };
+  }
+
+  const { error } = await setWorkspaceSecret(supabase, workspaceId, PROVEEDORES.resend.secreto, clave);
+  if (error) return { ok: false, error: "No se pudo guardar la clave en Vault. No se guardó nada." };
+
+  const { data: fila } = await supabase
+    .from("integration_configs")
+    .select("config")
+    .eq("workspace_id", workspaceId)
+    .eq("proveedor", "resend")
+    .maybeSingle();
+  const ahora = new Date().toISOString();
+  await supabase
+    .from("integration_configs")
+    .update({
+      estado: d.estado,
+      ultimo_error: d.error,
+      verificado_el: ahora,
+      config: { ...configComoObjeto(fila?.config), remitente: remitente.trim(), detalle: d.detalle ?? null },
+      updated_at: ahora,
+    })
+    .eq("workspace_id", workspaceId)
+    .eq("proveedor", "resend");
+
+  revalidatePath(RUTA);
+  return { ok: true, mascara: mascaraDeClave(clave), estado: d.estado, detalle: d.detalle ?? null };
+}
+
+/** Cambia solo el remitente de Resend, sin tocar la clave. */
+export async function guardarRemitenteResend(remitente: string): Promise<Resultado> {
+  const ctx = await contextoManager();
+  if (!ctx.ok) return ctx;
+  const { supabase } = ctx.contexto;
+  const workspaceId = ctx.workspaceId;
+
+  const motivo = validarRemitente(remitente);
+  if (motivo) return { ok: false, error: motivo };
+
+  const { data: fila } = await supabase
+    .from("integration_configs")
+    .select("config")
+    .eq("workspace_id", workspaceId)
+    .eq("proveedor", "resend")
+    .maybeSingle();
+  const { error } = await supabase
+    .from("integration_configs")
+    .update({
+      config: { ...configComoObjeto(fila?.config), remitente: remitente.trim() },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("workspace_id", workspaceId)
+    .eq("proveedor", "resend");
+  if (error) return { ok: false, error: "No se pudo guardar el remitente." };
+
+  revalidatePath(RUTA);
+  return { ok: true };
 }
 
 /** Borra la clave de Vault. La integración queda "sin configurar". */

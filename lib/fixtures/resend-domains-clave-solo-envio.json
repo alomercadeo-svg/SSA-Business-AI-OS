@@ -1,0 +1,10 @@
+{
+  "medido_el": "2026-10-07",
+  "origen": "Respuesta real de Resend a GET /domains con la clave de solo envío (Sending access, limitada a notificaciones.alomercadeo.com) que Marcos cargó en el workspace «Pruebas de correo». Medida por el mismo camino del servidor que usa «Probar y guardar» (consultarProveedor en lib/integraciones-estado.ts), con una captura temporal que mostraba código y cuerpo en la consola del servidor local, nunca cabeceras ni la clave. La captura se borró después. La clave no figura acá ni en ningún otro lado.",
+  "status": 401,
+  "cuerpo": {
+    "statusCode": 401,
+    "message": "This API key is restricted to only send emails",
+    "name": "restricted_api_key"
+  }
+}

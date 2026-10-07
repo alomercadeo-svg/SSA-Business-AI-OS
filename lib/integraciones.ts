@@ -160,6 +160,8 @@ export interface Tarjeta {
   detalle: string | null;
   /** El registro del webhook de Zernio, si es la integración de Zernio y ya se leyó. */
   webhook: EstadoWebhook | null;
+  /** El remitente de Resend (F23). No es secreto: va en `config`. */
+  remitente: string | null;
   configurada: boolean;
   mascara: Mascara | null;
   editable: boolean;
@@ -181,6 +183,11 @@ export const detalleDe = (config: unknown) => textoDeConfig(config, "detalle");
  * la máscara, y la clave no sale de acá: la tarjeta la lleva un Client
  * Component, y todo lo que se le pasa termina en el HTML.
  */
+/** El remitente de Resend guardado en `config` (F23). */
+export function remitenteDe(config: unknown): string | null {
+  return textoDeConfig(config, "remitente");
+}
+
 export function aTarjeta(fila: FilaIntegracion, valorClave: string | null): Tarjeta {
   const d = definicionDe(fila.proveedor, fila.tipo, fila.nombre);
   return {
@@ -195,6 +202,7 @@ export function aTarjeta(fila: FilaIntegracion, valorClave: string | null): Tarj
     modelo: modeloDe(fila.config),
     detalle: detalleDe(fila.config),
     webhook: webhookDe(fila.config),
+    remitente: remitenteDe(fila.config),
     configurada: Boolean(valorClave),
     mascara: d.mostrarMascara ? mascaraDeClave(valorClave) : null,
     editable: d.editable,
@@ -292,4 +300,24 @@ export function webhookDe(config: unknown): EstadoWebhook | null {
     verificado_el: typeof v.verificado_el === "string" ? v.verificado_el : null,
     error: typeof v.error === "string" ? v.error : null,
   };
+}
+
+/**
+ * El remitente de Resend (F23): `Nombre <local@dominio>` o `local@dominio`. El
+ * dominio no se puede comprobar contra Resend con una clave de solo envío (no
+ * deja consultar dominios): si no es el verificado, el envío falla y el error
+ * queda registrado en `email_log`.
+ */
+export function validarRemitente(valor: string): string | null {
+  const v = valor.trim();
+  if (!v) return "Falta el remitente.";
+  const m = v.match(/^(?:[^<>@]+<([^<>\s@]+@[^<>\s@]+\.[^<>\s@]+)>|([^<>\s@]+@[^<>\s@]+\.[^<>\s@]+))$/);
+  if (!m) return "El remitente tiene que ser una dirección, como «ALO Mercadeo <avisos@notificaciones.alomercadeo.com>».";
+  return null;
+}
+
+/** El dominio desde el que sale el correo, para mostrarlo. */
+export function dominioDeRemitente(remitente: string | null | undefined): string | null {
+  const m = (remitente ?? "").match(/@([^>\s]+)>?\s*$/);
+  return m ? m[1].toLowerCase() : null;
 }

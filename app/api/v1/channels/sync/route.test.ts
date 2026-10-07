@@ -31,6 +31,8 @@ const h = vi.hoisted(() => ({
   listAccounts: vi.fn(),
   listProfiles: vi.fn(),
   ensureWebhookRegistered: vi.fn(async () => {}),
+  pendientes: [] as Array<() => unknown | Promise<unknown>>,
+  notificarAlerta: vi.fn(async () => null),
 }));
 
 function supabaseFalso() {
@@ -60,11 +62,17 @@ function supabaseFalso() {
     },
     rpc: async (nombre: string, args: Record<string, unknown>) => {
       h.rpcs.push({ nombre, args });
-      return { data: null, error: null };
+      // `record_webhook_alert` devuelve el id de la condición abierta (00023).
+      return { data: nombre === "record_webhook_alert" ? "alerta-1" : null, error: null };
     },
   };
 }
 
+vi.mock("next/server", async (importOriginal) => {
+  const real = await importOriginal<typeof import("next/server")>();
+  return { ...real, after: (fn: () => unknown) => void h.pendientes.push(fn) };
+});
+vi.mock("@/lib/correo", () => ({ notificarAlerta: h.notificarAlerta }));
 vi.mock("@/lib/workspace", () => ({
   requireManager: async () => ({
     contexto: { workspace: { id: "ws-1" }, role: "owner", user: { id: "u-1" }, supabase: supabaseFalso() },
@@ -130,6 +138,8 @@ beforeEach(() => {
   h.listProfiles.mockReset();
   h.listProfiles.mockResolvedValue({ data: { profiles: [{ _id: "p1" }] } });
   h.ensureWebhookRegistered.mockClear();
+  h.pendientes.length = 0;
+  h.notificarAlerta.mockClear();
 });
 
 describe("1. Zernio responde sin una lista de cuentas", () => {
@@ -170,6 +180,16 @@ describe("2. Zernio devuelve cero cuentas con canales de Zernio activos", () => 
         p_workspace_id: "ws-1",
       }),
     });
+  });
+
+  // F23: abrir la alerta avisa por correo, después de responder.
+  it("avisa por correo la alerta que abrió, en segundo plano", async () => {
+    h.listAccounts.mockResolvedValue({ data: { accounts: [] } });
+    await POST();
+
+    expect(h.notificarAlerta).not.toHaveBeenCalled();
+    for (const fn of h.pendientes.splice(0)) await fn();
+    expect(h.notificarAlerta).toHaveBeenCalledWith("alerta-1");
   });
 });
 
@@ -244,5 +264,8 @@ describe("5. La alerta de cero cuentas se cierra sola", () => {
       }),
     });
     expect(desactivados()).toEqual([]);
+    // Cerrar no avisa: el correo es solo para la condición que se abre.
+    for (const fn of h.pendientes.splice(0)) await fn();
+    expect(h.notificarAlerta).not.toHaveBeenCalled();
   });
 });

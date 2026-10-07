@@ -5,8 +5,9 @@
  *   1. Al abrir la pantalla: `verificarTodas` le pregunta a cada proveedor
  *      configurado y escribe el resultado. Llega a la pantalla por Realtime.
  *   2. Cuando una operación real falla por credenciales o conexión:
- *      `registrarFalloDeZernio`, desde los envíos por Zernio. Resend y la IA no
- *      tienen operaciones todavía: su conexión llega con F23 y con la Fase 2.
+ *      `registrarFalloDeZernio`, desde los envíos por Zernio, y
+ *      `registrarFalloDeResend`, desde los correos de F23. La IA no tiene
+ *      operaciones todavía: llega con la Fase 2.
  *
  * "Sin verificar" es "no se pudo preguntar": red caída, tiempo agotado, error
  * del proveedor o límite de consultas. Nunca se convierte en "desconectado",
@@ -131,18 +132,20 @@ export async function consultarProveedor(proveedor: string, clave: string): Prom
     }
     case "resend": {
       const { d, status, res } = await porHttp("https://api.resend.com/domains", { Authorization: `Bearer ${clave}` });
-      if (res && (status === 400 || status === 401 || status === 403)) {
-        let cuerpo: unknown = null;
+      let cuerpoLeido: unknown = null;
+      if (res) {
         try {
-          cuerpo = await res.json();
+          cuerpoLeido = await res.json();
         } catch {
-          cuerpo = null;
+          cuerpoLeido = null;
         }
-        return estadoResend(status, cuerpo);
+      }
+      if (res && (status === 400 || status === 401 || status === 403)) {
+        return estadoResend(status!, cuerpoLeido);
       }
       if (d.estado !== "conectado" || !res) return d;
       try {
-        const cuerpo = (await res.json()) as { data?: { name?: string; status?: string }[] };
+        const cuerpo = cuerpoLeido as { data?: { name?: string; status?: string }[] };
         const verificado = cuerpo?.data?.find((x) => x.status === "verified")?.name;
         return { ...d, detalle: verificado ? `Dominio verificado: ${verificado}.` : "Ningún dominio verificado en Resend." };
       } catch {
@@ -172,8 +175,8 @@ export async function consultarProveedor(proveedor: string, clave: string): Prom
  *     clave inventada (`lib/fixtures/resend-domains-clave-invalida.json`). Se
  *     exige el mensaje exacto porque `validation_error` cubre también otras
  *     validaciones; si Resend lo cambia, cae en "sin verificar", el lado seguro.
- *   - 401 `restricted_api_key`, clave de solo envío: documentado, no medido. Se
- *     mide en F23 con la clave real.
+ *   - 401 `restricted_api_key`, clave de solo envío: MEDIDO el 07/10/2026 con la
+ *     clave real (`lib/fixtures/resend-domains-clave-solo-envio.json`).
  *   - 403 `restricted_api_key` (no activa), `suspended_api_key` e
  *     `invalid_permission`: documentados, no medidos.
  */
@@ -190,7 +193,7 @@ export function estadoResend(status: number, cuerpo: unknown): Deteccion {
   }
   if (status === 401) {
     if (nombre === "restricted_api_key") {
-      // Documentado, no medido: se mide en F23 con la clave real.
+      // Medido el 07/10/2026 con la clave real de solo envío.
       return {
         estado: "conectado",
         error: null,
@@ -286,5 +289,34 @@ export async function registrarFalloDeZernio(supabase: Cliente, workspaceId: str
       .eq("proveedor", "zernio");
   } catch (e) {
     console.error("integraciones: no se pudo registrar el fallo de Zernio:", e instanceof Error ? e.message : "desconocido");
+  }
+}
+
+/**
+ * Un envío por Resend falló (F23). Solo cambia la tarjeta cuando Resend dice
+ * que la clave es inválida, no está activa o está suspendida: los mismos casos
+ * en que `estadoResend` dice "desconectado". Cualquier otro fallo (un remitente
+ * de un dominio no verificado, un límite de envíos) es del correo, no de la
+ * integración, y queda en `email_log`.
+ *
+ * Nunca tira, por lo mismo que `registrarFalloDeZernio`.
+ */
+export async function registrarFalloDeResend(
+  supabase: Cliente,
+  workspaceId: string,
+  status: number,
+  cuerpo: unknown
+): Promise<void> {
+  try {
+    const d = estadoResend(status, cuerpo);
+    if (d.estado !== "desconectado") return;
+    const ahora = new Date().toISOString();
+    await supabase
+      .from("integration_configs")
+      .update({ estado: d.estado, ultimo_error: `Falló un envío: ${d.error}`, verificado_el: ahora, updated_at: ahora })
+      .eq("workspace_id", workspaceId)
+      .eq("proveedor", "resend");
+  } catch (e) {
+    console.error("integraciones: no se pudo registrar el fallo de Resend:", e instanceof Error ? e.message : "desconocido");
   }
 }

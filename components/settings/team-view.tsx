@@ -13,7 +13,6 @@ import {
   Clock,
   Plus,
   Loader2,
-  ArrowLeft,
   Copy,
   Check,
 } from "lucide-react";
@@ -24,8 +23,8 @@ import {
   removeTeamMember,
   revokeInvite,
 } from "@/lib/actions/team";
-import Link from "next/link";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { SettingsTabs } from "@/components/settings/settings-tabs";
 
 interface MemberDetail {
   userId: string;
@@ -92,7 +91,9 @@ export function TeamView({
   const [inviteRole, setInviteRole] = useState("member");
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
-  const [inviteSuccess, setInviteSuccess] = useState(false);
+  // El resultado del correo de la invitación (F23): la invitación puede quedar
+  // creada aunque el correo no salga, y eso se dice.
+  const [inviteSuccess, setInviteSuccess] = useState<{ ok: boolean; texto: string } | null>(null);
 
   // Remove member
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -106,7 +107,7 @@ export function TeamView({
 
     setInviting(true);
     setInviteError(null);
-    setInviteSuccess(false);
+    setInviteSuccess(null);
 
     const result = await inviteTeamMember(workspaceId, inviteEmail, inviteRole);
 
@@ -116,8 +117,18 @@ export function TeamView({
       setInvites((prev) => [result.invite as PendingInvite, ...prev]);
       setInviteEmail("");
       setInviteRole("member");
-      setInviteSuccess(true);
-      setTimeout(() => setInviteSuccess(false), 3000);
+      const correo = "correo" in result ? result.correo : null;
+      if (correo?.estado === "enviado") {
+        setInviteSuccess({ ok: true, texto: "Invitación enviada por correo" });
+        setTimeout(() => setInviteSuccess(null), 3000);
+      } else if (correo?.estado === "pendiente") {
+        setInviteSuccess({ ok: true, texto: "Invitación creada. El correo no salió en el primer intento y se está reintentando." });
+      } else {
+        setInviteSuccess({
+          ok: false,
+          texto: `Invitación creada, pero el correo no salió${correo?.error ? `: ${correo.error}` : "."} Podés copiar el link de la lista de abajo.`,
+        });
+      }
     }
 
     setInviting(false);
@@ -174,9 +185,9 @@ export function TeamView({
   }
 
   /**
-   * El link de la invitación. Hoy no se manda ningún email: el envío por Resend
-   * es del Bloque 2. Hasta entonces, esta es la única forma de que la
-   * invitación llegue a destino, así que se muestra y se puede copiar.
+   * El link de la invitación. Desde F23 la invitación llega por correo; el link
+   * queda como respaldo, para cuando el correo no sale (Resend sin configurar o
+   * un envío fallido).
    */
   function linkDeInvitacion(inviteId: string): string {
     if (typeof window === "undefined") return `/invite/${inviteId}`;
@@ -198,22 +209,11 @@ export function TeamView({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-border px-8 py-6">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard/settings"
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold">Team</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Manage members and invitations for {workspaceName}
-            </p>
-          </div>
-        </div>
+      <div className="px-8 pt-6">
+        <h1 className="text-2xl font-bold">Configuración</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Equipo de {workspaceName}</p>
       </div>
+      <SettingsTabs actual="equipo" />
 
       <div className="flex-1 overflow-auto">
         <div className="mx-auto max-w-2xl space-y-8 px-8 py-8">
@@ -327,12 +327,10 @@ export function TeamView({
               <section>
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-muted-foreground" />
-                  <h2 className="text-sm font-semibold">Invite a Member</h2>
+                  <h2 className="text-sm font-semibold">Invitar por correo</h2>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Se crea el link de invitación y vence a los 7 días. El envío
-                  por email todavía no está: copiá el link de la lista de abajo
-                  y hacéselo llegar vos.
+                  La invitación llega por correo y vence a los 7 días.
                 </p>
 
                 <form onSubmit={handleInvite} className="mt-4 flex gap-2">
@@ -343,7 +341,7 @@ export function TeamView({
                       setInviteEmail(e.target.value);
                       setInviteError(null);
                     }}
-                    placeholder="colleague@example.com"
+                    placeholder="nombre@correo.com"
                     required
                     className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
@@ -352,8 +350,8 @@ export function TeamView({
                     onChange={(e) => setInviteRole(e.target.value)}
                     className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   >
-                    <option value="member">Member</option>
-                    <option value="admin">Admin</option>
+                    <option value="member">Member: ve solo sus leads</option>
+                    <option value="admin">Admin: ve todo y configura</option>
                   </select>
                   <button
                     type="submit"
@@ -365,7 +363,7 @@ export function TeamView({
                     ) : (
                       <Plus className="h-4 w-4" />
                     )}
-                    {inviting ? "Inviting..." : "Invite"}
+                    {inviting ? "Enviando…" : "Enviar invitación"}
                   </button>
                 </form>
 
@@ -373,8 +371,8 @@ export function TeamView({
                   <p className="mt-2 text-xs text-destructive">{inviteError}</p>
                 )}
                 {inviteSuccess && (
-                  <p className="mt-2 text-xs text-green-600">
-                    Invitación creada. Copiá el link de abajo y mandáselo.
+                  <p className={cn("mt-2 text-xs", inviteSuccess.ok ? "text-green-600" : "text-amber-600")}>
+                    {inviteSuccess.texto}
                   </p>
                 )}
               </section>
@@ -460,10 +458,10 @@ export function TeamView({
                         )}
                         </div>
 
-                        {/* El link es la invitación: no se manda ningún email
-                            todavía, así que si no se muestra acá no hay forma de
-                            que llegue a destino. Una invitación vencida no se
-                            muestra: el link ya no sirve. */}
+                        {/* El link, como respaldo del correo (F23): si el
+                            correo no salió, es la forma de que la invitación
+                            llegue. Una invitación vencida no lo muestra: el link
+                            ya no sirve. */}
                         {puedeGestionar && !isExpired && (
                           <div className="mt-3 flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
                             <code className="flex-1 truncate text-[11px] text-muted-foreground">

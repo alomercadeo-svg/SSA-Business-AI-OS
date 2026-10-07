@@ -310,7 +310,11 @@ describe("paridad entre Instagram y WhatsApp", () => {
     expect(matchTrigger).toHaveBeenCalledTimes(2);
   });
 
-  it("la idempotencia por webhook_events funciona igual para los dos", async () => {
+  // Antes se llamaba "la idempotencia por webhook_events funciona igual para los
+  // dos", como el criterio #5 de F22, y no lo probaba: recorre Instagram y
+  // WhatsApp los dos POR ZERNIO. El criterio, Zernio contra Evolution sobre un
+  // registro compartido, está en `../idempotencia-canales.test.ts`.
+  it("la idempotencia por webhook_events funciona igual para Instagram y WhatsApp por Zernio", async () => {
     for (const plataforma of ["instagram", "whatsapp"] as const) {
       estado.channel = { ...estado.channel!, platform: plataforma };
       estado.eventosReclamados = [];

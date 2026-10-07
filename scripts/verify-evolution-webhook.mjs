@@ -24,8 +24,17 @@
  * antes de limpiar y comprueba que sigue abierta después. Sin eso, "limpió bien"
  * y "limpió todo" darían el mismo verde.
  *
+ * ── DESDE F23, LOS RECHAZOS MANDAN CORREO ───────────────────────────────────
+ *
+ * Los pasos 3 y 4 provocan rechazos de autenticación contra el canal real, y
+ * eso abre `webhook_auth_failed` en su workspace. Desde F23 (07/10/2026), el
+ * receptor avisa esa alerta por correo a Owner y Admin. Si el workspace del
+ * canal tiene Resend configurado, correr esto les manda un correo de verdad. Por
+ * eso, en ese caso, el script no corre salvo con `--acepto-correo-real`. No se
+ * lee la clave para decidirlo: se mira el estado de la integración.
+ *
  * Uso:
- *   node scripts/verify-evolution-webhook.mjs [nombre-de-la-instancia]
+ *   node scripts/verify-evolution-webhook.mjs [nombre-de-la-instancia] [--acepto-correo-real]
  *
  * Sin argumento, usa el único canal de Evolution activo que encuentre.
  */
@@ -209,7 +218,9 @@ async function alertasAbiertas(fuente, condicion) {
 
 async function main() {
   // ── El canal ──────────────────────────────────────────────────────────────
-  const pedido = process.argv[2];
+  const argumentos = process.argv.slice(2);
+  const aceptoCorreoReal = argumentos.includes("--acepto-correo-real");
+  const pedido = argumentos.find((a) => !a.startsWith("--"));
   const filtro = pedido ? `&instance_name=eq.${encodeURIComponent(pedido)}` : "";
   const { data: canales } = await admin(
     `channels?select=id,workspace_id,instance_name,is_active&provider=eq.evolution&is_active=is.true${filtro}`
@@ -230,6 +241,20 @@ async function main() {
 
   canal = canales[0];
   instancia = canal.instance_name;
+
+  // F23: con Resend configurado en este workspace, los rechazos de los pasos 3
+  // y 4 le mandan un correo real a Owner y Admin. Ver el encabezado.
+  const { data: resend } = await admin(
+    `integration_configs?select=estado&workspace_id=eq.${canal.workspace_id}&proveedor=eq.resend`
+  );
+  const conCorreo = Array.isArray(resend) && resend.some((r) => r.estado !== "sin_configurar");
+  if (conCorreo && !aceptoCorreoReal) {
+    throw new Error(
+      "el workspace de este canal tiene Resend configurado: los rechazos de los pasos 3 y 4 abren\n" +
+      "`webhook_auth_failed`, y esa alerta se avisa por correo a Owner y Admin (F23).\n" +
+      "No se mandó nada. Si querés correrlo igual, sabiendo que les llega un correo, agregá --acepto-correo-real."
+    );
+  }
 
   console.log(`\nVerificación del receptor de Evolution`);
   console.log(`  Receptor:  ${RECEPTOR}`);

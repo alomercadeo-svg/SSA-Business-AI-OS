@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SettingsTabs } from "@/components/settings/settings-tabs";
 import {
   Settings,
   Key,
@@ -176,12 +177,10 @@ export function SettingsView({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-border px-8 py-6">
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage your workspace settings
-        </p>
+      <div className="px-8 pt-6">
+        <h1 className="text-2xl font-bold">Configuración</h1>
       </div>
+      <SettingsTabs actual="general" />
 
       {/* Settings form */}
       <div className="flex-1 overflow-auto">

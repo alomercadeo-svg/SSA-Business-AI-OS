@@ -12,6 +12,7 @@ import {
   type MotivoRechazo,
 } from "@/lib/evolution-webhook";
 import { procesarEventoEvolution } from "@/lib/evolution-processor";
+import { notificarAlerta } from "@/lib/correo";
 import type { Database } from "@/lib/types/database";
 
 /**
@@ -294,20 +295,36 @@ async function resolverSecretos(
  * Nunca lanza: una alerta que falla no puede convertir un 401 en un 500, porque
  * el 500 sí se reintenta y cambiaría el comportamiento del receptor. Se loguea
  * y se sigue.
+ *
+ * EL CORREO (F23), solo para las alertas con workspace. Va en `after()`, para
+ * no demorar la respuesta, y el techo de un correo por tipo por hora lo decide
+ * `notificarAlerta`. La de instancia desconocida no tiene workspace y NO se
+ * avisa por correo: se abre antes de autenticar (arriba, en el paso 1), así que
+ * cualquiera que conozca la URL podría disparar correos. Decidido con Marcos el
+ * 07/10/2026, pendiente en §15.
  */
 async function registrarAlerta(
   supabase: Awaited<ReturnType<typeof createServiceClient>>,
   condicion: (typeof EVOLUTION_ALERTS)[keyof typeof EVOLUTION_ALERTS],
   opts: { workspaceId?: string; channelId?: string; detalle?: string }
 ): Promise<void> {
-  const { error } = await supabase.rpc("record_webhook_alert", {
+  const { data, error } = await supabase.rpc("record_webhook_alert", {
     p_source: EVOLUTION_SOURCE,
     p_condition: condicion,
     p_workspace_id: opts.workspaceId ?? null,
     p_channel_id: opts.channelId ?? null,
     p_detail: opts.detalle ?? null,
   });
-  if (error) console.error("[evolution] no se pudo registrar la alerta:", error.message);
+  if (error) {
+    console.error("[evolution] no se pudo registrar la alerta:", error.message);
+    return;
+  }
+  if (opts.workspaceId && typeof data === "string") {
+    const alertaId = data;
+    after(async () => {
+      await notificarAlerta(alertaId);
+    });
+  }
 }
 
 /**

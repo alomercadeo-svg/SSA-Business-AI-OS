@@ -67,6 +67,8 @@ const ALLOWLIST: Record<string, string> = {
     "necesita la fila completa del canal para resolver el secreto de la firma; nunca la devuelve",
   "app/api/webhooks/late/route.test.ts":
     "tests de la firma: arma canales de mentira y prueba el secret heredado del canal; los valores son inventados",
+  "app/api/webhooks/idempotencia-canales.test.ts":
+    "F22 #5: corre el receptor real de Zernio, que lee el secret del workspace; la simulación lo devuelve y el valor es inventado",
 };
 
 function archivosFuente(): string[] {
