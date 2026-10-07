@@ -250,6 +250,8 @@ Los dos los cuida `app/(dashboard)/dashboard/channels/desconectar-deshabilitado.
 
 **Todos sus criterios están cumplidos, según Marcos, salvo probar "Desconectar" contra Zernio real.** Esa prueba queda pendiente por decisión de Marcos: requiere una segunda cuenta de Instagram, no la de ALO Mercadeo, porque desconectar corta el único canal vivo. El botón sigue deshabilitado, y con él el criterio de la confirmación que nombra la cuenta. **F24 no cuenta como completa: el avance sigue en 5 de 25.**
 
+**La tarjeta del webhook de Zernio, confirmada en producción por Marcos el 05/10/2026 a las 19:27:** registrado hacia `app.alomercadeo.com/api/webhooks/late`, activo, con los tres eventos. Se anotó el 06/10, porque esa confirmación no le había llegado a la sesión del 05/10, que la dejó como "según Marcos".
+
 ### Propuesta, sin construir: verificar el despliegue al cerrar
 
 Un script de cierre, `scripts/verificar-despliegue.mjs`, que se corre después de subir:
@@ -261,6 +263,43 @@ Un script de cierre, `scripts/verificar-despliegue.mjs`, que se corre después d
 Límite que conviene saber: el identificador del build no dice qué commit sirve. Para eso hace falta la API de Railway, con un token que hoy no tenemos. El script detecta "no se desplegó nada nuevo", que es lo que pasó el 05/10; no detecta "se desplegó otro commit".
 
 **Cierre de la sesión del 5 de octubre: 20:14, hora de Costa Rica.**
+
+---
+
+## Sesión del 6 de octubre de 2026
+
+**Apertura:** sin commits sin subir; el último era `74f25d9`. Dos tareas, aprobadas ese día por Marcos: el arreglo de la sincronización con Zernio (deuda de prioridad alta de §15) y el script que verifica el despliegue. **Durante la sesión no se apretó "Sincronizar" en producción:** la prueba del arreglo son los tests con respuestas simuladas.
+
+**Commits:** `1283e28` (el arreglo y la migración 00026), `185c3df` (el script y el cierre del `CLAUDE.md`), `5bcbf30` (un test reforzado, ver abajo) y el de este registro.
+
+**El arreglo, con los tests en rojo primero.** `app/api/v1/channels/sync/route.test.ts` simula Zernio y la base, y mira las escrituras sobre `channels`, no solo la respuesta.
+
+- **Contra la ruta anterior, rojo por las razones esperadas:** con cero cuentas, la ruta apagaba los dos canales de Zernio del escenario; la cuenta de un perfil excedido se apagaba; y las respuestas sin lista daban 200, o un 500 por accidente.
+- **El control positivo estaba en verde antes y después**, como corresponde: con Zernio trayendo una cuenta y no la otra, la que falta se desactiva.
+- **Un verde que no probaba nada, encontrado por Marcos.** El primer reporte decía 7 de 9 en rojo, o sea dos en verde, y el plan preveía uno. El segundo era "la cuenta que no excede no queda marcada": se cumplía por ausencia, porque la ruta vieja no marcaba ninguna cuenta. `5bcbf30` lo reforzó para que exija también la presencia (las marcadas tienen que ser exactamente la excedida). Contra la ruta de `74f25d9`, puesta un momento en el lugar de la actual, dio rojo con `expected [] to deeply equal [ 'ch-b' ]`, y quedaron 8 en rojo y solo el control positivo en verde.
+- **Al cerrar, la suite completa da 367 de 367, con cero errores de tipos.**
+- El resultado del SDK, con archivo y línea, está en §15 del plano.
+
+**El script, `scripts/verificar-despliegue.mjs`.** Sus 14 tests nunca fallaron solos, porque el módulo es nuevo. Por eso se los obligó a fallar con dos mutaciones a propósito, sobre una copia de respaldo y restauradas: dar verde aunque el build no cambie, y que la salida de emergencia dé 0. Las dos pusieron en rojo los tests correspondientes. La prueba contra producción son estas dos corridas:
+
+- **Corrida positiva, salida 0.** A las 20:16:19 leyó el build `7-mf8UMn5aAmAqAq29sm4`, subió `74f25d9..5bcbf30`, y a los 145 segundos (20:18:47) el build pasó a `GIXLgAEL2kxjVga5dCZ3D`, con `/login` en 200.
+- **Corrida negativa, sin nada para subir:** lanzada a las 20:18:58 sobre el build `GIXLgAEL2kxjVga5dCZ3D`. `git push` respondió "Everything up-to-date", el script lo dijo y esperó igual, y a las 20:24:08 salió con **1**: "Lo subido no está desplegado: en 5 minutos el build siguió en `GIXLgAEL2kxjVga5dCZ3D`", con la indicación de mirar el historial de Railway. Es el caso del 05/10, reproducido a propósito.
+
+**Railway, mirado por Marcos después de la corrida positiva:** la tarjeta ACTIVE muestra el mensaje de `5bcbf30`, con "Deployment successful", y el historial no tiene ningún otro despliegue ese día, fallido o no.
+
+**Base de producción, con la aprobación de Marcos:**
+
+- El `--dry-run` listó solo la 00026, y se aplicó con `npx supabase db push` antes de subir el código que lee la columna. El CLI no está instalado globalmente: se usa el del proyecto. `supabase migration list` la muestra en los dos lados.
+- **Recuentos de solo lectura, iguales.** Se hicieron con un script descartable que imprimía solo cantidades y nombres de usuario, y se borró al cerrar.
+  - Recuento 1, a las 20:02:19, antes de la migración: 2 canales, Evolution 1 activo y Zernio 1 activo, @alomercadeo.
+  - Recuento 2, a las 20:18:58, después del despliegue: los mismos, con `excede_plan_zernio` en false.
+
+**Lo que queda sin verificar:**
+
+- Que la API de Zernio se comporte como dicen los tipos con una cuenta excedida.
+- Si una cuenta excedida sigue recibiendo mensajes.
+- La pastilla "Excede el límite del plan de Zernio", que nunca se vio en producción porque no hay ninguna cuenta excedida.
+- El aviso de cero cuentas, que tampoco se vio en producción. Se probó solo con respuestas simuladas, a propósito.
 
 ---
 

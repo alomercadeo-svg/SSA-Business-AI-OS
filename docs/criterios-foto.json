@@ -855,6 +855,15 @@
     "texto": "- [ ] Ese estado nunca muestra el secreto de firma, que esa misma respuesta trae en texto plano. A lo sumo longitud y últimos cuatro caracteres, igual que el resto de las claves"
   },
   {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F24: Pantalla de integraciones y claves de IA"
+    ],
+    "texto": "- [ ] Una cuenta de Zernio cuyo perfil excede el límite del plan no se desactiva al sincronizar: queda activa, con el estado \"Excede el límite del plan de Zernio\" visible en su tarjeta de la pantalla de Canales (agregado el 06/10/2026, `1283e28`, migración 00026). **Su efecto sobre la recepción de mensajes no está verificado:** no se sabe si Zernio sigue entregando los mensajes de una cuenta excedida, y no hay ninguna cuenta excedida para medirlo. La marca sale de `Profile.isOverLimit` del SDK, no de la cuenta. Construido y probado con respuestas simuladas; la pastilla no se vio en producción por la misma razón"
+  },
+  {
     "seccion": "F25: Modelo de contacto extendido",
     "ruta": [
       "5. Funcionalidades y criterios de aceptación",
