@@ -270,7 +270,7 @@ Límite que conviene saber: el identificador del build no dice qué commit sirve
 
 **Apertura:** sin commits sin subir; el último era `74f25d9`. Dos tareas, aprobadas ese día por Marcos: el arreglo de la sincronización con Zernio (deuda de prioridad alta de §15) y el script que verifica el despliegue. **Durante la sesión no se apretó "Sincronizar" en producción:** la prueba del arreglo son los tests con respuestas simuladas.
 
-**Commits:** `1283e28` (el arreglo y la migración 00026), `185c3df` (el script y el cierre del `CLAUDE.md`), `5bcbf30` (un test reforzado, ver abajo) y el de este registro.
+**Commits:** `1283e28` (el arreglo y la migración 00026), `185c3df` (el script y el cierre del `CLAUDE.md`), `5bcbf30` (un test reforzado, ver abajo), `c11dc79` (la documentación: §15, §11, F24, §14c y la primera versión de este registro) y el cierre de este registro, cuyo hash no puede figurar en él mismo: **se completa en la apertura de la próxima sesión**, junto con el resultado de su despliegue.
 
 **El arreglo, con los tests en rojo primero.** `app/api/v1/channels/sync/route.test.ts` simula Zernio y la base, y mira las escrituras sobre `channels`, no solo la respuesta.
 
@@ -300,6 +300,14 @@ Límite que conviene saber: el identificador del build no dice qué commit sirve
 - Si una cuenta excedida sigue recibiendo mensajes.
 - La pastilla "Excede el límite del plan de Zernio", que nunca se vio en producción porque no hay ninguna cuenta excedida.
 - El aviso de cero cuentas, que tampoco se vio en producción. Se probó solo con respuestas simuladas, a propósito.
+
+**Cierre de la sesión del 6 de octubre.**
+
+- **Tercera corrida del script, al subir `c11dc79`, salida 0.** A las 20:24:31 leyó el build `GIXLgAEL2kxjVga5dCZ3D`, subió `5bcbf30..c11dc79`, y a los 93 segundos (20:26:06) el build pasó a `wHIQAfQ7Gf8e9xp4eJocw`, con `/login` en 200.
+- **Railway, mirado por Marcos después:** la tarjeta ACTIVE muestra el mensaje de `c11dc79` ("docs: la deuda de la sincronización con Zernio queda resuelta, y la s…"), con "Deployment successful" y las cuatro etapas en verde. **Railway muestra el mensaje del commit, no el hash:** la correspondencia se hizo en el repo, donde hay un solo commit con ese mensaje.
+- **Recuento repetido a las 20:29:10, a pedido de Marcos y después del despliegue de `c11dc79`:** igual a los anteriores. 2 canales, Evolution 1 activo y Zernio 1 activo (@alomercadeo), los dos con `excede_plan_zernio` en false. El script del recuento se rearmó idéntico para esta corrida y se borró después, junto con la copia de respaldo de las mutaciones.
+- **"Sincronizar" queda liberado** con el despliegue del arreglo verificado y este recuento.
+- **Para la apertura de la próxima sesión:** anotar acá el hash del commit que cierra este registro y el resultado de su corrida de `scripts/verificar-despliegue.mjs`, que se hace después de escribirlo.
 
 ---
 
