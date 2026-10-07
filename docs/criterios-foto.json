@@ -744,6 +744,15 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
+    "texto": "- [ ] Desconectar un canal pide escribir el nombre de la cuenta para confirmar («Escribí alomercadeo para confirmar», en el prototipo), y no desconecta si lo escrito no coincide (agregado el 07/10/2026, del prototipo aprobado el 06/10/2026)"
+  },
+  {
+    "seccion": "F24: Pantalla de integraciones y claves de IA",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 2: Infraestructura de canal, email e integraciones",
+      "F24: Pantalla de integraciones y claves de IA"
+    ],
     "texto": "- [ ] Desconectar nunca borra conversaciones ni mensajes: marca el canal como inactivo y conserva el historial. Motivo: es una decisión cerrada del proyecto que el historial viva en la base local, y migrar sin historial no es migrar. La ruta heredada `DELETE /api/v1/channels/[channelId]`, que borra la fila del canal y en cascada sus conversaciones y mensajes, se reemplaza antes de volver a habilitar el botón de la pantalla de Canales, deshabilitado desde `5a9e2af` (agregado el 23/09/2026). **Cumplido el 05/10/2026, y la protección vive en la base:** la ruta responde 405 (`96494a7`), la migración 00025 pasa a NO ACTION las claves de `channel_id` de las seis tablas con historia (`ff737db`; NO ACTION y no RESTRICT, para no trabar el borrado de un workspace entero), y la pantalla de Canales ya no tiene botón de borrar y manda a Integraciones (`0c29097`). La 00025 se aplicó el 05/10/2026, y `scripts/verify-channels-restrict.mjs` pasó 10 de 10 en un workspace de prueba propio: borrar un canal con conversación y mensaje falla y los dos siguen, un canal sin historia se borra, y borrar un workspace entero funciona y no deja nada"
   },
   {
@@ -1267,6 +1276,33 @@
       "F27: Guardado de mensajes entrantes"
     ],
     "texto": "**Probar solo el tercer caso no alcanza:** no distingue entre \"está bien hecho\" y \"está todo congelado\". **Y no va contra la API real** porque, en lo medido, el perfil aparece alrededor de un segundo antes de la entrega del webhook. Un test que dependa de ganar esa carrera falla de vez en cuando, y un test así termina desactivado, que es perder el control positivo entero"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 3: Modelo de contacto, ingesta y CRM",
+      "F27: Guardado de mensajes entrantes"
+    ],
+    "texto": "- [ ] Se guardan los mensajes que el negocio escribe fuera del sistema: en Instagram, los avisos message.sent de lo escrito desde la app (hoy el receptor los descarta en app/api/webhooks/late/route.ts:167, que ignora todo evento que no sea message.received, incluido message.sent; y en la :190 descarta además los message.received con dirección outgoing, para no procesar en bucle los propios envíos); en WhatsApp, los mensajes propios (from_me) escritos desde el teléfono. Un mensaje enviado desde la bandeja no se guarda dos veces"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 3: Modelo de contacto, ingesta y CRM",
+      "F27: Guardado de mensajes entrantes"
+    ],
+    "texto": "- [ ] Control positivo: un mensaje escrito desde la app de Instagram con la cuenta de prueba aparece en la bandeja leyendo de la base; uno enviado desde la bandeja aparece una sola vez"
+  },
+  {
+    "seccion": "F27: Guardado de mensajes entrantes",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 3: Modelo de contacto, ingesta y CRM",
+      "F27: Guardado de mensajes entrantes"
+    ],
+    "texto": "- [ ] Control positivo de WhatsApp, con un aviso de prueba firmado de Evolution: un mensaje propio (from_me = true) escrito desde el teléfono se guarda como mensaje del negocio; si ese mismo mensaje ya estaba guardado porque se envió desde la bandeja, no se guarda dos veces"
   },
   {
     "seccion": "F39: Detección de silencio del canal",
@@ -2382,6 +2418,33 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F40: Ventana de conversación de Instagram"
     ],
+    "texto": "- [ ] Con la ventana de Instagram cerrada, si el contacto ya tiene una conversación de WhatsApp, junto al mensaje aparece el botón «Escribir por WhatsApp», que abre esa conversación en la bandeja"
+  },
+  {
+    "seccion": "F40: Ventana de conversación de Instagram",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F40: Ventana de conversación de Instagram"
+    ],
+    "texto": "- [ ] Si el contacto tiene teléfono resuelto pero todavía no tiene conversación de WhatsApp, en lugar del botón dice «Escribile primero desde WhatsApp Business en el teléfono. La conversación aparece acá en cuanto se guarde el mensaje.»"
+  },
+  {
+    "seccion": "F40: Ventana de conversación de Instagram",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F40: Ventana de conversación de Instagram"
+    ],
+    "texto": "- [ ] Control positivo: con conversación de WhatsApp, el botón aparece y la abre; sin ella, el botón no aparece"
+  },
+  {
+    "seccion": "F40: Ventana de conversación de Instagram",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F40: Ventana de conversación de Instagram"
+    ],
     "texto": "- [ ] Un mensaje que falla por ventana expirada muestra un error claro en la interfaz, no un error genérico"
   },
   {
@@ -2410,6 +2473,96 @@
       "F40: Ventana de conversación de Instagram"
     ],
     "texto": "- [ ] Los campos se agregan igual para WhatsApp aunque no se usen, porque son los mismos que necesita el plan B. Ver el apéndice del plan B"
+  },
+  {
+    "seccion": "F42: Respuesta por WhatsApp desde la bandeja",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F42: Respuesta por WhatsApp desde la bandeja"
+    ],
+    "texto": "- [ ] En una conversación de WhatsApp que ya existe, el campo de escritura envía texto por Evolution, desde el servidor, con la clave de la instancia leída de Vault"
+  },
+  {
+    "seccion": "F42: Respuesta por WhatsApp desde la bandeja",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F42: Respuesta por WhatsApp desde la bandeja"
+    ],
+    "texto": "- [ ] El mensaje enviado se guarda en messages con from_me = true y el identificador que devuelve Evolution, y no se guarda dos veces cuando llega el aviso de ese mismo mensaje"
+  },
+  {
+    "seccion": "F42: Respuesta por WhatsApp desde la bandeja",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F42: Respuesta por WhatsApp desde la bandeja"
+    ],
+    "texto": "- [ ] Las respuestas rápidas («/») funcionan igual que en Instagram"
+  },
+  {
+    "seccion": "F42: Respuesta por WhatsApp desde la bandeja",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F42: Respuesta por WhatsApp desde la bandeja"
+    ],
+    "texto": "- [ ] No hay ventana de 24 horas: WhatsApp por Evolution no tiene ventana"
+  },
+  {
+    "seccion": "F42: Respuesta por WhatsApp desde la bandeja",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F42: Respuesta por WhatsApp desde la bandeja"
+    ],
+    "texto": "- [ ] Si la sesión de WhatsApp está caída, con los intentos agotados o sin vincular, el campo se deshabilita y dice «WhatsApp no está conectado. Los mensajes no pueden salir ni entrar por este canal hasta reconectarlo.»"
+  },
+  {
+    "seccion": "F42: Respuesta por WhatsApp desde la bandeja",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F42: Respuesta por WhatsApp desde la bandeja"
+    ],
+    "texto": "- [ ] A un contacto marcado «no contactar» no se le puede escribir por este camino (F34)"
+  },
+  {
+    "seccion": "F42: Respuesta por WhatsApp desde la bandeja",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F42: Respuesta por WhatsApp desde la bandeja"
+    ],
+    "texto": "- [ ] Un envío que falla muestra un error claro, y el mensaje no aparece como enviado"
+  },
+  {
+    "seccion": "F42: Respuesta por WhatsApp desde la bandeja",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F42: Respuesta por WhatsApp desde la bandeja"
+    ],
+    "texto": "- [ ] Un Member solo puede enviar en conversaciones de sus leads, controlado en el servidor"
+  },
+  {
+    "seccion": "F42: Respuesta por WhatsApp desde la bandeja",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F42: Respuesta por WhatsApp desde la bandeja"
+    ],
+    "texto": "- [ ] Control positivo, con respuestas simuladas de Evolution: con la sesión conectada, el envío se hace y el mensaje queda guardado una sola vez aunque llegue su aviso; con la sesión caída, el envío no se intenta"
+  },
+  {
+    "seccion": "F42: Respuesta por WhatsApp desde la bandeja",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F42: Respuesta por WhatsApp desde la bandeja"
+    ],
+    "texto": "- [ ] Control positivo en la puesta en marcha, con el número vinculado: un mensaje enviado desde la bandeja llega a un teléfono de prueba y queda guardado una sola vez"
   },
   {
     "seccion": "F6: WhatsApp por API oficial vía Zernio",

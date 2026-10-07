@@ -51,7 +51,7 @@ Los procedimientos ejecutables no van en ninguno de los dos: van en `docs/`, uno
 
 **Verificadores:** `npm run verify:security` corre `verify-lead-scope.mjs` (24 comprobaciones) y `verify-realtime-scope.mjs` (7). No corren con `npm test`, a propósito: la suite puede estar en verde con el scope roto.
 
-**Al 5 de octubre de 2026 el avance sigue en 5 de 25:** F24 tiene todos sus criterios cumplidos salvo probar "Desconectar" contra Zernio real, y no cuenta como completa. **Avance de la Fase 1, contado el 23 de septiembre de 2026 sobre la línea de estado de cada funcionalidad del plano.** **25 funcionalidades a construir**: F1 a F4 y F21 a F41. Quedan afuera F5, eliminada de la fase, y F6, F6b y F6c, que son del plan B. **5 completas:** F1, F2, F3, F4 y F21. **F22 está construida con un criterio pendiente**: la idempotencia igual para los dos canales, devuelta ese día por la auditoría (#5), que nadie comprobó todavía en los dos canales. Parciales, según su línea de estado: F24, F34 y F35.
+**Desde el 7 de octubre de 2026 el avance se cuenta sobre 26, y es 5 de 26:** ese día se sumó F42, respuesta por WhatsApp desde la bandeja, al Bloque 4. Lo que sigue es el recuento anterior, sobre 25. **Al 5 de octubre de 2026 el avance seguía en 5 de 25:** F24 tiene todos sus criterios cumplidos salvo probar "Desconectar" contra Zernio real, y no cuenta como completa. **Avance de la Fase 1, contado el 23 de septiembre de 2026 sobre la línea de estado de cada funcionalidad del plano.** **25 funcionalidades a construir**: F1 a F4 y F21 a F41 (desde el 07/10/2026, 26: F1 a F4 y F21 a F42). Quedan afuera F5, eliminada de la fase, y F6, F6b y F6c, que son del plan B. **5 completas:** F1, F2, F3, F4 y F21. **F22 está construida con un criterio pendiente**: la idempotencia igual para los dos canales, devuelta ese día por la auditoría (#5), que nadie comprobó todavía en los dos canales. Parciales, según su línea de estado: F24, F34 y F35.
 
 **Tests al cerrar el Bloque 1:** 108 en 12 archivos. El fork traía 60 en 7. **Ese número sube con cada bloque: no lo copies, contalo con `npm test`.**
 
@@ -128,8 +128,8 @@ Queda una decisión de segundo orden: los adjuntos. Las URL de medios de Meta ve
 
 - ~~El mecanismo del "tiempo real" del estado de las integraciones.~~ **Resuelto el 23 de septiembre de 2026, en el plano (`0ea2456`):** se detecta al abrir la pantalla y cuando una operación real falla, se guarda en `integration_configs` y llega por Realtime. Sin tarea periódica. Ver F24.
 - ~~"Las notificaciones del sistema" de F23.~~ **Resuelto el 23 de septiembre de 2026, en el plano (`997fdaf`):** una función única de F23, con destinatarios explícitos, techo de un correo por tipo de aviso por hora y lista cerrada. Ver F23.
-- **La marca de última ejecución de F39** no dice en qué pantalla va.
-- **El contador de F26** de mensajes sin teléfono resuelto tampoco dice en qué pantalla va.
+- ~~**La marca de última ejecución de F39** no dice en qué pantalla va.~~ **Resuelto el 7 de octubre de 2026, en §11 del plano:** va en la pestaña «Vigilancia de canales» de Configuración, como «Última revisión», según el prototipo aprobado el 06/10/2026.
+- ~~**El contador de F26** de mensajes sin teléfono resuelto tampoco dice en qué pantalla va.~~ **Resuelto el 7 de octubre de 2026, en §11 del plano:** va en la pantalla de Canales, solo para el Owner, con «Ver la cola», según el prototipo aprobado el 06/10/2026.
 - **Las seis reglas de seguridad de F33** no tienen pantalla asignada. Son configuración del canal de WhatsApp.
 - ~~F23 no arranca hasta que el dominio `notificaciones.alomercadeo.com` esté verificado en Resend.~~ **Resuelto el 5 de octubre de 2026:** verificado en Resend a las 18:45, según Marcos. Los registros, con el alias de `send.notificaciones` hacia `send.forge.rmta.net`, son los que Resend espera. F23 queda sin dependencias externas.
 
@@ -164,7 +164,7 @@ Queda una decisión de segundo orden: los adjuntos. Las URL de medios de Meta ve
 
 **Acá decía "correr `05-requerimientos` para generar el plano de los Bloques 2, 3 y 4", con la lista de siete cosas que tenían que entrar. Eso ya se hizo y la lista entera está cubierta.** El pendiente quedó escrito como si siguiera abierto durante toda la construcción del Bloque 2, que es lo que pasa cuando un documento de estado se escribe al cerrar un bloque y no se vuelve a mirar.
 
-**El plano es `docs/requerimientos-fase1.md` y es el único.** Una sola numeración: F1 a F5 del Bloque 1, F21 a F41 de los bloques 2 a 4, y F6, F6b y F6c en el apéndice del plan B, que conservan el número del documento viejo. Vigente desde el 23 de septiembre de 2026, cuando se sumaron F41 y F6. Hasta el 21 de septiembre de 2026 convivió con `docs/requerimientos-bloques-2-3-4.md`, que numeraba distinto; se conciliaron en uno y el segundo se borró. Hay un test, `docs/docs-unicos.test.ts`, que falla si aparece otro.
+**El plano es `docs/requerimientos-fase1.md` y es el único.** Una sola numeración: F1 a F5 del Bloque 1, F21 a F42 de los bloques 2 a 4 (F42 desde el 7 de octubre de 2026), y F6, F6b y F6c en el apéndice del plan B, que conservan el número del documento viejo. Vigente desde el 23 de septiembre de 2026, cuando se sumaron F41 y F6. Hasta el 21 de septiembre de 2026 convivió con `docs/requerimientos-bloques-2-3-4.md`, que numeraba distinto; se conciliaron en uno y el segundo se borró. Hay un test, `docs/docs-unicos.test.ts`, que falla si aparece otro.
 
 Las siete cosas de la lista vieja, dónde quedaron: el adaptador de Evolution en F22, el guardado de mensajes entrantes en F27, las seis reglas de seguridad en F33, el estado de sesión en F32, la autenticación del webhook en F22, el despliegue de Railway en F21, y el modelo de ventana y plantillas en §4.12b marcado como condicional al plan B.
 
@@ -328,6 +328,44 @@ Límite que conviene saber: el identificador del build no dice qué commit sirve
 **Tests:** `npm test` da 367 de 367, con cero errores de tipos.
 
 **Para la apertura de la próxima sesión:** anotar acá el hash del commit que cierra este registro, la salida de su corrida de `scripts/verificar-despliegue.mjs` y lo que Marcos vea en el historial de despliegues de Railway.
+- **Completado en la apertura de la sesión de la tarde del 7 de octubre.** El commit que cierra este registro es `ec52fae` (verificado con `git log`: 07/10/2026 11:04:56, hora de Costa Rica). Se subió con `scripts/verificar-despliegue.mjs` (push `df71dd6..ec52fae`), que salió con 0: a las 11:05:01 leyó el build `p8L-TcF8n62KmMe0OLRYB`, y a los 237 segundos (11:09:01) el build pasó a `V2jNhh18na3eDZDzwlxQy`, con `/login` en 200. **Esos números salen de la memoria que dejó la sesión de la mañana, no del repo.**
+- **Railway, dicho por Marcos:** el 07/10 a las 11:13 vio la tarjeta ACTIVE con el commit «docs(plano): seguimiento desde la bandeja, F40 sale por la app de In…», «Deployment successful», subido 7 minutos antes. No miró el resto del historial. Desde `df71dd6` hubo un solo push.
+
+---
+
+## Sesión del 7 de octubre de 2026, tarde
+
+**Apertura:** sin commits sin subir; el último era `ec52fae`. Se completó el registro de la sesión de la mañana (arriba). Una sola tarea: llevar al plano lo que muestra el prototipo aprobado por Alejandra el 6/10 y resolver los dos huecos de §15 con decisiones tomadas ese día con Marcos. Sin código de la aplicación.
+
+**Qué cambió en el plano.** Está contado en §0, "Y qué cambió el 7 de octubre". En corto:
+- §11 especifica la importación, la lista de contactos, la configuración en pestañas, lo nuevo de la bandeja y de Canales, el menú y la pantalla de error.
+- Nace F42, contestar por WhatsApp desde la bandeja en una conversación que ya existe. La fase pasa a 26 funcionalidades.
+- F40 suma el botón «Escribir por WhatsApp» en versión chica.
+- F27 guarda lo que el negocio escribe fuera del sistema.
+- HUMAN_AGENT queda registrado en §15 como pendiente de verificar.
+
+Ningún criterio se reescribió ni se dio de baja; hay 17 nuevos: 1 en F24, 3 en F27, 3 en F40 y 10 en F42. La foto quedó en 324 líneas de criterio. Fuera de F27, ninguna funcionalidad del Bloque 3 sumó criterios.
+
+**Las verificaciones de la sesión, con su grado:**
+- **El prototipo, leído en su HTML.**
+  - Las conversaciones de WhatsApp tienen campo de escritura. El aviso se arma como `'Enviado por ' + chName(v.ch)` (`docs/diseno/prototipo-fase1.html:1017`).
+  - No hay botón para adjuntar.
+  - La acción `go-wa` (`:923`) solo abre una conversación de WhatsApp que ya existe. Si no hay conversación, no hace nada y no avisa, que es el caso que cubre el criterio nuevo de F40.
+- **Evolution 2.3.7, leído en su código** (`src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts`).
+  - Verificado: el manejador de `messages.upsert` (`:1082`) acepta `notify` y `append` (`:1166`), y no descarta por `fromMe` antes de enviar el aviso (`:1483`).
+  - Inferencia, no verificado: que Baileys entregue como `upsert` lo escrito desde el teléfono. Se confirma en la puesta en marcha. `docs/investigacion-evolution-api.md` no lo respondía.
+- **El SDK de Zernio:** `messageTag: 'HUMAN_AGENT'` en `SendInboxMessageData` (`node_modules/@zernio/node/dist/index.d.ts:16894`, `:17358` y `:17360`). Que funcione y que se pueda usar para seguimiento no está verificado.
+- **Una cita corregida.** El hueco de §15 escrito a la mañana decía que los echos se descartan en `app/api/webhooks/late/route.ts:190`. Los descarta la `:167`, el filtro por tipo de evento; la `:190` descarta otra cosa, un `message.received` con dirección saliente. Se corrigió en el criterio de F27, en §15 y en la línea de base, nombrando los dos filtros.
+- **Las alertas de F22** se ven hoy solo en el aviso de Canales (`app/(dashboard)/dashboard/channels/page.tsx:25-29`). Siguen ahí: la pestaña Alertas de Configuración suma el historial, decidido con Marcos.
+
+**Decidido con Marcos en la sesión, además de lo que traía el pedido:**
+- Analíticas va en el menú con la marca «Fase 3» y no «Fase 2», como dice §1. El grupo se llama «Llegan más adelante».
+- El horario de la pestaña General pasa a llamarse «Horario de atención del negocio». Es el que usa F39 para las horas hábiles y no es la franja de F33. Anotado en §15 que hasta hoy no tenía de dónde salir.
+- Los estados de conversación del fork («Pospuestas», «Cerrar» y «Reabrir») quedan como pendiente de decisión en §15, con lo que trae el fork.
+
+**Tests:** `npm test` da 367 de 367, con cero errores de tipos. El test de documento único no toma los archivos de `docs/diseno/`: mira solo los `.md` sueltos en `docs/`.
+
+**Para la apertura de la próxima sesión:** anotar acá el hash del commit que cierra este registro, la salida de su corrida de `scripts/verificar-despliegue.mjs` y lo que Marcos vea en el historial de despliegues de Railway.
 
 ---
 
@@ -367,6 +405,8 @@ Después, el Bloque 3: modelo de contacto extendido (F25), identidad de canal y 
 **Corregida el 23 de septiembre de 2026, con la medición sin arrancar: de ocho funcionalidades a nueve, con F41.** La estimación original ya contaba con la asignación de setter y vendedor: la tabla de bloques de §2 del plano en `ebc9702` pone el Bloque 3 en los días "3-4" y nombra "setter/vendedor" entre lo que construye. La línea de base del 22/09 se fijó sobre un plano que había perdido F11 en la conciliación de `584226f`, así que medía contra un alcance más chico que el que se había estimado. F41 no es una funcionalidad que se le suma al bloque: es la que le faltaba a la línea de base. La estimación sigue en 2 días y el pronóstico se mantiene. Ver `docs/auditoria-conciliacion.md`, #45 a #50.
 
 **El alcance son las nueve funcionalidades del Bloque 3 en el plano**, y ninguna más: F25, F26, F27, F28, F29, F30, F31, F39 y F41. F26 incluye el criterio agregado el 22 de septiembre sobre la identidad del canal, que entró **antes** de fijar esta línea de base.
+
+**Línea de base ajustada antes de medir, el 07/10/2026:** F27 suma un criterio (guardar lo que el negocio escribe fuera del sistema) y su control positivo. Motivo: el receptor descarta los echos (hoy el receptor los descarta en app/api/webhooks/late/route.ts:167, que ignora todo evento que no sea message.received, incluido message.sent; y en la :190 descarta además los message.received con dirección outgoing, para no procesar en bucle los propios envíos) y, cuando la bandeja lea de la base, lo escrito desde la app de Instagram o desde el teléfono dejaría de verse. Las 9 funcionalidades y las 3 sesiones no cambian. Antecedente: F41, el 23/09/2026. **Además del control positivo de Instagram, el criterio lleva uno de WhatsApp**, con un aviso de prueba firmado de Evolution, agregado el mismo día por decisión de Marcos: son tres líneas de criterio nuevas en F27, y ninguna en las otras ocho funcionalidades del bloque.
 
 **La estimación son 2 días hábiles para el bloque entero**, los "días 3 a 4" de la tabla de bloques del plano. Circuló también una cifra de 1,5 días, pero no era una duración: era una lectura mal copiada del gráfico de avance, y se corrigió donde aparecía.
 

@@ -26,9 +26,17 @@
 
 El plano de la fase actual está en `docs/requerimientos-fase1.md`. Leelo antes de construir.
 
-**Ese es el ÚNICO documento de requerimientos del proyecto.** No hay un plano por bloque ni por etapa: F1 a F41 viven ahí, con una sola numeración. Si aparece otro archivo de requerimientos en `docs/`, **está superado: hay que borrarlo, no consultarlo.** Hasta el 21 de septiembre de 2026 convivieron dos, con numeraciones distintas que no se podían comparar, y durante una semana se actualizó el equivocado. Hay un test que falla si aparece un segundo.
+**Ese es el ÚNICO documento de requerimientos del proyecto.** No hay un plano por bloque ni por etapa: F1 a F42 viven ahí, con una sola numeración. Si aparece otro archivo de requerimientos en `docs/`, **está superado: hay que borrarlo, no consultarlo.** Hasta el 21 de septiembre de 2026 convivieron dos, con numeraciones distintas que no se podían comparar, y durante una semana se actualizó el equivocado. Hay un test que falla si aparece un segundo.
 
 **Ningún criterio de aceptación desaparece sin decir por qué.** `docs/criterios-foto.json` es una foto de cada línea de criterio del plano, con la ruta completa de encabezados, y `docs/plano-criterios.test.ts` falla si una ya no está donde estaba sin figurar en `docs/criterios-bajas.json` como reescrita (con el texto nuevo), dada de baja (con motivo) o movida (con la ruta nueva). Cuenta apariciones, no textos: borrar una de dos copias iguales también falla. Después de tocar criterios: `node scripts/foto-criterios.mjs --escribir`, que se niega si falta explicar alguna. Un hook de pre-commit (`.githooks/pre-commit`, instalado por `npm install` cuando hay repositorio de git; en el build de Railway no hace nada) corre la guardia sobre lo que está en el commit y corta por código de salida: existe porque el 05/10/2026 se commiteó con la guardia negándose. Existe porque la conciliación de `584226f` (21/09/2026) perdió criterios en silencio. Ver `docs/auditoria-conciliacion.md`.
+
+## Referencias de diseño
+
+`docs/diseno/prototipo-fase1.html` (prototipo navegable) y `docs/diseno/flujogramas-fase1.html` (flujogramas) son la referencia visual de la Fase 1, aprobada por la clienta el 6 de octubre de 2026.
+
+- **El plano manda.** Lo que el prototipo muestra y el plano no pide no se construye por estar en el prototipo. Lo que se decidió llevar al plano ya está escrito ahí, sobre todo en §11.
+- **Si el prototipo o los flujogramas chocan con el plano, se frena y se pregunta.** No se elige uno de los dos en silencio.
+- **No se copian como código.** Son HTML de demostración, con datos de ejemplo y sin lógica real: los textos de pantalla sirven de referencia, la estructura no.
 
 ---
 

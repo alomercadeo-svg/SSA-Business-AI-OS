@@ -1,0 +1,821 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Referencia visual aprobada por la clienta el 06/10/2026. El plano (docs/requerimientos-fase1.md) manda si chocan. -->
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Flujos de ALO Mercadeo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: columna de lectura angosta para el texto; cada diagrama en una lámina clara que puede ser más ancha y desplazarse sola. */
+:root {
+  --bg: #f4f6f6;
+  --surface: #ffffff;
+  --fg: #16212b;
+  --muted: #56636e;
+  --line: #d6dcdf;
+  --accent: #0d6b68;
+  --accent-soft: #e0f0ef;
+  --danger: #9b2c2c;
+  --board: #fdfdfc;          /* la lámina del diagrama es clara en los dos temas, a propósito */
+  --board-line: #d9dee1;
+  /* colores de nodo: los mismos que usan los diagramas, fijos en ambos temas */
+  --n-user: #dbe8fb;   --n-user-s: #3a6fc4;
+  --n-sys: #dcf2e3;    --n-sys-s: #2f8a50;
+  --n-dec: #fbefcf;    --n-dec-s: #b7791f;
+  --n-int: #ebe5fb;    --n-int-s: #6d4bc4;
+  --n-end: #e6e8ea;    --n-end-s: #6b7680;
+  --n-ink: #14202b;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101719; --surface: #172124; --fg: #e3eaec; --muted: #9aa8ae;
+    --line: #2a373b; --accent: #5fc2bc; --accent-soft: #173533; --danger: #f08a8a;
+    --board-line: #3a474b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101719; --surface: #172124; --fg: #e3eaec; --muted: #9aa8ae;
+  --line: #2a373b; --accent: #5fc2bc; --accent-soft: #173533; --danger: #f08a8a;
+  --board-line: #3a474b;
+  color-scheme: dark;
+}
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.6;
+  padding-inline: 16px; padding-block: 40px 72px;
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 56px; }
+.prose { max-width: 66ch; }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 3rem); letter-spacing: -0.01em; }
+h2 { font-size: 1.15rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+h3 { font-size: 1.5rem; }
+p { margin: 0; }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+header.top { display: grid; gap: 16px; }
+header.top .meta { color: var(--muted); font-size: 0.95rem; }
+
+/* Leyenda */
+.legend { display: grid; gap: 14px; }
+.legend ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px 20px; }
+.legend li { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.chip { flex: none; width: 46px; height: 26px; border: 1.5px solid; color: var(--n-ink); }
+.chip.user { background: var(--n-user); border-color: var(--n-user-s); border-radius: 2px; }
+.chip.sys  { background: var(--n-sys);  border-color: var(--n-sys-s);  border-radius: 9px; }
+.chip.dec  { background: var(--n-dec);  border-color: var(--n-dec-s);  width: 26px; height: 26px; transform: rotate(45deg) scale(0.8); margin-inline: 10px; }
+.chip.int  { background: var(--n-int);  border-color: var(--n-int-s);  clip-path: polygon(18% 0, 82% 0, 100% 50%, 82% 100%, 18% 100%, 0 50%); border-width: 0; box-shadow: inset 0 0 0 1.5px var(--n-int-s); }
+.chip.end  { background: var(--n-end);  border-color: var(--n-end-s);  border-radius: 999px; }
+.legend small { color: var(--muted); display: block; font-size: 0.85rem; line-height: 1.35; }
+
+/* Índice */
+nav.toc { display: grid; gap: 22px; }
+.toc-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 22px 32px; }
+.toc-group { min-width: 0; }
+.toc-group h4 { font-family: var(--font-body); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.toc-group ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.toc-group a { display: flex; gap: 10px; text-decoration: none; color: var(--fg); padding: 3px 0; }
+.toc-group a:hover span:last-child { color: var(--accent); text-decoration: underline; }
+.num { font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent); min-width: 2ch; font-variant-numeric: tabular-nums; padding-top: 2px; }
+
+/* Secciones de flujo */
+section.flow { display: grid; gap: 16px; scroll-margin-top: 24px; padding-top: 28px; border-top: 1px solid var(--line); }
+.flow-head { display: grid; gap: 6px; }
+.flow-head .eyebrow { display: flex; gap: 12px; flex-wrap: wrap; }
+.flow-head .eyebrow .codes { color: var(--muted); }
+.flow-desc { color: var(--fg); }
+.rules { margin: 0; padding-left: 1.1em; color: var(--muted); display: grid; gap: 2px; font-size: 0.95rem; }
+.board { background: var(--board); border: 1px solid var(--board-line); border-radius: 10px; overflow-x: auto; padding: 20px; }
+.board pre.mermaid { margin: 0; min-width: 0; display: flex; justify-content: center; background: transparent; color: var(--n-ink); font-family: var(--font-body); }
+.back { font-size: 0.9rem; justify-self: start; }
+.render-error { color: var(--danger); font-size: 0.95rem; margin: 0 0 8px; }
+.note { background: var(--accent-soft); border-radius: 8px; padding: 14px 16px; font-size: 0.95rem; }
+footer { color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); padding-top: 20px; }
+</style>
+
+<div class="wrap">
+
+<header class="top" id="inicio">
+  <span class="eyebrow">Etapa 1 · Fase 1 · Flujos del sistema</span>
+  <h1>Flujos de ALO Mercadeo</h1>
+  <p class="prose">Estos diagramas muestran cómo va a funcionar su sistema al terminar la Fase 1: qué pasa cuando un lead escribe, cómo se reconoce a cada persona, cómo se trabaja la bandeja y qué hace el sistema cuando un canal falla. Cada diagrama se lee de arriba hacia abajo, salvo el del ciclo de vida, que va de izquierda a derecha.</p>
+  <p class="meta">Basado en el documento de requerimientos de la Fase 1 · 6 de octubre de 2026</p>
+</header>
+
+<section class="legend" aria-labelledby="leyenda">
+  <h2 id="leyenda">Cómo leer los diagramas</h2>
+  <ul>
+    <li><span class="chip user" aria-hidden="true"></span><span><strong>Lo que hace una persona</strong><small>Usted, un Admin o el lead</small></span></li>
+    <li><span class="chip sys" aria-hidden="true"></span><span><strong>Lo que hace el sistema</strong><small>Solo, sin que nadie intervenga</small></span></li>
+    <li><span class="chip dec" aria-hidden="true"></span><span><strong>Una decisión</strong><small>El camino se divide según la respuesta</small></span></li>
+    <li><span class="chip int" aria-hidden="true"></span><span><strong>Un servicio externo</strong><small>WhatsApp, Instagram, el correo</small></span></li>
+    <li><span class="chip end" aria-hidden="true"></span><span><strong>Inicio o fin</strong><small>Dónde arranca y cómo termina</small></span></li>
+  </ul>
+</section>
+
+<nav class="toc" aria-labelledby="indice">
+  <h2 id="indice">Índice</h2>
+  <div class="toc-groups">
+    <div class="toc-group">
+      <h4>Cuando llega un mensaje</h4>
+      <ol>
+        <li><a href="#flujo-1"><span class="num">1</span><span>Llega un mensaje de un lead</span></a></li>
+        <li><a href="#flujo-2"><span class="num">2</span><span>Cómo se reconoce a cada persona</span></a></li>
+        <li><a href="#flujo-3"><span class="num">3</span><span>Teléfono sin resolver y unión de contactos</span></a></li>
+      </ol>
+    </div>
+    <div class="toc-group">
+      <h4>El trabajo de todos los días</h4>
+      <ol>
+        <li><a href="#flujo-4"><span class="num">4</span><span>Responder desde la bandeja</span></a></li>
+        <li><a href="#flujo-5"><span class="num">5</span><span>Alguien pide no ser contactado</span></a></li>
+        <li><a href="#flujo-6"><span class="num">6</span><span>Ciclo de vida de un contacto</span></a></li>
+      </ol>
+    </div>
+    <div class="toc-group">
+      <h4>Los canales</h4>
+      <ol>
+        <li><a href="#flujo-7"><span class="num">7</span><span>Conectar WhatsApp por primera vez</span></a></li>
+        <li><a href="#flujo-8"><span class="num">8</span><span>WhatsApp se desconecta</span></a></li>
+        <li><a href="#flujo-9"><span class="num">9</span><span>Un canal se queda en silencio</span></a></li>
+        <li><a href="#flujo-10"><span class="num">10</span><span>Conectar Instagram y sincronizar</span></a></li>
+        <li><a href="#flujo-11"><span class="num">11</span><span>Desconectar y reactivar un canal</span></a></li>
+      </ol>
+    </div>
+    <div class="toc-group">
+      <h4>Datos y puesta en marcha</h4>
+      <ol>
+        <li><a href="#flujo-12"><span class="num">12</span><span>Importar contactos desde una planilla</span></a></li>
+        <li><a href="#flujo-13"><span class="num">13</span><span>Migración desde Pipedrive</span></a></li>
+        <li><a href="#flujo-14"><span class="num">14</span><span>Primer uso del sistema</span></a></li>
+      </ol>
+    </div>
+  </div>
+</nav>
+
+<!-- ============ 1 ============ -->
+<section class="flow" id="flujo-1">
+  <div class="flow-head">
+    <span class="eyebrow"><span>Flujo 1</span><span class="codes">F22 · F27 · F28 · F40</span></span>
+    <h3>Llega un mensaje de un lead</h3>
+    <p class="flow-desc prose">El camino completo desde que alguien escribe por WhatsApp o Instagram hasta que el mensaje aparece en la bandeja, guardado en su sistema.</p>
+  </div>
+  <ul class="rules prose">
+    <li>Un canal inactivo no recibe: el mensaje se rechaza y el aviso dice qué hacer.</li>
+    <li>Si el adjunto no se puede descargar, el texto se guarda igual.</li>
+    <li>Las respuestas que usted escribe desde el celular también llegan a la bandeja.</li>
+  </ul>
+  <div class="board"><pre class="mermaid">
+flowchart TD
+  S(["Un lead escribe"]) --> CANAL{"¿Por qué canal?"}
+  CANAL -->|WhatsApp| WA{{"WhatsApp avisa al sistema"}}
+  CANAL -->|Instagram| IG{{"Zernio avisa al sistema"}}
+  WA --> FIR{"¿El aviso viene firmado por nuestro canal?"}
+  IG --> FIR
+  FIR -->|No| REC("Rechaza el aviso y abre una alerta")
+  REC --> F1(["Fin: alerta a Owner y Admin"])
+  FIR -->|Sí| ACT{"¿El canal está activo?"}
+  ACT -->|No| INA("Rechaza el mensaje y avisa: canal inactivo")
+  INA --> F2(["Fin: hay que apretar Activar"])
+  ACT -->|Sí| DUP{"¿Ya llegó este mismo aviso?"}
+  DUP -->|Sí| DES("Confirma recepción y lo descarta")
+  DES --> F3(["Fin: sin duplicados"])
+  DUP -->|No| ACK("Confirma recepción al instante")
+  ACK --> ID("Identifica al contacto, ver flujo 2")
+  ID --> GU("Guarda el mensaje en la base del negocio")
+  GU --> ADJ{"¿Trae foto, audio o documento?"}
+  ADJ -->|Sí| BAJ("Descarga y guarda el archivo")
+  BAJ --> OKA{"¿Se pudo descargar?"}
+  OKA -->|No| MAR("Marca adjunto no disponible y reintenta")
+  OKA -->|Sí| CONV
+  MAR --> CONV
+  ADJ -->|No| CONV("Actualiza la conversación")
+  CONV --> ESIG{"¿Es de Instagram?"}
+  ESIG -->|Sí| VEN("Abre la ventana de 24 horas para responder")
+  ESIG -->|No| BAN
+  VEN --> BAN("Aparece en la bandeja de quien corresponde")
+  BAN --> F4(["Fin: mensaje visible y guardado"])
+  classDef user fill:#dbe8fb,stroke:#3a6fc4,color:#14202b
+  classDef sys fill:#dcf2e3,stroke:#2f8a50,color:#14202b
+  classDef dec fill:#fbefcf,stroke:#b7791f,color:#14202b
+  classDef int fill:#ebe5fb,stroke:#6d4bc4,color:#14202b
+  classDef term fill:#e6e8ea,stroke:#6b7680,color:#14202b
+  class S,F1,F2,F3,F4 term
+  class WA,IG int
+  class CANAL,FIR,ACT,DUP,ADJ,OKA,ESIG dec
+  class REC,INA,DES,ACK,ID,GU,BAJ,MAR,CONV,VEN,BAN sys
+</pre></div>
+  <a class="back" href="#indice">Volver al índice</a>
+</section>
+
+<!-- ============ 2 ============ -->
+<section class="flow" id="flujo-2">
+  <div class="flow-head">
+    <span class="eyebrow"><span>Flujo 2</span><span class="codes">F26 · F29</span></span>
+    <h3>Cómo se reconoce a cada persona</h3>
+    <p class="flow-desc prose">Cómo decide el sistema si quien escribe ya es un contacto conocido, por qué canal y con qué dato.</p>
+  </div>
+  <ul class="rules prose">
+    <li>Se reconoce por teléfono, correo o usuario del canal. Nunca solo por el nombre.</li>
+    <li>Una coincidencia de teléfono o correo vincula sola; una de usuario solo se sugiere.</li>
+    <li>La persona es una, pero cada canal guarda su propia conversación.</li>
+  </ul>
+  <div class="board"><pre class="mermaid">
+flowchart TD
+  S(["Llega un mensaje"]) --> Q1{"¿Ya está registrado en este canal?"}
+  Q1 -->|Sí| A1("Lo suma a su conversación de ese canal")
+  A1 --> F1(["Fin"])
+  Q1 -->|No| CAN{"¿Por qué canal llegó?"}
+  CAN -->|WhatsApp| Q2{"¿Trae el número de teléfono?"}
+  Q2 -->|No| SR("Crea un contacto con marca de teléfono sin resolver")
+  SR --> F2(["Fin: se resuelve en el flujo 3"])
+  Q2 -->|Sí| NOR("Pasa el teléfono a formato internacional")
+  NOR --> Q3{"¿Hay un contacto con ese teléfono o correo?"}
+  Q3 -->|Sí| VIN("Lo vincula: misma persona, canal nuevo")
+  Q3 -->|No| NUE("Crea un contacto nuevo")
+  CAN -->|Instagram| Q4{"¿Su usuario coincide con un contacto de otro canal?"}
+  Q4 -->|Sí| SUG("Crea el contacto y sugiere unirlos")
+  SUG --> OP["El operador decide si son la misma persona"]
+  Q4 -->|No| NUE
+  VIN --> SEP("Cada canal mantiene su propia conversación")
+  OP --> SEP
+  NUE --> SEP
+  SEP --> F3(["Fin: contacto identificado"])
+  classDef user fill:#dbe8fb,stroke:#3a6fc4,color:#14202b
+  classDef sys fill:#dcf2e3,stroke:#2f8a50,color:#14202b
+  classDef dec fill:#fbefcf,stroke:#b7791f,color:#14202b
+  classDef int fill:#ebe5fb,stroke:#6d4bc4,color:#14202b
+  classDef term fill:#e6e8ea,stroke:#6b7680,color:#14202b
+  class S,F1,F2,F3 term
+  class Q1,CAN,Q2,Q3,Q4 dec
+  class A1,SR,NOR,VIN,NUE,SUG,SEP sys
+  class OP user
+</pre></div>
+  <a class="back" href="#indice">Volver al índice</a>
+</section>
+
+<!-- ============ 3 ============ -->
+<section class="flow" id="flujo-3">
+  <div class="flow-head">
+    <span class="eyebrow"><span>Flujo 3</span><span class="codes">F26 · F30 · F31</span></span>
+    <h3>Teléfono sin resolver y unión de contactos</h3>
+    <p class="flow-desc prose">WhatsApp a veces entrega un mensaje sin el número de quien escribe. Así se completa ese dato después, y así se unen dos fichas que resultan ser la misma persona.</p>
+  </div>
+  <ul class="rules prose">
+    <li>Unir dos contactos siempre lo confirma una persona: deshacerlo es caro.</li>
+    <li>Cada unión queda en el historial, para poder reconstruir qué se juntó.</li>
+  </ul>
+  <div class="board"><pre class="mermaid">
+flowchart TD
+  S(["Contacto con teléfono sin resolver"]) --> V{"¿Cómo aparece el teléfono?"}
+  V -->|Un mensaje posterior lo trae| X
+  V -->|WhatsApp actualiza el contacto| X
+  V -->|El operador lo carga en la ficha| X("Pasa el teléfono a formato internacional")
+  X --> D{"¿Ya existe otro contacto con ese teléfono?"}
+  D -->|No| C("Completa el teléfono y quita la marca")
+  C --> F1(["Fin: contacto completo"])
+  D -->|Sí| P("Propone unirlos y muestra los dos lados")
+  P --> O["El operador compara las dos fichas"]
+  O --> Q{"¿Confirma que son la misma persona?"}
+  Q -->|No| K("Quedan como dos contactos separados")
+  K --> F2(["Fin"])
+  Q -->|Sí| U("Une conversaciones, notas, etiquetas y origen")
+  U --> H("Registra la unión en el historial")
+  H --> F3(["Fin: una persona con todo su historial"])
+  classDef user fill:#dbe8fb,stroke:#3a6fc4,color:#14202b
+  classDef sys fill:#dcf2e3,stroke:#2f8a50,color:#14202b
+  classDef dec fill:#fbefcf,stroke:#b7791f,color:#14202b
+  classDef int fill:#ebe5fb,stroke:#6d4bc4,color:#14202b
+  classDef term fill:#e6e8ea,stroke:#6b7680,color:#14202b
+  class S,F1,F2,F3 term
+  class V,D,Q dec
+  class X,C,P,K,U,H sys
+  class O user
+</pre></div>
+  <a class="back" href="#indice">Volver al índice</a>
+</section>
+
+<!-- ============ 4 ============ -->
+<section class="flow" id="flujo-4">
+  <div class="flow-head">
+    <span class="eyebrow"><span>Flujo 4</span><span class="codes">F32 · F34 · F35 · F36 · F40</span></span>
+    <h3>Responder desde la bandeja</h3>
+    <p class="flow-desc prose">Lo que pasa cuando usted abre una conversación y responde, con los controles que el sistema aplica antes de dejar salir el mensaje.</p>
+  </div>
+  <ul class="rules prose">
+    <li>A quien pidió no ser contactado no se le puede escribir, ni forzándolo.</li>
+    <li>En Instagram, pasadas 24 horas desde el último mensaje del lead, el sistema no puede enviar: es una regla de Instagram. Usted sí puede escribirle desde la app, y ese mensaje también llega a la bandeja.</li>
+    <li>El filtro de seguimiento muestra a quién le toca: vence hoy, vence esta semana, vencido o un rango de fechas.</li>
+    <li>Si el canal no está recibiendo, la bandeja lo dice. Una bandeja vacía nunca parece un día tranquilo.</li>
+  </ul>
+  <div class="board"><pre class="mermaid">
+flowchart TD
+  S(["Abre la bandeja"]) --> FI["Filtra por canal, etiqueta, asignado, fecha o seguimiento"]
+  FI --> AB["Abre una conversación"]
+  AB --> CC{"¿El canal está recibiendo?"}
+  CC -->|No| AV("Muestra un aviso visible de canal sin conexión")
+  AV --> NC
+  CC -->|Sí| NC{"¿El contacto pidió no ser contactado?"}
+  NC -->|Sí| BL("Bloquea el envío y muestra la marca roja")
+  BL --> F1(["Fin: no se puede forzar"])
+  NC -->|No| VE{"¿Es Instagram con la ventana de 24 horas cerrada?"}
+  VE -->|Sí| DS("Desactiva el campo: pasaron 24 horas, escríbale desde la app de Instagram")
+  DS --> TEL{"¿El contacto tiene teléfono?"}
+  TEL -->|No| F2(["Fin: el seguimiento sigue desde la app de Instagram"])
+  TEL -->|Sí| WAB["Aprieta Escribir por WhatsApp"]
+  WAB --> WAC("Abre la conversación de WhatsApp de ese contacto")
+  WAC --> ES
+  VE -->|No| ES["Escribe la respuesta"]
+  ES --> RR{"¿Usa una respuesta rápida?"}
+  RR -->|Sí| BA["Escribe / y elige una"]
+  BA --> IN("Completa el texto con los datos del contacto")
+  IN --> EN
+  RR -->|No| EN["Envía"]
+  EN --> SAL{{"Sale por WhatsApp o Instagram"}}
+  SAL --> OK{"¿Se envió?"}
+  OK -->|No| ER("Muestra un error claro y actualiza el estado del canal")
+  ER --> F3(["Fin: el problema queda a la vista"])
+  OK -->|Sí| GU("Guarda la respuesta en la conversación")
+  GU --> F4(["Fin: respuesta enviada"])
+  classDef user fill:#dbe8fb,stroke:#3a6fc4,color:#14202b
+  classDef sys fill:#dcf2e3,stroke:#2f8a50,color:#14202b
+  classDef dec fill:#fbefcf,stroke:#b7791f,color:#14202b
+  classDef int fill:#ebe5fb,stroke:#6d4bc4,color:#14202b
+  classDef term fill:#e6e8ea,stroke:#6b7680,color:#14202b
+  class S,F1,F2,F3,F4 term
+  class CC,NC,VE,TEL,RR,OK dec
+  class FI,AB,ES,BA,EN,WAB user
+  class AV,BL,DS,WAC,IN,ER,GU sys
+  class SAL int
+</pre></div>
+  <a class="back" href="#indice">Volver al índice</a>
+</section>
+
+<!-- ============ 5 ============ -->
+<section class="flow" id="flujo-5">
+  <div class="flow-head">
+    <span class="eyebrow"><span>Flujo 5</span><span class="codes">F34 · F31</span></span>
+    <h3>Alguien pide no ser contactado</h3>
+    <p class="flow-desc prose">Cómo se detecta un pedido de baja, qué bloquea y quién puede revertirlo.</p>
+  </div>
+  <ul class="rules prose">
+    <li>Las frases de baja vienen cargadas ("no me escribas más", "stop", "basta") y se pueden editar.</li>
+    <li>Con WhatsApp conectado de esta forma, una denuncia pesa más que cien mensajes: por eso el bloqueo no tiene excepción.</li>
+  </ul>
+  <div class="board"><pre class="mermaid">
+flowchart TD
+  S1(["Llega un mensaje"]) --> FR{"¿Contiene una frase de baja?"}
+  FR -->|No| N(["Sigue el flujo normal"])
+  FR -->|Sí| M
+  S2(["El operador decide marcarlo"]) --> MM["Marca el contacto como no contactar"]
+  MM --> M("Registra la marca con motivo y fecha")
+  M --> PS("Pausa todas sus secuencias")
+  PS --> H("Lo anota en el historial")
+  H --> R("Muestra la marca roja en la bandeja y en la ficha")
+  R --> Q{"¿Un Admin o el Owner la revierte?"}
+  Q -->|No| B(["Fin: bloqueo permanente de envíos y secuencias"])
+  Q -->|Sí| RV("Quita la marca y lo anota en el historial")
+  RV --> F1(["Fin: contacto activo otra vez"])
+  classDef user fill:#dbe8fb,stroke:#3a6fc4,color:#14202b
+  classDef sys fill:#dcf2e3,stroke:#2f8a50,color:#14202b
+  classDef dec fill:#fbefcf,stroke:#b7791f,color:#14202b
+  classDef int fill:#ebe5fb,stroke:#6d4bc4,color:#14202b
+  classDef term fill:#e6e8ea,stroke:#6b7680,color:#14202b
+  class S1,S2,N,B,F1 term
+  class FR,Q dec
+  class MM user
+  class M,PS,H,R,RV sys
+</pre></div>
+  <a class="back" href="#indice">Volver al índice</a>
+</section>
+
+<!-- ============ 6 ============ -->
+<section class="flow" id="flujo-6">
+  <div class="flow-head">
+    <span class="eyebrow"><span>Flujo 6</span><span class="codes">F25 · F26 · F30 · F34</span></span>
+    <h3>Ciclo de vida de un contacto</h3>
+    <p class="flow-desc prose">Los estados por los que pasa un contacto desde que aparece hasta que se borra, y cómo se vuelve atrás.</p>
+  </div>
+  <ul class="rules prose">
+    <li>Eliminar no borra: el contacto se puede restaurar durante 30 días.</li>
+    <li>El historial de cambios no se borra nunca, ni siquiera después de los 30 días.</li>
+  </ul>
+  <div class="board"><pre class="mermaid">
+flowchart LR
+  N(["Llega un mensaje o se importa"]) --> RES{"¿Se sabe cómo identificarlo?"}
+  RES -->|Falta el teléfono| SR("Sin resolver")
+  SR -->|Se resuelve en el flujo 3| AC
+  RES -->|Sí| AC("Activo")
+  AC -->|Pide la baja| NC("No contactar")
+  NC -->|Un Admin la revierte| AC
+  AC -->|Alguien lo elimina| EL("Eliminado")
+  NC -->|Alguien lo elimina| EL
+  EL -->|Se restaura antes de 30 días| AC
+  EL -->|Pasan 30 días| BO(["Borrado definitivo"])
+  classDef user fill:#dbe8fb,stroke:#3a6fc4,color:#14202b
+  classDef sys fill:#dcf2e3,stroke:#2f8a50,color:#14202b
+  classDef dec fill:#fbefcf,stroke:#b7791f,color:#14202b
+  classDef int fill:#ebe5fb,stroke:#6d4bc4,color:#14202b
+  classDef term fill:#e6e8ea,stroke:#6b7680,color:#14202b
+  class N,BO term
+  class RES dec
+  class SR,AC,NC,EL sys
+</pre></div>
+  <a class="back" href="#indice">Volver al índice</a>
+</section>
+
+<!-- ============ 7 ============ -->
+<section class="flow" id="flujo-7">
+  <div class="flow-head">
+    <span class="eyebrow"><span>Flujo 7</span><span class="codes">F21 · F22 · F27 · F32</span></span>
+    <h3>Conectar WhatsApp por primera vez</h3>
+    <p class="flow-desc prose">El orden para vincular el número dedicado del negocio. El orden importa: si se vincula antes de tiempo, los mensajes se pierden sin dejar rastro.</p>
+  </div>
+  <ul class="rules prose">
+    <li>El número no se vincula hasta que estén listos el guardado de mensajes, la reconexión y la bandeja, es decir, al cerrar la Fase 1.</li>
+    <li>La prueba con un mensaje firmado se hace antes de vincular, sin necesidad del número real.</li>
+  </ul>
+  <div class="board"><pre class="mermaid">
+flowchart TD
+  S(["Llega el número dedicado"]) --> APP["Se da de alta en WhatsApp Business en un teléfono del negocio"]
+  APP --> SRV("El servicio de WhatsApp ya está corriendo y esperando")
+  SRV --> PR{"¿El sistema acepta un mensaje de prueba firmado?"}
+  PR -->|No| COR("Se corrige la configuración")
+  COR --> PR
+  PR -->|Sí| LIS{"¿Ya funcionan el guardado, la reconexión y la bandeja?"}
+  LIS -->|No| ALTO(["Alto: el número todavía no se vincula"])
+  LIS -->|Sí| QR["El Owner escanea el código QR con el teléfono"]
+  QR --> VIN{{"WhatsApp vincula el número al sistema"}}
+  VIN --> TES["Se manda un mensaje desde otro teléfono"]
+  TES --> VER{"¿Aparece en la bandeja y queda guardado?"}
+  VER -->|No| REV("Se revisa antes de usar el canal")
+  REV --> TES
+  VER -->|Sí| F1(["Fin: WhatsApp conectado"])
+  classDef user fill:#dbe8fb,stroke:#3a6fc4,color:#14202b
+  classDef sys fill:#dcf2e3,stroke:#2f8a50,color:#14202b
+  classDef dec fill:#fbefcf,stroke:#b7791f,color:#14202b
+  classDef int fill:#ebe5fb,stroke:#6d4bc4,color:#14202b
+  classDef term fill:#e6e8ea,stroke:#6b7680,color:#14202b
+  class S,ALTO,F1 term
+  class PR,LIS,VER dec
+  class APP,QR,TES user
+  class SRV,COR,REV sys
+  class VIN int
+</pre></div>
+  <a class="back" href="#indice">Volver al índice</a>
+</section>
+
+<!-- ============ 8 ============ -->
+<section class="flow" id="flujo-8">
+  <div class="flow-head">
+    <span class="eyebrow"><span>Flujo 8</span><span class="codes">F32 · F31</span></span>
+    <h3>WhatsApp se desconecta</h3>
+    <p class="flow-desc prose">Qué pasa cuando la conexión del número se corta, cómo se entera usted y cómo se vuelve a conectar desde la pantalla.</p>
+  </div>
+  <ul class="rules prose">
+    <li>Si el sistema no pudo consultar el estado, muestra "no se pudo verificar", nunca "desconectado".</li>
+    <li>Un corte pasajero se arregla solo y no avisa: por eso hay un chequeo periódico además del aviso.</li>
+  </ul>
+  <div class="board"><pre class="mermaid">
+flowchart TD
+  S(["La conexión de WhatsApp se corta"]) --> TI{"¿Corte pasajero o definitivo?"}
+  TI -->|Pasajero| AUT{{"WhatsApp se reconecta solo, sin avisar"}}
+  AUT --> CHK("El chequeo periódico consulta el estado real")
+  TI -->|Definitivo| AV{{"El servicio de WhatsApp avisa al sistema"}}
+  AV --> CAI
+  CHK --> EST{"¿Qué estado encontró?"}
+  EST -->|Conectado| F1(["Fin: sin intervención"])
+  EST -->|No pudo consultar| NV("Muestra no se pudo verificar")
+  NV --> F2(["Fin: se reintenta en el próximo chequeo"])
+  EST -->|Desconectado| CAI("Marca el canal como caído")
+  CAI --> VIS("Canales y la bandeja muestran que WhatsApp no recibe")
+  VIS --> REC["El Owner o un Admin aprieta Reconectar"]
+  REC --> COD{"¿Se puede generar el código QR?"}
+  COD -->|Sí| ESC["Escanea el código con el teléfono del negocio"]
+  ESC --> OK("Canal conectado otra vez")
+  OK --> HIS("Todo el episodio queda en el historial")
+  HIS --> F3(["Fin: WhatsApp recibiendo"])
+  COD -->|No, se agotaron los intentos| NUE("Explica que hay que vincular de cero")
+  NUE --> F4(["Fin: volver al flujo 7"])
+  classDef user fill:#dbe8fb,stroke:#3a6fc4,color:#14202b
+  classDef sys fill:#dcf2e3,stroke:#2f8a50,color:#14202b
+  classDef dec fill:#fbefcf,stroke:#b7791f,color:#14202b
+  classDef int fill:#ebe5fb,stroke:#6d4bc4,color:#14202b
+  classDef term fill:#e6e8ea,stroke:#6b7680,color:#14202b
+  class S,F1,F2,F3,F4 term
+  class TI,EST,COD dec
+  class AUT,AV int
+  class REC,ESC user
+  class CHK,NV,CAI,VIS,OK,HIS,NUE sys
+</pre></div>
+  <a class="back" href="#indice">Volver al índice</a>
+</section>
+
+<!-- ============ 9 ============ -->
+<section class="flow" id="flujo-9">
+  <div class="flow-head">
+    <span class="eyebrow"><span>Flujo 9</span><span class="codes">F39 · F23</span></span>
+    <h3>Un canal se queda en silencio</h3>
+    <p class="flow-desc prose">La revisión automática que distingue un día tranquilo de un canal que dejó de recibir, y que avisa por correo.</p>
+  </div>
+  <ul class="rules prose">
+    <li>La revisión anota la hora en que corrió. Si esa hora envejece, se ve en pantalla que nadie está vigilando.</li>
+    <li>El límite de silencio se cuenta en horas hábiles, según el horario del negocio.</li>
+    <li>Como máximo un correo por tipo de alerta por hora, para no inundar la casilla.</li>
+  </ul>
+  <div class="board"><pre class="mermaid">
+flowchart TD
+  S(["Revisión automática periódica"]) --> MAR("Anota la hora de esta revisión, visible en pantalla")
+  MAR --> SIL{"¿Algún canal pasó más horas hábiles sin mensajes que su límite?"}
+  SIL -->|Sí| AS("Abre una alerta de silencio del canal")
+  SIL -->|No| SUS
+  AS --> SUS{"¿Instagram sigue suscrito a todos los avisos que necesita?"}
+  SUS -->|No| AF("Abre una alerta que nombra el aviso que falta")
+  SUS -->|Sí| ALE
+  AF --> ALE{"¿Hay alertas abiertas?"}
+  ALE -->|Sí| MAIL{{"Correo a Owner y Admin"}}
+  ALE -->|No| F1(["Fin hasta la próxima revisión"])
+  MAIL --> F1
+  S2(["La revisión deja de correr"]) --> VIE("La hora de la última revisión envejece y se ve en pantalla")
+  VIE --> F2(["Fin: se nota que nadie está vigilando"])
+  classDef user fill:#dbe8fb,stroke:#3a6fc4,color:#14202b
+  classDef sys fill:#dcf2e3,stroke:#2f8a50,color:#14202b
+  classDef dec fill:#fbefcf,stroke:#b7791f,color:#14202b
+  classDef int fill:#ebe5fb,stroke:#6d4bc4,color:#14202b
+  classDef term fill:#e6e8ea,stroke:#6b7680,color:#14202b
+  class S,S2,F1,F2 term
+  class SIL,SUS,ALE dec
+  class MAR,AS,AF,VIE sys
+  class MAIL int
+</pre></div>
+  <a class="back" href="#indice">Volver al índice</a>
+</section>
+
+<!-- ============ 10 ============ -->
+<section class="flow" id="flujo-10">
+  <div class="flow-head">
+    <span class="eyebrow"><span>Flujo 10</span><span class="codes">F4 · F24</span></span>
+    <h3>Conectar Instagram y sincronizar</h3>
+    <p class="flow-desc prose">Cómo se conecta la cuenta de Instagram del negocio y qué hace el sistema cada vez que pide a Zernio la lista de cuentas.</p>
+  </div>
+  <ul class="rules prose">
+    <li>Una respuesta vacía o rara de Zernio nunca apaga los canales: el sistema se detiene y avisa.</li>
+    <li>Una cuenta que ya no está se marca inactiva, sin borrar sus conversaciones.</li>
+  </ul>
+  <p class="note prose">Las tres protecciones de la sincronización (respuesta irreconocible, lista vacía y cuenta fuera del límite del plan) son el primer arreglo de esta semana. Hasta que estén, no se aprieta "Sincronizar" ni se conectan cuentas nuevas.</p>
+  <div class="board"><pre class="mermaid">
+flowchart TD
+  S(["Owner o Admin entra a Integraciones"]) --> CL["Carga la clave de Zernio"]
+  CL --> VAL{"¿La clave es válida?"}
+  VAL -->|No| ER("Muestra el error")
+  ER --> F0(["Fin"])
+  VAL -->|Sí| CON["Conecta la cuenta de Instagram del negocio en Zernio"]
+  CON --> SIN("El sistema pide a Zernio la lista de cuentas")
+  SIN --> RES{"¿Qué devolvió Zernio?"}
+  RES -->|Algo irreconocible| NT("No toca ningún canal y muestra el error")
+  RES -->|Ninguna cuenta, con canales activos| NZ("No desactiva nada y avisa")
+  RES -->|Una cuenta fuera del límite del plan| LIM("No la desactiva y avisa del límite")
+  RES -->|Una lista de cuentas| CMP("Compara con los canales guardados")
+  CMP --> NUE("Crea activas las cuentas nuevas")
+  CMP --> FAL("Marca inactivas las que ya no están, sin borrar historial")
+  CMP --> REG("Activa el aviso de mensajes nuevos y lo muestra en la tarjeta")
+  NT --> F1(["Fin: nada cambió"])
+  NZ --> F1
+  LIM --> F1
+  NUE --> F2(["Fin: canales al día"])
+  FAL --> F2
+  REG --> F2
+  classDef user fill:#dbe8fb,stroke:#3a6fc4,color:#14202b
+  classDef sys fill:#dcf2e3,stroke:#2f8a50,color:#14202b
+  classDef dec fill:#fbefcf,stroke:#b7791f,color:#14202b
+  classDef int fill:#ebe5fb,stroke:#6d4bc4,color:#14202b
+  classDef term fill:#e6e8ea,stroke:#6b7680,color:#14202b
+  class S,F0,F1,F2 term
+  class VAL,RES dec
+  class CL,CON user
+  class ER,SIN,NT,NZ,LIM,CMP,NUE,FAL,REG sys
+</pre></div>
+  <a class="back" href="#indice">Volver al índice</a>
+</section>
+
+<!-- ============ 11 ============ -->
+<section class="flow" id="flujo-11">
+  <div class="flow-head">
+    <span class="eyebrow"><span>Flujo 11</span><span class="codes">F24</span></span>
+    <h3>Desconectar y reactivar un canal</h3>
+    <p class="flow-desc prose">Apagar un canal nunca borra su historial, y solo el botón "Activar" lo vuelve a encender.</p>
+  </div>
+  <ul class="rules prose">
+    <li>Un canal inactivo no recibe mensajes, por eso apagarlo pide confirmación con el nombre de la cuenta.</li>
+    <li>Una cuenta que se reconecta en Zernio probablemente queda inactiva hasta que alguien apriete "Activar".</li>
+  </ul>
+  <div class="board"><pre class="mermaid">
+flowchart TD
+  S(["Owner o Admin quiere desconectar un canal"]) --> BT["Aprieta Desconectar en Integraciones"]
+  BT --> CF("Pide confirmación con el nombre de la cuenta")
+  CF --> Q{"¿Confirma?"}
+  Q -->|No| F1(["Fin: nada cambia"])
+  Q -->|Sí| IN("Marca el canal como inactivo")
+  IN --> HI("Conserva todas las conversaciones y mensajes")
+  HI --> AV("Integraciones avisa que no se reciben mensajes")
+  AV --> RE{"¿Quiere volver a recibir por ese canal?"}
+  RE -->|No| F2(["Fin: canal apagado, historial intacto"])
+  RE -->|Sí| ACT["Aprieta Activar en Canales"]
+  ACT --> ON("El canal vuelve a recibir")
+  ON --> F3(["Fin: canal activo"])
+  classDef user fill:#dbe8fb,stroke:#3a6fc4,color:#14202b
+  classDef sys fill:#dcf2e3,stroke:#2f8a50,color:#14202b
+  classDef dec fill:#fbefcf,stroke:#b7791f,color:#14202b
+  classDef int fill:#ebe5fb,stroke:#6d4bc4,color:#14202b
+  classDef term fill:#e6e8ea,stroke:#6b7680,color:#14202b
+  class S,F1,F2,F3 term
+  class Q,RE dec
+  class BT,ACT user
+  class CF,IN,HI,AV,ON sys
+</pre></div>
+  <a class="back" href="#indice">Volver al índice</a>
+</section>
+
+<!-- ============ 12 ============ -->
+<section class="flow" id="flujo-12">
+  <div class="flow-head">
+    <span class="eyebrow"><span>Flujo 12</span><span class="codes">F37 · F23 · F31</span></span>
+    <h3>Importar contactos desde una planilla</h3>
+    <p class="flow-desc prose">Cómo se carga una planilla de contactos sin duplicar a nadie y sin inventar datos.</p>
+  </div>
+  <ul class="rules prose">
+    <li>Cada fila necesita algo que la identifique: teléfono, correo o el número de cliente del sistema de origen.</li>
+    <li>Un teléfono que no se puede normalizar queda como error. El sistema nunca adivina un número.</li>
+    <li>Las filas que usaron el código de país por defecto quedan señaladas en el resumen.</li>
+  </ul>
+  <div class="board"><pre class="mermaid">
+flowchart TD
+  S(["Abre Contactos"]) --> BT["Aprieta Importar CSV y sube el archivo"]
+  BT --> TAM{"¿Hasta 10 MB y 10.000 filas?"}
+  TAM -->|No| RZ("Rechaza el archivo y explica el límite")
+  RZ --> F0(["Fin"])
+  TAM -->|Sí| PRE("Muestra 5 filas de muestra y sugiere columnas")
+  PRE --> MAP["Ajusta qué columna va a cada campo"]
+  MAP --> PAIS["Confirma el código de país por defecto"]
+  PAIS --> CANT{"¿Más de 500 filas?"}
+  CANT -->|Sí| FON("Procesa en segundo plano")
+  CANT -->|No| YA("Procesa en el momento")
+  FON --> FILA
+  YA --> FILA{"Por cada fila: ¿tiene algo que la identifique?"}
+  FILA -->|No| ERR("La rechaza con su motivo")
+  FILA -->|Sí| TEL{"¿Trae un teléfono que no se puede normalizar?"}
+  TEL -->|Sí| ERT("La deja con error, sin inventar un número")
+  TEL -->|No| EX{"¿Ese contacto ya existe?"}
+  EX -->|Sí| ACT("Lo actualiza")
+  EX -->|No| CRE("Lo crea")
+  ERR --> RES
+  ERT --> RES
+  ACT --> RES
+  CRE --> RES("Resumen con importados, actualizados y errores")
+  RES --> BG{"¿Fue en segundo plano?"}
+  BG -->|Sí| MAIL{{"Correo a quien importó"}}
+  MAIL --> HIS
+  BG -->|No| HIS("Queda en el historial")
+  HIS --> F1(["Fin: contactos cargados"])
+  classDef user fill:#dbe8fb,stroke:#3a6fc4,color:#14202b
+  classDef sys fill:#dcf2e3,stroke:#2f8a50,color:#14202b
+  classDef dec fill:#fbefcf,stroke:#b7791f,color:#14202b
+  classDef int fill:#ebe5fb,stroke:#6d4bc4,color:#14202b
+  classDef term fill:#e6e8ea,stroke:#6b7680,color:#14202b
+  class S,F0,F1 term
+  class TAM,CANT,FILA,TEL,EX,BG dec
+  class BT,MAP,PAIS user
+  class RZ,PRE,FON,YA,ERR,ERT,ACT,CRE,RES,HIS sys
+  class MAIL int
+</pre></div>
+  <a class="back" href="#indice">Volver al índice</a>
+</section>
+
+<!-- ============ 13 ============ -->
+<section class="flow" id="flujo-13">
+  <div class="flow-head">
+    <span class="eyebrow"><span>Flujo 13</span><span class="codes">F38 · F37</span></span>
+    <h3>Migración desde Pipedrive</h3>
+    <p class="flow-desc prose">El traspaso de las 526 personas de Pipedrive, una sola vez y con un control que confirma que no se perdió nada.</p>
+  </div>
+  <ul class="rules prose">
+    <li>Los 118 tratos "IG DM" no se migran: las conversaciones de Instagram llegan solas, con el usuario real.</li>
+    <li>Cada motivo de pérdida entra como una nota en la ficha del contacto.</li>
+    <li>La importación se puede repetir: correrla dos veces actualiza, no duplica.</li>
+  </ul>
+  <div class="board"><pre class="mermaid">
+flowchart TD
+  S(["Se exportan personas y tratos de Pipedrive"]) --> U["Se unen los dos archivos en una planilla, una fila por persona"]
+  U --> X["Se quitan los tratos IG DM"]
+  X --> R["Se revisa la planilla a ojo"]
+  R --> I("Se importa con el flujo 12, con etapa, estado, valor y motivo de pérdida")
+  I --> C{"¿Los tratos importados coinciden con los del archivo?"}
+  C -->|No| B("No se da por buena: se revisa la planilla")
+  B --> U
+  C -->|Sí| IG{{"Las conversaciones de Instagram llegan con su usuario real"}}
+  IG --> M["Alejandra marca a mano los cerca de 30 leads de Instagram calificados"]
+  M --> AP["Se apaga la automatización que crea tratos en Pipedrive"]
+  AP --> F1(["Fin: 526 contactos migrados y conteos que cuadran"])
+  classDef user fill:#dbe8fb,stroke:#3a6fc4,color:#14202b
+  classDef sys fill:#dcf2e3,stroke:#2f8a50,color:#14202b
+  classDef dec fill:#fbefcf,stroke:#b7791f,color:#14202b
+  classDef int fill:#ebe5fb,stroke:#6d4bc4,color:#14202b
+  classDef term fill:#e6e8ea,stroke:#6b7680,color:#14202b
+  class S,F1 term
+  class C dec
+  class U,X,R,M,AP user
+  class I,B sys
+  class IG int
+</pre></div>
+  <a class="back" href="#indice">Volver al índice</a>
+</section>
+
+<!-- ============ 14 ============ -->
+<section class="flow" id="flujo-14">
+  <div class="flow-head">
+    <span class="eyebrow"><span>Flujo 14</span><span class="codes">F3 · F23 · F24 · F41</span></span>
+    <h3>Primer uso del sistema</h3>
+    <p class="flow-desc prose">La puesta en marcha completa, en orden, desde el registro hasta tener el sistema listo para trabajar.</p>
+  </div>
+  <ul class="rules prose">
+    <li>WhatsApp va al final porque depende de que la bandeja esté terminada.</li>
+    <li>Una persona que se suma al equipo ve solo los leads que tiene asignados.</li>
+  </ul>
+  <div class="board"><pre class="mermaid">
+flowchart TD
+  S(["Alejandra se registra"]) --> WS("El sistema crea su espacio de trabajo y la hace Owner")
+  WS --> IG["Conecta Instagram, flujo 10"]
+  IG --> RS["Carga la clave de Resend para los correos"]
+  RS --> DOM{"¿El dominio de correo está verificado?"}
+  DOM -->|No| DNS["Carga los registros del dominio"]
+  DNS --> DOM
+  DOM -->|Sí| IA["Carga sus claves de IA, opcional en esta fase"]
+  IA --> MIG["Migra Pipedrive, flujo 13"]
+  MIG --> WA["Conecta WhatsApp, flujo 7"]
+  WA --> EQ{"¿Suma a alguien al equipo?"}
+  EQ -->|Sí| INV["Lo invita desde Equipo"]
+  INV --> MAIL{{"La invitación llega por correo"}}
+  MAIL --> MEM("Entra como Member y ve solo los leads asignados")
+  MEM --> F1
+  EQ -->|No| F1(["Fin: sistema listo para trabajar"])
+  classDef user fill:#dbe8fb,stroke:#3a6fc4,color:#14202b
+  classDef sys fill:#dcf2e3,stroke:#2f8a50,color:#14202b
+  classDef dec fill:#fbefcf,stroke:#b7791f,color:#14202b
+  classDef int fill:#ebe5fb,stroke:#6d4bc4,color:#14202b
+  classDef term fill:#e6e8ea,stroke:#6b7680,color:#14202b
+  class S,F1 term
+  class DOM,EQ dec
+  class IG,RS,DNS,IA,MIG,WA,INV user
+  class WS,MEM sys
+  class MAIL int
+</pre></div>
+  <a class="back" href="#indice">Volver al índice</a>
+</section>
+
+<footer>
+  Los códigos junto a cada flujo (F22, F27…) son las funcionalidades del documento de requerimientos que lo construyen. Las secuencias de seguimiento, el asistente de IA y Calendly son de la Fase 2 y van a tener sus propios flujos.
+</footer>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  function fail() {
+    document.querySelectorAll('pre.mermaid').forEach(function (el) {
+      if (el.getAttribute('data-processed')) return;
+      el.insertAdjacentHTML('beforebegin', '<p class="render-error">No se pudo dibujar este diagrama. Recargue la página.</p>');
+    });
+  }
+  if (!window.mermaid) { fail(); return; }
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    securityLevel: 'strict',
+    flowchart: { curve: 'basis', htmlLabels: true, useMaxWidth: false },
+    themeVariables: {
+      fontFamily: 'Atkinson Hyperlegible, Segoe UI, system-ui, sans-serif',
+      fontSize: '15px',
+      lineColor: '#5b6670',
+      primaryTextColor: '#14202b',
+      edgeLabelBackground: '#fdfdfc',
+      tertiaryColor: '#fdfdfc'
+    }
+  });
+  var go = function () { mermaid.run({ querySelector: 'pre.mermaid' }).catch(fail); };
+  if (document.fonts && document.fonts.ready) { document.fonts.ready.then(go, go); } else { go(); }
+})();
+</script>
+
+</html>

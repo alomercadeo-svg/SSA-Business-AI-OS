@@ -1,0 +1,1042 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Referencia visual aprobada por la clienta el 06/10/2026. El plano (docs/requerimientos-fase1.md) manda si chocan. -->
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Prototipo ALO Mercadeo</title>
+<style>
+/* Layout: el mismo esqueleto del fork (barra lateral + contenido), bandeja en tres zonas; en teléfono, lista o hilo y la barra en un menú. */
+:root {
+  --bg: #ffffff;
+  --bg-sub: #f7f7f9;
+  --bg-hover: #f1f1f4;
+  --fg: #18181d;
+  --muted: #696975;
+  --faint: #9a9aa6;
+  --line: #e7e7ec;
+  --accent: #7646e0;        /* violeta de la marca (#a56fff) oscurecido para que el texto blanco sea legible */
+  --accent-strong: #5f33c4;
+  --accent-soft: #f1ebff;
+  --accent-fg: #ffffff;
+  --ok: #157a3c;   --ok-soft: #e6f5ec;
+  --warn: #9a5a06; --warn-soft: #fdf2df;
+  --danger: #bf2a30; --danger-soft: #fde9ea;
+  --ig: #c72c79;  --wa: #1d8f4e;
+  --bubble-in: #f2f2f5;
+  --bubble-out: #ece4ff;
+  --shadow: 0 8px 30px rgba(20, 16, 40, 0.12);
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141418; --bg-sub: #1a1a20; --bg-hover: #23232b; --fg: #ececf1; --muted: #a3a3b0; --faint: #74747f;
+    --line: #2b2b34; --accent: #9b74f5; --accent-strong: #b394ff; --accent-soft: #2a2140; --accent-fg: #ffffff;
+    --ok: #5fd08e; --ok-soft: #173426; --warn: #f0b45a; --warn-soft: #3a2a12; --danger: #f2777c; --danger-soft: #3c1a1d;
+    --ig: #f06aa8; --wa: #4cc985; --bubble-in: #23232b; --bubble-out: #2f2550; --shadow: 0 8px 30px rgba(0,0,0,0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141418; --bg-sub: #1a1a20; --bg-hover: #23232b; --fg: #ececf1; --muted: #a3a3b0; --faint: #74747f;
+  --line: #2b2b34; --accent: #9b74f5; --accent-strong: #b394ff; --accent-soft: #2a2140; --accent-fg: #ffffff;
+  --ok: #5fd08e; --ok-soft: #173426; --warn: #f0b45a; --warn-soft: #3a2a12; --danger: #f2777c; --danger-soft: #3c1a1d;
+  --ig: #f06aa8; --wa: #4cc985; --bubble-in: #23232b; --bubble-out: #2f2550; --shadow: 0 8px 30px rgba(0,0,0,0.5);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 14px; line-height: 1.45; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+a { color: var(--accent); }
+h1, h2, h3, h4 { margin: 0; line-height: 1.2; text-wrap: balance; }
+p { margin: 0; }
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* App shell */
+.app { display: grid; grid-template-columns: 236px minmax(0, 1fr); height: 100%; }
+.side { background: var(--bg-sub); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+.ws { display: flex; align-items: center; gap: 10px; padding: 16px; border-bottom: 1px solid var(--line); }
+.ws-logo { width: 32px; height: 32px; border-radius: 9px; background: var(--accent); color: var(--accent-fg); display: grid; place-items: center; font-weight: 700; font-size: 13px; letter-spacing: 0.02em; }
+.ws-name { font-weight: 650; }
+.ws-sub { font-size: 12px; color: var(--muted); }
+.nav { padding: 10px; display: grid; gap: 2px; overflow-y: auto; }
+.nav-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--faint); padding: 12px 10px 4px; }
+.nav button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: 0; background: transparent; padding: 8px 10px; border-radius: 8px; color: var(--fg); }
+.nav button:hover { background: var(--bg-hover); }
+.nav button.active { background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+.nav button.later { color: var(--faint); }
+.nav svg { width: 18px; height: 18px; flex: none; }
+.nav .pill { margin-left: auto; }
+.side-foot { margin-top: auto; padding: 12px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); display: grid; gap: 4px; }
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.topbar { display: none; }
+.banner { display: flex; gap: 10px; align-items: center; padding: 10px 20px; font-size: 13.5px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.banner.danger { background: var(--danger-soft); color: var(--danger); }
+.banner.warn { background: var(--warn-soft); color: var(--warn); }
+.banner.info { background: var(--accent-soft); color: var(--accent-strong); }
+.banner button { margin-left: auto; }
+.screen { flex: 1; min-height: 0; overflow-y: auto; }
+.page { padding: 28px 28px 80px; max-width: 1180px; display: grid; gap: 20px; }
+.page-head { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.page-head h1 { font-size: 24px; }
+.page-head p { color: var(--muted); margin-top: 4px; }
+.page-head .actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Controls */
+.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--bg); padding: 7px 12px; border-radius: 8px; font-weight: 550; white-space: nowrap; }
+.btn:hover { background: var(--bg-hover); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+.btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn.sm { padding: 4px 9px; font-size: 12.5px; }
+.btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+.input, select.input, textarea.input { width: 100%; border: 1px solid var(--line); background: var(--bg); padding: 8px 10px; border-radius: 8px; min-width: 0; }
+textarea.input { resize: vertical; }
+.field { display: grid; gap: 5px; }
+.field label, .lbl { font-size: 12px; color: var(--muted); font-weight: 550; }
+.help { font-size: 12.5px; color: var(--muted); }
+.pill { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--bg-hover); color: var(--muted); }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.danger { background: var(--danger-soft); color: var(--danger); }
+.pill.accent { background: var(--accent-soft); color: var(--accent-strong); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; display: inline-block; }
+.tag { display: inline-flex; padding: 1px 8px; border-radius: 6px; font-size: 12px; background: var(--accent-soft); color: var(--accent-strong); white-space: nowrap; }
+.chip { border: 1px solid var(--line); background: var(--bg); padding: 4px 10px; border-radius: 999px; font-size: 12.5px; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.card { border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+.card-body { padding: 18px; display: grid; gap: 12px; }
+.card-head { padding: 14px 18px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.card-head h3 { font-size: 15px; }
+.muted { color: var(--muted); }
+.faint { color: var(--faint); }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.kv { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 8px 14px; font-size: 13.5px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.ch-ico { width: 16px; height: 16px; flex: none; }
+.ig { color: var(--ig); } .wa { color: var(--wa); }
+.avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--bg-hover); display: grid; place-items: center; font-weight: 650; color: var(--muted); flex: none; position: relative; }
+.avatar .ch-ico { position: absolute; right: -3px; bottom: -3px; width: 15px; height: 15px; background: var(--bg); border-radius: 50%; padding: 1px; }
+.avatar.lg { width: 64px; height: 64px; font-size: 22px; }
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+table { border-collapse: collapse; width: 100%; min-width: 760px; }
+th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; padding: 10px 14px; background: var(--bg-sub); border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+tbody tr.click:hover { background: var(--bg-hover); cursor: pointer; }
+.empty { border: 1px dashed var(--line); border-radius: 14px; padding: 48px 24px; display: grid; justify-items: center; gap: 10px; text-align: center; }
+.empty h3 { font-size: 17px; }
+.empty p { color: var(--muted); max-width: 46ch; }
+.skel { background: linear-gradient(90deg, var(--bg-hover), var(--bg-sub), var(--bg-hover)); background-size: 200% 100%; border-radius: 8px; animation: sh 1.4s infinite linear; }
+@keyframes sh { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tabs button { border: 0; background: transparent; padding: 9px 12px; color: var(--muted); border-bottom: 2px solid transparent; font-weight: 550; white-space: nowrap; }
+.tabs button.on { color: var(--accent-strong); border-bottom-color: var(--accent); }
+.switch { width: 38px; height: 22px; border-radius: 999px; background: var(--line); border: 0; position: relative; flex: none; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
+.switch.on { background: var(--accent); }
+.switch.on::after { left: 19px; }
+.switch[disabled] { opacity: .6; cursor: not-allowed; }
+
+/* Inbox */
+.inbox { display: grid; grid-template-columns: 340px minmax(0, 1fr) 300px; height: 100%; min-height: 0; }
+.inbox.no-panel { grid-template-columns: 340px minmax(0, 1fr); }
+.ilist { border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+.ilist-head { padding: 14px 14px 10px; display: grid; gap: 10px; border-bottom: 1px solid var(--line); }
+.ilist-title { display: flex; align-items: baseline; gap: 8px; }
+.ilist-title h1 { font-size: 18px; }
+.status-tabs { display: flex; gap: 4px; }
+.status-tabs button { border: 0; background: transparent; padding: 4px 10px; border-radius: 999px; color: var(--muted); font-weight: 550; }
+.status-tabs button.on { background: var(--accent); color: var(--accent-fg); }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.fbtn { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 3px 10px; font-size: 12.5px; display: inline-flex; gap: 5px; align-items: center; }
+.fbtn.on { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); font-weight: 600; }
+.fpanel { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 10px; background: var(--bg-sub); }
+.fpanel .opts { display: flex; gap: 6px; flex-wrap: wrap; }
+.conv-list { overflow-y: auto; flex: 1; min-height: 0; }
+.conv { display: flex; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--line); cursor: pointer; background: transparent; width: 100%; border-left: 0; border-right: 0; border-top: 0; text-align: left; }
+.conv:hover { background: var(--bg-hover); }
+.conv.sel { background: var(--accent-soft); }
+.conv-main { min-width: 0; flex: 1; display: grid; gap: 2px; }
+.conv-top { display: flex; gap: 6px; align-items: baseline; }
+.conv-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conv-time { margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.conv-prev { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conv-meta { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 3px; }
+.unread { background: var(--accent); color: var(--accent-fg); border-radius: 999px; font-size: 11px; font-weight: 700; min-width: 19px; height: 19px; display: grid; place-items: center; padding: 0 5px; }
+.list-foot { padding: 10px 14px; font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); display: flex; gap: 8px; align-items: center; }
+.thread { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.thread-head { display: flex; gap: 10px; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.thread-head h2 { font-size: 16px; }
+.msgs { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.day { align-self: center; font-size: 12px; color: var(--muted); padding: 2px 10px; }
+.bub { max-width: min(70%, 520px); padding: 9px 12px; border-radius: 14px; background: var(--bubble-in); overflow-wrap: anywhere; }
+.bub.out { align-self: flex-end; background: var(--bubble-out); border-bottom-right-radius: 4px; }
+.bub.in { border-bottom-left-radius: 4px; }
+.bub-meta { font-size: 11.5px; color: var(--muted); margin-top: 3px; display: flex; gap: 6px; flex-wrap: wrap; }
+.att { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.att .box { width: 34px; height: 34px; border-radius: 8px; background: var(--bg); display: grid; place-items: center; border: 1px solid var(--line); }
+.sys-note { align-self: center; font-size: 12.5px; color: var(--muted); background: var(--bg-sub); border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; }
+.composer { border-top: 1px solid var(--line); padding: 12px 18px; display: grid; gap: 8px; position: relative; }
+.composer-row { display: flex; gap: 8px; align-items: flex-end; }
+.composer textarea { min-height: 42px; max-height: 140px; }
+.block { border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; font-size: 13.5px; }
+.block.danger { background: var(--danger-soft); color: var(--danger); }
+.block.warn { background: var(--warn-soft); color: var(--warn); }
+.block.info { background: var(--bg-sub); border: 1px solid var(--line); color: var(--fg); }
+.qr-picker { position: absolute; bottom: calc(100% - 4px); left: 18px; right: 18px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 6px; display: grid; gap: 2px; max-height: 260px; overflow-y: auto; z-index: 5; }
+.qr-item { border: 0; background: transparent; text-align: left; padding: 8px 10px; border-radius: 8px; display: grid; gap: 2px; }
+.qr-item:hover, .qr-item.on { background: var(--accent-soft); }
+.qr-item b { font-family: var(--mono); font-size: 12.5px; color: var(--accent-strong); }
+.qr-item span { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cpanel { border-left: 1px solid var(--line); overflow-y: auto; min-height: 0; }
+.cpanel-sec { padding: 14px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.cpanel-sec h4 { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+.fu-opts { display: flex; gap: 5px; flex-wrap: wrap; }
+.note { background: var(--bg-sub); border-radius: 8px; padding: 8px 10px; font-size: 13px; display: grid; gap: 3px; }
+.note small { color: var(--muted); }
+.back-btn { display: none; }
+
+/* Contact page */
+.ficha { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.timeline { display: grid; gap: 0; }
+.tl-item { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.tl-item:last-child { border-bottom: 0; }
+
+/* Import */
+.steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.step { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 999px; background: var(--bg-sub); color: var(--muted); font-size: 13px; }
+.step b { width: 22px; height: 22px; border-radius: 50%; background: var(--line); display: grid; place-items: center; font-size: 12px; color: var(--fg); }
+.step.on { background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+.step.on b { background: var(--accent); color: var(--accent-fg); }
+.step.done b { background: var(--ok); color: #fff; }
+.drop { border: 2px dashed var(--line); border-radius: 14px; padding: 40px 20px; display: grid; justify-items: center; gap: 8px; text-align: center; }
+.bar { height: 10px; background: var(--bg-hover); border-radius: 999px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.stat { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 2px; }
+.stat b { font-size: 24px; font-variant-numeric: tabular-nums; }
+
+/* Channel cards */
+.chcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.chcard { border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 12px; align-content: start; }
+.chcard-top { display: flex; gap: 12px; align-items: center; }
+.chcard-top .icowrap { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--bg-sub); }
+.chcard-top .icowrap svg { width: 22px; height: 22px; }
+.qr { width: 180px; height: 180px; display: grid; grid-template-columns: repeat(21, 1fr); background: #fff; padding: 10px; border-radius: 8px; border: 1px solid var(--line); }
+.qr i { background: #111; }
+.qr i.w { background: #fff; }
+
+/* Rules page */
+.rule { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.rule:last-child { border-bottom: 0; }
+.rule h4 { font-size: 14.5px; }
+.rule .ctl { grid-row: span 2; display: flex; align-items: center; gap: 8px; }
+.rule .num { width: 70px; }
+
+/* Overlays */
+.overlay { position: fixed; inset: 0; background: rgba(15, 12, 30, 0.42); display: grid; place-items: center; padding: 16px; z-index: 50; }
+.modal { background: var(--bg); border-radius: 16px; box-shadow: var(--shadow); width: min(560px, 100%); max-height: calc(100% - 32px); overflow-y: auto; }
+.modal.wide { width: min(820px, 100%); }
+.modal-head { padding: 16px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
+.modal-head h3 { font-size: 16px; }
+.modal-body { padding: 18px 20px; display: grid; gap: 14px; }
+.modal-foot { padding: 14px 20px; border-top: 1px solid var(--line); display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.merge { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.merge .side-card { border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 6px; font-size: 13px; }
+.toasts { position: fixed; right: 16px; bottom: 16px; display: grid; gap: 8px; z-index: 60; justify-items: end; }
+.toast { background: var(--fg); color: var(--bg); padding: 10px 14px; border-radius: 10px; box-shadow: var(--shadow); font-size: 13.5px; max-width: 360px; display: flex; gap: 8px; align-items: center; }
+.toast.err { background: var(--danger); color: #fff; }
+.demo { position: fixed; left: 16px; bottom: 64px; z-index: 40; }
+.demo-btn { background: var(--fg); color: var(--bg); border: 0; border-radius: 999px; padding: 8px 14px; font-weight: 600; box-shadow: var(--shadow); font-size: 13px; }
+.demo-panel { position: absolute; bottom: calc(100% + 8px); left: 0; width: 300px; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 14px; display: grid; gap: 12px; }
+.demo-panel .opts { display: flex; gap: 5px; flex-wrap: wrap; }
+.demo-panel h4 { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 6px; }
+.scrim { display: none; }
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .inbox { grid-template-columns: 320px minmax(0, 1fr); }
+  .cpanel { position: fixed; top: 0; right: 0; bottom: 0; width: min(340px, 92vw); background: var(--bg); z-index: 45; box-shadow: var(--shadow); padding-top: env(safe-area-inset-top, 0px); }
+  .cpanel[hidden] { display: none !important; }
+}
+@media (min-width: 1201px) { .panel-toggle { display: none; } }
+@media (max-width: 860px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .side { position: fixed; top: 0; bottom: 0; left: 0; width: 260px; z-index: 48; transform: translateX(-100%); transition: transform .2s; padding-top: env(safe-area-inset-top, 0px); }
+  .side.open { transform: none; box-shadow: var(--shadow); }
+  .scrim.on { display: block; position: fixed; inset: 0; background: rgba(15,12,30,.35); z-index: 47; }
+  .topbar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--line); position: sticky; top: env(safe-area-inset-top, 0px); background: var(--bg); z-index: 20; }
+  .topbar b { font-size: 15px; }
+  .page { padding: 20px 16px 90px; }
+  .inbox, .inbox.no-panel { grid-template-columns: minmax(0, 1fr); }
+  .inbox.view-list .thread { display: none; }
+  .inbox.view-thread .ilist { display: none; }
+  .back-btn { display: inline-flex; }
+  .bub { max-width: 86%; }
+  .ficha { grid-template-columns: minmax(0, 1fr); }
+  .kv { grid-template-columns: 120px minmax(0, 1fr); }
+  .demo { left: auto; right: 12px; bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 8px); }
+  .demo-panel { left: auto; right: 0; bottom: auto; top: calc(100% + 8px); }
+  .demo-btn { padding: 6px 12px; }
+  .merge { grid-template-columns: 1fr; }
+  .tl-item { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+}
+</style>
+
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="Navegación principal">
+    <div class="ws">
+      <div class="ws-logo" aria-hidden="true">ALO</div>
+      <div><div class="ws-name">ALO Mercadeo</div><div class="ws-sub" id="whoami">Alejandra López · Owner</div></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot">
+      <span>Prototipo navegable · Fase 1</span>
+      <span>Los datos son de ejemplo</span>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim" data-action="close-menu"></div>
+  <div class="main">
+    <div class="topbar">
+      <button class="btn sm" data-action="open-menu" aria-label="Abrir menú">☰</button>
+      <b id="topTitle">Bandeja</b>
+    </div>
+    <div id="banners"></div>
+    <div class="screen" id="screen"></div>
+  </div>
+</div>
+<div class="demo" id="demo"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div id="overlay"></div>
+
+<script>
+(function () {
+'use strict';
+
+/* ---------- Íconos ---------- */
+const I = {
+  inbox: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  contacts: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  channels: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0zM12 18v4"/></svg>',
+  key: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg>',
+  quick: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  flows: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M6 16V8a3 3 0 0 1 3-3h6M18 8v3a3 3 0 0 1-3 3H9"/></svg>',
+  seq: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6h11M10 12h11M10 18h11M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>',
+  bcast: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14"/></svg>',
+  chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M8 17V9M13 17V5M18 17v-6"/></svg>',
+  ig: '<svg class="ch-ico ig" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Instagram"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>',
+  wa: '<svg class="ch-ico wa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="WhatsApp"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21"/><path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1"/></svg>',
+  clip: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>',
+  mic: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg>',
+  img: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>',
+  send: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>'
+};
+const chIco = ch => ch === 'ig' ? I.ig : I.wa;
+const chName = ch => ch === 'ig' ? 'Instagram' : 'WhatsApp';
+
+/* ---------- Fechas en hora de Costa Rica ---------- */
+const TZ = 'America/Costa_Rica';
+const T = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const addDays = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); };
+const dow = ymd => { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); };
+const fmtD = ymd => { const [y, m, d] = ymd.split('-').map(Number); return new Intl.DateTimeFormat('es-CR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, d))); };
+const WEEK_END = addDays(T, (7 - dow(T)) % 7);
+function fuStatus(ymd) {
+  if (!ymd) return null;
+  if (ymd < T) return 'vencido';
+  if (ymd === T) return 'hoy';
+  if (ymd <= WEEK_END) return 'semana';
+  return 'futuro';
+}
+function fuPill(ymd) {
+  const s = fuStatus(ymd);
+  if (!s) return '<span class="faint">Sin fecha</span>';
+  const lbl = s === 'vencido' ? 'Vencido · ' + fmtD(ymd) : s === 'hoy' ? 'Hoy' : fmtD(ymd);
+  const cls = s === 'vencido' ? 'warn' : s === 'hoy' ? 'accent' : '';
+  return '<span class="pill ' + cls + '">' + lbl + '</span>';
+}
+
+/* ---------- Datos de ejemplo ---------- */
+const TEAM = [
+  { id: 'ale', name: 'Alejandra López', role: 'Owner', state: 'Activa' },
+  { id: 'marcos', name: 'Marcos', role: 'Admin', state: 'Activo' },
+  { id: 'laura', name: 'Laura Mora (ejemplo)', role: 'Member', state: 'Activa' }
+];
+const who = id => (TEAM.find(t => t.id === id) || {}).name || 'Sin asignar';
+const STAGES = ['1. Nuevo contacto', '2. Le escribí', '3. Respondió', '4. ¿Es mi cliente?', '5. Le ofrecí una cita', '11. Seguimiento intensivo', '14. Repesca'];
+const TAGS = ['Pauta octubre', 'Sesión de Claridad', 'Método Poderosa', 'Cliente', 'Migrado de Pipedrive'];
+
+const C = [
+  { id: 1, name: 'Daniela Rojas', handles: { ig: '@dani.rojas.cr' }, phone: null, resolved: true, email: null, country: 'Costa Rica', stage: '3. Respondió', deal: 'Abierto', temp: 'Tibio', tags: ['Pauta octubre'], setter: 'ale', vend: 'ale', fu: 0,
+    attr: { first: 'Anuncio de Instagram «Método Poderosa, octubre»', last: 'Mismo anuncio' }, notes: [{ t: 'Hoy', by: 'Alejandra', txt: 'Tiene la idea de una marca de cosmética natural hace dos años.' }] },
+  { id: 2, name: 'María Fernanda Solís', handles: { ig: '@mafe.solis', wa: '+506 8812 4471' }, phone: '+50688124471', resolved: true, email: 'mafe.solis@correo.cr', email2: 'mafe.trabajo@correo.cr', country: 'Costa Rica', stage: '5. Le ofrecí una cita', deal: 'Abierto', temp: 'Caliente', tags: ['Sesión de Claridad'], setter: 'ale', vend: 'ale', fu: 3,
+    attr: { first: 'Anuncio de Instagram «Sesión de Claridad»', last: 'Publicación orgánica' }, notes: [{ t: 'Hace 2 días', by: 'Alejandra', txt: 'Le interesa la Sesión de Claridad. Pidió pensarlo con el esposo.' }] },
+  { id: 3, name: 'Karina Méndez', handles: { ig: '@karinamendez.studio' }, phone: null, resolved: true, email: null, country: 'Costa Rica', stage: '4. ¿Es mi cliente?', deal: 'Abierto', temp: 'Tibio', tags: ['Pauta octubre'], setter: 'ale', vend: null, fu: -2,
+    attr: { first: 'Anuncio de Instagram «Método Poderosa, octubre»', last: '—' }, notes: [] },
+  { id: 4, name: 'Andrea Villalobos', handles: { wa: '+506 7034 9182' }, phone: '+50670349182', resolved: true, email: 'andrea.villalobos@correo.cr', country: 'Costa Rica', stage: '5. Le ofrecí una cita', deal: 'Ganado', value: 'USD 2.800', closed: '14 ago 2026', temp: 'Caliente', tags: ['Método Poderosa', 'Cliente', 'Migrado de Pipedrive'], setter: 'ale', vend: 'ale', fu: 14,
+    attr: { first: 'Referida por una clienta', last: '—' }, notes: [{ t: '06/10/2026', by: 'Migración', txt: 'Venía de Pipedrive. Trato ganado: Método Poderosa.' }] },
+  { id: 5, name: 'Lucía 🌸', handles: { wa: 'Identificador de WhatsApp sin número' }, phone: null, resolved: false, email: null, country: '—', stage: '1. Nuevo contacto', deal: 'Abierto', temp: '—', tags: [], setter: null, vend: null, fu: null,
+    attr: { first: '—', last: '—' }, notes: [] },
+  { id: 6, name: 'Paola Jiménez', handles: { ig: '@paojimenez.coach' }, phone: null, resolved: true, email: null, country: 'Costa Rica', stage: '2. Le escribí', deal: 'Abierto', temp: 'Tibio', tags: ['Pauta octubre'], setter: 'ale', vend: null, fu: 2,
+    attr: { first: 'Anuncio de Instagram «Método Poderosa, octubre»', last: '—' }, notes: [] },
+  { id: 7, name: 'Silvia Araya', handles: {}, phone: '+50688901123', resolved: true, email: 'silvia.araya@correo.cr', country: 'Costa Rica', stage: '14. Repesca', deal: 'Perdido', temp: 'Frío', tags: ['Migrado de Pipedrive'], setter: 'ale', vend: 'ale', fu: 9,
+    attr: { first: '—', last: '—' }, notes: [{ t: '06/10/2026', by: 'Migración', txt: 'Motivo de pérdida (Pipedrive): «No era el momento, lo retoma en enero».' }] },
+  { id: 8, name: 'Gabriela Céspedes', handles: {}, phone: null, resolved: true, email: null, country: '—', stage: '11. Seguimiento intensivo', deal: 'Perdido', temp: 'Frío', tags: ['Migrado de Pipedrive'], setter: 'ale', vend: null, fu: -7, nochannel: true,
+    attr: { first: '—', last: '—' }, notes: [{ t: '06/10/2026', by: 'Migración', txt: 'Motivo de pérdida (Pipedrive): «Precio».' }] },
+  { id: 9, name: 'Natalia Brenes', handles: { ig: '@natibrenes', wa: '+506 6021 7788' }, phone: '+50660217788', resolved: true, email: null, country: 'Costa Rica', stage: '3. Respondió', deal: 'Abierto', temp: 'Frío', tags: [], setter: 'ale', vend: null, fu: null, dnc: { reason: 'Frase detectada: «no me escribas más»', at: '2 oct' },
+    attr: { first: 'Anuncio de Instagram «Sesión de Claridad»', last: '—' }, notes: [] },
+  { id: 10, name: 'Valeria Monge', handles: { ig: '@valemonge' }, phone: null, resolved: true, email: null, country: 'Costa Rica', stage: '1. Nuevo contacto', deal: 'Abierto', temp: '—', tags: ['Pauta octubre'], setter: null, vend: null, fu: null,
+    attr: { first: 'Anuncio de Instagram «Método Poderosa, octubre»', last: '—' }, notes: [] },
+  { id: 11, name: 'Fiorella Quesada', handles: { wa: '+506 6123 4410' }, phone: '+50661234410', resolved: true, email: null, country: 'Costa Rica', stage: '2. Le escribí', deal: 'Abierto', temp: 'Tibio', tags: ['Sesión de Claridad'], setter: 'laura', vend: 'ale', fu: 1,
+    attr: { first: 'Formulario de la web', last: '—' }, notes: [] },
+  { id: 12, name: 'Carolina Ureña', handles: { ig: '@caro.urena' }, phone: null, resolved: true, email: null, country: 'Panamá', stage: '3. Respondió', deal: 'Abierto', temp: 'Tibio', tags: ['Pauta octubre'], setter: 'laura', vend: null, fu: 4, suggest: { name: 'Caro Ureña', why: 'importada desde una planilla, con el usuario de Instagram caro.urena' },
+    attr: { first: 'Anuncio de Instagram «Método Poderosa, octubre»', last: '—' }, notes: [] }
+];
+C.forEach(c => { c.fuDate = c.fu == null ? null : addDays(T, c.fu); });
+const DELETED = [{ id: 99, name: 'Prueba duplicada', when: 'hace 3 días', left: 27 }];
+
+/* Conversaciones. h = horas desde el último mensaje del lead. */
+const V = [
+  { id: 'v1', c: 1, ch: 'ig', h: 3, unread: 1, status: 'abierta', time: '10:12', msgs: [
+    { d: 'Ayer' }, { f: 'in', t: 'Hola! Vi tu anuncio del Método Poderosa. Quiero saber si es para mí ❤️', at: '18:40' },
+    { f: 'out', t: '¡Hola Daniela! Gracias por escribir. Contame un poquito: ¿ya tenés la idea de negocio o todavía la estás definiendo?', at: '19:02' },
+    { d: 'Hoy' }, { f: 'in', t: 'Tengo la idea hace dos años, es una marca de cosmética natural, pero no sé por dónde empezar', at: '10:12' } ] },
+  { id: 'v2', c: 2, ch: 'ig', h: 52, unread: 0, status: 'abierta', time: 'sáb', msgs: [
+    { d: 'Sábado' }, { f: 'in', t: 'Hola Ale, ¿la Sesión de Claridad es por Zoom?', at: '09:15' },
+    { f: 'out', t: 'Sí, son dos sesiones por Zoom y un diagnóstico escrito. Si después seguís con el Método Poderosa, se descuenta.', at: '09:31' },
+    { f: 'in', t: 'Buenísimo, lo hablo con mi esposo y te confirmo', at: '09:40' },
+    { f: 'out', t: '¿Me pasás tu WhatsApp así te escribo por ahí con los detalles?', at: '09:42' },
+    { f: 'in', t: '8812 4471', at: '09:50' } ] },
+  { id: 'v3', c: 2, ch: 'wa', h: 30, unread: 0, status: 'abierta', time: 'dom', msgs: [
+    { d: 'Domingo' }, { f: 'out', t: 'Hola María Fernanda, soy Ale de ALO Mercadeo 🌱 Te escribo por acá como quedamos.', at: '10:05' },
+    { f: 'in', t: '¡Hola! Sí, gracias. Te confirmo esta semana', at: '11:20' } ] },
+  { id: 'v4', c: 3, ch: 'ig', h: 122, unread: 0, status: 'abierta', time: '1 oct', msgs: [
+    { d: '1 de octubre' }, { f: 'in', t: 'Hola, ¿cuánto cuesta el método?', at: '20:10' },
+    { f: 'out', t: 'Hola Karina, la inversión del Método Poderosa se define después de una entrevista, porque es 1:1. ¿Querés que agendemos una?', at: '20:31' },
+    { f: 'in', at: '20:44', att: 'audio' },
+    { d: 'Ayer' }, { f: 'app', t: 'Karina, ¿pudiste escuchar lo que te mandé? Quedo atenta 😊', at: '17:05' } ] },
+  { id: 'v5', c: 4, ch: 'wa', h: 70, unread: 0, status: 'abierta', time: 'sáb', msgs: [
+    { d: 'Sábado' }, { f: 'in', t: 'Ale, terminé la tarea de posicionamiento de la semana 8. Te mando el documento', at: '15:30' },
+    { f: 'in', at: '15:31', att: 'doc' },
+    { f: 'out', t: '¡Qué bien, Andrea! Lo reviso y el martes lo vemos en la sesión.', at: '16:02' } ] },
+  { id: 'v6', c: 5, ch: 'wa', h: 5, unread: 2, status: 'abierta', time: '08:20', msgs: [
+    { d: 'Hoy' }, { f: 'in', t: 'Hola, me pasaron tu contacto. Quería info de la sesión', at: '08:18' },
+    { f: 'in', at: '08:20', att: 'na' } ] },
+  { id: 'v7', c: 6, ch: 'ig', h: 22.8, unread: 0, status: 'abierta', time: 'ayer', msgs: [
+    { d: 'Ayer' }, { f: 'in', t: 'Me encantó el post de las 3 preguntas antes de emprender', at: '11:55' },
+    { f: 'out', t: '¡Gracias Paola! ¿Vos ya estás emprendiendo o lo estás pensando?', at: '12:10' } ] },
+  { id: 'v8', c: 9, ch: 'wa', h: 96, unread: 0, status: 'cerrada', time: '2 oct', msgs: [
+    { d: '2 de octubre' }, { f: 'out', t: 'Hola Natalia, ¿pudiste ver la información de la sesión?', at: '10:00' },
+    { f: 'in', t: 'Por favor no me escribas más', at: '10:40' },
+    { sys: 'Marcada como «no contactar» automáticamente · frase detectada' } ] },
+  { id: 'v9', c: 10, ch: 'ig', h: 0.3, unread: 2, status: 'abierta', time: '11:48', msgs: [
+    { d: 'Hoy' }, { f: 'in', t: 'Hola!! 😊', at: '11:46' }, { f: 'in', t: 'Quiero saber si es para mí ❤️', at: '11:48' } ] },
+  { id: 'v10', c: 11, ch: 'wa', h: 40, unread: 0, status: 'abierta', time: 'dom', msgs: [
+    { d: 'Domingo' }, { f: 'in', t: 'Hola, llené el formulario de la web', at: '09:00' },
+    { f: 'out', t: 'Hola Fiorella, gracias. ¿Qué te gustaría resolver en la Sesión de Claridad?', at: '09:30' } ] },
+  { id: 'v12', c: 6, ch: 'ig', kind: 'comment', days: 5, replied: false, h: 48, unread: 1, status: 'abierta', time: 'sáb', post: '«3 preguntas antes de emprender»', msgs: [
+    { d: 'Sábado' }, { f: 'in', t: '¡Me encantó! Quiero saber más del método 🙌', at: '09:10' } ] },
+  { id: 'v11', c: 12, ch: 'ig', h: 75, unread: 0, status: 'abierta', time: 'sáb', msgs: [
+    { d: 'Sábado' }, { f: 'in', story: true, t: '🔥🔥 justo lo que necesitaba leer', at: '13:40' }, { f: 'in', t: 'Hola, soy de Panamá, ¿atendés fuera de Costa Rica?', at: '14:00' },
+    { f: 'out', t: '¡Hola Carolina! Sí, todo es por Zoom.', at: '14:20' } ] }
+];
+const contact = id => C.find(c => c.id === id);
+function win(v) {
+  if (v.ch !== 'ig' || v.kind === 'comment') return null;
+  if (v.h >= 24) return { s: 'cerrada', lbl: 'Ventana cerrada' };
+  const left = 24 - v.h;
+  if (left <= 2) { const m = Math.round(left * 60); return { s: 'por-vencer', lbl: 'Vence en ' + Math.floor(m / 60) + ' h ' + (m % 60) + ' min' }; }
+  return { s: 'abierta', lbl: 'Ventana abierta · quedan ' + Math.floor(left) + ' h' };
+}
+const QR = [
+  { k: '/claridad', t: '¡Hola {{contact.display_name}}! La Sesión de Claridad son dos sesiones por Zoom y un diagnóstico escrito, por USD 333. Si después seguís con el Método Poderosa, se descuenta. ¿Te paso el link para agendar?' },
+  { k: '/poderosa', t: 'El Método Poderosa es un acompañamiento 1:1 de 12 semanas: claridad, mentalidad, posicionamiento, comunicación e identidad visual. Antes conversamos en una entrevista para ver si es para vos.' },
+  { k: '/whatsapp', t: '¿Me pasás tu WhatsApp así te escribo por ahí con los detalles, {{contact.display_name}}?' },
+  { k: '/agenda', t: 'Acá podés elegir el día y la hora que te queden mejor: [enlace de Calendly]' },
+  { k: '/gracias', t: '¡Gracias a vos, {{contact.display_name}}! Cualquier duda me escribís.' }
+];
+const AUDIT = [
+  { t: 'Hoy 11:48', who: 'Sistema', what: 'Contacto creado: Valeria Monge (Instagram)' },
+  { t: 'Hoy 10:15', who: 'Alejandra López', what: 'Próximo seguimiento de Daniela Rojas: sin fecha → hoy' },
+  { t: 'Hoy 08:20', who: 'Sistema', what: 'Adjunto no disponible en la conversación de Lucía 🌸 · se reintentará' },
+  { t: 'Ayer 17:30', who: 'Marcos', what: 'Integraciones: clave de Resend guardada' },
+  { t: '6 oct 15:02', who: 'Marcos', what: 'Importación desde planilla: 380 creados, 132 actualizados, 14 con error' },
+  { t: '2 oct 10:40', who: 'Sistema', what: 'Natalia Brenes marcada como «no contactar» · frase detectada' },
+  { t: '2 oct 09:00', who: 'Alejandra López', what: 'Fiorella Quesada asignada: setter Laura Mora' }
+];
+
+/* ---------- Estado ---------- */
+const S = {
+  screen: 'bandeja', role: 'owner', view: 'datos', wa: 'conectado',
+  conv: 'v1', ivw: 'list', lost: false, qrQ: '', panel: false, showFilters: false,
+  f: { status: 'abiertas', canal: [], fu: null, from: '', to: '', win: null, unres: false, asig: 'todas', tags: [], q: '' },
+  contact: 1, edit: false, trash: false, cq: '', cfu: null,
+  imp: 1, cfgTab: 'general', qrPicker: false, qrSel: 0, draft: '', demoOpen: false, editQR: null
+};
+const screens = {};
+const NAV = [
+  { id: 'bandeja', lbl: 'Bandeja', ico: I.inbox },
+  { id: 'contactos', lbl: 'Contactos', ico: I.contacts },
+  { id: 'canales', lbl: 'Canales', ico: I.channels, admin: true },
+  { id: 'integraciones', lbl: 'Integraciones', ico: I.key, admin: true },
+  { id: 'respuestas', lbl: 'Respuestas rápidas', ico: I.quick, admin: true },
+  { id: 'configuracion', lbl: 'Configuración', ico: I.settings, admin: true },
+  { sep: 'Llegan en la Fase 2' },
+  { id: 'fase2-flujos', lbl: 'Flujos', ico: I.flows, later: true },
+  { id: 'fase2-secuencias', lbl: 'Secuencias', ico: I.seq, later: true },
+  { id: 'fase2-difusiones', lbl: 'Difusiones', ico: I.bcast, later: true },
+  { id: 'fase2-analiticas', lbl: 'Analíticas', ico: I.chart, later: true }
+];
+const isAdmin = () => S.role !== 'member';
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+const $ = sel => document.querySelector(sel);
+
+/* ---------- Toasts y modales ---------- */
+function toast(msg, err) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (err ? ' err' : '');
+  el.textContent = msg;
+  $('#toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3600);
+}
+function modal(html, wide) {
+  $('#overlay').innerHTML = '<div class="overlay" data-action="close-modal-bg"><div class="modal' + (wide ? ' wide' : '') + '" role="dialog" aria-modal="true">' + html + '</div></div>';
+}
+function closeModal() { $('#overlay').innerHTML = ''; }
+
+/* ---------- Render global ---------- */
+function render() {
+  if (!isAdmin() && NAV.find(n => n.id === S.screen && n.admin)) {
+    S.screen = 'bandeja';
+    toast('Esa sección es solo para Owner y Admin. Te llevamos a la bandeja.');
+  }
+  $('#nav').innerHTML = NAV.filter(n => n.sep || !n.admin || isAdmin()).map(n => n.sep
+    ? '<div class="nav-label">' + n.sep + '</div>'
+    : '<button class="' + (S.screen === n.id || (n.id === 'contactos' && S.screen === 'ficha') || (n.id === 'contactos' && S.screen === 'importar') || (n.id === 'canales' && S.screen === 'reglas') ? 'active ' : '') + (n.later ? 'later' : '') + '" data-go="' + n.id + '">' + n.ico + '<span>' + n.lbl + '</span>' + (n.later ? '<span class="pill">Fase 2</span>' : '') + '</button>'
+  ).join('');
+  $('#whoami').textContent = S.role === 'member' ? 'Laura Mora (ejemplo) · Member' : S.role === 'admin' ? 'Marcos · Admin' : 'Alejandra López · Owner';
+  const nv = NAV.find(n => n.id === S.screen);
+  $('#topTitle').textContent = nv ? nv.lbl : S.screen === 'ficha' ? 'Ficha de contacto' : S.screen === 'importar' ? 'Importar contactos' : S.screen === 'reglas' ? 'Reglas de WhatsApp' : '';
+  renderBanners();
+  const fn = screens[S.screen.startsWith('fase2') ? 'fase2' : S.screen];
+  $('#screen').innerHTML = S.view === 'cargando' ? skeleton() : S.view === 'error' ? '<div class="page"><div class="empty"><h3>No pudimos cargar esta pantalla</h3><p>Se perdió la conexión con el servidor. Revisá tu internet y volvé a intentar.</p><button class="btn primary" data-action="retry">Reintentar</button></div></div>' : fn();
+  renderDemo();
+  try { if (location.hash.slice(1) !== S.screen) history.replaceState(null, '', '#' + S.screen); } catch (e) {}
+}
+function renderBanners() {
+  let h = '';
+  if (S.view !== 'datos') { $('#banners').innerHTML = ''; return; }
+  if (S.wa === 'caido') h += '<div class="banner danger"><span class="dot"></span><span><b>WhatsApp no está recibiendo mensajes</b> desde hoy a las 06:12. Mientras tanto, lo que le escriban no llega a la bandeja. Se avisó por correo a Owner y Admin.</span>' + (isAdmin() ? '<button class="btn sm" data-go="canales">Reconectar</button>' : '') + '</div>';
+  if (S.wa === 'agotado') h += '<div class="banner danger"><span class="dot"></span><span><b>WhatsApp quedó desvinculado</b> y se agotaron los intentos de reconexión. Hay que vincular el número de nuevo.</span>' + (isAdmin() ? '<button class="btn sm" data-go="canales">Ver qué hacer</button>' : '') + '</div>';
+  if (S.wa === 'sin-verificar') h += '<div class="banner warn"><span class="dot"></span><span>No se pudo verificar el estado de WhatsApp en el último chequeo. No significa que esté caído; se vuelve a intentar en 5 minutos.</span></div>';
+  if (S.wa === 'sin-vincular') h += '<div class="banner info"><span class="dot"></span><span>El número de WhatsApp todavía no está vinculado. Se vincula cuando estén listos el guardado de mensajes, la reconexión y la bandeja.</span></div>';
+  $('#banners').innerHTML = h;
+}
+function skeleton() {
+  let rows = '';
+  for (let i = 0; i < 7; i++) rows += '<div class="row" style="gap:12px;padding:10px 0"><div class="skel" style="width:36px;height:36px;border-radius:50%"></div><div style="flex:1;display:grid;gap:6px"><div class="skel" style="height:12px;width:' + (40 + (i * 7) % 40) + '%"></div><div class="skel" style="height:10px;width:' + (60 + (i * 11) % 30) + '%"></div></div></div>';
+  return '<div class="page"><div class="skel" style="height:26px;width:220px"></div><div class="skel" style="height:14px;width:340px"></div><div>' + rows + '</div></div>';
+}
+function emptyState(title, text, btn, go) {
+  return '<div class="empty"><h3>' + title + '</h3><p>' + text + '</p>' + (btn ? '<button class="btn primary" data-go="' + go + '">' + btn + '</button>' : '') + '</div>';
+}
+
+/* ---------- Bandeja ---------- */
+function visibleConvs() {
+  const f = S.f;
+  return V.filter(v => {
+    const c = contact(v.c);
+    if (S.role === 'member' && !(c.setter === 'laura' || c.vend === 'laura')) return false;
+    if (f.status === 'abiertas' && v.status !== 'abierta') return false;
+    if (f.status === 'cerradas' && v.status !== 'cerrada') return false;
+    if (f.canal.length && !f.canal.includes(v.ch)) return false;
+    if (f.unres && c.resolved) return false;
+    if (f.asig === 'sin' && (c.setter || c.vend)) return false;
+    if (['ale', 'marcos', 'laura'].includes(f.asig) && c.setter !== f.asig && c.vend !== f.asig) return false;
+    if (f.tags.length && !f.tags.some(t => c.tags.includes(t))) return false;
+    if (f.win) { const w = win(v); if (!w || w.s !== f.win) return false; }
+    if (f.fu) {
+      const d = c.fuDate; if (!d) return false;
+      if (f.fu === 'hoy' && d !== T) return false;
+      if (f.fu === 'semana' && !(d >= T && d <= WEEK_END)) return false;
+      if (f.fu === 'vencido' && !(d < T)) return false;
+      if (f.fu === 'rango' && ((f.from && d < f.from) || (f.to && d > f.to))) return false;
+    }
+    if (f.q) { const q = f.q.toLowerCase(); const hay = c.name.toLowerCase().includes(q) || v.msgs.some(m => (m.t || '').toLowerCase().includes(q)); if (!hay) return false; }
+    return true;
+  });
+}
+function activeFilterCount() {
+  const f = S.f; return (f.canal.length ? 1 : 0) + (f.fu ? 1 : 0) + (f.win ? 1 : 0) + (f.unres ? 1 : 0) + (f.asig !== 'todas' ? 1 : 0) + (f.tags.length ? 1 : 0);
+}
+function filterPanel() {
+  const f = S.f;
+  const opt = (grp, val, lbl, on) => '<button class="chip' + (on ? ' on' : '') + '" data-f="' + grp + '" data-v="' + val + '">' + lbl + '</button>';
+  return '<div class="fpanel">' +
+    '<div><div class="lbl">Seguimiento</div><div class="opts">' + opt('fu', 'hoy', 'Vence hoy', f.fu === 'hoy') + opt('fu', 'semana', 'Vence esta semana', f.fu === 'semana') + opt('fu', 'vencido', 'Vencido', f.fu === 'vencido') + opt('fu', 'rango', 'Rango de fechas', f.fu === 'rango') + '</div>' +
+    (f.fu === 'rango' ? '<div class="row" style="margin-top:8px"><input class="input" style="width:auto" type="date" id="fu-from" value="' + f.from + '" aria-label="Desde"><span class="muted">a</span><input class="input" style="width:auto" type="date" id="fu-to" value="' + f.to + '" aria-label="Hasta"></div>' : '') + '</div>' +
+    '<div><div class="lbl">Canal</div><div class="opts">' + opt('canal', 'ig', 'Instagram', f.canal.includes('ig')) + opt('canal', 'wa', 'WhatsApp', f.canal.includes('wa')) + '</div></div>' +
+    '<div><div class="lbl">Asignación</div><div class="opts">' + opt('asig', 'todas', 'Todas', f.asig === 'todas') + opt('asig', 'sin', 'Sin asignar', f.asig === 'sin') + opt('asig', 'ale', 'Alejandra', f.asig === 'ale') + opt('asig', 'laura', 'Laura (ejemplo)', f.asig === 'laura') + '</div></div>' +
+    '<div><div class="lbl">Etiquetas</div><div class="opts">' + TAGS.map(t => opt('tags', t, t, f.tags.includes(t))).join('') + '</div></div>' +
+    '<div><div class="lbl">Ventana de Instagram</div><div class="opts">' + opt('win', 'abierta', 'Abierta', f.win === 'abierta') + opt('win', 'por-vencer', 'Vence en menos de 2 h', f.win === 'por-vencer') + opt('win', 'cerrada', 'Cerrada', f.win === 'cerrada') + '</div></div>' +
+    '<div><div class="lbl">Fecha del último mensaje</div><div class="opts"><button class="chip">Hoy</button><button class="chip">Últimos 7 días</button><button class="chip">Últimos 30 días</button><button class="chip">Rango…</button></div></div>' +
+    '<div class="row"><button class="chip' + (f.unres ? ' on' : '') + '" data-f="unres" data-v="1">Teléfono sin resolver</button><button class="btn sm ghost" data-action="clear-filters" style="margin-left:auto">Limpiar filtros</button></div>' +
+    '</div>';
+}
+screens.bandeja = function () {
+  if (S.view === 'vacio') return '<div class="page">' + emptyState('Todavía no hay conversaciones', 'Acá van a aparecer los mensajes de Instagram y WhatsApp apenas un canal esté conectado.', isAdmin() ? 'Ir a Canales' : null, 'canales') + '</div>';
+  const list = visibleConvs();
+  if (!list.find(v => v.id === S.conv) && list.length) S.conv = list[0].id;
+  const n = activeFilterCount();
+  const listHtml = list.length ? list.map(v => {
+    const c = contact(v.c); const w = win(v); const last = [...v.msgs].reverse().find(m => m.f);
+    const prev = last ? (last.att ? '📎 Adjunto' : (v.kind === 'comment' ? 'Comentario: ' : last.story ? 'Historia: ' : '') + last.t) : '';
+    const meta = [];
+    if (c.dnc) meta.push('<span class="pill danger">No contactar</span>');
+    if (!c.resolved) meta.push('<span class="pill warn">Teléfono sin resolver</span>');
+    if (w && w.s === 'cerrada') meta.push('<span class="pill">Ventana cerrada</span>');
+    if (w && w.s === 'por-vencer') meta.push('<span class="pill warn">' + w.lbl + '</span>');
+    const fs = fuStatus(c.fuDate);
+    if (fs === 'hoy') meta.push('<span class="pill accent">Seguimiento hoy</span>');
+    if (fs === 'vencido') meta.push('<span class="pill warn">Seguimiento vencido</span>');
+    return '<button class="conv' + (v.id === S.conv ? ' sel' : '') + '" data-conv="' + v.id + '"><div class="avatar">' + esc(c.name[0]) + chIco(v.ch) + '</div><div class="conv-main"><div class="conv-top"><span class="conv-name">' + esc(c.name) + '</span><span class="conv-time">' + v.time + '</span></div><div class="row" style="gap:6px;flex-wrap:nowrap"><span class="conv-prev" style="flex:1">' + (last && last.f === 'out' ? 'Vos: ' : last && last.f === 'app' ? 'Vos (desde la app): ' : '') + esc(prev) + '</span>' + (v.unread ? '<span class="unread">' + v.unread + '</span>' : '') + '</div>' + (meta.length ? '<div class="conv-meta">' + meta.join('') + '</div>' : '') + '</div></button>';
+  }).join('') : '<div style="padding:24px 16px">' + emptyState('Ninguna conversación con estos filtros', 'Probá con otros filtros o limpialos para ver todas.', null) + '<div style="text-align:center;margin-top:10px"><button class="btn sm" data-action="clear-filters">Limpiar filtros</button></div></div>';
+  const v = V.find(x => x.id === S.conv);
+  const panelOpen = S.panel;
+  return '<div class="inbox view-' + S.ivw + '">' +
+    '<section class="ilist" aria-label="Conversaciones">' +
+      '<div class="ilist-head"><div class="ilist-title"><h1>Bandeja</h1><span class="muted tnum">' + list.length + ' de ' + V.length + ' conversaciones</span></div>' +
+      '<input class="input" id="q" placeholder="Buscar en nombres y mensajes…" value="' + esc(S.f.q) + '" aria-label="Buscar">' +
+      '<div class="status-tabs">' + ['todas', 'abiertas', 'cerradas', 'pospuestas'].map(s => '<button class="' + (S.f.status === s ? 'on' : '') + '" data-status="' + s + '">' + s[0].toUpperCase() + s.slice(1) + '</button>').join('') + '</div>' +
+      '<div class="filters"><button class="fbtn' + (n ? ' on' : '') + '" data-action="toggle-filters">Filtros' + (n ? ' · ' + n : '') + '</button>' +
+        '<button class="fbtn' + (S.f.fu === 'hoy' ? ' on' : '') + '" data-f="fu" data-v="hoy">Seguimiento hoy</button>' +
+        '<button class="fbtn' + (S.f.fu === 'vencido' ? ' on' : '') + '" data-f="fu" data-v="vencido">Vencidos</button>' +
+        (n ? '<button class="fbtn" data-action="clear-filters">Limpiar</button>' : '') + '</div>' +
+      (S.showFilters ? filterPanel() : '') + '</div>' +
+      '<div class="conv-list">' + listHtml + '</div>' +
+      '<div class="list-foot tnum">Mostrando ' + list.length + ' de ' + list.length + ' · la lista avisa cuando hay más para cargar</div>' +
+    '</section>' +
+    (v ? threadHtml(v) : '<section class="thread"><div class="page">' + emptyState('Elegí una conversación', 'Abrí una conversación de la lista para ver el hilo.', null) + '</div></section>') +
+    (v ? '<aside class="cpanel" ' + (panelOpen ? '' : 'hidden') + ' id="cpanel" aria-label="Datos del contacto">' + contactPanel(contact(v.c)) + '</aside>' : '') +
+  '</div>';
+};
+function threadHtml(v) {
+  const c = contact(v.c); const w = win(v);
+  let msgs = v.msgs.map(m => {
+    if (m.d) return '<div class="day">' + m.d + '</div>';
+    if (m.sys) return '<div class="sys-note">' + esc(m.sys) + '</div>';
+    let body = '';
+    if (m.att === 'audio') body = '<div class="att"><span class="box">' + I.mic + '</span><span>Audio · 0:42 <button class="btn sm ghost">Reproducir</button></span></div>';
+    else if (m.att === 'doc') body = '<div class="att"><span class="box">' + I.clip + '</span><span>Posicionamiento-semana-8.pdf · 1,2 MB</span></div>';
+    else if (m.att === 'na') body = '<div class="att"><span class="box">' + I.img + '</span><span>Adjunto no disponible por ahora. Se está reintentando la descarga.</span></div>';
+    else body = (m.story ? '<div class="muted" style="font-size:12px">Respondió a tu historia</div>' : '') + esc(m.t);
+    const out = m.f === 'out' || m.f === 'app';
+    return '<div class="bub ' + (out ? 'out' : 'in') + '">' + body + '<div class="bub-meta"><span>' + m.at + '</span>' + (m.f === 'app' ? '<span>· Enviado desde la app de Instagram</span>' : '') + '</div></div>';
+  }).join('');
+  let comp;
+  const waDown = v.ch === 'wa' && ['caido', 'agotado', 'sin-vincular'].includes(S.wa);
+  if (S.lost && S.role === 'member') {
+    comp = '<div class="block warn"><b>Este contacto ya no está asignado a vos</b><span>Alguien cambió la asignación mientras lo tenías abierto, así que ya no podés verlo ni escribirle. Si creés que es un error, hablá con Alejandra.</span><button class="btn sm" data-action="back-list-lost" style="justify-self:start">Volver a la bandeja</button></div>';
+  } else if (v.kind === 'comment') {
+    comp = v.replied ? '<div class="block info"><b>Ya respondiste en privado a este comentario</b><span>Instagram permite una sola respuesta privada por comentario. Si te contesta, sigue como conversación normal.</span></div>' : '<div class="block info"><b>Comentario en tu publicación ' + esc(v.post) + '</b><span>Podés responderle en privado una sola vez, hasta 7 días después del comentario. Quedan ' + v.days + ' días.</span><textarea class="input" rows="2" id="draft" placeholder="Escribí la respuesta privada… (usá / para respuestas rápidas)">' + esc(S.draft) + '</textarea><div class="row"><button class="btn primary" data-action="private-reply">Responder en privado</button><button class="btn" data-action="public-reply">Responder en público</button></div></div>';
+  } else if (c.dnc) {
+    comp = '<div class="block danger"><b>No se puede escribir a este contacto</b><span>Pidió no ser contactado el ' + c.dnc.at + '. ' + esc(c.dnc.reason) + '. El bloqueo no se puede forzar; solo un Admin o el Owner puede quitar la marca desde la ficha.</span></div>';
+  } else if (w && w.s === 'cerrada') {
+    comp = '<div class="block warn"><b>Pasaron 24 horas desde el último mensaje: escribile desde la app de Instagram.</b><span>Instagram no deja que el sistema envíe después de 24 horas. Lo que escribas desde la app queda registrado igual en esta conversación.</span>' +
+      (c.phone && c.resolved ? '<div class="row"><button class="btn" data-action="go-wa" data-c="' + c.id + '">' + I.wa + ' Escribir por WhatsApp</button><span class="help">Tiene teléfono: ' + esc(c.handles.wa || c.phone) + '</span></div>' : '<span class="help">No tiene teléfono cargado. Si te lo pasa, podés seguir por WhatsApp.</span>') + '</div>';
+  } else if (waDown) {
+    comp = '<div class="block danger"><b>WhatsApp no está conectado</b><span>Los mensajes no pueden salir ni entrar por este canal hasta reconectarlo.</span></div>';
+  } else {
+    const shown = QR.map((q, i) => [q, i]).filter(x => !S.qrQ || x[0].k.slice(1).includes(S.qrQ) || x[0].t.toLowerCase().includes(S.qrQ));
+    const picker = S.qrPicker ? '<div class="qr-picker" role="listbox">' + (shown.length ? shown.map((x, j) => '<button class="qr-item' + (j === S.qrSel ? ' on' : '') + '" data-qr="' + x[1] + '"><b>' + x[0].k + '</b><span>' + esc(x[0].t) + '</span></button>').join('') : '<span class="help" style="padding:8px">Ninguna respuesta rápida coincide</span>') + '</div>' : '';
+    comp = picker + '<div class="composer-row"><textarea class="input" id="draft" rows="1" placeholder="Escribí un mensaje… (usá / para respuestas rápidas)">' + esc(S.draft) + '</textarea><button class="btn primary" data-action="send" aria-label="Enviar">' + I.send + '</button></div>' +
+      (w && w.s === 'por-vencer' ? '<span class="help" style="color:var(--warn)">' + w.lbl + '. Después, solo desde la app de Instagram.</span>' : '');
+  }
+  return '<section class="thread" aria-label="Conversación">' +
+    '<div class="thread-head"><button class="btn sm back-btn" data-action="back-list">← Volver</button><div class="avatar">' + esc(c.name[0]) + chIco(v.ch) + '</div><div style="min-width:0"><h2>' + esc(c.name) + '</h2><div class="muted" style="font-size:12.5px">' + chName(v.ch) + ' · ' + esc(c.handles[v.ch] || '') + '</div></div>' +
+      '<div class="row" style="margin-left:auto;gap:6px">' + (v.kind === 'comment' ? '<span class="pill accent">Comentario · ' + (v.replied ? 'respondido' : 'quedan ' + v.days + ' días para responder en privado') + '</span>' : '') + (w ? '<span class="pill ' + (w.s === 'cerrada' ? '' : w.s === 'por-vencer' ? 'warn' : 'ok') + '">' + w.lbl + '</span>' : '') +
+      (c.dnc ? '<span class="pill danger">No contactar</span>' : '') +
+      '<button class="btn sm" data-action="close-conv">' + (v.status === 'cerrada' ? 'Reabrir' : 'Cerrar') + '</button><button class="btn sm panel-toggle" data-action="toggle-panel">Datos del contacto</button></div></div>' +
+    '<div class="msgs" id="msgs">' + msgs + '</div>' +
+    '<div class="composer">' + comp + '</div>' +
+  '</section>';
+}
+function contactPanel(c) {
+  const fu = ['En 3 días', 'En 7 días', 'En 14 días'].map((l, i) => '<button class="chip" data-fu="' + [3, 7, 14][i] + '">' + l + '</button>').join('');
+  return '<div class="cpanel-sec" style="justify-items:center;text-align:center"><button class="btn sm ghost panel-toggle" data-action="toggle-panel" style="justify-self:end">Cerrar ✕</button><div class="avatar lg">' + esc(c.name[0]) + '</div><b>' + esc(c.name) + '</b>' +
+      '<div class="row" style="justify-content:center">' + (c.dnc ? '<span class="pill danger">No contactar</span>' : '') + (!c.resolved ? '<span class="pill warn">Teléfono sin resolver</span>' : '') + '<span class="pill">' + esc(c.temp) + '</span></div></div>' +
+    (c.suggest ? '<div class="cpanel-sec"><div class="block info"><b>¿Es la misma persona?</b><span>«' + esc(c.suggest.name) + '», ' + esc(c.suggest.why) + '. Coincide solo el usuario, así que no se unen solas.</span><div class="row"><button class="btn sm primary" data-action="suggest-merge">Ver y unir</button><button class="btn sm" data-action="suggest-no">No es la misma</button></div></div></div>' : '') +
+    '<div class="cpanel-sec"><h4>Próximo seguimiento</h4><div>' + fuPill(c.fuDate) + '</div><div class="fu-opts">' + fu + '<button class="chip" data-action="fu-other">Otra fecha</button>' + (c.fuDate ? '<button class="chip" data-fu="none">Quitar</button>' : '') + '</div>' +
+      (S.cfu === c.id ? '<div class="row"><input class="input" type="date" id="fu-date" style="width:auto" aria-label="Fecha de seguimiento"><button class="btn sm primary" data-action="fu-save">Guardar</button></div>' : '') + '</div>' +
+    '<div class="cpanel-sec"><h4>Canales</h4>' + Object.keys(c.handles).map(k => '<div class="row" style="gap:6px">' + chIco(k) + '<span>' + esc(c.handles[k]) + '</span></div>').join('') +
+      (!c.resolved ? '<button class="btn sm" data-action="open-contact" data-c="' + c.id + '">Cargar teléfono en la ficha</button>' : '') + '</div>' +
+    '<div class="cpanel-sec"><h4>Comercial</h4><dl class="kv" style="grid-template-columns:90px 1fr"><dt>Etapa</dt><dd>' + esc(c.stage) + '</dd><dt>Estado</dt><dd>' + esc(c.deal) + '</dd><dt>Setter</dt><dd><select class="input" data-assign="setter" aria-label="Setter"><option>' + who(c.setter) + '</option>' + TEAM.filter(t => t.id !== c.setter).map(t => '<option>' + t.name + '</option>').join('') + '<option>Sin asignar</option></select></dd><dt>Vendedor</dt><dd><select class="input" data-assign="vend" aria-label="Vendedor"><option>' + who(c.vend) + '</option>' + TEAM.filter(t => t.id !== c.vend).map(t => '<option>' + t.name + '</option>').join('') + '<option>Sin asignar</option></select></dd></dl></div>' +
+    '<div class="cpanel-sec"><h4>Etiquetas</h4><div class="row" style="gap:5px">' + (c.tags.length ? c.tags.map(t => '<span class="tag">' + esc(t) + '</span>').join('') : '<span class="faint">Sin etiquetas</span>') + '<button class="btn sm ghost">+ Agregar</button></div></div>' +
+    '<div class="cpanel-sec"><h4>Notas</h4>' + (c.notes.length ? c.notes.slice(0, 2).map(n => '<div class="note">' + esc(n.txt) + '<small>' + esc(n.by) + ' · ' + esc(n.t) + '</small></div>').join('') : '<span class="faint">Todavía no hay notas</span>') +
+      '<textarea class="input" rows="2" placeholder="Agregar una nota…" aria-label="Nueva nota"></textarea><button class="btn sm" data-action="add-note">Guardar nota</button></div>' +
+    '<div class="cpanel-sec"><button class="btn" data-action="open-contact" data-c="' + c.id + '">Ver ficha completa →</button></div>';
+}
+
+/* ---------- Contactos ---------- */
+screens.contactos = function () {
+  if (S.view === 'vacio') return '<div class="page">' + emptyState('Todavía no hay contactos', 'Los contactos se crean solos cuando alguien escribe por Instagram o WhatsApp. También podés traerlos desde una planilla.', 'Importar CSV', 'importar') + '</div>';
+  if (S.trash) {
+    return '<div class="page"><div class="page-head"><div><h1>Eliminados</h1><p>Se pueden restaurar durante 30 días. Después se borran definitivamente. El historial de cambios se conserva siempre.</p></div><div class="actions"><button class="btn" data-action="toggle-trash">← Volver a contactos</button></div></div>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Nombre</th><th>Eliminado</th><th>Se borra en</th><th></th></tr></thead><tbody>' + DELETED.map(d => '<tr><td>' + esc(d.name) + '</td><td>' + d.when + '</td><td class="tnum">' + d.left + ' días</td><td><button class="btn sm" data-action="restore">Restaurar</button></td></tr>').join('') + '</tbody></table></div></div>';
+  }
+  let rows = C.filter(c => S.role !== 'member' || c.setter === 'laura' || c.vend === 'laura').filter(c => !S.cq || c.name.toLowerCase().includes(S.cq.toLowerCase()));
+  if (S.f.fu) rows = rows.filter(c => { const s = fuStatus(c.fuDate); return S.f.fu === 'semana' ? (s === 'hoy' || s === 'semana') : s === S.f.fu; });
+  return '<div class="page"><div class="page-head"><div><h1>Contactos</h1><p class="tnum">' + rows.length + ' de ' + C.length + ' contactos de ejemplo</p></div>' +
+    '<div class="actions"><button class="btn" data-action="toggle-trash">Eliminados</button><button class="btn primary" data-go="importar">Importar CSV</button></div></div>' +
+    '<div class="row"><input class="input" id="cq" style="max-width:320px" placeholder="Buscar por nombre, teléfono o correo…" value="' + esc(S.cq) + '" aria-label="Buscar contactos">' +
+      '<select class="input" style="width:auto" aria-label="Seguimiento" id="cfu"><option value="">Seguimiento: todos</option><option value="hoy"' + (S.f.fu === 'hoy' ? ' selected' : '') + '>Vence hoy</option><option value="semana"' + (S.f.fu === 'semana' ? ' selected' : '') + '>Vence esta semana</option><option value="vencido"' + (S.f.fu === 'vencido' ? ' selected' : '') + '>Vencido</option></select>' +
+      '<select class="input" style="width:auto" aria-label="Etapa"><option>Etapa: todas</option>' + STAGES.map(s => '<option>' + s + '</option>').join('') + '</select>' +
+      '<select class="input" style="width:auto" aria-label="Setter"><option>Setter: todos</option>' + TEAM.map(t => '<option>' + t.name + '</option>').join('') + '<option>Sin asignar</option></select>' +
+      '<select class="input" style="width:auto" aria-label="Vendedor"><option>Vendedor: todos</option>' + TEAM.map(t => '<option>' + t.name + '</option>').join('') + '<option>Sin asignar</option></select>' +
+      '<select class="input" style="width:auto" aria-label="Etiqueta"><option>Etiqueta: todas</option>' + TAGS.map(t => '<option>' + t + '</option>').join('') + '</select></div>' +
+    '<div class="tbl-wrap"><table><thead><tr><th>Nombre</th><th>Canales</th><th>Teléfono</th><th>Etapa</th><th>Próximo seguimiento</th><th>Etiquetas</th><th>Setter</th></tr></thead><tbody>' +
+    rows.map(c => '<tr class="click" data-contact="' + c.id + '"><td><div class="row" style="gap:10px;flex-wrap:nowrap"><div class="avatar" style="width:30px;height:30px">' + esc(c.name[0]) + '</div><div><b>' + esc(c.name) + '</b>' + (c.dnc ? ' <span class="pill danger">No contactar</span>' : '') + (c.nochannel ? ' <span class="pill">Sin canal</span>' : '') + '</div></div></td>' +
+      '<td><div class="row" style="gap:6px">' + Object.keys(c.handles).map(chIco).join('') + (Object.keys(c.handles).length ? '' : '<span class="faint">—</span>') + '</div></td>' +
+      '<td class="tnum">' + (c.resolved ? (c.phone ? esc(c.handles.wa || c.phone) : '<span class="faint">—</span>') : '<span class="pill warn">Sin resolver</span>') + '</td>' +
+      '<td>' + esc(c.stage) + (c.deal !== 'Abierto' ? ' <span class="pill ' + (c.deal === 'Ganado' ? 'ok' : '') + '">' + c.deal + '</span>' : '') + '</td>' +
+      '<td>' + fuPill(c.fuDate) + '</td><td><div class="row" style="gap:4px">' + c.tags.map(t => '<span class="tag">' + esc(t) + '</span>').join('') + '</div></td><td>' + who(c.setter) + '</td></tr>').join('') +
+    '</tbody></table></div><p class="help">Los 526 contactos de Pipedrive entran con la etiqueta «Migrado de Pipedrive» y su etapa, estado y valor. Los que no tienen teléfono ni correo se ven como «Sin canal»: no se les puede escribir ni entran a secuencias.</p></div>';
+};
+
+/* ---------- Ficha ---------- */
+screens.ficha = function () {
+  const c = contact(S.contact);
+  const convs = V.filter(v => v.c === c.id);
+  const left = S.edit
+    ? '<div class="card"><div class="card-head"><h3>Editar datos</h3></div><div class="card-body">' +
+      [['Nombre', c.name], ['Correo', c.email || ''], ['Correo secundario', c.email2 || ''], ['Teléfono', c.phone || ''], ['País', c.country]].map(f => '<div class="field"><label>' + f[0] + '</label><input class="input" value="' + esc(f[1]) + '"></div>').join('') +
+      '<div class="field"><label>Etapa</label><select class="input">' + STAGES.map(s => '<option' + (s === c.stage ? ' selected' : '') + '>' + s + '</option>').join('') + '</select></div>' +
+      '<div class="field"><label>Temperatura</label><select class="input"><option>Frío</option><option>Tibio</option><option>Caliente</option></select></div>' +
+      '<div class="field"><label>Setter (quien lo contacta)</label><select class="input"><option>' + who(c.setter) + '</option>' + TEAM.map(t => '<option>' + t.name + '</option>').join('') + '<option>Sin asignar</option></select></div>' +
+      '<div class="field"><label>Vendedor (quien lo cierra)</label><select class="input"><option>' + who(c.vend) + '</option>' + TEAM.map(t => '<option>' + t.name + '</option>').join('') + '<option>Sin asignar</option></select><span class="help">Cambiar la asignación cambia al instante quién puede ver este contacto.</span></div>' +
+      '<div class="row"><button class="btn primary" data-action="save-edit">Guardar</button><button class="btn" data-action="cancel-edit">Cancelar</button></div><p class="help">El nombre que escribís a mano no lo pisa ninguna importación ni ningún mensaje.</p></div></div>'
+    : '<div class="card"><div class="card-body" style="justify-items:start"><div class="row"><div class="avatar lg">' + esc(c.name[0]) + '</div><div><h2 style="font-size:20px">' + esc(c.name) + '</h2><div class="row" style="gap:5px;margin-top:4px">' + (c.dnc ? '<span class="pill danger">No contactar</span>' : '') + (!c.resolved ? '<span class="pill warn">Teléfono sin resolver</span>' : '') + '<span class="pill">' + esc(c.temp) + '</span></div></div></div>' +
+      (c.dnc ? '<div class="block danger" style="width:100%"><b>Pidió no ser contactado</b><span>' + esc(c.dnc.reason) + ' · ' + c.dnc.at + '. No se le puede escribir ni entra a secuencias.</span>' + (isAdmin() ? '<button class="btn sm" data-action="undnc" style="justify-self:start">Quitar la marca</button>' : '') + '</div>' : '') +
+      (!c.resolved ? '<div class="block warn" style="width:100%"><b>Teléfono sin resolver</b><span>WhatsApp entregó este contacto sin su número. Si lo conocés, cargalo acá.</span><div class="row"><input class="input" id="phone-in" style="flex:1" placeholder="+506 7034 9182" value="+506 7034 9182"><button class="btn sm primary" data-action="resolve-phone">Guardar</button></div></div>' : '') +
+      '<dl class="kv" style="width:100%"><dt>Correo</dt><dd>' + (c.email ? esc(c.email) : '<span class="faint">—</span>') + '</dd><dt>Correo secundario</dt><dd>' + (c.email2 ? esc(c.email2) : '<span class="faint">—</span>') + '</dd><dt>Teléfono</dt><dd class="tnum">' + (c.phone ? esc(c.handles.wa || c.phone) : '<span class="faint">—</span>') + '</dd><dt>País</dt><dd>' + esc(c.country) + '</dd>' +
+      Object.keys(c.handles).filter(k => k === 'ig').map(k => '<dt>Instagram</dt><dd>' + esc(c.handles[k]) + '</dd>').join('') +
+      '<dt>Próximo seguimiento</dt><dd>' + fuPill(c.fuDate) + '</dd><dt>Setter</dt><dd>' + who(c.setter) + '</dd><dt>Vendedor</dt><dd>' + who(c.vend) + '</dd>' +
+      '<dt>Etapa</dt><dd>' + esc(c.stage) + '</dd><dt>Estado</dt><dd>' + esc(c.deal) + (c.value ? ' · ' + c.value + ' · ' + c.closed : '') + '</dd>' +
+      '<dt>Origen (primer clic)</dt><dd>' + esc(c.attr.first) + '</dd><dt>Origen (último clic)</dt><dd>' + esc(c.attr.last) + '</dd>' +
+      '<dt>Etiquetas</dt><dd><div class="row" style="gap:4px">' + (c.tags.map(t => '<span class="tag">' + esc(t) + '</span>').join('') || '<span class="faint">—</span>') + '</div></dd>' +
+      '<dt>Campos propios</dt><dd>Idea de negocio: <span class="faint">' + (c.id === 1 ? 'Cosmética natural' : '—') + '</span></dd></dl>' +
+      '<div class="row"><button class="btn primary" data-action="edit">Editar datos</button>' + (!c.dnc ? '<button class="btn" data-action="dnc">Marcar no contactar</button>' : '') + (isAdmin() ? '<button class="btn danger" data-action="delete">Eliminar</button>' : '') + '</div></div></div>';
+  const right = '<div class="card"><div class="card-head"><h3>Conversaciones</h3></div><div class="card-body">' +
+      (convs.length ? convs.map(v => { const w = win(v); return '<button class="conv" style="border:1px solid var(--line);border-radius:10px" data-open-conv="' + v.id + '"><div class="avatar">' + esc(c.name[0]) + chIco(v.ch) + '</div><div class="conv-main"><div class="conv-top"><span class="conv-name">' + chName(v.ch) + '</span><span class="conv-time">' + v.time + '</span></div><div class="conv-prev">' + v.msgs.filter(m => m.f).length + ' mensajes' + (w ? ' · ' + w.lbl : '') + '</div></div></button>'; }).join('') : '<p class="muted">' + (c.nochannel ? 'Este contacto no tiene teléfono, correo ni usuario de Instagram: no hay forma de escribirle.' : 'Todavía no hay conversaciones.') + '</p>') + '</div></div>' +
+    '<div class="card"><div class="card-head"><h3>Notas</h3></div><div class="card-body">' + (c.notes.map(n => '<div class="note">' + esc(n.txt) + '<small>' + esc(n.by) + ' · ' + esc(n.t) + (n.by === 'Alejandra' ? ' · <button class="btn sm ghost" data-action="note-edit">Editar</button><button class="btn sm ghost" data-action="note-del">Eliminar</button>' : '') + '</small></div>').join('') || '<span class="faint">Todavía no hay notas</span>') +
+      '<textarea class="input" rows="2" placeholder="Agregar una nota…" aria-label="Nueva nota"></textarea><button class="btn sm" data-action="add-note" style="justify-self:start">Guardar nota</button></div></div>' +
+    '<div class="card"><div class="card-head"><h3>Historial de cambios</h3><span class="help">No se borra nunca</span></div><div class="card-body"><div class="timeline">' +
+      [['Hoy 10:15', 'Alejandra López', 'Próximo seguimiento: sin fecha → ' + (c.fuDate ? fmtD(c.fuDate) : '—')], ['6 oct 15:02', 'Marcos', 'Importado desde planilla'], ['22 sep 13:41', 'Sistema', 'Contacto creado por un mensaje de ' + (Object.keys(c.handles)[0] === 'wa' ? 'WhatsApp' : 'Instagram')]].map(r => '<div class="tl-item"><span class="muted">' + r[0] + '</span><span><b>' + r[1] + '</b> · ' + esc(r[2]) + '</span></div>').join('') + '</div></div></div>';
+  return '<div class="page"><div class="row"><button class="btn sm" data-go="contactos">← Contactos</button></div><div class="ficha"><div style="display:grid;gap:16px;min-width:0">' + left + '</div><div style="display:grid;gap:16px;min-width:0">' + right + '</div></div></div>';
+};
+
+/* ---------- Importar ---------- */
+screens.importar = function () {
+  const st = ['Archivo', 'Columnas', 'Opciones', 'Importando', 'Resumen'];
+  const steps = '<div class="steps">' + st.map((s, i) => '<div class="step' + (S.imp === i + 1 ? ' on' : S.imp > i + 1 ? ' done' : '') + '"><b>' + (S.imp > i + 1 ? '✓' : i + 1) + '</b>' + s + '</div>').join('') + '</div>';
+  let body = '';
+  if (S.imp === 1) body = '<div class="drop"><b>Arrastrá la planilla acá o elegila</b><span class="muted">CSV de hasta 10 MB y 10.000 filas</span><button class="btn primary" data-action="imp-next">Elegir archivo</button><span class="help">Ejemplo: contactos-pipedrive-unidos.csv · 526 filas</span></div>';
+  if (S.imp === 2) {
+    const cols = [['Nombre', 'Nombre'], ['Móvil', 'Teléfono'], ['Correo', 'Correo'], ['Etapa', 'Etapa'], ['Estado del trato', 'Estado'], ['Valor', 'Valor del trato'], ['ID de persona', 'Identificador de Pipedrive'], ['Motivo de pérdida', 'Nota del contacto']];
+    const sample = [['Silvia Araya', '+506 8890 1123', 'silvia.araya@correo.cr', '14. Repesca', 'Perdido', '0', '1042', 'No era el momento'], ['Andrea Villalobos', '7034 9182', 'andrea.villalobos@correo.cr', '5. Le ofrecí una cita', 'Ganado', '2800', '988', ''], ['Gabriela Céspedes', '', '', '11. Seguimiento intensivo', 'Perdido', '0', '1107', 'Precio'], ['Rebeca Chaves', "'8856-12", 'rebe.chaves@correo.cr', '3. Respondió', 'Perdido', '0', '1113', 'Sin respuesta'], ['Mónica Salas', '6044 2210', '', '2. Le escribí', 'Abierto', '0', '1120', '']];
+    body = '<p class="muted">Revisamos las primeras 5 filas y sugerimos a qué campo va cada columna. Podés cambiarlo.</p><div class="tbl-wrap"><table><thead><tr>' + cols.map((c, i) => '<th><div style="display:grid;gap:6px"><span>' + c[0] + '</span><select class="input" aria-label="Campo para ' + c[0] + '"><option>' + c[1] + '</option><option>Setter</option><option>Vendedor</option><option>Etiquetas</option><option>Campo propio</option><option>No importar</option></select></div></th>').join('') + '</tr></thead><tbody>' + sample.map(r => '<tr>' + r.map(x => '<td>' + (x ? esc(x) : '<span class="faint">—</span>') + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>' +
+      '<div class="row"><button class="btn" data-action="imp-prev">Atrás</button><button class="btn primary" data-action="imp-next">Continuar</button></div>';
+  }
+  if (S.imp === 3) body = '<div class="card"><div class="card-body">' +
+      '<div class="field"><label>Código de país para los teléfonos sin código</label><select class="input" style="max-width:320px"><option>+506 Costa Rica</option><option>+507 Panamá</option><option>+505 Nicaragua</option></select><span class="help">Solo para esta importación. Las filas que lo usen quedan señaladas en el resumen.</span></div>' +
+      '<div class="field"><label>Etiqueta de origen</label><input class="input" style="max-width:320px" value="Migrado de Pipedrive 06/10/2026"></div>' +
+      '<div class="field"><label>Asignar los contactos importados a</label><select class="input" style="max-width:320px"><option>' + (S.role === 'member' ? 'Mí (Laura Mora)' : 'Nadie por ahora') + '</option><option>Alejandra López</option><option>Laura Mora (ejemplo)</option></select><span class="help">' + (S.role === 'member' ? 'Si importa sin asignarse, después no va a poder ver estos contactos: los sin asignar solo los ven Owner y Admin.' : 'Los contactos sin asignar los ven Owner y Admin.') + '</span></div>' +
+      '<div class="block info"><b>Cómo se evita duplicar</b><span>Si ya existe un contacto con el mismo identificador de Pipedrive, correo o teléfono, se actualiza en lugar de crear otro. Si una fila no tiene ninguno de esos datos, no se importa y se explica por qué.</span></div>' +
+      '<div class="row"><button class="btn" data-action="imp-prev">Atrás</button><button class="btn primary" data-action="imp-next">Importar 526 filas</button></div></div></div>';
+  if (S.imp === 4) body = '<div class="card"><div class="card-body"><b>Importando 526 filas…</b><div class="bar"><i style="width:64%"></i></div><span class="muted tnum">337 de 526</span><div class="block info"><span>Como son más de 500 filas, sigue en segundo plano. Podés seguir trabajando: te avisamos por correo cuando termine.</span></div><div class="row"><button class="btn" data-go="bandeja">Ir a la bandeja</button><button class="btn primary" data-action="imp-next">Ver el resumen (demo)</button></div></div></div>';
+  if (S.imp === 5) body = '<div class="grid2"><div class="stat"><span class="muted">Creados</span><b>380</b></div><div class="stat"><span class="muted">Actualizados</span><b>132</b></div><div class="stat"><span class="muted">Con error</span><b>14</b></div><div class="stat"><span class="muted">Usaron +506 por defecto</span><b>127</b></div></div>' +
+      '<div class="block info"><b>Control de la migración: 399 de 399 tratos</b><span>Los contactos con identificador de trato de Pipedrive coinciden con los tratos del archivo (sin contar los 118 «IG DM»). Si no coincidieran, la migración no se da por buena y se dice cuántos faltan.</span></div>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Fila</th><th>Nombre</th><th>Qué pasó</th></tr></thead><tbody>' +
+      [['48', 'Rebeca Chaves', 'El teléfono «8856-12» no se puede normalizar. No se inventó un número: corregilo en la planilla y volvé a importar.'], ['211', '(sin nombre)', 'No tiene ningún dato para identificarla: ni identificador de Pipedrive, ni correo, ni teléfono.'], ['302', 'Ana Lucía Pérez', 'El correo «analu@» no tiene un formato válido. Se importó con el teléfono.']].map(r => '<tr><td class="tnum">' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td></tr>').join('') +
+      '</tbody></table></div><div class="row"><button class="btn primary" data-go="contactos">Ver contactos</button><span class="help">Se puede repetir: importar el mismo archivo otra vez actualiza, no duplica.</span></div>';
+  return '<div class="page"><div class="row"><button class="btn sm" data-go="contactos">← Contactos</button></div><div class="page-head"><div><h1>Importar contactos</h1><p>Desde una planilla CSV, sin duplicar a nadie.</p></div></div>' + steps + body + '</div>';
+};
+
+/* ---------- Canales ---------- */
+const QRCELLS = (function () { let h = ''; let seed = 7; for (let i = 0; i < 441; i++) { seed = (seed * 9301 + 49297) % 233280; const r = i / 21 | 0, c = i % 21; const finder = (r < 7 && c < 7) || (r < 7 && c > 13) || (r > 13 && c < 7); const fw = finder && !((r % 6 === 0 || c % 6 === 0 || (r > 13 && (r - 14) % 6 === 0) || (c > 13 && (c - 14) % 6 === 0)) || (r % 7 >= 2 && r % 7 <= 4 && c % 7 >= 2 && c % 7 <= 4)); h += '<i class="' + (finder ? (fw ? 'w' : '') : (seed / 233280 > 0.5 ? '' : 'w')) + '"></i>'; } return h; })();
+screens.canales = function () {
+  if (S.view === 'vacio') return '<div class="page">' + emptyState('No hay canales conectados', 'Conectá Instagram desde Integraciones. WhatsApp se vincula escaneando un código QR desde el teléfono del negocio.', 'Ir a Integraciones', 'integraciones') + '</div>';
+  const waStates = {
+    'conectado': ['ok', 'Conectado', 'Verificado hace 2 min. Los mensajes entran y salen con normalidad.'],
+    'caido': ['danger', 'Caído', 'La sesión se cortó hoy a las 06:12. Hay que volver a escanear el código desde el teléfono del negocio.'],
+    'sin-verificar': ['warn', 'No se pudo verificar', 'El último chequeo no obtuvo respuesta. No significa que esté caído; se reintenta en 5 minutos.'],
+    'agotado': ['danger', 'Se agotaron los intentos', 'WhatsApp ya no acepta más códigos para esta vinculación. Hay que empezar la vinculación de cero.'],
+    'sin-vincular': ['', 'Sin vincular', 'El servicio está listo, pero el número todavía no se vinculó. Se hace al cerrar la Fase 1.']
+  };
+  const w = waStates[S.wa];
+  return '<div class="page"><div class="page-head"><div><h1>Canales</h1><p>Para desconectar una cuenta, usá Integraciones. Desconectar no borra las conversaciones.</p></div><div class="actions"><button class="btn" data-action="sync">Sincronizar Instagram</button></div></div>' +
+    '<div class="chcards">' +
+      '<div class="chcard"><div class="chcard-top"><div class="icowrap">' + I.ig + '</div><div><b>@alomercadeo</b><div class="muted">Instagram · vía Zernio</div></div></div><div class="row"><span class="pill ok"><span class="dot"></span>Activo</span><span class="muted">Conectado el 22 sep · verificado hace 2 min</span></div><div class="help">Última revisión de silencio: hace 12 min · último mensaje recibido: hace 18 min</div></div>' +
+      '<div class="chcard"><div class="chcard-top"><div class="icowrap">' + I.wa + '</div><div><b>alomercadeo-ventas</b><div class="muted">WhatsApp · número dedicado</div></div></div><div class="row"><span class="pill ' + w[0] + '"><span class="dot"></span>' + w[1] + '</span></div><p class="muted">' + w[2] + '</p>' +
+        (S.role === 'owner' ? '<div class="help">Mensajes que llegaron sin teléfono resuelto, últimos 7 días: <b class="tnum">3 de 41</b> · <button class="btn sm ghost" data-action="unres-queue">Ver la cola</button></div>' : '') +
+        '<div class="row">' + (S.wa === 'conectado' ? '' : '<button class="btn primary" data-action="reconnect">' + (S.wa === 'sin-vincular' ? 'Vincular número' : 'Reconectar') + '</button>') + '<button class="btn" data-go="reglas">Reglas de seguridad</button></div></div>' +
+    '</div>' +
+    '<div class="card"><div class="card-head"><h3>Canal inactivo</h3><span class="help">Así se ve un canal apagado (ejemplo)</span></div><div class="card-body"><div class="row"><span class="pill">Inactivo</span><span>@theconsultour · Instagram</span><span class="muted">No se reciben mensajes de este canal.</span><button class="btn sm" data-action="activate" style="margin-left:auto">Activar</button></div></div></div></div>';
+};
+screens.reglas = function () {
+  const rules = [
+    ['Cortar con el silencio', 'Si alguien no responde a 3 seguimientos seguidos, la secuencia se detiene sola. Es la protección más importante: quien nunca contesta y sigue recibiendo mensajes es quien denuncia.', '<input class="input num tnum" value="3" aria-label="Seguimientos sin respuesta"><span class="muted">sin respuesta</span>', true],
+    ['Texto variable', 'Cada mensaje lleva el nombre de la persona y rota entre variantes. Avisa si un paso manda el mismo texto exacto a muchas personas.', '', true],
+    ['Envíos espaciados', 'Separa los mensajes de un mismo grupo con una pausa al azar. Nunca salen todos juntos.', '<span class="muted">entre</span><input class="input num tnum" value="2" aria-label="Mínimo de minutos"><span class="muted">y</span><input class="input num tnum" value="8" aria-label="Máximo de minutos"><span class="muted">min</span>', true],
+    ['Horario comercial', 'Fuera de este horario el envío se pospone, no se cancela. Respeta la zona horaria de cada contacto.', '<span class="muted">Lun a vie, 8:00 a 18:00 · sáb, 9:00 a 12:00</span>', true],
+    ['Respetar el pedido de no contacto', 'Quien pidió no recibir mensajes no los vuelve a recibir nunca. Esta regla no se puede desactivar.', '', true, true],
+    ['Proporción de respuesta', 'Muestra qué porcentaje de los seguimientos recibe respuesta y avisa si baja del umbral. Es una de las señales que mira Meta.', '<span class="muted">avisar si baja de</span><input class="input num tnum" value="20" aria-label="Umbral"><span class="muted">%</span>', true]
+  ];
+  return '<div class="page"><div class="row"><button class="btn sm" data-go="canales">← Canales</button></div><div class="page-head"><div><h1>Reglas de seguridad de WhatsApp</h1><p>Protegen el número de un bloqueo. Se aplican a las secuencias automáticas, que llegan en la Fase 2.</p></div></div>' +
+    '<div class="card">' + rules.map(r => '<div class="rule"><h4>' + r[0] + '</h4><div class="ctl">' + r[2] + '<button class="switch on" ' + (r[4] ? 'disabled aria-label="Siempre activa"' : 'aria-label="Activar o desactivar"') + ' data-action="' + (r[4] ? 'locked' : 'switch') + '"></button></div><p class="muted">' + r[1] + '</p></div>').join('') + '</div>' +
+    '<div class="row"><button class="btn primary" data-action="saved">Guardar cambios</button><span class="help">Proporción de respuesta de los últimos 30 días: todavía sin datos.</span></div></div>';
+};
+
+/* ---------- Integraciones ---------- */
+screens.integraciones = function () {
+  const st = (k, l) => '<span class="pill ' + k + '"><span class="dot"></span>' + l + '</span>';
+  return '<div class="page"><div class="page-head"><div><h1>Integraciones</h1><p>Los servicios externos del sistema. Las claves se guardan cifradas y nunca se muestran completas.</p></div></div>' +
+    '<div class="card"><div class="card-head"><h3>Canales de mensajería</h3></div><div class="card-body">' +
+      '<div class="row"><span>' + I.ig + '</span><b>Instagram · Zernio</b>' + st('ok', 'Conectado') + '<span class="help" style="margin-left:auto">Última verificación: hace 2 min</span></div>' +
+      '<dl class="kv"><dt>Clave de Zernio</dt><dd class="tnum">Configurada · 64 caracteres · termina en 3f9a <button class="btn sm ghost">Reemplazar</button></dd><dt>Cuenta</dt><dd>@alomercadeo · activa</dd><dt>Aviso de mensajes</dt><dd>app.alomercadeo.com/api/webhooks/late · activo · 3 eventos · verificado hace 2 min</dd><dt>Secreto de firma</dt><dd class="tnum">32 caracteres · termina en 7b21</dd></dl>' +
+      '<div class="row"><button class="btn danger" data-action="disconnect">Desconectar @alomercadeo</button></div>' +
+      '<hr style="border:0;border-top:1px solid var(--line);width:100%">' +
+      '<div class="row"><span>' + I.wa + '</span><b>WhatsApp · Evolution</b>' + st('ok', 'Servicio conectado') + '<span class="help" style="margin-left:auto">El estado de la sesión y la reconexión están en Canales</span></div>' +
+    '</div></div>' +
+    '<div class="card"><div class="card-head"><h3>Correo</h3></div><div class="card-body"><div class="row"><b>Resend</b>' + st('', 'Sin configurar') + '</div><p class="muted">Sirve para las invitaciones al equipo y los avisos del sistema, como un canal caído o una importación terminada. Dominio verificado: notificaciones.alomercadeo.com.</p><div class="row"><input class="input" style="max-width:360px" placeholder="re_…" aria-label="Clave de Resend"><button class="btn primary" data-action="test-key">Probar y guardar</button></div></div></div>' +
+    '<div class="card"><div class="card-head"><h3>Inteligencia artificial</h3><span class="help">Se usa desde la Fase 2. Pagás directo a cada proveedor, sin recargo.</span></div><div class="card-body">' +
+      [['OpenAI', 'sk-…', 'gpt-4.1-mini'], ['Anthropic', 'sk-ant-…', 'claude-sonnet'], ['Google', 'AIza…', 'gemini-flash']].map(p => '<div class="row" style="align-items:flex-end"><div class="field" style="flex:1;min-width:180px"><label>' + p[0] + '</label><input class="input" placeholder="' + p[1] + '" aria-label="Clave de ' + p[0] + '"></div><div class="field" style="min-width:150px"><label>Modelo por defecto</label><select class="input"><option>' + p[2] + '</option></select></div>' + st('', 'Sin configurar') + '</div>').join('') +
+    '</div></div>' +
+    '<p class="help">Estados posibles: Conectado, Desconectado, Sin verificar (no se pudo preguntar; no es lo mismo que desconectado) y Sin configurar.</p></div>';
+};
+
+/* ---------- Respuestas rápidas ---------- */
+screens.respuestas = function () {
+  if (S.view === 'vacio') return '<div class="page">' + emptyState('Todavía no hay respuestas rápidas', 'Escribí una vez los textos que repetís seguido. Después los insertás en la bandeja escribiendo /.', 'Nueva respuesta rápida', 'respuestas') + '</div>';
+  const form = S.editQR != null ? '<div class="card"><div class="card-head"><h3>' + (S.editQR === -1 ? 'Nueva respuesta rápida' : 'Editar respuesta rápida') + '</h3></div><div class="card-body"><div class="field"><label>Atajo</label><input class="input" style="max-width:240px" value="' + (S.editQR >= 0 ? QR[S.editQR].k : '/') + '"></div><div class="field"><label>Texto</label><textarea class="input" rows="4">' + (S.editQR >= 0 ? esc(QR[S.editQR].t) : '') + '</textarea><span class="help">Datos que se completan solos: {{contact.display_name}} · {{contact.email}} · {{contact.phone}} · {{workspace.name}}. Si falta un dato, queda vacío.</span></div><div class="row"><button class="btn primary" data-action="qr-save">Guardar</button><button class="btn" data-action="qr-cancel">Cancelar</button></div></div></div>' : '';
+  return '<div class="page"><div class="page-head"><div><h1>Respuestas rápidas</h1><p>Textos que se insertan en la bandeja escribiendo /. No son plantillas de WhatsApp.</p></div><div class="actions"><button class="btn primary" data-action="qr-new">Nueva respuesta rápida</button></div></div>' + form +
+    '<div class="tbl-wrap"><table><thead><tr><th>Atajo</th><th>Texto</th><th></th></tr></thead><tbody>' + QR.map((q, i) => '<tr><td style="font-family:var(--mono)">' + q.k + '</td><td style="min-width:320px">' + esc(q.t) + '</td><td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-qr-edit="' + i + '">Editar</button><button class="btn sm ghost" data-action="qr-del">Eliminar</button></div></td></tr>').join('') + '</tbody></table></div></div>';
+};
+
+/* ---------- Configuración ---------- */
+screens.configuracion = function () {
+  const tabs = [['general', 'General'], ['equipo', 'Equipo'], ['baja', 'Frases de baja'], ['vigilancia', 'Vigilancia de canales'], ['alertas', 'Alertas'], ['correos', 'Correos enviados'], ['historial', 'Historial de cambios']];
+  let body = '';
+  if (S.cfgTab === 'general') body = '<div class="card"><div class="card-body" style="max-width:520px">' +
+    '<div class="field"><label>Nombre del espacio de trabajo</label><input class="input" value="ALO Mercadeo"></div>' +
+    '<div class="field"><label>Zona horaria</label><select class="input"><option>América/Costa Rica (UTC−6)</option></select><span class="help">Define qué es «hoy» para los seguimientos y las horas hábiles.</span></div>' +
+    '<div class="field"><label>Código de país por defecto</label><select class="input"><option>+506 Costa Rica</option><option>+507 Panamá</option></select><span class="help">Para teléfonos que llegan sin código. Se puede cambiar en cada importación.</span></div>' +
+    '<div class="field"><label>Horario comercial</label><input class="input" value="Lun a vie, 8:00 a 18:00 · sáb, 9:00 a 12:00"></div>' +
+    '<div class="row"><button class="btn primary" data-action="saved">Guardar</button></div></div></div>';
+  if (S.cfgTab === 'equipo') body = '<div class="card"><div class="card-head"><h3>Miembros</h3><button class="btn primary sm" style="margin-left:auto" data-action="invite">Invitar por correo</button></div><div class="tbl-wrap" style="border:0;border-radius:0"><table><thead><tr><th>Nombre</th><th>Rol</th><th>Estado</th><th></th></tr></thead><tbody>' +
+    TEAM.map(t => '<tr><td>' + t.name + '</td><td><select class="input" style="width:auto"' + (t.role === 'Owner' ? ' disabled' : '') + '><option>' + t.role + '</option><option>Admin</option><option>Member</option></select></td><td>' + t.state + '</td><td>' + (S.role === 'owner' && t.role !== 'Owner' ? '<button class="btn sm danger" data-action="remove-member">Remover</button>' : '') + '</td></tr>').join('') +
+    '<tr><td>sofia.ejemplo@correo.cr</td><td>Member</td><td><span class="pill">Invitación pendiente · vence en 5 días</span></td><td></td></tr></tbody></table></div>' +
+    (S.role !== 'owner' ? '<div class="card-body"><p class="help">Solo el Owner puede remover miembros. Un Admin puede invitar y cambiar roles, pero no puede hacer Owner a nadie.</p></div>' : '') +
+    '<div class="card-body"><div class="row"><button class="switch" data-action="switch" aria-label="Leads sin asignar visibles para Members"></button><span>Los Members ven los leads sin asignar</span></div><p class="help">Apagado: un Member solo ve los contactos y conversaciones donde figura como setter o vendedor. Owner y Admin ven todo.</p></div></div>';
+  if (S.cfgTab === 'baja') body = '<div class="card"><div class="card-body"><p class="muted">Si un mensaje contiene una de estas frases, el contacto se marca como «no contactar», se pausan sus secuencias y queda en el historial.</p><div class="row" style="gap:6px">' +
+    ['no me escribas más', 'dejá de mandar mensajes', 'no quiero recibir mensajes', 'stop', 'unsubscribe', 'basta', 'no me contactes'].map(f => '<span class="chip">' + f + ' ✕</span>').join('') + '</div><div class="row"><input class="input" style="max-width:320px" placeholder="Agregar una frase…" aria-label="Nueva frase"><button class="btn" data-action="saved">Agregar</button></div></div></div>';
+  if (S.cfgTab === 'vigilancia') body = '<div class="card"><div class="card-body"><p class="muted">Si un canal pasa más horas hábiles sin recibir mensajes que su límite, se abre una alerta y se avisa por correo a Owner y Admin.</p>' +
+    '<div class="tbl-wrap"><table style="min-width:520px"><thead><tr><th>Canal</th><th>Límite de silencio</th><th>Último mensaje</th></tr></thead><tbody><tr><td>' + I.ig + ' Instagram</td><td><input class="input num tnum" style="width:70px" value="8"> horas hábiles</td><td>hace 18 min</td></tr><tr><td>' + I.wa + ' WhatsApp</td><td><input class="input num tnum" style="width:70px" value="8"> horas hábiles</td><td>hace 3 h</td></tr></tbody></table></div>' +
+    '<div class="block info"><b>Última revisión: hace 12 min</b><span>Si esta hora deja de avanzar, significa que nadie está vigilando los canales.</span></div>' +
+    '<div class="block info"><b>Avisos de Instagram suscritos: completos</b><span>Si falta alguno, se abre una alerta que dice cuál.</span></div></div></div>';
+  if (S.cfgTab === 'alertas') body = '<div class="card"><div class="card-body">' + [
+      ['danger', 'Abierta', 'Instancia desconocida', 'Llegó un aviso de WhatsApp para «alomercadeo-venta», que no existe. Todavía no se perdió ningún mensaje: WhatsApp reintenta unos 20 minutos. Corregí el nombre de la instancia. Esta alerta se cierra a mano.', true],
+      ['', 'Cerrada', 'Aviso rechazado por autenticación · 28 sep', 'Se perdió 1 mensaje de un lead: el aviso no traía una firma válida y WhatsApp no lo reintenta. Pasó durante un cambio de secreto.', false],
+      ['', 'Cerrada', 'Silencio del canal Instagram · 30 sep', '9 horas hábiles sin mensajes. Se cerró sola cuando volvió a llegar uno.', false]
+    ].map(a => '<div class="block ' + (a[0] ? 'danger' : 'info') + '"><div class="row"><b>' + a[2] + '</b><span class="pill ' + (a[0] ? 'danger' : '') + '">' + a[1] + '</span>' + (a[4] ? '<button class="btn sm" data-action="close-alert" style="margin-left:auto">Cerrar alerta</button>' : '') + '</div><span>' + a[3] + '</span></div>').join('') + '<p class="help">Cada alerta abierta se avisa por correo a Owner y Admin, como máximo un correo por tipo por hora.</p></div></div>';
+  if (S.cfgTab === 'correos') body = '<div class="tbl-wrap"><table><thead><tr><th>Cuándo</th><th>Para</th><th>Asunto</th><th>Estado</th></tr></thead><tbody>' + [
+      ['Hoy 06:13', 'Owner y Admin', 'WhatsApp no está recibiendo mensajes', '<span class="pill ok">Enviado</span>'],
+      ['6 oct 15:20', 'Marcos', 'Terminó tu importación: 380 creados, 132 actualizados, 14 con error', '<span class="pill ok">Enviado</span>'],
+      ['3 oct 10:02', 'sofia.ejemplo@correo.cr', 'Te invitaron a ALO Mercadeo', '<span class="pill ok">Enviado</span>'],
+      ['30 sep 17:05', 'Owner y Admin', 'Silencio del canal Instagram', '<span class="pill warn">Enviado al segundo intento</span>']
+    ].map(r => '<tr><td class="tnum" style="white-space:nowrap">' + r[0] + '</td><td>' + r[1] + '</td><td>' + esc(r[2]) + '</td><td>' + r[3] + '</td></tr>').join('') + '</tbody></table></div><p class="help">Salen desde notificaciones.alomercadeo.com. Si un envío falla, se reintenta hasta 3 veces.</p>';
+  if (S.cfgTab === 'historial') body = '<div class="tbl-wrap"><table><thead><tr><th>Cuándo</th><th>Quién</th><th>Qué cambió</th></tr></thead><tbody>' + AUDIT.map(a => '<tr><td class="tnum" style="white-space:nowrap">' + a.t + '</td><td>' + a.who + '</td><td>' + esc(a.what) + '</td></tr>').join('') + '</tbody></table></div><p class="help">El historial no se borra nunca. Un Member ve solo sus propias acciones.</p>';
+  return '<div class="page"><div class="page-head"><div><h1>Configuración</h1></div></div><div class="tabs">' + tabs.map(t => '<button class="' + (S.cfgTab === t[0] ? 'on' : '') + '" data-tab="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' + body + '</div>';
+};
+
+/* ---------- Fase 2 ---------- */
+screens.fase2 = function () {
+  const n = NAV.find(x => x.id === S.screen);
+  const txt = { 'fase2-flujos': 'Flujos de conversación: qué pasa cuando alguien escribe una palabra clave o comenta una publicación, y cómo llevar al lead de Instagram a WhatsApp.', 'fase2-secuencias': 'Seguimientos automáticos por WhatsApp (a los 3 días, a la semana, a las dos semanas) que se detienen cuando la persona responde o agenda.', 'fase2-difusiones': 'Envíos a muchas personas a la vez. Está pendiente de decidir si se usan: en un número de WhatsApp conectado de esta forma, son la causa más común de bloqueo.', 'fase2-analiticas': 'Mensajes por canal y por día, conversaciones sin responder y respuestas más comunes. Llega en la Fase 3.' }[S.screen];
+  return '<div class="page">' + emptyState(n.lbl + ' llega más adelante', txt, 'Volver a la bandeja', 'bandeja') + '</div>';
+};
+
+/* ---------- Panel de demo ---------- */
+function renderDemo() {
+  const o = (k, v, l) => '<button class="chip' + (S[k] === v ? ' on' : '') + '" data-demo="' + k + '" data-v="' + v + '">' + l + '</button>';
+  $('#demo').innerHTML = '<button class="demo-btn" data-action="demo">Estados del prototipo</button>' + (S.demoOpen ? '<div class="demo-panel"><div><h4>Pantalla</h4><div class="opts">' + o('view', 'datos', 'Con datos') + o('view', 'vacio', 'Vacía') + o('view', 'cargando', 'Cargando') + o('view', 'error', 'Error') + '</div></div><div><h4>WhatsApp</h4><div class="opts">' + o('wa', 'conectado', 'Conectado') + o('wa', 'caido', 'Caído') + o('wa', 'sin-verificar', 'Sin verificar') + o('wa', 'agotado', 'Intentos agotados') + o('wa', 'sin-vincular', 'Sin vincular') + '</div></div><div><h4>Ver como</h4><div class="opts">' + o('role', 'owner', 'Owner') + o('role', 'admin', 'Admin') + o('role', 'member', 'Member') + '</div>' + (S.role === 'member' ? '<button class="chip" data-action="lose-lead" style="margin-top:6px">Simular: le quitan el lead abierto</button>' : '') + '</div><div><h4>Avisos</h4><div class="opts"><button class="chip" data-action="demo-ok">Éxito</button><button class="chip" data-action="demo-err">Error</button></div></div></div>' : '');
+}
+
+/* ---------- Eventos ---------- */
+function go(screen) { S.screen = screen; S.edit = false; closeMenu(); render(); $('#screen').scrollTop = 0; }
+function closeMenu() { $('#side').classList.remove('open'); $('#scrim').classList.remove('on'); }
+document.addEventListener('click', function (e) {
+  const t = e.target.closest('[data-go],[data-action],[data-conv],[data-f],[data-status],[data-contact],[data-open-conv],[data-qr],[data-fu],[data-tab],[data-demo],[data-qr-edit]');
+  if (!t) return;
+  const a = t.dataset.action;
+  if (t.dataset.go) { if (t.dataset.go === 'importar') S.imp = 1; if (t.dataset.go === 'respuestas' && S.view === 'vacio') { S.view = 'datos'; S.editQR = -1; } go(t.dataset.go); return; }
+  if (t.dataset.conv) { S.conv = t.dataset.conv; S.ivw = 'thread'; S.qrPicker = false; S.draft = ''; const v = V.find(x => x.id === S.conv); v.unread = 0; render(); scrollMsgs(); return; }
+  if (t.dataset.openConv) { S.conv = t.dataset.openConv; S.ivw = 'thread'; S.f.status = 'todas'; go('bandeja'); scrollMsgs(); return; }
+  if (t.dataset.contact) { S.contact = +t.dataset.contact; go('ficha'); return; }
+  if (t.dataset.status) { S.f.status = t.dataset.status; render(); return; }
+  if (t.dataset.tab) { S.cfgTab = t.dataset.tab; render(); return; }
+  if (t.dataset.demo) { const k = t.dataset.demo; S[k] = t.dataset.v; if (k === 'role') { S.f = { status: 'abiertas', canal: [], fu: null, from: '', to: '', win: null, unres: false, asig: 'todas', tags: [], q: '' }; S.conv = null; S.lost = false; } render(); return; }
+  if (t.dataset.qrEdit) { S.editQR = +t.dataset.qrEdit; render(); return; }
+  if (t.dataset.f) {
+    const g = t.dataset.f, v = t.dataset.v;
+    if (g === 'canal' || g === 'tags') { const arr = S.f[g]; const i = arr.indexOf(v); i >= 0 ? arr.splice(i, 1) : arr.push(v); }
+    else if (g === 'unres') S.f.unres = !S.f.unres;
+    else S.f[g] = S.f[g] === v && g !== 'asig' ? null : v;
+    if (S.screen !== 'bandeja') S.screen = 'bandeja';
+    render(); return;
+  }
+  if (t.dataset.qr) { insertQR(+t.dataset.qr); return; }
+  if (t.dataset.fu) {
+    const v = V.find(x => x.id === S.conv); const c = contact(v.c);
+    if (t.dataset.fu === 'none') { c.fuDate = null; toast('Seguimiento quitado'); }
+    else { c.fuDate = addDays(T, +t.dataset.fu); toast('Próximo seguimiento: ' + fmtD(c.fuDate)); }
+    render(); return;
+  }
+  switch (a) {
+    case 'open-menu': $('#side').classList.add('open'); $('#scrim').classList.add('on'); break;
+    case 'close-menu': closeMenu(); break;
+    case 'toggle-filters': S.showFilters = !S.showFilters; render(); break;
+    case 'clear-filters': S.f = { status: S.f.status, canal: [], fu: null, from: '', to: '', win: null, unres: false, asig: 'todas', tags: [], q: '' }; render(); break;
+    case 'back-list': S.ivw = 'list'; render(); break;
+    case 'toggle-panel': S.panel = !S.panel; const p = $('#cpanel'); if (p) p.hidden = !S.panel; break;
+    case 'send': sendMsg(); break;
+    case 'go-wa': { const c = contact(+t.dataset.c); const wv = V.find(x => x.c === c.id && x.ch === 'wa'); if (wv) { S.conv = wv.id; toast('Abrimos la conversación de WhatsApp de ' + c.name); } render(); scrollMsgs(); break; }
+    case 'close-conv': { const v = V.find(x => x.id === S.conv); v.status = v.status === 'cerrada' ? 'abierta' : 'cerrada'; toast(v.status === 'cerrada' ? 'Conversación cerrada' : 'Conversación reabierta'); render(); break; }
+    case 'fu-other': S.cfu = contact(V.find(x => x.id === S.conv).c).id; render(); break;
+    case 'fu-save': { const val = $('#fu-date').value; if (!val) { toast('Elegí una fecha', true); break; } const c = contact(S.cfu); c.fuDate = val; S.cfu = null; toast('Próximo seguimiento: ' + fmtD(val)); render(); break; }
+    case 'add-note': toast('Nota guardada'); break;
+    case 'open-contact': S.contact = +t.dataset.c; go('ficha'); break;
+    case 'toggle-trash': S.trash = !S.trash; render(); break;
+    case 'restore': toast('Contacto restaurado'); DELETED.length = 0; render(); break;
+    case 'edit': S.edit = true; render(); break;
+    case 'cancel-edit': S.edit = false; render(); break;
+    case 'save-edit': S.edit = false; toast('Datos guardados'); render(); break;
+    case 'dnc': modal('<div class="modal-head"><h3>Marcar «no contactar»</h3></div><div class="modal-body"><p>No se le va a poder escribir a ' + esc(contact(S.contact).name) + ' por ningún canal, y se pausan sus secuencias. Solo un Admin o el Owner puede quitar la marca.</p><div class="field"><label>Motivo</label><input class="input" value="Lo pidió por mensaje"></div></div><div class="modal-foot"><button class="btn" data-action="close-modal">Cancelar</button><button class="btn danger" data-action="dnc-ok">Marcar</button></div>'); break;
+    case 'dnc-ok': contact(S.contact).dnc = { reason: 'Marcado a mano', at: 'hoy' }; closeModal(); toast('Marcado como «no contactar»'); render(); break;
+    case 'undnc': delete contact(S.contact).dnc; toast('Marca quitada. Queda en el historial.'); render(); break;
+    case 'delete': modal('<div class="modal-head"><h3>Eliminar contacto</h3></div><div class="modal-body"><p>' + esc(contact(S.contact).name) + ' pasa a Eliminados. Se puede restaurar durante 30 días; después se borra definitivamente.</p></div><div class="modal-foot"><button class="btn" data-action="close-modal">Cancelar</button><button class="btn danger" data-action="delete-ok">Eliminar</button></div>'); break;
+    case 'delete-ok': closeModal(); toast('Contacto eliminado. Podés restaurarlo durante 30 días.'); go('contactos'); break;
+    case 'resolve-phone': mergeModal(); break;
+    case 'merge-ok': { closeModal(); const c = contact(5); c.resolved = true; c.phone = '+50670349182'; toast('Contactos unidos. La unión queda en el historial.'); S.contact = 4; go('ficha'); break; }
+    case 'merge-no': { closeModal(); const c = contact(5); c.resolved = true; c.phone = '+50670349182'; c.handles.wa = '+506 7034 9182'; toast('Teléfono guardado. Quedan como dos contactos separados.'); render(); break; }
+    case 'imp-next': S.imp = Math.min(5, S.imp + 1); render(); break;
+    case 'imp-prev': S.imp = Math.max(1, S.imp - 1); render(); break;
+    case 'sync': toast('Instagram sincronizado: 1 cuenta, sin cambios'); setTimeout(() => toast('Ejemplo de protección: si Zernio devolviera cero cuentas, no se desactiva ningún canal y se avisa.'), 900); break;
+    case 'reconnect': reconnectModal(); break;
+    case 'qr-scanned': closeModal(); S.wa = 'conectado'; toast('WhatsApp conectado. El episodio queda en el historial.'); render(); break;
+    case 'activate': toast('Canal activado: vuelve a recibir mensajes'); break;
+    case 'disconnect': modal('<div class="modal-head"><h3>Desconectar @alomercadeo</h3></div><div class="modal-body"><p>Si desconectás <b>@alomercadeo</b>, los mensajes que le escriban por Instagram <b>dejan de llegar</b> a la bandeja.</p><p class="muted">Las conversaciones y los mensajes que ya están guardados no se borran. Podés volver a activarlo desde Canales.</p><div class="field"><label>Escribí alomercadeo para confirmar</label><input class="input" placeholder="alomercadeo"></div></div><div class="modal-foot"><button class="btn" data-action="close-modal">Cancelar</button><button class="btn danger" data-action="disc-ok">Desconectar</button></div>'); break;
+    case 'disc-ok': closeModal(); toast('@alomercadeo quedó inactivo. El historial se conserva.'); break;
+    case 'test-key': toast('No pudimos conectar con Resend: la clave no es válida. Revisá que la copiaste completa.', true); break;
+    case 'qr-new': S.editQR = -1; render(); break;
+    case 'qr-cancel': S.editQR = null; render(); break;
+    case 'qr-save': S.editQR = null; toast('Respuesta rápida guardada'); render(); break;
+    case 'qr-del': toast('Respuesta rápida eliminada. Podés restaurarla durante 30 días.'); break;
+    case 'invite': modal('<div class="modal-head"><h3>Invitar al equipo</h3></div><div class="modal-body"><div class="field"><label>Correo</label><input class="input" placeholder="nombre@correo.com"></div><div class="field"><label>Rol</label><select class="input"><option>Member: ve solo sus leads</option><option>Admin: ve todo y configura</option></select></div><p class="help">La invitación llega por correo y vence a los 7 días.</p></div><div class="modal-foot"><button class="btn" data-action="close-modal">Cancelar</button><button class="btn primary" data-action="invite-ok">Enviar invitación</button></div>'); break;
+    case 'invite-ok': closeModal(); toast('Invitación enviada por correo'); break;
+    case 'switch': t.classList.toggle('on'); break;
+    case 'locked': toast('Esta regla no se puede desactivar'); break;
+    case 'saved': toast('Cambios guardados'); break;
+    case 'demo': S.demoOpen = !S.demoOpen; renderDemo(); break;
+    case 'demo-ok': toast('Cambios guardados'); break;
+    case 'demo-err': toast('No se pudo guardar: se perdió la conexión. Revisá internet y volvé a intentar.', true); break;
+    case 'close-modal': closeModal(); break;
+    case 'retry': S.view = 'datos'; render(); break;
+    case 'lose-lead': S.lost = true; S.screen = 'bandeja'; S.ivw = 'thread'; render(); break;
+    case 'back-list-lost': S.lost = false; S.ivw = 'list'; render(); break;
+    case 'private-reply': { const v = V.find(x => x.id === S.conv); if (!(S.draft || '').trim()) { toast('Escribí la respuesta antes de enviarla', true); break; } v.msgs.push({ f: 'out', t: S.draft.trim(), at: 'ahora' }); v.replied = true; S.draft = ''; toast('Respuesta privada enviada por Instagram'); render(); break; }
+    case 'public-reply': toast('Respuesta pública publicada en el comentario'); break;
+    case 'unres-queue': S.f.unres = true; S.f.status = 'todas'; go('bandeja'); break;
+    case 'suggest-merge': modal('<div class="modal-head"><h3>¿Es la misma persona?</h3></div><div class="modal-body"><div class="merge"><div class="side-card"><b>Carolina Ureña</b><span class="muted">Instagram · @caro.urena</span><span>1 conversación · sábado</span></div><div class="side-card"><b>Caro Ureña</b><span class="muted">Importada de una planilla · caro.urena</span><span>Sin conversaciones · Etiqueta: Sesión de Claridad</span></div></div><p class="help">Solo coincide el usuario de Instagram. Si las unís, quedan juntas las conversaciones, notas, etiquetas y el origen, y queda en el historial.</p></div><div class="modal-foot"><button class="btn" data-action="suggest-no">No es la misma</button><button class="btn primary" data-action="suggest-ok">Unir contactos</button></div>', true); break;
+    case 'suggest-ok': closeModal(); delete contact(12).suggest; toast('Contactos unidos. Queda en el historial.'); render(); break;
+    case 'suggest-no': closeModal(); delete contact(12).suggest; toast('Listo: no se vuelve a sugerir.'); render(); break;
+    case 'note-edit': toast('Editando la nota (demo)'); break;
+    case 'note-del': toast('Nota eliminada. Podés restaurarla durante 30 días.'); break;
+    case 'remove-member': toast('Laura Mora fue removida. Sus leads quedan sin asignar.'); break;
+    case 'close-alert': toast('Alerta cerrada. Queda en el historial.'); break;
+    case 'close-modal-bg': if (e.target === t) closeModal(); break;
+  }
+});
+document.addEventListener('input', function (e) {
+  if (e.target.id === 'q') { S.f.q = e.target.value; const pos = e.target.selectionStart; render(); const q = $('#q'); q.focus(); q.setSelectionRange(pos, pos); }
+  if (e.target.id === 'cq') { S.cq = e.target.value; const pos = e.target.selectionStart; render(); const q = $('#cq'); q.focus(); q.setSelectionRange(pos, pos); }
+  if (e.target.id === 'draft') {
+    S.draft = e.target.value;
+    const m = S.draft.match(/(^|\s)\/(\w*)$/);
+    const show = !!m; const q = m ? m[2].toLowerCase() : '';
+    if (show !== S.qrPicker || q !== S.qrQ) { S.qrPicker = show; S.qrQ = q; S.qrSel = 0; const pos = e.target.selectionStart; render(); const d = $('#draft'); d.focus(); d.setSelectionRange(pos, pos); }
+  }
+});
+document.addEventListener('change', function (e) {
+  if (e.target.id === 'fu-from') { S.f.from = e.target.value; render(); }
+  if (e.target.id === 'fu-to') { S.f.to = e.target.value; render(); }
+  if (e.target.id === 'cfu') { S.f.fu = e.target.value || null; render(); }
+  if (e.target.dataset.assign) toast('Asignación guardada. Queda en el historial.');
+});
+document.addEventListener('keydown', function (e) {
+  if (e.target.id === 'draft') {
+    if (S.qrPicker && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); S.qrSel = (S.qrSel + (e.key === 'ArrowDown' ? 1 : QR.length - 1)) % QR.length; render(); $('#draft').focus(); return; }
+    if (S.qrPicker && e.key === 'Enter') { e.preventDefault(); const sh = QR.map((q, i) => [q, i]).filter(x => !S.qrQ || x[0].k.slice(1).includes(S.qrQ) || x[0].t.toLowerCase().includes(S.qrQ)); if (sh[S.qrSel]) insertQR(sh[S.qrSel][1]); return; }
+    if (S.qrPicker && e.key === 'Escape') { S.qrPicker = false; render(); $('#draft').focus(); return; }
+    if (e.key === 'Enter' && !e.shiftKey) { const cv = V.find(x => x.id === S.conv); if (cv && cv.kind === 'comment') return; e.preventDefault(); sendMsg(); }
+  }
+  if (e.key === 'Escape' && $('#overlay').innerHTML) closeModal();
+});
+function insertQR(i) {
+  const v = V.find(x => x.id === S.conv); const c = contact(v.c);
+  const first = c.name.split(' ')[0];
+  S.draft = S.draft.replace(/\/\w*$/, '') + QR[i].t.replace(/\{\{contact\.display_name\}\}/g, first).replace(/\{\{workspace\.name\}\}/g, 'ALO Mercadeo');
+  S.qrPicker = false; render(); const d = $('#draft'); if (d) { d.focus(); d.setSelectionRange(d.value.length, d.value.length); }
+}
+function sendMsg() {
+  const txt = (S.draft || '').trim(); if (!txt) return;
+  const v = V.find(x => x.id === S.conv);
+  const w0 = win(v);
+  if (w0 && w0.s === 'por-vencer') { v.h = 24.1; render(); toast('No se envió: la ventana de 24 horas se cerró mientras escribías. Escribile desde la app de Instagram.', true); return; }
+  const now = new Intl.DateTimeFormat('es-CR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ }).format(new Date());
+  v.msgs.push({ f: 'out', t: txt, at: now }); v.time = now; S.draft = ''; render(); scrollMsgs(); toast('Enviado por ' + chName(v.ch));
+}
+function scrollMsgs() { const m = $('#msgs'); if (m) m.scrollTop = m.scrollHeight; }
+function mergeModal() {
+  modal('<div class="modal-head"><h3>Este teléfono ya es de otro contacto</h3></div><div class="modal-body"><p>+506 7034 9182 pertenece a <b>Andrea Villalobos</b>. ¿Son la misma persona?</p><div class="merge">' +
+    '<div class="side-card"><b>Lucía 🌸</b><span class="muted">WhatsApp · llegó sin número</span><span>1 conversación · hoy</span><span>Sin etapa · sin etiquetas</span></div>' +
+    '<div class="side-card"><b>Andrea Villalobos</b><span class="muted">WhatsApp · +506 7034 9182</span><span>1 conversación · sábado</span><span>Ganado · Método Poderosa · 1 nota</span></div></div>' +
+    '<p class="help">Si las unís, quedan juntas las conversaciones, notas, etiquetas y el origen. Unir no se deshace solo: queda registrado en el historial.</p></div><div class="modal-foot"><button class="btn" data-action="merge-no">No, son personas distintas</button><button class="btn primary" data-action="merge-ok">Unir contactos</button></div>', true);
+}
+function reconnectModal() {
+  if (S.wa === 'agotado') {
+    modal('<div class="modal-head"><h3>No se puede generar un código</h3></div><div class="modal-body"><p>WhatsApp ya no acepta más códigos para esta vinculación. Hay que empezar de cero: en el teléfono del negocio, abrí WhatsApp Business → Dispositivos vinculados, cerrá la sesión del sistema si aparece, y volvé a intentar en unos minutos.</p></div><div class="modal-foot"><button class="btn" data-action="close-modal">Entendido</button><button class="btn primary" data-action="qr-scanned">Empezar de cero (demo)</button></div>');
+    return;
+  }
+  modal('<div class="modal-head"><h3>Vincular WhatsApp</h3></div><div class="modal-body" style="justify-items:center;text-align:center"><div class="qr" aria-label="Código QR de ejemplo">' + QRCELLS + '</div><p>En el teléfono del negocio, abrí <b>WhatsApp Business → Dispositivos vinculados → Vincular un dispositivo</b> y escaneá este código.</p><p class="help">El código cambia cada 40 segundos.</p></div><div class="modal-foot"><button class="btn" data-action="close-modal">Cancelar</button><button class="btn primary" data-action="qr-scanned">Ya lo escaneé (demo)</button></div>');
+}
+
+/* ---------- Arranque ---------- */
+try { const h = location.hash.slice(1); if (h && (screens[h] || h.startsWith('fase2'))) S.screen = h; } catch (e) {}
+if (window.innerWidth > 1200) S.panel = true;
+render();
+scrollMsgs();
+})();
+</script>
+
+</html>

@@ -6,7 +6,7 @@
 
 **Versión:** 2.0, regenerada tras el cambio de canal de WhatsApp
 **Fecha:** 16 de septiembre de 2026
-**Revisión:** 7 de octubre de 2026, con las decisiones del 6 de octubre: seguimiento desde la bandeja, F40 sale por la app de Instagram y correo de caída de WhatsApp. La anterior, del 23 de septiembre, devolvió los criterios que perdió la conciliación y definió F23 y F24; la del 17 de septiembre sumó la migración desde Pipedrive y la decisión de Calendly
+**Revisión:** 7 de octubre de 2026, dos veces. La segunda escribe lo que agrega el prototipo aprobado el 6 de octubre, suma F42 para contestar por WhatsApp desde la bandeja y hace que F27 guarde lo que el negocio escribe fuera del sistema. La primera escribió las decisiones del 6 de octubre: seguimiento desde la bandeja, F40 sale por la app de Instagram y correo de caída de WhatsApp. La anterior, del 23 de septiembre, devolvió los criterios que perdió la conciliación y definió F23 y F24; la del 17 de septiembre sumó la migración desde Pipedrive y la decisión de Calendly
 **Cliente:** negocio de servicios digitales (single-tenant)
 
 > Este documento cubre la Fase 1 completa, de los bloques 1 a 4, y reemplaza a los dos planos que convivían hasta el 21 de septiembre de 2026. El Bloque 1 está construido, probado y publicado, y se conserva acá especificado porque el plano tiene que describir la fase entera y no solo lo que falta. El registro de lo construido está en `docs/estado-fase1.md`, y las decisiones con su razonamiento en los documentos del proyecto.
@@ -82,6 +82,31 @@ Cuatro decisiones tomadas ese día con Marcos y escritas acá el 7 de octubre. L
 
 **Lo que no se escribió.** Un botón «Escribir por WhatsApp» junto al mensaje de la ventana cerrada, que dependía de que la bandeja pudiera iniciar una conversación de WhatsApp. No puede: verificado en el código el 7 de octubre. El detalle y lo que haría falta están en §15, junto con el otro hueco que apareció ese día, el de los echos en F27.
 
+### Y qué cambió el 7 de octubre
+
+El 6 de octubre Alejandra aprobó un prototipo navegable de la fase y unos flujogramas, que están en `docs/diseno/`. El 7 de octubre se tomaron con Marcos las decisiones sobre los dos huecos que había dejado anotados la revisión de la mañana. Son cuatro partes.
+
+**A. Lo que agrega el prototipo, como descripción de pantalla.** §11 especifica ahora:
+- la pantalla de importación, en cinco pasos;
+- la lista de contactos con sus filtros y la vista de eliminados;
+- la configuración en pestañas;
+- en la bandeja, los comentarios y las respuestas a historias de Instagram, y la sugerencia de unión de F29;
+- en Canales, el contador de mensajes sin teléfono resuelto de F26;
+- el menú, con lo que llega en fases siguientes marcado;
+- la pantalla de error con «Reintentar».
+
+La importación cierra dos huecos de §15: la pantalla no estaba especificada, y un Member que importaba sin asignarse dejaba de ver lo que importaba. La pantalla ahora asigna por defecto a quien importa y explica por qué. F24 suma un criterio: desconectar un canal pide escribir el nombre de la cuenta. Toda la interfaz va en voseo (§14). El prototipo y los flujogramas son referencia visual: si chocan con este plano, manda el plano.
+
+**B. Responder por WhatsApp desde la bandeja: F42, nueva.** El prototipo muestra el campo de escritura en las conversaciones de WhatsApp. El código solo envía por Zernio, y ningún criterio pedía enviar por Evolution. F42 lo pide para una conversación que ya existe, sin adjuntos y sin iniciar conversaciones desde el sistema: el primer mensaje se escribe desde WhatsApp Business en el teléfono. La fase pasa de 25 funcionalidades a 26.
+
+F40 suma el botón «Escribir por WhatsApp» en versión chica: abre la conversación de WhatsApp que ya existe, y si no existe, dice que hay que escribirle primero desde el teléfono. Es lo que hace el botón del prototipo, y reemplaza la condición del 6 de octubre, que lo hacía depender de que la bandeja pudiera iniciar una conversación.
+
+**C. F27 guarda lo que el negocio escribe fuera del sistema.** Son dos cosas: los echos `message.sent` de lo escrito desde la app de Instagram, y los mensajes propios escritos desde el teléfono de WhatsApp. Cada una lleva su control positivo. El motivo: hoy el receptor de Zernio los descarta. Cuando la bandeja lea de la base, lo escrito desde la app dejaría de verse, que es justo lo que F40 manda a hacer con la ventana cerrada.
+
+Es un ajuste a la línea de base del Bloque 3 **antes** de medir, dejado escrito en `docs/estado-fase1.md`, con el antecedente de F41, que entró el 23 de septiembre por la misma puerta. Ninguna otra funcionalidad del Bloque 3 sumó criterios.
+
+**D. HUMAN_AGENT, solo registrado.** El SDK de Zernio acepta una etiqueta de mensaje que permitiría contestar por la API hasta 7 días después del último mensaje del lead. No está verificado si funciona ni si las reglas de Meta permiten usarla para seguimiento comercial. Queda como pendiente en §15, y F40 no cambia hasta tener ese dato.
+
 ### La objeción a Evolution, y por qué ya no aplica
 
 El documento anterior argumentaba explícitamente **a favor** de la API oficial y **en contra** de Baileys, con dos motivos: que el número disponible era el personal de la dueña, y que la coexistencia apagaría la ubicación en tiempo real que ella usa como protocolo de seguridad.
@@ -122,7 +147,7 @@ El motor de secuencias de la Fase 2 va a consumir las reglas de seguridad y el e
 | Bloque 1: Fork, despliegue y base | **Construido** | Fork y despliegue, migraciones 00017 a 00021, Supabase Vault, scope de leads por RLS, canal de Instagram | `workspaces`, `workspace_members`, `channels`, Vault |
 | Bloque 2: Infraestructura de canal, email e integraciones | 1 a 2 | Despliegue de Evolution, receptor de webhook autenticado, email por Resend, pantalla de integraciones y BYOK de IA | `integration_configs`, Vault, Railway, `/settings/integrations` |
 | Bloque 3: Modelo de contacto, ingesta y CRM | 3 a 4 | Modelo de contacto, identidad de canal, guardado de mensajes, adjuntos, deduplicación cross-canal, notas, ficha, borrado suave, registro de auditoría, asignación de setter y vendedor | `contacts`, `contact_channels`, `messages`, `conversations`, Supabase Storage |
-| Bloque 4: Bandeja, herramientas y reglas de seguridad | 5 a 6 | Bandeja, filtros, respuestas rápidas, no contactar, reglas de seguridad de secuencia, importación CSV, migración desde Pipedrive, estado de sesión | Bandeja, `response_templates`, `channels` |
+| Bloque 4: Bandeja, herramientas y reglas de seguridad | 5 a 6 | Bandeja, filtros, respuestas rápidas, no contactar, reglas de seguridad de secuencia, importación CSV, migración desde Pipedrive, estado de sesión, ventana de Instagram, respuesta por WhatsApp desde la bandeja | Bandeja, `response_templates`, `channels` |
 | Testing de fase | 7 | Testing completo, correcciones y colchón | |
 
 **Nota sobre el tamaño del Bloque 3.** Es el más cargado de los tres. En el Bloque 1 aprendimos que un bloque demasiado grande obliga a partirlo a mitad de camino, con la memoria de la sesión ya gastada justo en el paso más delicado. Conviene planificar el Bloque 3 partido desde el principio. **La partición vigente es en tres sesiones y está en `docs/estado-fase1.md`**, con la línea de base de la medición: la que decía acá, en dos, dejaba afuera F30, F31 y F39.
@@ -276,6 +301,16 @@ Construidos en el Bloque 1 y verificados con `scripts/verify-lead-scope.mjs`, 24
 **Qué NO hace en esta fase:** no incluye respuestas automáticas ni agente de IA.
 
 **Dónde va lo que queda afuera:** Fases 2 y 3.
+
+### 4.11b Respuesta por WhatsApp desde la bandeja
+
+**Qué hace:** que se pueda contestar por WhatsApp desde la bandeja, en una conversación que ya existe, igual que en Instagram.
+
+**Hasta dónde llega:** el envío de texto por Evolution desde el servidor, las respuestas rápidas, y el bloqueo del campo cuando la sesión de WhatsApp está caída o el contacto pidió no ser contactado.
+
+**Qué NO hace en esta fase:** no manda adjuntos y no inicia conversaciones desde el sistema.
+
+**Dónde va lo que queda afuera:** el primer mensaje por WhatsApp se escribe desde WhatsApp Business en el teléfono, y llega a la bandeja por el guardado de F27. Iniciar conversaciones desde el sistema queda fuera de la Fase 1 (§15).
 
 ---
 
@@ -507,6 +542,7 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 - [ ] Sección de canales de mensajería, con Instagram vía Zernio y WhatsApp vía Evolution. El estado de sesión de WhatsApp y la reconexión con código QR son de F32. Facebook y X no van (decidido el 22 de septiembre de 2026, ver §0)
 - [ ] Instagram (Zernio): API key, estado, conectar y desconectar (devuelto el 23/09/2026, auditoría #22b y #22c)
 - [ ] Desconectar un canal pide confirmación explícita que nombra la cuenta y advierte que los mensajes entrantes dejan de llegar. Motivo: la cuenta conectada es la del negocio y recibe leads reales, y un clic no puede cortar el único canal vivo (agregado el 23/09/2026)
+- [ ] Desconectar un canal pide escribir el nombre de la cuenta para confirmar («Escribí alomercadeo para confirmar», en el prototipo), y no desconecta si lo escrito no coincide (agregado el 07/10/2026, del prototipo aprobado el 06/10/2026)
 - [ ] Desconectar nunca borra conversaciones ni mensajes: marca el canal como inactivo y conserva el historial. Motivo: es una decisión cerrada del proyecto que el historial viva en la base local, y migrar sin historial no es migrar. La ruta heredada `DELETE /api/v1/channels/[channelId]`, que borra la fila del canal y en cascada sus conversaciones y mensajes, se reemplaza antes de volver a habilitar el botón de la pantalla de Canales, deshabilitado desde `5a9e2af` (agregado el 23/09/2026). **Cumplido el 05/10/2026, y la protección vive en la base:** la ruta responde 405 (`96494a7`), la migración 00025 pasa a NO ACTION las claves de `channel_id` de las seis tablas con historia (`ff737db`; NO ACTION y no RESTRICT, para no trabar el borrado de un workspace entero), y la pantalla de Canales ya no tiene botón de borrar y manda a Integraciones (`0c29097`). La 00025 se aplicó el 05/10/2026, y `scripts/verify-channels-restrict.mjs` pasó 10 de 10 en un workspace de prueba propio: borrar un canal con conversación y mensaje falla y los dos siguen, un canal sin historia se borra, y borrar un workspace entero funciona y no deja nada
 - [ ] Sección de correo, con Resend, su dominio verificado y su estado (devuelto el 23/09/2026, auditoría #27b)
 - [ ] Sección de proveedores de IA, con OpenAI, Anthropic y Google, cada uno con su clave y su modelo por defecto
@@ -659,6 +695,19 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
     3. Un nombre de origen `manual` no se pisa aunque la respuesta traiga perfil.
 
   **Probar solo el tercer caso no alcanza:** no distingue entre "está bien hecho" y "está todo congelado". **Y no va contra la API real** porque, en lo medido, el perfil aparece alrededor de un segundo antes de la entrega del webhook. Un test que dependa de ganar esa carrera falla de vez en cuando, y un test así termina desactivado, que es perder el control positivo entero
+- [ ] Se guardan los mensajes que el negocio escribe fuera del sistema: en Instagram, los avisos message.sent de lo escrito desde la app (hoy el receptor los descarta en app/api/webhooks/late/route.ts:167, que ignora todo evento que no sea message.received, incluido message.sent; y en la :190 descarta además los message.received con dirección outgoing, para no procesar en bucle los propios envíos); en WhatsApp, los mensajes propios (from_me) escritos desde el teléfono. Un mensaje enviado desde la bandeja no se guarda dos veces
+- [ ] Control positivo: un mensaje escrito desde la app de Instagram con la cuenta de prueba aparece en la bandeja leyendo de la base; uno enviado desde la bandeja aparece una sola vez
+- [ ] Control positivo de WhatsApp, con un aviso de prueba firmado de Evolution: un mensaje propio (from_me = true) escrito desde el teléfono se guarda como mensaje del negocio; si ese mismo mensaje ya estaba guardado porque se envió desde la bandeja, no se guarda dos veces
+
+> **Los tres criterios de arriba entraron el 7 de octubre de 2026, antes de medir el Bloque 3.** El motivo y el registro del ajuste de la línea de base están en §0 y en `docs/estado-fase1.md`.
+>
+> **Que Evolution avisa los mensajes propios escritos desde el teléfono: lo verificado y lo que no.** Leído el 07/10/2026 en el código de Evolution 2.3.7 (`package.json`, "version": "2.3.7"), `src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts`:
+>
+> - **Verificado:** el manejador de `'messages.upsert'` (línea 1082) acepta los tipos `notify` y `append` (línea 1166).
+> - **Verificado:** entre esa línea y el envío del aviso, `this.sendDataWebhook(Events.MESSAGES_UPSERT, messageRaw)` (línea 1483), ningún camino descarta un mensaje por `fromMe`. Las únicas salidas del bucle son tres: un error de descifrado (línea 1103), un tipo distinto de esos dos o un mensaje vacío (línea 1167), y los grupos cuando están ignorados (línea 1175).
+> - **No verificado, es inferencia:** que la librería que Evolution usa por debajo, Baileys, entregue como `messages.upsert` lo que se escribe desde el teléfono vinculado. No se leyó en el código de Baileys.
+>
+> El control positivo con un aviso de prueba firmado prueba nuestro lado. Que el aviso real llegue se comprueba en la puesta en marcha, con el número vinculado.
 
 > **Lo que sostiene el relleno, medido el 22 de septiembre de 2026, y lo que no.** En los dos casos observados, Zernio completó el perfil 2 o 3 segundos después de un mensaje entrante, y alrededor de un segundo antes de entregarnos el webhook: Marcos, entrante a las 14:27:00, perfil a las 14:27:03, entrega a las 14:27:04; otra conversación, entrante a las 15:02:27, perfil a las 15:02:29, entrega a las 15:02:30. El control negativo fue una conversación con actividad a las 15:17 **sin perfil**, y su única actividad era un mensaje **saliente**: el disparador es el mensaje entrante, no cualquier actividad. **Lo que no cubre:** son 2 casos positivos y 1 negativo; no apareció ningún entrante sin perfil después, que sería lo que refuta la inferencia; y no se sabe si Zernio vuelve a buscar el perfil en cada mensaje o solo la primera vez. El techo de 3 intentos es lo que hace que equivocarse en esto no cueste nada.
 
@@ -1099,12 +1148,38 @@ El argumento decisivo es la asimetría del error: **dejar afuera es irreversible
 - [ ] La ficha del contacto muestra cada conversación de Instagram con su propio estado de ventana (devuelto el 23/09/2026, auditoría #56b y #64b)
 - [ ] Con la ventana abierta, el campo de respuesta acepta texto libre normalmente
 - [ ] Con la ventana cerrada, el campo se deshabilita y el mensaje dice «Pasaron 24 horas desde el último mensaje: escribile desde la app de Instagram». Motivo: la ventana limita los envíos por la API, no los que se hacen desde la app, y lo que se escribe desde la app llega a la bandeja por el echo (medido el 21/09/2026).
+- [ ] Con la ventana de Instagram cerrada, si el contacto ya tiene una conversación de WhatsApp, junto al mensaje aparece el botón «Escribir por WhatsApp», que abre esa conversación en la bandeja
+- [ ] Si el contacto tiene teléfono resuelto pero todavía no tiene conversación de WhatsApp, en lugar del botón dice «Escribile primero desde WhatsApp Business en el teléfono. La conversación aparece acá en cuanto se guarde el mensaje.»
+- [ ] Control positivo: con conversación de WhatsApp, el botón aparece y la abre; sin ella, el botón no aparece
 - [ ] Un mensaje que falla por ventana expirada muestra un error claro en la interfaz, no un error genérico
 - [ ] La respuesta privada a un comentario se permite hasta 7 días desde el comentario, una sola vez por comentario, y el sistema lo controla con `comment_logs`
 - [ ] **Control positivo:** con una conversación cuya ventana está abierta, el envío funciona. Probar solo el bloqueo no distingue entre estar bien implementado y estar todo deshabilitado
 - [ ] Los campos se agregan igual para WhatsApp aunque no se usen, porque son los mismos que necesita el plan B. Ver el apéndice del plan B
 
 > **De dónde sale que la app no tiene ventana, y cuánto vale.** Que la ventana de 24 horas limita los envíos por la API y no los que se hacen desde la app de Instagram sale de la documentación de keyCRM ([Response timeframes on Facebook and Instagram](https://help.keycrm.app/en/communications-sms-email-instagram-telegram-viber-marketplace-chats-telephony/response-timeframes-on-facebook-and-instagram)). **No está verificado contra la documentación oficial de Meta.** Que lo escrito desde la app llega por el echo de `message.sent` sí está medido, el 21/09/2026, en F27. Decidido el 06/10/2026; ver §0.
+
+> **El botón «Escribir por WhatsApp», decidido el 07/10/2026.** Solo abre una conversación de WhatsApp que ya existe, igual que en el prototipo aprobado. En el prototipo, el botón aparecía con cualquier teléfono resuelto y, si no había conversación, no hacía nada y no avisaba. El segundo criterio de arriba cubre ese caso. Contestar dentro de esa conversación es F42.
+
+#### F42: Respuesta por WhatsApp desde la bandeja
+
+**Descripción:** que se pueda contestar por WhatsApp desde la bandeja, en una conversación que ya existe.
+
+**Estado: no construido** (7 de octubre de 2026). Depende de F27 (guardado de mensajes), F32 (estado de la sesión), F34 (no contactar) y del número vinculado. Hoy el único envío de la bandeja es por Zernio (`app/api/v1/messages/route.ts:142`, `:150` y `:167`), y en el repositorio no hay ninguna función que envíe por Evolution: verificado el 07/10/2026.
+
+**Criterios de aceptación:**
+
+- [ ] En una conversación de WhatsApp que ya existe, el campo de escritura envía texto por Evolution, desde el servidor, con la clave de la instancia leída de Vault
+- [ ] El mensaje enviado se guarda en messages con from_me = true y el identificador que devuelve Evolution, y no se guarda dos veces cuando llega el aviso de ese mismo mensaje
+- [ ] Las respuestas rápidas («/») funcionan igual que en Instagram
+- [ ] No hay ventana de 24 horas: WhatsApp por Evolution no tiene ventana
+- [ ] Si la sesión de WhatsApp está caída, con los intentos agotados o sin vincular, el campo se deshabilita y dice «WhatsApp no está conectado. Los mensajes no pueden salir ni entrar por este canal hasta reconectarlo.»
+- [ ] A un contacto marcado «no contactar» no se le puede escribir por este camino (F34)
+- [ ] Un envío que falla muestra un error claro, y el mensaje no aparece como enviado
+- [ ] Un Member solo puede enviar en conversaciones de sus leads, controlado en el servidor
+- [ ] Control positivo, con respuestas simuladas de Evolution: con la sesión conectada, el envío se hace y el mensaje queda guardado una sola vez aunque llegue su aviso; con la sesión caída, el envío no se intenta
+- [ ] Control positivo en la puesta en marcha, con el número vinculado: un mensaje enviado desde la bandeja llega a un teléfono de prueba y queda guardado una sola vez
+
+*Fuera de alcance de F42: adjuntos (el prototipo no tiene botón para adjuntar) e iniciar una conversación nueva desde el sistema. El primer mensaje por WhatsApp se escribe desde WhatsApp Business en el teléfono, y llega a la bandeja por el guardado de F27.*
 
 
 ### Apéndice: plan B, escrito y sin construir
@@ -1529,7 +1604,12 @@ Railway factura por consumo de recursos, no por cantidad de servicios.
 
 ### 11.1 Convenciones globales
 
-**Navegación.** Barra lateral fija en escritorio con las secciones principales: bandeja, contactos, canales, flujos, secuencias y configuración. En móvil la barra se colapsa en un menú.
+**Navegación.** Barra lateral fija en escritorio. En móvil se colapsa en un menú. Las secciones, tal como las muestra el prototipo aprobado el 06/10/2026:
+
+- **Para todos:** Bandeja y Contactos.
+- **Solo para Owner y Admin:** Canales, Integraciones, Respuestas rápidas y Configuración. Al Member se le ocultan. Si igual entra a una, la pantalla dice «Esa sección es solo para Owner y Admin. Te llevamos a la bandeja.», y el control está en el servidor, no en el menú.
+- **Un grupo titulado «Llegan más adelante»**, con Flujos, Secuencias y Difusiones marcados «Fase 2», y Analíticas marcada «Fase 3», que es la fase donde la pone §1. Se ven en gris. Tocarlos abre un aviso de que la sección llega más adelante, con un botón para volver a la bandeja: no llevan a las pantallas del fork.
+- **Growth, la sección del fork, no aparece.**
 
 **Sistema visual.** Tipografía del sistema, espaciado consistente, y los componentes reutilizables que ya trae el fork: botones, campos, tarjetas, tablas y ventanas modales. No se introduce una librería de componentes nueva.
 
@@ -1539,7 +1619,7 @@ Railway factura por consumo de recursos, no por cantidad de servicios.
 |---|---|
 | Vacío | Explicación de qué va a aparecer ahí y un botón que lleva a la acción que lo llena. Nunca una pantalla en blanco |
 | Cargando | Esqueleto de la estructura, no un círculo girando sobre la nada |
-| Error | Mensaje en lenguaje claro y una acción sugerida. Nunca el error técnico crudo |
+| Error | Mensaje en lenguaje claro y una acción sugerida. Nunca el error técnico crudo. Si la pantalla entera no se puede cargar, ocupa la pantalla completa: «No pudimos cargar esta pantalla», «Se perdió la conexión con el servidor. Revisá tu internet y volvé a intentar.» y el botón «Reintentar». Si lo que falla es guardar, un aviso: «No se pudo guardar: se perdió la conexión. Revisá internet y volvé a intentar.» |
 | Éxito | Confirmación breve que desaparece sola |
 
 **Responsive.** Todas las pantallas funcionan en teléfono. La bandeja en móvil muestra la lista de conversaciones o el hilo, no las dos cosas a la vez.
@@ -1575,6 +1655,36 @@ Railway factura por consumo de recursos, no por cantidad de servicios.
 - **Reglas:** un Member solo abre la ficha de sus propios leads. Si le sacan la asignación mientras la tiene abierta, ve un mensaje claro, no un error de permisos.
 - **Responsive:** las columnas se apilan, con los datos arriba.
 
+##### Pantalla: Lista de contactos
+
+Especificada el 07/10/2026, tal como la muestra el prototipo aprobado el 06/10/2026. Toca F30 (borrado suave), F35 (seguimiento), F37 (botón de importación) y F41 (asignación), y es descripción de pantalla: los criterios están en esas funcionalidades.
+
+- **Propósito:** encontrar y recorrer los contactos.
+- **URL:** `/contacts`
+- **Componentes:**
+    - Título «Contactos», con la cantidad de contactos.
+    - Buscador «Buscar por nombre, teléfono o correo…».
+    - Botones «Eliminados» e «Importar CSV».
+    - Una fila de filtros:
+        - Seguimiento: «Seguimiento: todos», «Vence hoy», «Vence esta semana» y «Vencido». La definición de cada opción es la de F35.
+        - Etapa: «Etapa: todas» y las etapas heredadas de Pipedrive.
+        - Setter: «Setter: todos», los miembros del equipo y «Sin asignar».
+        - Vendedor: «Vendedor: todos», los miembros del equipo y «Sin asignar».
+        - Etiqueta: «Etiqueta: todas» y las etiquetas.
+- **Columnas:** Nombre, Canales, Teléfono, Etapa, Próximo seguimiento, Etiquetas y Setter.
+- **Marcas en la fila:**
+    - Junto al nombre: «No contactar» y «Sin canal».
+    - En el teléfono: «Sin resolver».
+    - Junto a la etapa, si el trato está cerrado: «Ganado» o «Perdido».
+    - En el seguimiento: «Vencido · fecha», «Hoy» o «Sin fecha».
+    - Debajo de la tabla, la nota: «Los 526 contactos de Pipedrive entran con la etiqueta «Migrado de Pipedrive» y su etapa, estado y valor. Los que no tienen teléfono ni correo se ven como «Sin canal»: no se les puede escribir ni entran a secuencias.»
+- **Vista «Eliminados»:**
+    - Título «Eliminados», con el texto «Se pueden restaurar durante 30 días. Después se borran definitivamente. El historial de cambios se conserva siempre.»
+    - Botón «← Volver a contactos».
+    - Columnas Nombre, Eliminado (cuánto hace) y Se borra en (los días que quedan).
+    - Un botón «Restaurar» por fila, con el aviso «Contacto restaurado».
+- **Reglas:** un Member ve solo sus leads, también en «Eliminados». Lo garantiza la base.
+
 #### Bloque 4
 
 ##### Pantalla: Bandeja
@@ -1585,6 +1695,27 @@ Railway factura por consumo de recursos, no por cantidad de servicios.
 - **Componentes:** barra de filtros con contador de filtros activos, lista de conversaciones con vista previa y canal, hilo de mensajes con sus adjuntos, campo de respuesta con selector de respuestas rápidas.
 - **Estados:** sin conversaciones, explica que ahí van a aparecer los mensajes cuando se conecte un canal. Si un canal está caído, un aviso visible lo indica, porque si no una bandeja sin mensajes parece un día tranquilo.
 - **Interacciones:** escribir "/" abre el selector de respuestas rápidas. En Instagram, con la ventana cerrada, el campo se deshabilita y explica por qué. Con un contacto marcado como no contactar, el envío se bloquea.
+- **Lo que agrega el prototipo aprobado el 06/10/2026, especificado el 07/10/2026:**
+    - **Campo de escritura en WhatsApp (F42).** Es el mismo que en Instagram, con el placeholder «Escribí un mensaje… (usá / para respuestas rápidas)». Al enviar, el aviso dice «Enviado por WhatsApp». Si la sesión está caída, con los intentos agotados o sin vincular, el campo se reemplaza por «WhatsApp no está conectado» / «Los mensajes no pueden salir ni entrar por este canal hasta reconectarlo.». No hay botón para adjuntar.
+    - **Ventana de Instagram cerrada (F40).** El bloque dice:
+        - «Pasaron 24 horas desde el último mensaje: escribile desde la app de Instagram.»
+        - «Instagram no deja que el sistema envíe después de 24 horas. Lo que escribas desde la app queda registrado igual en esta conversación.»
+        - Debajo, según el caso:
+            - Si el contacto tiene conversación de WhatsApp: el botón «Escribir por WhatsApp».
+            - Si tiene teléfono resuelto y no tiene conversación: el texto de F40 que manda a escribirle primero desde WhatsApp Business.
+            - Si no tiene teléfono: «No tiene teléfono cargado. Si te lo pasa, podés seguir por WhatsApp.»
+    - **Comentarios de Instagram.**
+        - Sin responder, el bloque dice «Comentario en tu publicación «…»» y «Podés responderle en privado una sola vez, hasta 7 días después del comentario. Quedan N días.», con el campo «Escribí la respuesta privada… (usá / para respuestas rápidas)» y los botones «Responder en privado» y «Responder en público».
+        - La cabecera de la conversación dice «Comentario · quedan N días para responder en privado». Una vez respondido, dice «Comentario · respondido», y el bloque pasa a «Ya respondiste en privado a este comentario» / «Instagram permite una sola respuesta privada por comentario. Si te contesta, sigue como conversación normal.»
+        - En un comentario, Enter no envía.
+        - En la lista, la vista previa empieza con «Comentario:».
+        - El control de una sola vez y 7 días es el de F40, con `comment_logs`.
+    - **Respuestas a historias.** El mensaje lleva arriba la línea en gris «Respondió a tu historia», y en la lista la vista previa empieza con «Historia:».
+    - **Lo escrito desde la app de Instagram.** Debajo de la burbuja dice «· Enviado desde la app de Instagram». En la lista, la vista previa empieza con «Vos (desde la app):» en lugar de «Vos:». Llega por el guardado de F27.
+    - **Sugerencia de unión en el panel del contacto (F29).**
+        - Un bloque «¿Es la misma persona?» explica qué coincide; por ejemplo, «Coincide solo el usuario, así que no se unen solas.». Tiene los botones «Ver y unir» y «No es la misma».
+        - «Ver y unir» abre una comparación de los dos contactos, lado a lado, con la ayuda «Si las unís, quedan juntas las conversaciones, notas, etiquetas y el origen, y queda en el historial.» y los botones «No es la misma» y «Unir contactos».
+        - Los avisos son «Contactos unidos. Queda en el historial.» y, si se descarta, «Listo: no se vuelve a sugerir.»
 - **Reglas:** un Member ve solo sus conversaciones, y eso lo garantiza la base.
 - **Responsive:** en móvil se ve la lista o el hilo, con navegación entre los dos.
 
@@ -1596,6 +1727,8 @@ Railway factura por consumo de recursos, no por cantidad de servicios.
 - **Componentes:** nombre del canal, cuenta conectada, estado de sesión con su fecha de verificación, y botón de reconectar con el código QR cuando corresponde.
 - **Estados:** conectado, caído, sin verificar y "se agotaron los intentos", cada uno con su explicación en lenguaje claro. Para un canal de Instagram, además, "Excede el límite del plan de Zernio" (agregado el 06/10/2026, criterio de F24): la cuenta es de un perfil que pasó el límite del plan, el canal sigue activo y la sincronización no lo desactiva. Si una cuenta en ese estado sigue recibiendo mensajes no está verificado.
 - **Interacciones:** el botón de reconectar no siempre puede entregar un código, y cuando no puede lo dice en lugar de fallar en silencio.
+- **Contador de mensajes sin teléfono resuelto (F26), solo para el Owner.** Una línea: «Mensajes que llegaron sin teléfono resuelto, últimos 7 días: N de M · Ver la cola». «Ver la cola» lleva a la bandeja con el filtro «Teléfono sin resolver» activo (F35). Admin no lo ve. Especificado el 07/10/2026, del prototipo aprobado el 06/10/2026: el criterio de F26 decía "visible para el Owner" sin decir en qué pantalla.
+- **Alertas de los receptores (F22):** se muestran en un aviso arriba de esta pantalla (`webhook-alerts-banner.tsx`), con «Cerrar» para las que se cierran a mano. Las alertas sin espacio de trabajo las ve solo el Owner. Así está construido, y no se mueve: el historial completo está en la pestaña Alertas de Configuración.
 - **Reglas:** solo Owner y Admin.
 
 ##### Pantalla: Configuración del canal de WhatsApp
@@ -1604,6 +1737,68 @@ Railway factura por consumo de recursos, no por cantidad de servicios.
 - **URL:** `/settings/channels/whatsapp`
 - **Componentes:** un control por regla, con su valor por defecto y una explicación de una línea de para qué sirve y qué pasa si se desactiva.
 - **Reglas:** solo Owner y Admin. La regla de opt-out no se puede desactivar.
+
+##### Pantalla: Importación de contactos
+
+Especificada el 07/10/2026, tal como la muestra el prototipo aprobado el 06/10/2026. Es la pantalla de F37 y F38; los criterios están en esas funcionalidades.
+
+- **Propósito:** cargar contactos desde una planilla sin duplicar a nadie, incluida la migración desde Pipedrive.
+- **URL:** se entra con «Importar CSV» desde `/contacts`.
+- **Layout:** encabezado con «← Contactos», el título «Importar contactos» y el subtítulo «Desde una planilla CSV, sin duplicar a nadie.». Debajo, una barra de cinco pasos: Archivo, Columnas, Opciones, Importando y Resumen. Los pasos terminados llevan una tilde.
+- **Paso 1, Archivo:** «Arrastrá la planilla acá o elegila», «CSV de hasta 10 MB y 10.000 filas» y el botón «Elegir archivo».
+- **Paso 2, Columnas.**
+    - Arriba dice «Revisamos las primeras 5 filas y sugerimos a qué campo va cada columna. Podés cambiarlo.».
+    - Cada columna del archivo tiene un selector con el campo sugerido, más «Setter», «Vendedor», «Etiquetas», «Campo propio» y «No importar». Debajo se ven las 5 filas de muestra.
+    - Para la migración, las columnas se mapean a las de §7.1: etapa, estado del trato, valor, identificador de Pipedrive. El motivo de pérdida va a «Nota del contacto».
+- **Paso 3, Opciones.**
+    - «Código de país para los teléfonos sin código», con el valor por defecto del espacio de trabajo y la ayuda «Solo para esta importación. Las filas que lo usen quedan señaladas en el resumen.». Es la configuración que pide F38.
+    - «Etiqueta de origen», precargada con la fecha (por ejemplo, «Migrado de Pipedrive 06/10/2026»).
+    - «Asignar los contactos importados a». **Para un Member, el valor por defecto es él mismo**, con la ayuda «Si importás sin asignarte, después no vas a poder ver estos contactos: los sin asignar solo los ven Owner y Admin.». Para Owner y Admin, el valor por defecto es «Nadie por ahora», con la ayuda «Los contactos sin asignar los ven Owner y Admin.». Cierra el hueco de §15 del Member que importa sin asignarse. La ayuda del Member va en voseo, aunque el prototipo la tenga en usted (§14).
+    - Un bloque «Cómo se evita duplicar»: «Si ya existe un contacto con el mismo identificador de Pipedrive, correo o teléfono, se actualiza en lugar de crear otro. Si una fila no tiene ninguno de esos datos, no se importa y se explica por qué.». La lista de identificadores es la de §14.
+    - Botones «Atrás» e «Importar N filas».
+- **Paso 4, Importando.** Muestra «Importando N filas…», la barra de progreso y «X de N». Con más de 500 filas, además: «Como son más de 500 filas, sigue en segundo plano. Podés seguir trabajando: te avisamos por correo cuando termine.», y el botón «Ir a la bandeja».
+- **Paso 5, Resumen.**
+    - Cuatro contadores: «Creados», «Actualizados», «Con error» y «Usaron +506 por defecto», o el código que se haya elegido.
+    - En una migración desde Pipedrive, el control de F38: «Control de la migración: 399 de 399 tratos» / «Los contactos con identificador de trato de Pipedrive coinciden con los tratos del archivo (sin contar los 118 «IG DM»). Si no coincidieran, la migración no se da por buena y se dice cuántos faltan.».
+    - Una tabla con Fila, Nombre y Qué pasó, que da el motivo de cada error en lenguaje claro. Por ejemplo: «El teléfono «8856-12» no se puede normalizar. No se inventó un número: corregilo en la planilla y volvé a importar.».
+    - El botón «Ver contactos» y «Se puede repetir: importar el mismo archivo otra vez actualiza, no duplica.».
+- **Reglas:** Owner, Admin y Member pueden importar (§3). Un Member que asigna a otra persona deja de ver esos contactos, y la ayuda se lo dice antes.
+
+##### Pantalla: Configuración
+
+Especificada el 07/10/2026, tal como la muestra el prototipo aprobado el 06/10/2026. Reúne en pestañas ajustes de varias funcionalidades; los criterios están en cada una.
+
+- **URL:** `/dashboard/settings`
+- **Reglas:** solo Owner y Admin, con el control en el servidor.
+- **Pestañas:** General, Equipo, Frases de baja, Vigilancia de canales, Alertas, Correos enviados e Historial de cambios.
+- **General:**
+    - «Nombre del espacio de trabajo».
+    - «Zona horaria», con la ayuda «Define qué es «hoy» para los seguimientos y las horas hábiles.».
+    - «Código de país por defecto», con la ayuda «Para teléfonos que llegan sin código. Se puede cambiar en cada importación.» (F38).
+    - «Horario de atención del negocio», en la zona horaria del negocio. **Es el que usa F39 para contar las horas hábiles del umbral de silencio.**
+    - Botón «Guardar».
+    - **No hay que confundirlo con la franja horaria de F33.** Esa es configuración del canal de WhatsApp, vale para los envíos automáticos y se aplica en la zona horaria del contacto, en la pantalla de configuración del canal. Son dos cosas distintas, aunque el prototipo muestre el mismo valor en las dos pantallas. En el prototipo este campo se llama «Horario comercial»; se renombró para que no se confunda con la franja de F33.
+- **Equipo (F3):**
+    - Tabla de miembros con Nombre, Rol y Estado.
+    - El rol se cambia con un selector, salvo el del Owner.
+    - «Remover» solo lo ve el Owner. Al remover a alguien, sus leads quedan sin asignar.
+    - Las invitaciones pendientes muestran cuándo vencen.
+    - «Invitar por correo» pide el correo y el rol («Member: ve solo sus leads» / «Admin: ve todo y configura»), con la nota «La invitación llega por correo y vence a los 7 días.» (F23).
+    - El interruptor «Los Members ven los leads sin asignar», apagado por defecto.
+- **Frases de baja (F34):** «Si un mensaje contiene una de estas frases, el contacto se marca como «no contactar», se pausan sus secuencias y queda en el historial.». Debajo, la lista de frases, cada una con su botón para quitarla, y el campo «Agregar una frase…».
+- **Vigilancia de canales (F39):**
+    - «Si un canal pasa más horas hábiles sin recibir mensajes que su límite, se abre una alerta y se avisa por correo a Owner y Admin.».
+    - Una tabla con Canal, Límite de silencio (en horas hábiles) y Último mensaje.
+    - La prueba de vida del vigilante: «Última revisión: hace N min» / «Si esta hora deja de avanzar, significa que nadie está vigilando los canales.».
+    - El estado de la suscripción: «Avisos de Instagram suscritos: completos» / «Si falta alguno, se abre una alerta que dice cuál.».
+- **Alertas (F22 y F39):**
+    - **El historial completo de `webhook_alerts`, abiertas y cerradas,** cada una con su tipo, fecha, estado y una explicación en lenguaje claro de qué pasó y qué hacer.
+    - Las que se cierran a mano tienen «Cerrar alerta», que hace lo mismo que el «Cerrar» del aviso de Canales, con el aviso «Alerta cerrada. Queda en el historial.».
+    - Las alertas sin espacio de trabajo las ve solo el Owner, igual que en el aviso.
+    - La nota: «Cada alerta abierta se avisa por correo a Owner y Admin, como máximo un correo por tipo por hora.» (F23).
+    - **Las abiertas se siguen viendo en el aviso de la pantalla de Canales**, donde están hoy. F22 está construida y esta pestaña no la cambia: suma el historial.
+- **Correos enviados (F23):** una tabla con Cuándo, Para, Asunto y Estado, con la nota «Salen desde notificaciones.alomercadeo.com. Si un envío falla, se reintenta hasta 3 veces.».
+- **Historial de cambios (F31):** una tabla con Cuándo, Quién y Qué cambió, con la nota «El historial no se borra nunca. Un Member ve solo sus propias acciones.». La pestaña es solo para Owner y Admin, como toda la pantalla: la segunda frase describe la regla de F31, no a alguien que use esta pestaña.
 
 ---
 
@@ -1714,7 +1909,7 @@ Si esa automatización sigue corriendo después de la migración, Pipedrive se s
 | Snapshot de precios | No aplica en esta etapa. Se contempla en Etapa 4 |
 | Estados y ciclo de vida | Conversación: abierta, archivada. Contacto: activo, no contactar, eliminado. Canal: conectado, caído, sin verificar, agotado. Mensaje: pendiente, enviado, fallido |
 | Casos borde | Si el operador cierra la ventana a mitad de una importación, el trabajo sigue en segundo plano. Si le sacan un lead que tenía abierto, ve un mensaje claro y no un error. Si la sesión de WhatsApp se cae, la bandeja lo indica en lugar de parecer vacía |
-| Zona horaria e idioma | Español rioplatense en toda la interfaz. La zona horaria del negocio es la de Costa Rica. Los envíos de secuencia respetan la zona horaria del contacto cuando se conoce |
+| Zona horaria e idioma | Español rioplatense en toda la interfaz, con voseo: «escribile», no «escríbale»; «revisá», no «revise» (decidido por Marcos el 06/10/2026). La zona horaria del negocio es la de Costa Rica. Los envíos de secuencia respetan la zona horaria del contacto cuando se conoce |
 | Motor de automatización | El fork trae un motor de flujos visual que se conserva. Las secuencias de la Fase 2 se apoyan en él |
 | Precios variables | No aplica en esta etapa |
 | Modelo de asignación | Doble asignación independiente: setter, quien contacta, y vendedor, quien cierra. Asignación manual. La conversación además tiene un agente asignado |
@@ -1954,16 +2149,36 @@ No se deciden leyendo documentación. Se instrumentan y se miran.
 - **Deuda, sin resolver (anotada el 23/09/2026): el registro del webhook de Zernio puede apuntar a localhost.** `test-key`, `connect` y `sync` registran contra `NEXT_PUBLIC_APP_URL`, y sin ella caen en `http://localhost:3000`. Un servidor de desarrollo conectado a la base y a la cuenta de producción puede entonces redirigir el webhook de Zernio a una dirección que no recibe nada, y la bandeja deja de recibir sin ningún síntoma. **Propuesta a evaluar:** que el registro se niegue con una dirección que no sea `https` o que sea `localhost`. Mientras tanto, en desarrollo no se aprietan los botones que llaman a esas rutas.
 - **Resuelto el 23/09/2026: "las notificaciones del sistema" de F23.** Estaban sin definir, con tres candidatos: las invitaciones al equipo, los avisos de `webhook_alerts` y la alerta de silencio de F39. Ahora las invitaciones son un criterio aparte, y las notificaciones son una función única de F23 que recibe los destinatarios de forma explícita: las alertas del sistema van a Owner y Admin, y los avisos de una acción a quien la hizo. Tiene techo contra el aluvión y lista cerrada. La alerta de F39 y el fin de importación de F37 la citan. El detalle está en F23.
 - **Resuelto el 23/09/2026: el mecanismo del tiempo real del estado de las integraciones, para F24.** Se detecta al abrir la pantalla y cuando una operación real falla, se guarda en `integration_configs` y llega por Realtime. No hay tarea periódica: detectar una caída cuando nadie mira es de F39. La definición, los controles y el costo aceptado están en F24. Este hueco se había anotado acá cuando el criterio volvió sin mecanismo (auditoría #32).
-- **La pantalla de importación no está especificada, ni para F37 ni para F38.** La sección 11 no la tiene: el Bloque 4 documenta bandeja, canales y configuración del canal de WhatsApp, y ninguna pantalla de importación. El hueco es anterior a F38, pero F38 lo vuelve urgente, porque pide que esa pantalla permita cambiar el código de país por defecto para una importación puntual. **Hay que especificarla antes de construir el Bloque 4**, o esa decisión se va a tomar mientras se escribe el código, que es exactamente donde termina siendo una constante cableada.
-- **Otro hueco de la pantalla de importación, sin resolver (anotado el 23/09/2026).** Un Member puede importar (§3), pero un Member que importa contactos sin asignarse no los ve después: los contactos sin asignar los ven solo Owner y Admin, que es el valor por defecto de la configuración del espacio de trabajo en F3. Se decide al especificar la pantalla.
-- **Hueco, sin resolver (anotado el 07/10/2026): el plano no tiene ningún criterio de envío de WhatsApp desde la bandeja.** Verificado en el código ese día. El único envío de la bandeja es por Zernio: `POST /api/v1/messages` corta si la conversación no tiene `late_conversation_id` (`app/api/v1/messages/route.ts:142`) o si el canal no tiene `late_account_id` (`:150`), y manda con `zernio.messages.sendInboxMessage` (`:167`). Un canal de Evolution no tiene ninguno de los dos. El motor de flujos tiene la misma guarda (`lib/flow-engine/engine.ts:883-885`). Y la bandeja no crea conversaciones: se crean solo en `app/api/webhooks/late/route.ts:281`, `lib/comment-processor.ts:197` y `lib/inbox-sync.ts:255`, los tres de Zernio. §4.1 dice que el Bloque 2 no manda mensajes reales, y ninguna funcionalidad posterior especifica el envío. **Consecuencia:** cuando se vincule el número de WhatsApp, que va después de F27 y F32, la bandeja leería WhatsApp y no podría contestarlo. Lo que haría falta:
+- **Resuelto el 07/10/2026: la pantalla de importación no estaba especificada, ni para F37 ni para F38.** Se especificó en §11, «Pantalla: Importación de contactos», del prototipo aprobado el 06/10/2026, con el código de país para esa importación en el paso de opciones. Lo que sigue es cómo estaba. La sección 11 no la tenía: el Bloque 4 documenta bandeja, canales y configuración del canal de WhatsApp, y ninguna pantalla de importación. El hueco es anterior a F38, pero F38 lo vuelve urgente, porque pide que esa pantalla permita cambiar el código de país por defecto para una importación puntual. **Hay que especificarla antes de construir el Bloque 4**, o esa decisión se va a tomar mientras se escribe el código, que es exactamente donde termina siendo una constante cableada.
+- **Resuelto el 07/10/2026: otro hueco de la pantalla de importación (anotado el 23/09/2026).** Un Member puede importar (§3), pero un Member que importa contactos sin asignarse no los ve después: los contactos sin asignar los ven solo Owner y Admin, que es el valor por defecto de la configuración del espacio de trabajo en F3. **Resolución:** la pantalla tiene «Asignar los contactos importados a», y para un Member el valor por defecto es él mismo, con una ayuda que explica por qué. Ver §11, «Pantalla: Importación de contactos».
+- **Resuelto el 07/10/2026, el mismo día en que se anotó: el plano no tenía ningún criterio de envío de WhatsApp desde la bandeja.** **Resolución, decidida con Marcos:** F42 pide contestar por WhatsApp desde la bandeja en una conversación que ya existe, y F40 suma el botón «Escribir por WhatsApp» en versión chica, que solo abre esa conversación. Así quedan cubiertos los puntos 1 y 4 de abajo. **Los puntos 2 y 3 quedan fuera de alcance de la Fase 1:** iniciar una conversación desde el sistema no se construye, y el primer mensaje se escribe desde WhatsApp Business en el teléfono. La condición de la que dependería, que Evolution acepte un primer mensaje a un número sin chat previo, sigue **sin verificar**. Lo que sigue es cómo estaba. Verificado en el código ese día. El único envío de la bandeja es por Zernio: `POST /api/v1/messages` corta si la conversación no tiene `late_conversation_id` (`app/api/v1/messages/route.ts:142`) o si el canal no tiene `late_account_id` (`:150`), y manda con `zernio.messages.sendInboxMessage` (`:167`). Un canal de Evolution no tiene ninguno de los dos. El motor de flujos tiene la misma guarda (`lib/flow-engine/engine.ts:883-885`). Y la bandeja no crea conversaciones: se crean solo en `app/api/webhooks/late/route.ts:281`, `lib/comment-processor.ts:197` y `lib/inbox-sync.ts:255`, los tres de Zernio. §4.1 dice que el Bloque 2 no manda mensajes reales, y ninguna funcionalidad posterior especifica el envío. **Consecuencia:** cuando se vincule el número de WhatsApp, que va después de F27 y F32, la bandeja leería WhatsApp y no podría contestarlo. Lo que haría falta:
   1. Un envío saliente por Evolution, en el servidor, con la clave de la instancia leída de Vault.
   2. Crear la conversación y su `contact_channels` de WhatsApp desde la bandeja, con el identificador armado a partir del teléfono en E.164, sin duplicar la que va a crear F27 cuando el lead conteste.
   3. Que Evolution acepte un primer mensaje a un número sin chat previo. **No verificado:** no se leyó en el código de Evolution ni en `docs/investigacion-evolution-api.md`.
   4. El orden: nada de esto sirve antes de F27, F32 y el número vinculado.
 
-  Es también lo que haría falta para el botón «Escribir por WhatsApp» que se pensó para F40 el 06/10/2026 y no se escribió (ver §0). Pendiente de decisión con Marcos antes de escribir en el plano las pantallas del prototipo aprobado el 06/10/2026 (§11).
-- **Hueco, sin resolver (anotado el 07/10/2026): F27 no exige guardar los echos de `message.sent`.** El receptor de Zernio los descarta a propósito (`app/api/webhooks/late/route.ts:190`, `reason: "outgoing"`). Hoy no se nota porque la bandeja lee de Zernio. Cuando F27 haga que la bandeja lea de la base, lo que el negocio escribe desde la app de Instagram dejaría de verse, y el criterio de F40 reescrito el 07/10/2026 manda justamente a escribir desde la app. La nota de F27 sobre el echo ya lo llama una dependencia, pero ningún criterio lo exige. No se agrega a F27 ahora porque es la línea de base del Bloque 3. Pendiente de decisión antes de empezar a construir F27.
+  Era también lo que haría falta para el botón «Escribir por WhatsApp» que se pensó para F40 el 06/10/2026 y no se escribió (ver §0). Se resolvió con la versión chica del botón, sin los puntos 2 y 3.
+- **Resuelto el 07/10/2026, el mismo día en que se anotó: F27 no exigía guardar los echos de `message.sent`.** **Resolución, decidida con Marcos:** F27 suma un criterio, guardar lo que el negocio escribe fuera del sistema, con dos controles positivos, uno de Instagram y uno de WhatsApp. Entra antes de medir el Bloque 3, y queda registrado en `docs/estado-fase1.md`. Lo que sigue es cómo estaba. Hoy el receptor los descarta en app/api/webhooks/late/route.ts:167, que ignora todo evento que no sea message.received, incluido message.sent; y en la :190 descarta además los message.received con dirección outgoing, para no procesar en bucle los propios envíos. Hoy no se nota porque la bandeja lee de Zernio. Cuando F27 haga que la bandeja lea de la base, lo que el negocio escribe desde la app de Instagram dejaría de verse, y el criterio de F40 reescrito el 07/10/2026 manda justamente a escribir desde la app. La nota de F27 sobre el echo ya lo llama una dependencia, pero ningún criterio lo exigía.
+- **Pendiente de verificar, no es una decisión (anotado el 07/10/2026): la etiqueta `HUMAN_AGENT` de Instagram.**
+  - **Lo que dice el SDK, verificado.** `@zernio/node` 0.2.519 acepta `messageTag: 'HUMAN_AGENT'` en el envío de la bandeja: tipo `SendInboxMessageData`, `node_modules/@zernio/node/dist/index.d.ts:16894`. El campo está en la `:17360` y el comentario en la `:17358`: "Instagram only supports HUMAN_AGENT". Exige `messagingType: 'MESSAGE_TAG'` (`:17356`). Hoy la bandeja no lo usa (`app/api/v1/messages/route.ts:169`).
+  - **Lo que dice una documentación de terceros, la de Chatwoot.** Permite contestar por la API hasta 7 días después del último mensaje del lead, y requiere un permiso de Meta que pasa por revisión.
+  - **No verificado:**
+    - si la aplicación de Zernio tiene ese permiso;
+    - si funciona;
+    - si las reglas de Meta permiten usarlo para seguimiento comercial.
+  - **Cómo se prueba:** con la cuenta de prueba de Instagram, la misma de la prueba de «Desconectar» de F24.
+  - **F40 no cambia hasta tener ese dato.**
+- **Anotado el 07/10/2026: las «horas hábiles» de F39 no tenían de dónde salir.** F39 expresa el umbral de silencio en horas hábiles según la zona horaria del negocio, pero ningún lado del plano decía cuál es el horario del negocio. Desde el 07/10/2026 sale del «Horario de atención del negocio», en la pestaña General de Configuración (§11). Es otra cosa que la franja horaria de F33, que es del canal de WhatsApp y se aplica en la zona horaria del contacto. Se escribió como descripción de pantalla y no como criterio de F39, porque F39 es de la línea de base del Bloque 3.
+- **Pendiente de decisión, no es una decisión (anotado el 07/10/2026): los estados de la conversación.** El prototipo aprobado muestra en la bandeja la pestaña «Pospuestas» y el botón «Cerrar» / «Reabrir» de la conversación, y el plano no los especifica. El fork ya trae tres estados (verificado el 07/10/2026):
+  - `conversations.status` admite `'open'`, `'closed'` y `'snoozed'` (`supabase/migrations/00001_initial_schema.sql:176`; `ConversationStatus` en `lib/types/database.ts:34`).
+  - La lista tiene las pestañas por estado (`components/inbox/conversation-list.tsx:140`).
+  - El hilo tiene los botones de cerrar, posponer y reabrir (`components/inbox/message-thread.tsx:338-369`), que escriben el estado directo desde el navegador, con RLS (`:140-151`).
+
+  Dos cosas a decidir:
+  - «Pospuesta» no tiene fecha de vuelta: ninguna migración agrega una columna para eso. El prototipo tampoco tiene una acción para posponer, solo la pestaña.
+  - §14, en «Estados y ciclo de vida», dice que una conversación es «abierta, archivada», lo que no coincide con los tres estados del fork.
+
+  **Se decide antes de construir la bandeja.**
 - El número dedicado de WhatsApp, todavía en trámite. No bloquea el Bloque 2 ni el 3, pero sí la conexión en vivo.
 - Verificación del negocio en Meta: **no hecha**. No bloquea nada del camino principal; sirve para el plan B, donde levanta el tope de 250 contactos únicos cada 24 horas. Se comprueba en Business Manager.
 
@@ -1983,7 +2198,7 @@ El análisis de los exports de Pipedrive agregó dos más, y el segundo pesa:
 
 ## 16. Correspondencia de números jubilados
 
-Este documento usa F1 a F4 para el Bloque 1 y F21 a F41 para los bloques 2 a 4. El documento anterior usaba F1 a F20 para toda la fase. La tabla dice dónde fue cada una, para que una referencia vieja se pueda resolver sin adivinar.
+Este documento usa F1 a F4 para el Bloque 1 y F21 a F42 para los bloques 2 a 4. El documento anterior usaba F1 a F20 para toda la fase. La tabla dice dónde fue cada una, para que una referencia vieja se pueda resolver sin adivinar.
 
 **La lista es cerrada.** Si aparece una F del documento viejo que no está acá, es un hueco de la conciliación y hay que tratarlo como tal, no como una funcionalidad olvidada a propósito.
 
@@ -2012,4 +2227,4 @@ Este documento usa F1 a F4 para el Bloque 1 y F21 a F41 para los bloques 2 a 4. 
 | F19 | Importación CSV | F37 |
 | F20 | Audit log global | F31 |
 
-**Funcionalidades que no existían en el documento viejo:** F26 identidad de canal, F27 guardado de mensajes entrantes, F28 adjuntos, F32 estado de sesión, F33 reglas de seguridad de secuencia, F38 migración desde Pipedrive, F39 detección de silencio del canal, F40 ventana de Instagram.
+**Funcionalidades que no existían en el documento viejo:** F26 identidad de canal, F27 guardado de mensajes entrantes, F28 adjuntos, F32 estado de sesión, F33 reglas de seguridad de secuencia, F38 migración desde Pipedrive, F39 detección de silencio del canal, F40 ventana de Instagram, F42 respuesta por WhatsApp desde la bandeja (sumada el 07/10/2026).
