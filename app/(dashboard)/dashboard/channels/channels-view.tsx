@@ -134,10 +134,16 @@ export function ChannelsView({
         conversationsImported = 0,
         failed = [],
         skipped = [],
+        aviso = null,
       } = data.synced;
       const nothingChanged =
         created === 0 && updated === 0 && deactivated === 0 && conversationsImported === 0;
-      if (failed.length > 0) {
+      // El aviso de cero cuentas va primero: sin él, la pantalla diría "All
+      // channels up to date" cuando en realidad Zernio no devolvió nada y la
+      // sincronización se frenó para no apagar los canales.
+      if (aviso) {
+        setSyncMessage(aviso);
+      } else if (failed.length > 0) {
         setSyncMessage(`Could not save some channels: ${failed.join("; ")}`);
       } else if (nothingChanged && syncedChannels.length === 0 && skipped.length > 0) {
         setSyncMessage(
@@ -153,7 +159,7 @@ export function ChannelsView({
         if (conversationsImported > 0) parts.push(`${conversationsImported} conversations imported`);
         setSyncMessage(parts.join(", "));
       }
-      setTimeout(() => setSyncMessage(null), failed.length > 0 ? 10000 : 4000);
+      setTimeout(() => setSyncMessage(null), failed.length > 0 || aviso ? 10000 : 4000);
     } catch {
       setSyncMessage("Failed to sync. Check your connection.");
     } finally {
@@ -358,6 +364,14 @@ export function ChannelsView({
                       />
                       {channel.is_active ? "Active" : "Inactive"}
                     </span>
+                    {channel.excede_plan_zernio && (
+                      <span
+                        className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800"
+                        title="La cuenta es de un perfil que excede el límite del plan de Zernio. El canal no se desactiva por eso. Si sigue recibiendo mensajes en este estado no está verificado."
+                      >
+                        Excede el límite del plan de Zernio
+                      </span>
+                    )}
                     <span className="text-[10px] text-muted-foreground">
                       Connected{" "}
                       {new Date(channel.created_at).toLocaleDateString([], {

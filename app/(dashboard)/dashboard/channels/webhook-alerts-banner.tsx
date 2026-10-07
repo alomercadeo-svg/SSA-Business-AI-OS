@@ -70,6 +70,8 @@ function titulo(condicion: WebhookAlertCondition): string {
       return "WhatsApp está rechazando los mensajes que llegan";
     case "webhook_unknown_instance":
       return "Están llegando mensajes de una conexión que no reconocemos";
+    case "zernio_sync_cero_cuentas":
+      return "Zernio devolvió cero cuentas al sincronizar";
     default:
       return "El receptor de mensajes reportó un problema";
   }
@@ -90,6 +92,12 @@ function titulo(condicion: WebhookAlertCondition): string {
  * directamente falso: todavía no se perdió ninguno.
  */
 function recuento(alerta: Alerta): string {
+  // Acá el número cuenta sincronizaciones, no mensajes: ninguna desactivó nada.
+  if (alerta.alert_condition === "zernio_sync_cero_cuentas") {
+    return alerta.occurrences === 1
+      ? "1 sincronización sin cuentas"
+      : `${alerta.occurrences} sincronizaciones sin cuentas`;
+  }
   if (alerta.alert_condition === "webhook_unknown_instance") {
     return alerta.occurrences === 1
       ? "1 intento de entrega rechazado"
@@ -180,6 +188,13 @@ export async function WebhookAlertsBanner({
                   minutos. Corregí el nombre antes de que se agoten.
                 </p>
               </div>
+            ) : alerta.alert_condition === "zernio_sync_cero_cuentas" ? (
+              <p className="mt-1 text-sm text-red-800 dark:text-red-200">
+                No se desactivó ningún canal: la sincronización no apaga canales cuando Zernio no
+                devuelve ninguna cuenta, porque es más probable un problema de Zernio o de la clave
+                que una desconexión real. Revisá en Zernio que la cuenta siga conectada. La alerta
+                se cierra sola con la próxima sincronización que traiga cuentas.
+              </p>
             ) : (
               <p className="mt-1 text-sm text-red-800 dark:text-red-200">
                 Los mensajes llegan pero no se pueden verificar, así que se descartan. Casi

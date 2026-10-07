@@ -17,7 +17,11 @@ export type { Platform };
 export type ChannelProvider = "zernio" | "evolution";
 
 /** Condiciones que registra el receptor de webhooks. Migración 00022. */
-export type WebhookAlertCondition = "webhook_auth_failed" | "webhook_unknown_instance";
+export type WebhookAlertCondition =
+  | "webhook_auth_failed"
+  | "webhook_unknown_instance"
+  /** La sincronización con Zernio recibió cero cuentas y no desactivó nada (§15, 06/10/2026). */
+  | "zernio_sync_cero_cuentas";
 
 /**
  * Estado de una integración (F24, migración 00024). `sin_verificar` es "no se
@@ -167,6 +171,11 @@ export interface Database {
           webhook_id: string | null;
           webhook_secret: string | null;
           is_active: boolean;
+          /**
+           * La cuenta de Zernio es de un perfil que excede el límite del plan
+           * (migración 00026). Es un estado propio: no desactiva el canal.
+           */
+          excede_plan_zernio: boolean;
           last_comment_cursor: string | null;
           comment_rules: Json | null;
           created_at: string;
@@ -185,6 +194,7 @@ export interface Database {
           webhook_id?: string | null;
           webhook_secret?: string | null;
           is_active?: boolean;
+          excede_plan_zernio?: boolean;
           last_comment_cursor?: string | null;
           comment_rules?: Json | null;
           created_at?: string;
@@ -201,6 +211,7 @@ export interface Database {
           webhook_id?: string | null;
           webhook_secret?: string | null;
           is_active?: boolean;
+          excede_plan_zernio?: boolean;
           last_comment_cursor?: string | null;
           comment_rules?: Json | null;
           updated_at?: string;

@@ -32,7 +32,15 @@ export default function ChannelCallbackPage() {
           return;
         }
 
-        const { created } = data.synced;
+        const { created, aviso } = data.synced;
+        // Cero cuentas: la conexión no se puede dar por buena si Zernio no
+        // devolvió ninguna, y la sincronización se frenó sin desactivar nada.
+        if (aviso) {
+          setStatus("error");
+          setMessage(aviso);
+          setTimeout(() => router.push("/dashboard/channels"), 4000);
+          return;
+        }
         setStatus("success");
         setMessage(
           created > 0

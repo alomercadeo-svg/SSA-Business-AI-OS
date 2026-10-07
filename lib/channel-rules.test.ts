@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { debeDesactivarseCanal } from "./channel-rules";
+import { debeDesactivarseCanal, planDeSincronizacion, ERROR_FORMA_INESPERADA } from "./channel-rules";
 import { canalesConCuentaDeZernio } from "./inbox-sync";
 
 /**
@@ -89,5 +89,65 @@ describe("canalesConCuentaDeZernio", () => {
       { id: "ch-evo", late_account_id: null, platform: "whatsapp" },
     ];
     expect(canalesConCuentaDeZernio(canales).map((c) => c.id)).toEqual(["ch-1"]);
+  });
+});
+
+/**
+ * `planDeSincronizacion`: la decisión de la sincronización con Zernio, antes de
+ * escribir nada. Deuda de §15, resuelta el 06/10/2026. La ruta tiene sus
+ * propios tests con las escrituras simuladas (`app/api/v1/channels/sync/`);
+ * estos cubren las formas de la respuesta que allá no vale la pena repetir.
+ */
+describe("planDeSincronizacion", () => {
+  const canales = [
+    { id: "ch-a", provider: "zernio", late_account_id: "acc-a", is_active: true },
+    { id: "ch-b", provider: "zernio", late_account_id: "acc-b", is_active: true },
+    { id: "ch-e", provider: "evolution", late_account_id: null, is_active: true },
+  ];
+
+  it("una respuesta sin lista de cuentas o de perfiles es un error, no una lista vacía", () => {
+    for (const cuentas of [undefined, null, {}, "x", 3]) {
+      expect(planDeSincronizacion({ cuentas, perfiles: [], canales })).toEqual({ error: ERROR_FORMA_INESPERADA });
+    }
+    expect(planDeSincronizacion({ cuentas: [], perfiles: undefined, canales })).toEqual({
+      error: ERROR_FORMA_INESPERADA,
+    });
+  });
+
+  it("cero cuentas con canales de Zernio activos no desactiva nada", () => {
+    const plan = planDeSincronizacion({ cuentas: [], perfiles: [], canales });
+    expect(plan).toMatchObject({ error: null, aDesactivar: [], ceroCuentas: true });
+  });
+
+  it("cero cuentas sin canales de Zernio activos no es un aviso", () => {
+    const plan = planDeSincronizacion({
+      cuentas: [],
+      perfiles: [],
+      canales: [canales[2], { ...canales[0], is_active: false }],
+    });
+    expect(plan).toMatchObject({ error: null, aDesactivar: [], ceroCuentas: false });
+  });
+
+  it("la marca de exceso sale del perfil, con profileId como texto o como objeto", () => {
+    const plan = planDeSincronizacion({
+      cuentas: [
+        { _id: "acc-a", profileId: "p1" },
+        { _id: "acc-b", profileId: "p2" },
+        { _id: "acc-c", profileId: { _id: "p3", isOverLimit: true } },
+        { _id: "acc-d", profileId: { _id: "p2" } },
+      ],
+      perfiles: [{ _id: "p1" }, { _id: "p2", isOverLimit: true }],
+      canales,
+    });
+    if (plan.error !== null) throw new Error(plan.error);
+    expect([...plan.excedidas].sort()).toEqual(["acc-b", "acc-c", "acc-d"]);
+    expect(plan.aDesactivar).toEqual([]);
+  });
+
+  // ── El control positivo. Si este falla, los anteriores no prueban nada: una
+  // función que nunca desactiva los pasaría a todos.
+  it("con una lista que trae unas cuentas y no otra, la que falta SÍ se desactiva", () => {
+    const plan = planDeSincronizacion({ cuentas: [{ _id: "acc-a", profileId: "p1" }], perfiles: [], canales });
+    expect(plan).toMatchObject({ error: null, aDesactivar: ["ch-b"], ceroCuentas: false });
   });
 });

@@ -47,6 +47,8 @@ export function InboxView({
         setSyncError(data.error || "Sync failed");
         return;
       }
+      // Cero cuentas en Zernio: no se desactivó nada, pero tampoco se importó.
+      if (data.synced?.aviso) setSyncError(data.synced.aviso);
       router.refresh();
     } catch {
       setSyncError("Failed to sync. Check your connection.");

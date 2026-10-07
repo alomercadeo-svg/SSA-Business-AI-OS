@@ -10,7 +10,12 @@ import {
 } from "@/lib/zernio-webhook";
 import { backfillInboxConversations, canalesConCuentaDeZernio } from "@/lib/inbox-sync";
 import { isSupportedPlatform } from "@/lib/platforms";
-import { debeDesactivarseCanal } from "@/lib/channel-rules";
+import {
+  ALERTA_CERO_CUENTAS,
+  AVISO_CERO_CUENTAS,
+  planDeSincronizacion,
+} from "@/lib/channel-rules";
+import { createServiceClient } from "@/lib/supabase/server";
 
 /**
  * POST /api/v1/channels/sync
@@ -18,6 +23,12 @@ import { debeDesactivarseCanal } from "@/lib/channel-rules";
  * Syncs all Zernio accounts as channels for the current workspace.
  * Creates new channels for accounts not yet in the DB.
  * Deactivates channels whose Zernio accounts no longer exist.
+ *
+ * Salvo en tres casos que antes apagaban canales vivos sin aviso (§15 del
+ * plano, resuelto el 06/10/2026): una respuesta sin lista de cuentas, una lista
+ * vacía con canales de Zernio activos, y una cuenta de un perfil que excede el
+ * límite del plan. La decisión vive en `planDeSincronizacion`
+ * (lib/channel-rules.ts) y se toma antes de escribir nada.
  */
 export async function POST() {
   const { contexto, error: authError } = await requireManager();
@@ -35,8 +46,13 @@ export async function POST() {
   const zernio = createZernioClient(apiKey);
 
   try {
-    const res = await zernio.accounts.listAccounts();
-    const lateAccounts = res.data?.accounts ?? [];
+    // `includeOverLimit`: sin él, Zernio no trae las cuentas de perfiles que
+    // exceden el límite del plan, y esos canales se desactivaban. Los perfiles
+    // se piden porque la marca de exceso está en el perfil, no en la cuenta.
+    const [res, perfilesRes] = await Promise.all([
+      zernio.accounts.listAccounts({ query: { includeOverLimit: true } }),
+      zernio.profiles.listProfiles({ query: { includeOverLimit: true } }),
+    ]);
 
     // Get existing channels for this workspace
     const { data: existingChannels } = await supabase
@@ -44,24 +60,23 @@ export async function POST() {
       .select(CHANNEL_PUBLIC_COLUMNS)
       .eq("workspace_id", workspace.id);
 
+    const plan = planDeSincronizacion({
+      cuentas: res.data?.accounts,
+      perfiles: perfilesRes.data?.profiles,
+      canales: existingChannels ?? [],
+    });
+    // Forma inesperada: no se toca ningún canal, ni se registra el webhook, ni
+    // se importa nada. Antes, `?? []` la convertía en una lista vacía.
+    if (plan.error !== null) {
+      console.error("[channels/sync]", plan.error);
+      return NextResponse.json({ error: plan.error }, { status: 502 });
+    }
+    const lateAccounts: NonNullable<typeof res.data>["accounts"] = res.data!.accounts;
+
     const existingByZernioId = new Map(
       (existingChannels ?? []).map((c) => [c.late_account_id, c])
     );
 
-    // The SDK type doesn't declare profilePicture but the API returns it
-    //
-    // El predicado de tipo en vez de `.filter(Boolean)`: este último no estrecha
-    // el tipo, así que el Set quedaba en `unknown` y cualquier comparación
-    // contra él pasaba el compilador sin que nadie mirara qué se estaba
-    // comparando. Es justamente la comparación del bucle de desactivación.
-    const lateAccountIds = new Set<string | undefined>(
-      lateAccounts
-        .map((a: { _id?: string }) => a._id)
-        // El tipo del parámetro va explícito porque `lateAccounts` viene del
-        // SDK como `any`: sin la anotación, el predicado queda en `any` y no
-        // estrecha nada, que es el problema que este cambio vino a resolver.
-        .filter((id: string | undefined): id is string => Boolean(id))
-    );
     let created = 0;
     let updated = 0;
     const skipped: string[] = [];
@@ -80,6 +95,7 @@ export async function POST() {
       const profilePic = acc.profilePicture || null;
 
       const existing = existingByZernioId.get(account._id);
+      const excede = plan.excedidas.has(account._id);
 
       if (existing) {
         if (
@@ -97,6 +113,14 @@ export async function POST() {
             .eq("id", existing.id);
           updated++;
         }
+        // El exceso de plan es un estado propio: se marca y se desmarca, y
+        // nunca desactiva el canal.
+        if (existing.excede_plan_zernio !== excede) {
+          await supabase
+            .from("channels")
+            .update({ excede_plan_zernio: excede })
+            .eq("id", existing.id);
+        }
       } else {
         const { error: insertErr } = await supabase.from("channels").insert({
           workspace_id: workspace.id,
@@ -106,6 +130,7 @@ export async function POST() {
           display_name: account.displayName || account.username || null,
           profile_picture: profilePic,
           is_active: true,
+          excede_plan_zernio: excede,
         });
         if (insertErr) {
           // Reporting a channel we did not store is how #16 stayed hidden:
@@ -124,15 +149,40 @@ export async function POST() {
     // dos mitades que se rompen en silencio —desactivar un canal de Evolution
     // que no corresponde, o dejar de desactivar uno de Zernio que sí— y las dos
     // necesitan test. Ver lib/channel-rules.ts.
+    //
+    // Con cero cuentas y canales de Zernio activos, `plan.aDesactivar` viene
+    // vacío: no se desactiva nada, se avisa en pantalla y se abre una alerta.
     let deactivated = 0;
-    for (const channel of existingChannels ?? []) {
-      if (debeDesactivarseCanal(channel, lateAccountIds)) {
-        await supabase
-          .from("channels")
-          .update({ is_active: false })
-          .eq("id", channel.id);
-        deactivated++;
-      }
+    for (const channelId of plan.aDesactivar) {
+      await supabase
+        .from("channels")
+        .update({ is_active: false })
+        .eq("id", channelId);
+      deactivated++;
+    }
+
+    // La alerta va con el cliente de servicio porque `record_webhook_alert` solo
+    // la ejecuta `service_role` (00022). Si falla, el aviso en pantalla sale
+    // igual: la alerta es el segundo canal del aviso, no el único.
+    try {
+      const servicio = await createServiceClient();
+      const { error: alertaErr } = plan.ceroCuentas
+        ? await servicio.rpc("record_webhook_alert", {
+            p_source: "zernio",
+            p_condition: ALERTA_CERO_CUENTAS,
+            p_workspace_id: workspace.id,
+            p_detail: AVISO_CERO_CUENTAS,
+          })
+        : plan.vigentes.size > 0
+          ? await servicio.rpc("resolve_webhook_alert", {
+              p_source: "zernio",
+              p_condition: ALERTA_CERO_CUENTAS,
+              p_workspace_id: workspace.id,
+            })
+          : { error: null };
+      if (alertaErr) console.error("[channels/sync] alert update failed:", alertaErr);
+    } catch (err) {
+      console.error("[channels/sync] alert update failed:", err);
     }
 
     // Re-register the webhook so inbound events reach the Inbox. Both the
@@ -186,6 +236,7 @@ export async function POST() {
         conversationsImported,
         skipped: [...new Set(skipped)],
         failed,
+        aviso: plan.ceroCuentas ? AVISO_CERO_CUENTAS : null,
       },
     });
   } catch (error) {
