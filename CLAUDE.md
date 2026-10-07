@@ -110,6 +110,7 @@ npm run lint         # linter
 npm test             # tests con Vitest, incluida la compuerta de cierre
 npm run typecheck    # tsc sobre todo el proyecto; Vitest no chequea tipos
 node scripts/commits-sin-subir.mjs   # cuántos commits hay sin subir y de cuándo es el más viejo
+node scripts/verificar-despliegue.mjs   # sube y espera a que producción cambie de build (cierre de sesión)
 ```
 
 ---
@@ -118,7 +119,9 @@ node scripts/commits-sin-subir.mjs   # cuántos commits hay sin subir y de cuán
 
 **Al abrir sesión** se corre `node scripts/commits-sin-subir.mjs` y se informa cuántos commits hay sin subir y de qué fecha es el más viejo. Si dice "No medido", se dice así, no como "no hay nada sin subir".
 
-**Al cerrar sesión**, si `npm test` está verde, se sube y se verifica el despliegue en Railway: el despliegue activo tiene que mostrar el mensaje del commit subido, y `app.alomercadeo.com` tiene que responder. **Si no se sube, se escribe en `docs/estado-fase1.md` por qué y qué condición lo destraba.** Un "no subimos" sin condición de destrabe no se acepta.
+**Al cerrar sesión**, si `npm test` está verde, se sube **con `node scripts/verificar-despliegue.mjs`**, que lee el build que sirve `/login`, corre `git push` y espera hasta 5 minutos a que cambie. Sale con 0 si cambió y `/login` responde 200, y con 1 si no. Reemplaza mirar a mano la tarjeta ACTIVE de Railway. **El historial de despliegues de Railway se sigue mirando**: es lo único que muestra un despliegue fallido y su causa, y qué commit quedó activo. El script detecta "no se desplegó nada nuevo", no "se desplegó otro commit". **Si no se sube, se escribe en `docs/estado-fase1.md` por qué y qué condición lo destraba.** Un "no subimos" sin condición de destrabe no se acepta.
+
+**Salida de emergencia: `node scripts/verificar-despliegue.mjs --sin-verificar-antes`.** Sin el parámetro, el script no sube si `/login` no responde o no se encuentra el identificador del build. Con él, sube igual: es para cuando producción está caída y hace falta un arreglo urgente. Avisa que no hubo lectura previa y nunca da verde: sale con 2 ("no concluyente") si producción vuelve, o con 1 si no vuelve. **Usarlo obliga a mirar el historial de despliegues de Railway** antes de dar el despliegue por bueno, y a dejar escrito en `docs/estado-fase1.md` que se usó y por qué.
 
 La suite hace cumplir las dos cosas desde `scripts/compuerta-cierre.test.ts`: se pone en rojo si el commit sin subir más viejo tiene más de un día, y si `tsc` encuentra un error de tipos. **Un día y no cero** a propósito: con cero falla apenas se commitea, es ruido en medio de la sesión y termina desactivado.
 
