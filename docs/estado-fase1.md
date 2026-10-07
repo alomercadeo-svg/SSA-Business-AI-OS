@@ -51,7 +51,7 @@ Los procedimientos ejecutables no van en ninguno de los dos: van en `docs/`, uno
 
 **Verificadores:** `npm run verify:security` corre `verify-lead-scope.mjs` (24 comprobaciones) y `verify-realtime-scope.mjs` (7). No corren con `npm test`, a propósito: la suite puede estar en verde con el scope roto.
 
-**Desde el 7 de octubre de 2026 el avance se cuenta sobre 26, y es 5 de 26:** ese día se sumó F42, respuesta por WhatsApp desde la bandeja, al Bloque 4. Lo que sigue es el recuento anterior, sobre 25. **Al 5 de octubre de 2026 el avance seguía en 5 de 25:** F24 tiene todos sus criterios cumplidos salvo probar "Desconectar" contra Zernio real, y no cuenta como completa. **Avance de la Fase 1, contado el 23 de septiembre de 2026 sobre la línea de estado de cada funcionalidad del plano.** **25 funcionalidades a construir**: F1 a F4 y F21 a F41 (desde el 07/10/2026, 26: F1 a F4 y F21 a F42). Quedan afuera F5, eliminada de la fase, y F6, F6b y F6c, que son del plan B. **5 completas:** F1, F2, F3, F4 y F21. **F22 está construida con un criterio pendiente**: la idempotencia igual para los dos canales, devuelta ese día por la auditoría (#5), que nadie comprobó todavía en los dos canales. Parciales, según su línea de estado: F24, F34 y F35.
+**Desde el 7 de octubre de 2026, 7 de 26:** ese día se completaron F22 (el criterio #5 que faltaba) y F23, en la sesión de cierre del Bloque 2 (abajo). Completas: F1, F2, F3, F4, F21, F22 y F23. **El Bloque 2 no queda cerrado del todo:** F24 sigue parcial, por la misma razón que antes. **Antes, desde el 7 de octubre de 2026, el avance se contaba sobre 26 y era 5 de 26:** ese día se sumó F42, respuesta por WhatsApp desde la bandeja, al Bloque 4. Lo que sigue es el recuento anterior, sobre 25. **Al 5 de octubre de 2026 el avance seguía en 5 de 25:** F24 tiene todos sus criterios cumplidos salvo probar "Desconectar" contra Zernio real, y no cuenta como completa. **Avance de la Fase 1, contado el 23 de septiembre de 2026 sobre la línea de estado de cada funcionalidad del plano.** **25 funcionalidades a construir**: F1 a F4 y F21 a F41 (desde el 07/10/2026, 26: F1 a F4 y F21 a F42). Quedan afuera F5, eliminada de la fase, y F6, F6b y F6c, que son del plan B. **5 completas:** F1, F2, F3, F4 y F21. **F22 está construida con un criterio pendiente**: la idempotencia igual para los dos canales, devuelta ese día por la auditoría (#5), que nadie comprobó todavía en los dos canales. Parciales, según su línea de estado: F24, F34 y F35.
 
 **Tests al cerrar el Bloque 1:** 108 en 12 archivos. El fork traía 60 en 7. **Ese número sube con cada bloque: no lo copies, contalo con `npm test`.**
 
@@ -366,8 +366,61 @@ Ningún criterio se reescribió ni se dio de baja; hay 17 nuevos: 1 en F24, 3 en
 **Tests:** `npm test` da 367 de 367, con cero errores de tipos. El test de documento único no toma los archivos de `docs/diseno/`: mira solo los `.md` sueltos en `docs/`.
 
 **Para la apertura de la próxima sesión:** anotar acá el hash del commit que cierra este registro, la salida de su corrida de `scripts/verificar-despliegue.mjs` y lo que Marcos vea en el historial de despliegues de Railway.
-- **Completado en la apertura de la sesión del 7 de octubre, noche.** El commit que cierra este registro es `9f4d8b1` (verificado con `git log`: 07/10/2026 12:24:18, hora de Costa Rica). Se subió con `scripts/verificar-despliegue.mjs` (push `ec52fae..9f4d8b1`), que salió con 0: a las 12:24:22 leyó el build `V2jNhh18na3eDZDzwlxQy`, y a los 124 segundos (12:26:28) el build pasó a `FbnAgTtCi9iW6aH_sahw7`, con `/login` en 200. **Esos números salen de la memoria que dejó la sesión de la tarde, no del repo.**
+- **Completado en la apertura de la sesión del 7 de octubre, cierre del Bloque 2.** El commit que cierra este registro es `9f4d8b1` (verificado con `git log`: 07/10/2026 12:24:18, hora de Costa Rica). Se subió con `scripts/verificar-despliegue.mjs` (push `ec52fae..9f4d8b1`), que salió con 0: a las 12:24:22 leyó el build `V2jNhh18na3eDZDzwlxQy`, y a los 124 segundos (12:26:28) el build pasó a `FbnAgTtCi9iW6aH_sahw7`, con `/login` en 200. **Esos números salen de la memoria que dejó la sesión de la tarde, no del repo.**
 - **Railway, dicho por Marcos:** el 07/10 a las 12:28 vio la tarjeta ACTIVE con el commit «docs(plano): lo que agrega el prototipo, F42 para contestar por What…», «Deployment successful», subido 3 minutos antes. Desde `ec52fae` hubo un solo push.
+
+---
+
+## Sesión del 7 de octubre de 2026, cierre del Bloque 2
+
+**Apertura:** `node scripts/commits-sin-subir.mjs` dio «Sin commits sin subir»; el último era `9f4d8b1`. Se completó el registro de la sesión de la tarde (arriba). Dos tareas: F23, correo saliente por Resend, y el criterio #5 de F22.
+
+**F22 #5, la idempotencia en los dos canales. Cumplido.**
+- **El test que llevaba el nombre del criterio no lo probaba.** `app/api/webhooks/late/route.test.ts`, «…funciona igual para los dos», recorría Instagram y WhatsApp los dos por Zernio. Se renombró.
+- **El test nuevo:** `app/api/webhooks/idempotencia-canales.test.ts` corre los dos receptores reales contra un solo registro de `webhook_events` compartido. En cada canal, la primera entrega se procesa (control positivo) y la repetida responde `duplicate_event` sin reprocesar. Hay además un caso cruzado: una entrega de Zernio cuyo id es la clave de Evolution sin el prefijo no pisa a la de Evolution.
+- **Pasó sin cambiar la app.** Para que no fuera un espejo, se vio en rojo con tres roturas a propósito, deshechas después: sin el control de duplicados de Evolution, sin el de Zernio, y sin el prefijo `evolution:`.
+- **Lo que no prueba:** el repetido en producción por Zernio. El de Evolution ya estaba probado en producción (`verify-evolution-webhook.mjs`, paso 2).
+
+**F23, correo saliente. Completa.**
+- **Lo construido:**
+  - la migración 00027 (`email_log` y `reservar_correo_aviso`), aplicada con `npx supabase db push` (el `--dry-run` listó solo esa);
+  - `lib/correo.ts`, con la función única de envío, los reintentos y el aviso de alertas;
+  - el aviso en `after()` desde el receptor de Evolution y desde la alerta de cero cuentas de Zernio;
+  - las invitaciones por correo;
+  - «Probar y guardar» de Resend, con el remitente;
+  - las pestañas General, Equipo y Correos enviados en Configuración.
+- **La respuesta de `GET /domains` a una clave de solo envío, medida:** HTTP 401, `{"statusCode":401,"message":"This API key is restricted to only send emails","name":"restricted_api_key"}`. Quedó en `lib/fixtures/resend-domains-clave-solo-envio.json`.
+  - **Cómo se midió:** por el mismo camino del servidor que usa «Probar y guardar», en el servidor local contra la base de producción, con una captura temporal que mostraba código y cuerpo, nunca la clave. La captura se borró del código después.
+  - Desde localhost se tocó solo la tarjeta de Resend del workspace de prueba: nada de Zernio, Instagram, «Sincronizar» ni el espacio real.
+- **El workspace de prueba «Pruebas de correo»** (`1a3db984-86d9-46d2-8bdd-76f9dadc8367`) se creó con la clave de servicio, en dos filas (el espacio y la membresía de Owner de alomercadeo@gmail.com), con la aprobación de Marcos. Desde la app no se podía: es un defecto del fork, anotado en §15 del plano.
+- **Cuidado con el espacio activo:** al crear esa membresía, el espacio activo de alomercadeo@gmail.com pasa a ser «Pruebas de correo» mientras no haya cookie de espacio (`lib/workspace.ts`). Se vuelve al real con el selector.
+- **La clave de Resend** es de solo envío, limitada a `notificaciones.alomercadeo.com`. La creó y la cargó Marcos desde Integraciones, sin que pasara por el chat ni por la terminal. Está **solo en el workspace de prueba**.
+- **Correos reales de la sesión: dos, a direcciones de Marcos y a nadie más.**
+  - A **alomercadeo@gmail.com**, «WhatsApp está rechazando mensajes entrantes». Lo mandó `scripts/verify-correo-alertas.mjs`, que pasó 17 de 17: el receptor de producción respondió 401, abrió `webhook_auth_failed` en el workspace de prueba, y Resend aceptó el correo en el primer intento. Una segunda entrega llevó las ocurrencias a 2 y su aviso quedó `omitido_techo`, la prueba del techo por presencia. Al final se cerró la alerta por su id y se borró el canal descartable, que fue solo una fila en `channels`, sin instancia en Evolution. Marcos confirmó que llegó a Recibidos a las 13:58.
+  - A **mapitti@gmail.com**, «Te invitaron a Pruebas de correo», desde Configuración › Equipo en producción. Antes se comprobó dos veces que esa dirección no era usuario. Marcos confirmó que llegó a las 14:01 y no la aceptó, porque aceptarla crea un usuario y su espacio propio. Se revocó borrando la fila por su id; la app sigue con un solo usuario.
+- **El verificador se niega antes de mandar:** contra el espacio real (tiene canales) y con un destinatario que no es el único miembro. Las dos negativas se comprobaron. Ojo: en el espacio real, la guarda de miembros sola no alcanzaría, porque alomercadeo@gmail.com es su único miembro y su Owner. Lo frena la de canales.
+- **Lo que no se probó en real:** los reintentos (solo con respuestas simuladas, porque no hubo ningún fallo) y la pantalla «Correos enviados», que no la miró nadie en producción.
+
+**Decidido con Marcos en la sesión:**
+- La alerta de instancia desconocida queda **sin correo**, con los datos en §15 del plano.
+- El remitente se valida por forma, no contra un dominio fijo en el código.
+- El defecto del selector de espacios de trabajo queda anotado en §15, sin arreglar.
+
+**Para F39, cuando se construya:** tiene que abrir su alerta y después llamar a `notificarAlerta` (`lib/correo.ts`). Abrirla con `record_webhook_alert` directo no manda correo. Es a propósito: es lo que deja a los verificadores abrir alertas sin mandarle correos a nadie.
+
+**Paso pendiente de Marcos: activar el correo en el espacio real.** Es cargar la clave de Resend y el remitente en Integraciones de «Ale Admin's Workspace». **Desde ese momento, los avisos con workspace les llegan a Owner y Admin del espacio real**, que hoy es solo alomercadeo@gmail.com. Esos avisos son el rechazo de autenticación de Evolution y las cero cuentas de Zernio al sincronizar; las invitaciones le llegan a quien se invita. Antes hay que saber dos cosas:
+- `scripts/verify-evolution-webhook.mjs` pasa a necesitar `--acepto-correo-real`, porque provoca rechazos contra el canal real.
+- La alerta de instancia desconocida sigue sin correo hasta que se decida (§15).
+
+**Anotado en §15 del plano:**
+- a quién avisar la alerta sin workspace;
+- que los crons del fork probablemente no corren en Railway (inferencia, verificar antes del Bloque 3);
+- que un aviso que falla después de reclamado se pierde en los dos receptores;
+- el defecto del selector de espacios de trabajo.
+
+**Tests:** `npm test` da 411 de 411, con cero errores de tipos. El linter no marca nada en lo que se tocó.
+
+**Para la apertura de la próxima sesión:** anotar acá el hash del commit que cierra este registro, la salida de su corrida de `scripts/verificar-despliegue.mjs` y lo que Marcos vea en el historial de despliegues de Railway. El commit anterior de esta sesión, `759280a` (el código), se subió con el script, que salió con 0: el build pasó de `FbnAgTtCi9iW6aH_sahw7` a `cSpYuMKKIDMeT-LGT7R_X` a los 135 segundos, con `/login` en 200.
 
 ---
 

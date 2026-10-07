@@ -528,7 +528,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F22: Receptor de mensajes entrantes, autenticado"
     ],
-    "texto": "- [ ] La idempotencia por `webhook_events` funciona igual para los dos canales (devuelto el 23/09/2026, auditoría #5)"
+    "texto": "- [x] La idempotencia por `webhook_events` funciona igual para los dos canales (devuelto el 23/09/2026, auditoría #5)"
   },
   {
     "seccion": "F22: Receptor de mensajes entrantes, autenticado",
@@ -609,7 +609,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F23: Email saliente vía Resend"
     ],
-    "texto": "- [ ] La clave de Resend se guarda en Vault desde `/settings/integrations`"
+    "texto": "- [x] La clave de Resend se guarda en Vault desde `/settings/integrations`"
   },
   {
     "seccion": "F23: Email saliente vía Resend",
@@ -618,7 +618,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F23: Email saliente vía Resend"
     ],
-    "texto": "- [ ] Se envían las invitaciones de equipo"
+    "texto": "- [x] Se envían las invitaciones de equipo"
   },
   {
     "seccion": "F23: Email saliente vía Resend",
@@ -627,7 +627,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F23: Email saliente vía Resend"
     ],
-    "texto": "- [ ] Existe una única función de servidor para mandar notificaciones del sistema por correo, y recibe los destinatarios de forma explícita. Las alertas del sistema, los avisos de `webhook_alerts` y entre ellos el silencio del canal de F39, van a Owner y Admin; los avisos de una acción van a quien la hizo. Su primer uso son los avisos de `webhook_alerts`"
+    "texto": "- [x] Existe una única función de servidor para mandar notificaciones del sistema por correo, y recibe los destinatarios de forma explícita. Las alertas del sistema, los avisos de `webhook_alerts` y entre ellos el silencio del canal de F39, van a Owner y Admin; los avisos de una acción van a quien la hizo. Su primer uso son los avisos de `webhook_alerts`"
   },
   {
     "seccion": "F23: Email saliente vía Resend",
@@ -636,7 +636,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F23: Email saliente vía Resend"
     ],
-    "texto": "- [ ] **Control positivo:** se inserta una alerta en `webhook_alerts` y llega el correo"
+    "texto": "- [x] **Control positivo:** se inserta una alerta en `webhook_alerts` y llega el correo"
   },
   {
     "seccion": "F23: Email saliente vía Resend",
@@ -645,7 +645,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F23: Email saliente vía Resend"
     ],
-    "texto": "- [ ] Techo contra el aluvión: como máximo un correo por tipo de aviso por hora. El aviso sigue registrado donde se originó; lo que se limita es el correo. **El valor es un supuesto inicial**, ajustable cuando haya datos de cuántos avisos llegan"
+    "texto": "- [x] Techo contra el aluvión: como máximo un correo por tipo de aviso por hora. El aviso sigue registrado donde se originó; lo que se limita es el correo. **El valor es un supuesto inicial**, ajustable cuando haya datos de cuántos avisos llegan"
   },
   {
     "seccion": "F23: Email saliente vía Resend",
@@ -654,7 +654,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F23: Email saliente vía Resend"
     ],
-    "texto": "- [ ] La lista de notificaciones es cerrada: una notificación nueva se escribe primero como criterio de la funcionalidad que la dispara, y usa la función de F23. Hoy son tres: los avisos de `webhook_alerts`, entre ellos la alerta de silencio de F39; el fin de una importación en segundo plano de F37; y la caída de la sesión de WhatsApp de F32, incluido el estado «se agotaron los intentos de vinculación», que va a Owner y Admin (agregado el 07/10/2026, decidido el 06/10/2026)"
+    "texto": "- [x] La lista de notificaciones es cerrada: una notificación nueva se escribe primero como criterio de la funcionalidad que la dispara, y usa la función de F23. Hoy son tres: los avisos de `webhook_alerts`, entre ellos la alerta de silencio de F39; el fin de una importación en segundo plano de F37; y la caída de la sesión de WhatsApp de F32, incluido el estado «se agotaron los intentos de vinculación», que va a Owner y Admin (agregado el 07/10/2026, decidido el 06/10/2026)"
   },
   {
     "seccion": "F23: Email saliente vía Resend",
@@ -663,7 +663,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F23: Email saliente vía Resend"
     ],
-    "texto": "- [ ] El remitente es el dominio verificado por el negocio en Resend"
+    "texto": "- [x] El remitente es el dominio verificado por el negocio en Resend"
   },
   {
     "seccion": "F23: Email saliente vía Resend",
@@ -672,7 +672,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F23: Email saliente vía Resend"
     ],
-    "texto": "- [ ] Si falla un envío, se registra el error y se reintenta hasta 3 veces"
+    "texto": "- [x] Si falla un envío, se registra el error y se reintenta hasta 3 veces"
   },
   {
     "seccion": "F23: Email saliente vía Resend",
@@ -681,7 +681,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F23: Email saliente vía Resend"
     ],
-    "texto": "- [ ] Los correos enviados quedan registrados para poder consultarlos"
+    "texto": "- [x] Los correos enviados quedan registrados para poder consultarlos"
   },
   {
     "seccion": "F23: Email saliente vía Resend",
@@ -690,7 +690,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F23: Email saliente vía Resend"
     ],
-    "texto": "- [ ] Cierra una deuda del Bloque 1: la invitación deja de depender de copiar un link a mano"
+    "texto": "- [x] Cierra una deuda del Bloque 1: la invitación deja de depender de copiar un link a mano"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",

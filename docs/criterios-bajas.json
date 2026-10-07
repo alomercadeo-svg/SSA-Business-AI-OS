@@ -110,5 +110,82 @@
     "nuevo": "- [ ] La lista de notificaciones es cerrada: una notificación nueva se escribe primero como criterio de la funcionalidad que la dispara, y usa la función de F23. Hoy son tres: los avisos de `webhook_alerts`, entre ellos la alerta de silencio de F39; el fin de una importación en segundo plano de F37; y la caída de la sesión de WhatsApp de F32, incluido el estado «se agotaron los intentos de vinculación», que va a Owner y Admin (agregado el 07/10/2026, decidido el 06/10/2026)",
     "motivo": "Se suma a la lista cerrada el correo de caída de la sesión de WhatsApp de F32, con destino Owner y Admin, decidido el 06/10/2026 (ver §0). Los otros dos tipos no cambian.",
     "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] La idempotencia por `webhook_events` funciona igual para los dos canales (devuelto el 23/09/2026, auditoría #5)",
+    "destino": "reescrito",
+    "nuevo": "- [x] La idempotencia por `webhook_events` funciona igual para los dos canales (devuelto el 23/09/2026, auditoría #5)",
+    "motivo": "Tildado: Cumplido el 07/10/2026: `app/api/webhooks/idempotencia-canales.test.ts` corre los dos receptores reales contra un registro compartido; la primera entrega se procesa (control positivo), la repetida responde `duplicate_event` y no se reprocesa, en los dos. Se vio en rojo rompiendo el control de duplicados de cada receptor y el prefijo `evolution:`.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] La clave de Resend se guarda en Vault desde `/settings/integrations`",
+    "destino": "reescrito",
+    "nuevo": "- [x] La clave de Resend se guarda en Vault desde `/settings/integrations`",
+    "motivo": "Tildado: Cumplido el 07/10/2026. La clave de solo envío se cargó con «Probar y guardar» en el workspace «Pruebas de correo» y quedó en Vault; la tarjeta muestra solo largo y últimos cuatro.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] Se envían las invitaciones de equipo",
+    "destino": "reescrito",
+    "nuevo": "- [x] Se envían las invitaciones de equipo",
+    "motivo": "Tildado: Cumplido el 07/10/2026. La invitación de prueba llegó a mapitti@gmail.com (confirmado por Marcos) y se revocó sin aceptarla.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] Existe una única función de servidor para mandar notificaciones del sistema por correo, y recibe los destinatarios de forma explícita. Las alertas del sistema, los avisos de `webhook_alerts` y entre ellos el silencio del canal de F39, van a Owner y Admin; los avisos de una acción van a quien la hizo. Su primer uso son los avisos de `webhook_alerts`",
+    "destino": "reescrito",
+    "nuevo": "- [x] Existe una única función de servidor para mandar notificaciones del sistema por correo, y recibe los destinatarios de forma explícita. Las alertas del sistema, los avisos de `webhook_alerts` y entre ellos el silencio del canal de F39, van a Owner y Admin; los avisos de una acción van a quien la hizo. Su primer uso son los avisos de `webhook_alerts`",
+    "motivo": "Tildado: Cumplido el 07/10/2026. `enviarCorreo` en `lib/correo.ts`, con destinatarios explícitos; `notificarAlerta` manda a Owner y Admin, y es su primer uso.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] **Control positivo:** se inserta una alerta en `webhook_alerts` y llega el correo",
+    "destino": "reescrito",
+    "nuevo": "- [x] **Control positivo:** se inserta una alerta en `webhook_alerts` y llega el correo",
+    "motivo": "Tildado: Cumplido el 07/10/2026. `scripts/verify-correo-alertas.mjs`, 17 de 17: el receptor real abrió `webhook_auth_failed` y el correo llegó a alomercadeo@gmail.com (confirmado por Marcos).",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] Techo contra el aluvión: como máximo un correo por tipo de aviso por hora. El aviso sigue registrado donde se originó; lo que se limita es el correo. **El valor es un supuesto inicial**, ajustable cuando haya datos de cuántos avisos llegan",
+    "destino": "reescrito",
+    "nuevo": "- [x] Techo contra el aluvión: como máximo un correo por tipo de aviso por hora. El aviso sigue registrado donde se originó; lo que se limita es el correo. **El valor es un supuesto inicial**, ajustable cuando haya datos de cuántos avisos llegan",
+    "motivo": "Tildado: Cumplido el 07/10/2026. El mismo verificador: la segunda entrega llegó (occurrences 2) y su aviso quedó `omitido_techo`, con un solo correo enviado. Atómico en la base (`reservar_correo_aviso`, 00027).",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] La lista de notificaciones es cerrada: una notificación nueva se escribe primero como criterio de la funcionalidad que la dispara, y usa la función de F23. Hoy son tres: los avisos de `webhook_alerts`, entre ellos la alerta de silencio de F39; el fin de una importación en segundo plano de F37; y la caída de la sesión de WhatsApp de F32, incluido el estado «se agotaron los intentos de vinculación», que va a Owner y Admin (agregado el 07/10/2026, decidido el 06/10/2026)",
+    "destino": "reescrito",
+    "nuevo": "- [x] La lista de notificaciones es cerrada: una notificación nueva se escribe primero como criterio de la funcionalidad que la dispara, y usa la función de F23. Hoy son tres: los avisos de `webhook_alerts`, entre ellos la alerta de silencio de F39; el fin de una importación en segundo plano de F37; y la caída de la sesión de WhatsApp de F32, incluido el estado «se agotaron los intentos de vinculación», que va a Owner y Admin (agregado el 07/10/2026, decidido el 06/10/2026)",
+    "motivo": "Tildado: Cumplido el 07/10/2026. El `check` de `email_log.tipo` (00027) cierra la lista en la base. F37 y F32 suman su tipo cuando se construyan; la función ya está lista para ellas.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] El remitente es el dominio verificado por el negocio en Resend",
+    "destino": "reescrito",
+    "nuevo": "- [x] El remitente es el dominio verificado por el negocio en Resend",
+    "motivo": "Tildado: Cumplido el 07/10/2026. Los dos correos de prueba salieron de `avisos@notificaciones.alomercadeo.com`.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] Si falla un envío, se registra el error y se reintenta hasta 3 veces",
+    "destino": "reescrito",
+    "nuevo": "- [x] Si falla un envío, se registra el error y se reintenta hasta 3 veces",
+    "motivo": "Tildado: Cumplido el 07/10/2026. Hasta 3 reintentos después del primer intento, con la misma clave de idempotencia, probados con respuestas simuladas (`lib/correo.test.ts`). En producción no hubo ningún fallo que reintentar.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] Los correos enviados quedan registrados para poder consultarlos",
+    "destino": "reescrito",
+    "nuevo": "- [x] Los correos enviados quedan registrados para poder consultarlos",
+    "motivo": "Tildado: Cumplido el 07/10/2026. `email_log` (00027) y la pestaña «Correos enviados» de Configuración.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] Cierra una deuda del Bloque 1: la invitación deja de depender de copiar un link a mano",
+    "destino": "reescrito",
+    "nuevo": "- [x] Cierra una deuda del Bloque 1: la invitación deja de depender de copiar un link a mano",
+    "motivo": "Tildado: Cumplido el 07/10/2026. La invitación sale por correo; el link queda solo de respaldo.",
+    "fecha": "2026-10-07"
   }
 ]
