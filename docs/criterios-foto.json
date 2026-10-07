@@ -654,7 +654,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F23: Email saliente vía Resend"
     ],
-    "texto": "- [ ] La lista de notificaciones es cerrada: una notificación nueva se escribe primero como criterio de la funcionalidad que la dispara, y usa la función de F23. Hoy son dos: los avisos de `webhook_alerts`, entre ellos la alerta de silencio de F39, y el fin de una importación en segundo plano de F37"
+    "texto": "- [ ] La lista de notificaciones es cerrada: una notificación nueva se escribe primero como criterio de la funcionalidad que la dispara, y usa la función de F23. Hoy son tres: los avisos de `webhook_alerts`, entre ellos la alerta de silencio de F39; el fin de una importación en segundo plano de F37; y la caída de la sesión de WhatsApp de F32, incluido el estado «se agotaron los intentos de vinculación», que va a Owner y Admin (agregado el 07/10/2026, decidido el 06/10/2026)"
   },
   {
     "seccion": "F23: Email saliente vía Resend",
@@ -1710,6 +1710,33 @@
     "texto": "- [ ] Si la sesión está caída, la bandeja lo indica de forma visible. Una bandeja silenciosa no puede parecer un día tranquilo"
   },
   {
+    "seccion": "F32: Estado de sesión del canal y reconexión",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F32: Estado de sesión del canal y reconexión"
+    ],
+    "texto": "- [ ] Cuando la sesión de WhatsApp pasa a caída o a «se agotaron los intentos de vinculación», se envía un correo a Owner y Admin por la función única de notificaciones de F23, con el techo de un correo por tipo de aviso por hora. Motivo: la pantalla de canales solo avisa a quien la mira, y una caída de noche se notaba recién a la mañana."
+  },
+  {
+    "seccion": "F32: Estado de sesión del canal y reconexión",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F32: Estado de sesión del canal y reconexión"
+    ],
+    "texto": "- [ ] Un estado «no se pudo verificar» no manda correo: no es una caída."
+  },
+  {
+    "seccion": "F32: Estado de sesión del canal y reconexión",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F32: Estado de sesión del canal y reconexión"
+    ],
+    "texto": "- [ ] Control positivo: con la sesión forzada a caída en un entorno de prueba, el correo queda registrado; con la sesión en «no se pudo verificar», no."
+  },
+  {
     "seccion": "F33: Reglas de seguridad de secuencia",
     "ruta": [
       "5. Funcionalidades y criterios de aceptación",
@@ -1932,6 +1959,51 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
+    "texto": "- [ ] Filtro por seguimiento, sobre next_followup_date del contacto, con cuatro opciones; se elige una a la vez: «Vence hoy», «Vence esta semana», «Vencido» y «Rango de fechas»."
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] «Vence hoy»: fecha igual a hoy. «Vence esta semana»: desde hoy hasta el domingo de esta semana, inclusive; no incluye los vencidos. «Vencido»: fecha anterior a hoy. «Rango de fechas»: entre dos fechas elegidas, inclusive. Los contactos sin fecha no aparecen en ninguna opción. La semana va de lunes a domingo (supuesto ajustable)."
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] «Hoy» se calcula en la zona horaria del negocio (America/Costa_Rica), no en UTC."
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] Control positivo de bordes, con el reloj fijado a las 18:30 de Costa Rica (00:30 UTC del día siguiente): un contacto con fecha de hoy aparece en «Vence hoy» y en «Vence esta semana», y no en «Vencido»; uno con fecha de ayer aparece en «Vencido»; uno con fecha de mañana no aparece en «Vence hoy» y sí en «Vence esta semana», salvo que hoy sea domingo."
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] Si el contacto tiene más de una conversación, el filtro muestra todas."
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
     "texto": "- [ ] Filtros combinables, reflejados en la dirección de la página para poder compartirla, con contador y botón de limpiar"
   },
   {
@@ -1942,6 +2014,42 @@
       "F35: Bandeja y filtros"
     ],
     "texto": "- [ ] Búsqueda de texto dentro de los mensajes, que ahora es posible porque están guardados"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] En el panel de datos del contacto de la bandeja hay un selector de próximo seguimiento con las opciones «En 3 días», «En 7 días», «En 14 días», «Otra fecha» y «Quitar». Escribe next_followup_date sin abrir la ficha ni ninguna ventana."
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] Los días se cuentan desde hoy en la zona horaria del negocio (America/Costa_Rica)."
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] El cambio queda en el historial de auditoría como contacto editado, con el valor anterior y el nuevo."
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] Control positivo: fijar «En 3 días» desde la bandeja hace que la conversación aparezca en el filtro «Rango de fechas» de ese día sin recargar; «Quitar» la saca de todas las opciones del filtro."
   },
   {
     "seccion": "F36: Respuestas rápidas",
@@ -2265,7 +2373,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F40: Ventana de conversación de Instagram"
     ],
-    "texto": "- [ ] Con la ventana cerrada, el campo se deshabilita y se explica por qué, sin ofrecer alternativa, porque en Instagram no hay plantillas"
+    "texto": "- [ ] Con la ventana cerrada, el campo se deshabilita y el mensaje dice «Pasaron 24 horas desde el último mensaje: escribile desde la app de Instagram». Motivo: la ventana limita los envíos por la API, no los que se hacen desde la app, y lo que se escribe desde la app llega a la bandeja por el echo (medido el 21/09/2026)."
   },
   {
     "seccion": "F40: Ventana de conversación de Instagram",
@@ -2472,7 +2580,7 @@
       "Apéndice: plan B, escrito y sin construir",
       "F6c: Ventana de conversación"
     ],
-    "texto": "- [ ] Con la ventana **cerrada en Instagram**, el campo se deshabilita y se explica por qué, sin ofrecer alternativa"
+    "texto": "- [ ] Con la ventana **cerrada en Instagram**, el campo se deshabilita y el mensaje dice «Pasaron 24 horas desde el último mensaje: escribile desde la app de Instagram»"
   },
   {
     "seccion": "F6c: Ventana de conversación",

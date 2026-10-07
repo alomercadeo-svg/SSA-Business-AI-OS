@@ -308,6 +308,26 @@ Límite que conviene saber: el identificador del build no dice qué commit sirve
 - **Recuento repetido a las 20:29:10, a pedido de Marcos y después del despliegue de `c11dc79`:** igual a los anteriores. 2 canales, Evolution 1 activo y Zernio 1 activo (@alomercadeo), los dos con `excede_plan_zernio` en false. El script del recuento se rearmó idéntico para esta corrida y se borró después, junto con la copia de respaldo de las mutaciones.
 - **"Sincronizar" queda liberado** con el despliegue del arreglo verificado y este recuento.
 - **Para la apertura de la próxima sesión:** anotar acá el hash del commit que cierra este registro y el resultado de su corrida de `scripts/verificar-despliegue.mjs`, que se hace después de escribirlo.
+- **Completado en la apertura del 7 de octubre.** El commit que cierra este registro es `df71dd6` (verificado con `git log`: 06/10/2026 20:30:51, hora de Costa Rica). Se subió con `scripts/verificar-despliegue.mjs`, que salió con 0: el build pasó de `wHIQAfQ7Gf8e9xp4eJocw` a `p8L-TcF8n62KmMe0OLRYB` a los 114 segundos. **Esos tres números salen de la memoria que dejó la sesión del 6/10 al cerrar, no del repo.** Al abrir el 07/10, `/login` respondió 200 con el build `p8L-TcF8n62KmMe0OLRYB`, el mismo.
+- **Railway, dicho por Marcos:** el 07/10 a las 10:48 revisó el historial de despliegues. ACTIVE: `df71dd6`, "Deployment successful". REMOVED: `c11dc79` y `5bcbf30` (6/10), `74f25d9` y `8c05383` (5/10). Ningún FAILED ni SKIPPED. `1283e28` y `185c3df` no tienen despliegue propio porque subieron en el mismo push que `5bcbf30`.
+
+---
+
+## Sesión del 7 de octubre de 2026
+
+**Apertura:** sin commits sin subir; el último era `df71dd6`. Se completó el registro de la sesión del 6/10 (arriba). Una sola tarea: escribir en el plano cuatro decisiones del 6 de octubre, tomadas con Marcos. Sin código de la aplicación.
+
+**Qué cambió en el plano.** Está contado en §0, "Y qué cambió el 6 de octubre". En corto: F40 y F6c mandan a la app de Instagram con la ventana cerrada; F35 suma el filtro por seguimiento y el selector de próximo seguimiento en el panel del contacto; F32 manda correo a Owner y Admin cuando la sesión de WhatsApp se cae, y ese tipo de aviso entra en la lista cerrada de F23. Tres criterios reescritos, registrados en `docs/criterios-bajas.json` (F40, F6c y F23), y doce agregados (3 en F32 y 9 en F35). La foto quedó en 307 líneas de criterio. F25 a F31, F39 y F41 no se tocaron: `next_followup_date` ya era `date` en §7.1, y F31 ya audita "contacto editado".
+
+**El botón «Escribir por WhatsApp» no se escribió: la bandeja no puede iniciar una conversación de WhatsApp.** Verificado en el código. `app/api/v1/messages/route.ts:142` corta sin `late_conversation_id`, `:150` sin `late_account_id`, y `:167` es el único envío, por Zernio; el motor de flujos tiene la misma guarda (`lib/flow-engine/engine.ts:883-885`); y las conversaciones se crean solo en tres lugares, los tres de Zernio. El detalle y lo que haría falta están en §15 del plano.
+
+**Dos huecos, anotados en §15 del plano para decidir:** que ningún criterio cubre el envío de WhatsApp desde la bandeja, y que F27 no exige guardar los echos de `message.sent`, de los que depende el criterio nuevo de F40.
+
+**Un tercero, que queda solo acá porque no contradice ningún criterio: Realtime no publica `contacts`.** Solo están `conversations` y `messages` (`00001_initial_schema.sql:274-275`) e `integration_configs` (`00024_integration_configs.sql:96`). El control positivo del selector ("aparece en el filtro sin recargar") se cumple en la pantalla de quien hace el cambio; en otra pantalla abierta, no, hasta recargar. Si alguna vez hace falta, es una decisión aparte.
+
+**Tests:** `npm test` da 367 de 367, con cero errores de tipos.
+
+**Para la apertura de la próxima sesión:** anotar acá el hash del commit que cierra este registro, la salida de su corrida de `scripts/verificar-despliegue.mjs` y lo que Marcos vea en el historial de despliegues de Railway.
 
 ---
 

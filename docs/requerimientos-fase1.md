@@ -6,7 +6,7 @@
 
 **Versión:** 2.0, regenerada tras el cambio de canal de WhatsApp
 **Fecha:** 16 de septiembre de 2026
-**Revisión:** 23 de septiembre de 2026, devolución de los criterios que perdió la conciliación y definiciones de F23 y F24. La anterior, del 17 de septiembre, sumó la migración desde Pipedrive y la decisión de Calendly
+**Revisión:** 7 de octubre de 2026, con las decisiones del 6 de octubre: seguimiento desde la bandeja, F40 sale por la app de Instagram y correo de caída de WhatsApp. La anterior, del 23 de septiembre, devolvió los criterios que perdió la conciliación y definió F23 y F24; la del 17 de septiembre sumó la migración desde Pipedrive y la decisión de Calendly
 **Cliente:** negocio de servicios digitales (single-tenant)
 
 > Este documento cubre la Fase 1 completa, de los bloques 1 a 4, y reemplaza a los dos planos que convivían hasta el 21 de septiembre de 2026. El Bloque 1 está construido, probado y publicado, y se conserva acá especificado porque el plano tiene que describir la fase entera y no solo lo que falta. El registro de lo construido está en `docs/estado-fase1.md`, y las decisiones con su razonamiento en los documentos del proyecto.
@@ -63,6 +63,24 @@ Tres decisiones sobre el modelo de contacto y la pantalla de integraciones. Se t
 **Se definieron dos mecanismos que estaban abiertos.** El tiempo real del estado de las integraciones (F24, `0ea2456`): se detecta al abrir la pantalla y cuando una operación real falla, sin tarea periódica. Y las notificaciones del sistema (F23, `997fdaf` y `a01a8cb`): una función única, con destinatarios explícitos, techo contra el aluvión y lista cerrada.
 
 **Desconectar un canal nunca borra el historial** (F24, `0107e75`). La ruta heredada del fork que borraba el canal en cascada se reemplaza antes de habilitar cualquier botón de desconexión, y los dos que había quedaron deshabilitados en producción.
+
+### Y qué cambió el 6 de octubre
+
+Cuatro decisiones tomadas ese día con Marcos y escritas acá el 7 de octubre. Las motiva un dato nuevo sobre Instagram y la forma en que el negocio hace el seguimiento.
+
+**El dato nuevo.** La ventana de 24 horas de Instagram limita lo que se envía por la API. Lo que el negocio escribe desde la app de Instagram no tiene esa restricción. **Fuente: la documentación de keyCRM** ([Response timeframes on Facebook and Instagram](https://help.keycrm.app/en/communications-sms-email-instagram-telegram-viber-marketplace-chats-telephony/response-timeframes-on-facebook-and-instagram)). **No está verificado contra la documentación oficial de Meta.** Lo que se escribe desde la app llega a la bandeja por el echo de `message.sent`, que se midió el 21 de septiembre de 2026 (ver F27).
+
+**La forma del seguimiento.** Los leads de pauta escriben por Instagram, y el WhatsApp normalmente se obtiene al agendar la reunión. O sea que el seguimiento previo a la reunión se hace a mano desde la app de Instagram, y hace falta ver a quién le toca y fijar la fecha sin salir de la conversación.
+
+**F40 y F6c: con la ventana cerrada, la bandeja manda a la app de Instagram.** El campo se sigue deshabilitando, pero ya no dice "sin alternativa": el mensaje es «Pasaron 24 horas desde el último mensaje: escribile desde la app de Instagram». F6c, en el apéndice del plan B, se alineó igual, porque la app de Instagram no depende de qué API use WhatsApp.
+
+**F35: filtro por seguimiento.** Sobre `next_followup_date`, con cuatro opciones: «Vence hoy», «Vence esta semana», «Vencido» y «Rango de fechas», con "hoy" calculado en la zona horaria del negocio (America/Costa_Rica) y su control positivo de bordes.
+
+**F35: selector de próximo seguimiento en el panel del contacto de la bandeja.** «En 3 días», «En 7 días», «En 14 días», «Otra fecha» y «Quitar», sin abrir la ficha ni ninguna ventana, y auditado como contacto editado.
+
+**F32 y F23: correo cuando WhatsApp se cae.** Una caída de la sesión, o «se agotaron los intentos de vinculación», manda correo a Owner y Admin por la función única de F23, con su techo. La pantalla de canales solo avisa a quien la mira, y una caída de noche se notaba recién a la mañana. Un estado «no se pudo verificar» no manda correo. El tipo de aviso se sumó a la lista cerrada de F23.
+
+**Lo que no se escribió.** Un botón «Escribir por WhatsApp» junto al mensaje de la ventana cerrada, que dependía de que la bandeja pudiera iniciar una conversación de WhatsApp. No puede: verificado en el código el 7 de octubre. El detalle y lo que haría falta están en §15, junto con el otro hueco que apareció ese día, el de los echos en F27.
 
 ### La objeción a Evolution, y por qué ya no aplica
 
@@ -468,7 +486,7 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 - [ ] Existe una única función de servidor para mandar notificaciones del sistema por correo, y recibe los destinatarios de forma explícita. Las alertas del sistema, los avisos de `webhook_alerts` y entre ellos el silencio del canal de F39, van a Owner y Admin; los avisos de una acción van a quien la hizo. Su primer uso son los avisos de `webhook_alerts`
 - [ ] **Control positivo:** se inserta una alerta en `webhook_alerts` y llega el correo
 - [ ] Techo contra el aluvión: como máximo un correo por tipo de aviso por hora. El aviso sigue registrado donde se originó; lo que se limita es el correo. **El valor es un supuesto inicial**, ajustable cuando haya datos de cuántos avisos llegan
-- [ ] La lista de notificaciones es cerrada: una notificación nueva se escribe primero como criterio de la funcionalidad que la dispara, y usa la función de F23. Hoy son dos: los avisos de `webhook_alerts`, entre ellos la alerta de silencio de F39, y el fin de una importación en segundo plano de F37
+- [ ] La lista de notificaciones es cerrada: una notificación nueva se escribe primero como criterio de la funcionalidad que la dispara, y usa la función de F23. Hoy son tres: los avisos de `webhook_alerts`, entre ellos la alerta de silencio de F39; el fin de una importación en segundo plano de F37; y la caída de la sesión de WhatsApp de F32, incluido el estado «se agotaron los intentos de vinculación», que va a Owner y Admin (agregado el 07/10/2026, decidido el 06/10/2026)
 - [ ] El remitente es el dominio verificado por el negocio en Resend
 - [ ] Si falla un envío, se registra el error y se reintenta hasta 3 veces
 - [ ] Los correos enviados quedan registrados para poder consultarlos
@@ -880,6 +898,9 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [ ] Se contempla el estado de "se agotaron los intentos de vinculación", que significa empezar de nuevo
 - [ ] Botón de reconectar que muestra el código QR cuando corresponde. No siempre puede entregarlo, porque depende del estado actual, y eso se explica en pantalla
 - [ ] Si la sesión está caída, la bandeja lo indica de forma visible. Una bandeja silenciosa no puede parecer un día tranquilo
+- [ ] Cuando la sesión de WhatsApp pasa a caída o a «se agotaron los intentos de vinculación», se envía un correo a Owner y Admin por la función única de notificaciones de F23, con el techo de un correo por tipo de aviso por hora. Motivo: la pantalla de canales solo avisa a quien la mira, y una caída de noche se notaba recién a la mañana.
+- [ ] Un estado «no se pudo verificar» no manda correo: no es una caída.
+- [ ] Control positivo: con la sesión forzada a caída en un entorno de prueba, el correo queda registrado; con la sesión en «no se pudo verificar», no.
 
 #### F33: Reglas de seguridad de secuencia
 
@@ -931,8 +952,17 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [ ] Filtro por estado de ventana solo para Instagram, que es donde la ventana existe
 - [ ] Filtro por estado de ventana de Instagram: abierta, cerrada, o por vencer en menos de 2 horas (devuelto el 23/09/2026, auditoría #80b)
 - [ ] Filtro por "teléfono sin resolver", para poder trabajar esa cola
+- [ ] Filtro por seguimiento, sobre next_followup_date del contacto, con cuatro opciones; se elige una a la vez: «Vence hoy», «Vence esta semana», «Vencido» y «Rango de fechas».
+- [ ] «Vence hoy»: fecha igual a hoy. «Vence esta semana»: desde hoy hasta el domingo de esta semana, inclusive; no incluye los vencidos. «Vencido»: fecha anterior a hoy. «Rango de fechas»: entre dos fechas elegidas, inclusive. Los contactos sin fecha no aparecen en ninguna opción. La semana va de lunes a domingo (supuesto ajustable).
+- [ ] «Hoy» se calcula en la zona horaria del negocio (America/Costa_Rica), no en UTC.
+- [ ] Control positivo de bordes, con el reloj fijado a las 18:30 de Costa Rica (00:30 UTC del día siguiente): un contacto con fecha de hoy aparece en «Vence hoy» y en «Vence esta semana», y no en «Vencido»; uno con fecha de ayer aparece en «Vencido»; uno con fecha de mañana no aparece en «Vence hoy» y sí en «Vence esta semana», salvo que hoy sea domingo.
+- [ ] Si el contacto tiene más de una conversación, el filtro muestra todas.
 - [ ] Filtros combinables, reflejados en la dirección de la página para poder compartirla, con contador y botón de limpiar
 - [ ] Búsqueda de texto dentro de los mensajes, que ahora es posible porque están guardados
+- [ ] En el panel de datos del contacto de la bandeja hay un selector de próximo seguimiento con las opciones «En 3 días», «En 7 días», «En 14 días», «Otra fecha» y «Quitar». Escribe next_followup_date sin abrir la ficha ni ninguna ventana.
+- [ ] Los días se cuentan desde hoy en la zona horaria del negocio (America/Costa_Rica).
+- [ ] El cambio queda en el historial de auditoría como contacto editado, con el valor anterior y el nuevo.
+- [ ] Control positivo: fijar «En 3 días» desde la bandeja hace que la conversación aparezca en el filtro «Rango de fechas» de ese día sin recargar; «Quitar» la saca de todas las opciones del filtro.
 
 > **Medido el 22 de septiembre de 2026: la bandeja muestra 50 conversaciones de 200, y el buscador busca solo en esas 50 sin avisar que hay más.** Los criterios no se cambiaron: la propuesta está pendiente de decisión.
 >
@@ -1068,11 +1098,13 @@ El argumento decisivo es la asimetría del error: **dejar afuera es irreversible
 - [ ] En la bandeja, cada conversación muestra un indicador del estado de la ventana: abierta con el tiempo restante, o cerrada
 - [ ] La ficha del contacto muestra cada conversación de Instagram con su propio estado de ventana (devuelto el 23/09/2026, auditoría #56b y #64b)
 - [ ] Con la ventana abierta, el campo de respuesta acepta texto libre normalmente
-- [ ] Con la ventana cerrada, el campo se deshabilita y se explica por qué, sin ofrecer alternativa, porque en Instagram no hay plantillas
+- [ ] Con la ventana cerrada, el campo se deshabilita y el mensaje dice «Pasaron 24 horas desde el último mensaje: escribile desde la app de Instagram». Motivo: la ventana limita los envíos por la API, no los que se hacen desde la app, y lo que se escribe desde la app llega a la bandeja por el echo (medido el 21/09/2026).
 - [ ] Un mensaje que falla por ventana expirada muestra un error claro en la interfaz, no un error genérico
 - [ ] La respuesta privada a un comentario se permite hasta 7 días desde el comentario, una sola vez por comentario, y el sistema lo controla con `comment_logs`
 - [ ] **Control positivo:** con una conversación cuya ventana está abierta, el envío funciona. Probar solo el bloqueo no distingue entre estar bien implementado y estar todo deshabilitado
 - [ ] Los campos se agregan igual para WhatsApp aunque no se usen, porque son los mismos que necesita el plan B. Ver el apéndice del plan B
+
+> **De dónde sale que la app no tiene ventana, y cuánto vale.** Que la ventana de 24 horas limita los envíos por la API y no los que se hacen desde la app de Instagram sale de la documentación de keyCRM ([Response timeframes on Facebook and Instagram](https://help.keycrm.app/en/communications-sms-email-instagram-telegram-viber-marketplace-chats-telephony/response-timeframes-on-facebook-and-instagram)). **No está verificado contra la documentación oficial de Meta.** Que lo escrito desde la app llega por el echo de `message.sent` sí está medido, el 21/09/2026, en F27. Decidido el 06/10/2026; ver §0.
 
 
 ### Apéndice: plan B, escrito y sin construir
@@ -1127,7 +1159,7 @@ Las funcionalidades conservan la numeración del documento original, F6, F6b y F
 - [ ] La ficha del contacto muestra cada conversación con su propio estado de ventana (devuelto el 23/09/2026, auditoría #56b y #64b)
 - [ ] Con la ventana **abierta**, el campo de respuesta acepta texto libre normalmente
 - [ ] Con la ventana **cerrada en WhatsApp**, el campo de texto libre se deshabilita y se ofrece un selector de plantillas aprobadas, indicando el costo estimado
-- [ ] Con la ventana **cerrada en Instagram**, el campo se deshabilita y se explica por qué, sin ofrecer alternativa
+- [ ] Con la ventana **cerrada en Instagram**, el campo se deshabilita y el mensaje dice «Pasaron 24 horas desde el último mensaje: escribile desde la app de Instagram»
 - [ ] Un mensaje que falla por ventana expirada muestra un error claro en la interfaz, no un error genérico
 - [ ] La respuesta privada a un comentario de Instagram se permite hasta 7 días desde el comentario, una sola vez por comentario, y el sistema lo controla con `comment_logs`
 
@@ -1924,6 +1956,14 @@ No se deciden leyendo documentación. Se instrumentan y se miran.
 - **Resuelto el 23/09/2026: el mecanismo del tiempo real del estado de las integraciones, para F24.** Se detecta al abrir la pantalla y cuando una operación real falla, se guarda en `integration_configs` y llega por Realtime. No hay tarea periódica: detectar una caída cuando nadie mira es de F39. La definición, los controles y el costo aceptado están en F24. Este hueco se había anotado acá cuando el criterio volvió sin mecanismo (auditoría #32).
 - **La pantalla de importación no está especificada, ni para F37 ni para F38.** La sección 11 no la tiene: el Bloque 4 documenta bandeja, canales y configuración del canal de WhatsApp, y ninguna pantalla de importación. El hueco es anterior a F38, pero F38 lo vuelve urgente, porque pide que esa pantalla permita cambiar el código de país por defecto para una importación puntual. **Hay que especificarla antes de construir el Bloque 4**, o esa decisión se va a tomar mientras se escribe el código, que es exactamente donde termina siendo una constante cableada.
 - **Otro hueco de la pantalla de importación, sin resolver (anotado el 23/09/2026).** Un Member puede importar (§3), pero un Member que importa contactos sin asignarse no los ve después: los contactos sin asignar los ven solo Owner y Admin, que es el valor por defecto de la configuración del espacio de trabajo en F3. Se decide al especificar la pantalla.
+- **Hueco, sin resolver (anotado el 07/10/2026): el plano no tiene ningún criterio de envío de WhatsApp desde la bandeja.** Verificado en el código ese día. El único envío de la bandeja es por Zernio: `POST /api/v1/messages` corta si la conversación no tiene `late_conversation_id` (`app/api/v1/messages/route.ts:142`) o si el canal no tiene `late_account_id` (`:150`), y manda con `zernio.messages.sendInboxMessage` (`:167`). Un canal de Evolution no tiene ninguno de los dos. El motor de flujos tiene la misma guarda (`lib/flow-engine/engine.ts:883-885`). Y la bandeja no crea conversaciones: se crean solo en `app/api/webhooks/late/route.ts:281`, `lib/comment-processor.ts:197` y `lib/inbox-sync.ts:255`, los tres de Zernio. §4.1 dice que el Bloque 2 no manda mensajes reales, y ninguna funcionalidad posterior especifica el envío. **Consecuencia:** cuando se vincule el número de WhatsApp, que va después de F27 y F32, la bandeja leería WhatsApp y no podría contestarlo. Lo que haría falta:
+  1. Un envío saliente por Evolution, en el servidor, con la clave de la instancia leída de Vault.
+  2. Crear la conversación y su `contact_channels` de WhatsApp desde la bandeja, con el identificador armado a partir del teléfono en E.164, sin duplicar la que va a crear F27 cuando el lead conteste.
+  3. Que Evolution acepte un primer mensaje a un número sin chat previo. **No verificado:** no se leyó en el código de Evolution ni en `docs/investigacion-evolution-api.md`.
+  4. El orden: nada de esto sirve antes de F27, F32 y el número vinculado.
+
+  Es también lo que haría falta para el botón «Escribir por WhatsApp» que se pensó para F40 el 06/10/2026 y no se escribió (ver §0). Pendiente de decisión con Marcos antes de escribir en el plano las pantallas del prototipo aprobado el 06/10/2026 (§11).
+- **Hueco, sin resolver (anotado el 07/10/2026): F27 no exige guardar los echos de `message.sent`.** El receptor de Zernio los descarta a propósito (`app/api/webhooks/late/route.ts:190`, `reason: "outgoing"`). Hoy no se nota porque la bandeja lee de Zernio. Cuando F27 haga que la bandeja lea de la base, lo que el negocio escribe desde la app de Instagram dejaría de verse, y el criterio de F40 reescrito el 07/10/2026 manda justamente a escribir desde la app. La nota de F27 sobre el echo ya lo llama una dependencia, pero ningún criterio lo exige. No se agrega a F27 ahora porque es la línea de base del Bloque 3. Pendiente de decisión antes de empezar a construir F27.
 - El número dedicado de WhatsApp, todavía en trámite. No bloquea el Bloque 2 ni el 3, pero sí la conexión en vivo.
 - Verificación del negocio en Meta: **no hecha**. No bloquea nada del camino principal; sirve para el plan B, donde levanta el tope de 250 contactos únicos cada 24 horas. Se comprueba en Business Manager.
 

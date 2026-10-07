@@ -89,5 +89,26 @@
     "nuevo": "- [ ] Desconectar nunca borra conversaciones ni mensajes: marca el canal como inactivo y conserva el historial. Motivo: es una decisión cerrada del proyecto que el historial viva en la base local, y migrar sin historial no es migrar. La ruta heredada `DELETE /api/v1/channels/[channelId]`, que borra la fila del canal y en cascada sus conversaciones y mensajes, se reemplaza antes de volver a habilitar el botón de la pantalla de Canales, deshabilitado desde `5a9e2af` (agregado el 23/09/2026). **Cumplido el 05/10/2026, y la protección vive en la base:** la ruta responde 405 (`96494a7`), la migración 00025 pasa a NO ACTION las claves de `channel_id` de las seis tablas con historia (`ff737db`; NO ACTION y no RESTRICT, para no trabar el borrado de un workspace entero), y la pantalla de Canales ya no tiene botón de borrar y manda a Integraciones (`0c29097`). La 00025 se aplicó el 05/10/2026, y `scripts/verify-channels-restrict.mjs` pasó 10 de 10 en un workspace de prueba propio: borrar un canal con conversación y mensaje falla y los dos siguen, un canal sin historia se borra, y borrar un workspace entero funciona y no deja nada",
     "motivo": "La 00025 se aplicó el 05/10/2026 y el verificador pasó: el criterio deja de decir que espera la aprobación.",
     "fecha": "2026-10-05"
+  },
+  {
+    "texto": "- [ ] Con la ventana cerrada, el campo se deshabilita y se explica por qué, sin ofrecer alternativa, porque en Instagram no hay plantillas",
+    "destino": "reescrito",
+    "nuevo": "- [ ] Con la ventana cerrada, el campo se deshabilita y el mensaje dice «Pasaron 24 horas desde el último mensaje: escribile desde la app de Instagram». Motivo: la ventana limita los envíos por la API, no los que se hacen desde la app, y lo que se escribe desde la app llega a la bandeja por el echo (medido el 21/09/2026).",
+    "motivo": "Decidido el 06/10/2026 con Marcos (ver §0): la ventana de 24 horas limita los envíos por la API y no los que se hacen desde la app de Instagram (fuente: keyCRM, no verificado contra la documentación oficial de Meta), y lo escrito desde la app llega a la bandeja por el echo medido el 21/09/2026. El mensaje manda a la app en vez de no ofrecer alternativa.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] Con la ventana **cerrada en Instagram**, el campo se deshabilita y se explica por qué, sin ofrecer alternativa",
+    "destino": "reescrito",
+    "nuevo": "- [ ] Con la ventana **cerrada en Instagram**, el campo se deshabilita y el mensaje dice «Pasaron 24 horas desde el último mensaje: escribile desde la app de Instagram»",
+    "motivo": "Alineado con F40, decidido el 06/10/2026 (ver §0): la app de Instagram no depende de qué API use WhatsApp, así que en el plan B vale lo mismo.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] La lista de notificaciones es cerrada: una notificación nueva se escribe primero como criterio de la funcionalidad que la dispara, y usa la función de F23. Hoy son dos: los avisos de `webhook_alerts`, entre ellos la alerta de silencio de F39, y el fin de una importación en segundo plano de F37",
+    "destino": "reescrito",
+    "nuevo": "- [ ] La lista de notificaciones es cerrada: una notificación nueva se escribe primero como criterio de la funcionalidad que la dispara, y usa la función de F23. Hoy son tres: los avisos de `webhook_alerts`, entre ellos la alerta de silencio de F39; el fin de una importación en segundo plano de F37; y la caída de la sesión de WhatsApp de F32, incluido el estado «se agotaron los intentos de vinculación», que va a Owner y Admin (agregado el 07/10/2026, decidido el 06/10/2026)",
+    "motivo": "Se suma a la lista cerrada el correo de caída de la sesión de WhatsApp de F32, con destino Owner y Admin, decidido el 06/10/2026 (ver §0). Los otros dos tipos no cambian.",
+    "fecha": "2026-10-07"
   }
 ]
