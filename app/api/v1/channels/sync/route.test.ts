@@ -203,12 +203,18 @@ describe("3. Una cuenta de un perfil que excede el límite del plan", () => {
     );
   });
 
-  it("la cuenta que no excede no queda marcada", async () => {
+  // "A no quedó marcada" es una comprobación por ausencia: contra una ruta que
+  // no marca nunca nada se cumple sola. Por eso exige primero la presencia, que
+  // B sí quedó marcada en la misma corrida. Corregido el 06/10/2026: la primera
+  // versión de este test solo miraba la ausencia y daba verde contra la ruta
+  // vieja, que no escribía la marca para ninguna cuenta.
+  it("la cuenta que no excede no queda marcada, en la misma corrida que marca a la que sí", async () => {
     await POST();
 
-    expect(
-      h.escrituras.some((e) => e.id === "ch-a" && e.valores.excede_plan_zernio === true),
-    ).toBe(false);
+    const marcadas = h.escrituras
+      .filter((e) => e.tabla === "channels" && e.valores.excede_plan_zernio === true)
+      .map((e) => e.id);
+    expect(marcadas).toEqual(["ch-b"]);
   });
 });
 
