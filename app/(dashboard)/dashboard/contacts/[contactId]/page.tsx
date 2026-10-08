@@ -8,15 +8,20 @@ import {
   CheckCircle,
   XCircle,
   MessageSquare,
+  Phone,
 } from "lucide-react";
 import { PlatformIcon } from "@/components/platform-icon";
+import { TelefonoSinResolver } from "@/components/contacts/telefono-sin-resolver";
 
 export default async function ContactDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ contactId: string }>;
+  searchParams: Promise<{ unidos?: string }>;
 }) {
   const { contactId } = await params;
+  const { unidos } = await searchParams;
   const { workspace, supabase } = await getWorkspace();
 
   const [contactRes, channelsRes, conversationsRes, customFieldsRes] =
@@ -99,6 +104,17 @@ export default async function ContactDetailPage({
                   {contact.email}
                 </span>
               )}
+              {/* F26: el teléfono, o la marca de que WhatsApp no lo entregó. */}
+              {contact.phone ? (
+                <span className="flex items-center gap-1">
+                  <Phone className="h-3 w-3" />
+                  {contact.phone}
+                </span>
+              ) : !contact.phone_resolved ? (
+                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                  Teléfono sin resolver
+                </span>
+              ) : null}
               <span className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
                 Last active {formatDate(contact.last_interaction_at)}
@@ -117,6 +133,14 @@ export default async function ContactDetailPage({
             </div>
           </div>
         </div>
+
+        {unidos === "1" && (
+          <p className="mt-3 text-sm text-emerald-700 dark:text-emerald-400" role="status">
+            Contactos unidos. Queda en el historial.
+          </p>
+        )}
+
+        {!contact.phone_resolved && <TelefonoSinResolver contactoId={contact.id} />}
 
         {/* Tags */}
         {tags.length > 0 && (

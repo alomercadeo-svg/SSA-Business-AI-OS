@@ -20,8 +20,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
-import { SECRET_NAMES } from "@/lib/vault";
+import { guardarGeneral } from "@/lib/actions/configuracion";
 
 interface WorkspaceSettings {
   id: string;
@@ -121,45 +120,15 @@ export function SettingsView({
     setSaved(false);
 
     try {
-      const supabase = createClient();
-
-      const { error: updateError } = await supabase
-        .from("workspaces")
-        .update({ name: name.trim(), global_keywords: keywords })
-        .eq("id", workspace.id)
-        .select("id")
-        .single();
-
-      if (updateError) {
-        console.error("Settings save error:", updateError);
-        throw new Error(updateError.message);
-      }
-
-      // Las API keys van a Supabase Vault, nunca a una columna. store_secret
-      // solo acepta a Owner y Admin, así que un Member recibe un error de
-      // permisos incluso llamando al RPC a mano.
-      if (apiKey.trim()) {
-        const { error } = await supabase.rpc("store_secret", {
-          secret_name: SECRET_NAMES.zernio,
-          secret_value: apiKey.trim(),
-          workspace_id: workspace.id,
-        });
-        if (error) {
-          console.error("Vault store error (zernio):", error.message);
-          throw new Error(`No se pudo guardar la API key de Zernio: ${error.message}`);
-        }
-      }
-      if (aiKey.trim()) {
-        const { error } = await supabase.rpc("store_secret", {
-          secret_name: SECRET_NAMES.aiGateway,
-          secret_value: aiKey.trim(),
-          workspace_id: workspace.id,
-        });
-        if (error) {
-          console.error("Vault store error (ai gateway):", error.message);
-          throw new Error(`No se pudo guardar la API key de IA: ${error.message}`);
-        }
-      }
+      // F31: el guardado corre en el servidor para quedar en el historial de
+      // cambios con su autor (`lib/actions/configuracion.ts`).
+      const r = await guardarGeneral({
+        nombre: name,
+        palabrasClave: keywords,
+        claveZernio: apiKey,
+        claveIa: aiKey,
+      });
+      if (!r.ok) throw new Error(r.error);
 
       setSaved(true);
       setApiKey("");

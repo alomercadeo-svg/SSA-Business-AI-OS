@@ -29,7 +29,7 @@ export const WORKSPACE_PUBLIC_COLUMNS =
 
 /** Columnas de `channels` que pueden viajar al cliente. Sin `webhook_secret`. */
 export const CHANNEL_PUBLIC_COLUMNS =
-  "id, workspace_id, platform, provider, instance_name, late_account_id, username, display_name, profile_picture, webhook_id, is_active, excede_plan_zernio, last_comment_cursor, comment_rules, created_at, updated_at";
+  "id, workspace_id, platform, provider, instance_name, late_account_id, platform_account_id, username, display_name, profile_picture, webhook_id, is_active, excede_plan_zernio, last_comment_cursor, comment_rules, created_at, updated_at";
 
 /**
  * Columnas de secretos por tabla: PROHIBIDAS fuera del allowlist.

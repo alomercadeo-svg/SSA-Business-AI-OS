@@ -43,6 +43,28 @@ export type EmailTipo = "invitacion" | "alerta_webhook";
  */
 export type EmailEstado = "pendiente" | "enviado" | "fallido" | "omitido_techo" | "omitido_prueba";
 
+/** De dónde salió el nombre del contacto (F25, 00029). `manual` no lo pisa ningún camino automático. */
+export type DisplayNameSource = "provider" | "manual";
+/** Temperatura del lead (F25, 00029). */
+export type LeadTemperature = "frio" | "tibio" | "caliente";
+/** Las 13 etapas del embudo heredado de Pipedrive (§7.1, 00030), carácter por carácter. */
+export type PipelineStage =
+  | "1. Nuevo contacto"
+  | "2. Le escribí"
+  | "3. Respondió"
+  | "4. ¿Es mi cliente?"
+  | "5. Le ofrecí una cita"
+  | "6. Agendó"
+  | "7. Confirmó asistencia"
+  | "8. No llegó"
+  | "9. Reagendó"
+  | "11. Seguimiento intensivo"
+  | "12. En espera de pago"
+  | "13. ¡Cerrada!"
+  | "14. Repesca";
+export type DealStatus = "abierto" | "ganado" | "perdido";
+export type BookingStatus = "sin_agendar" | "agendada" | "asistio" | "no_asistio" | "cancelada";
+
 export type FlowStatus = "draft" | "published" | "archived";
 export type ConversationStatus = "open" | "closed" | "snoozed";
 export type MessageDirection = "inbound" | "outbound";
@@ -176,6 +198,13 @@ export interface Database {
            * es `if (!channel?.late_account_id) return;`.
            */
           late_account_id: string | null;
+          /**
+           * La identidad del canal: el `platformUserId` de la cuenta en Zernio
+           * (F26, 00031). `late_account_id` es la ranura del proveedor, que
+           * Zernio reusa para otra cuenta. Nulo en Evolution y en filas que la
+           * sincronización todavía no observó.
+           */
+          platform_account_id: string | null;
           provider: ChannelProvider;
           instance_name: string | null;
           username: string | null;
@@ -199,6 +228,7 @@ export interface Database {
           workspace_id: string;
           platform: Platform;
           late_account_id?: string | null;
+          platform_account_id?: string | null;
           provider?: ChannelProvider;
           instance_name?: string | null;
           username?: string | null;
@@ -216,6 +246,7 @@ export interface Database {
         Update: {
           platform?: Platform;
           late_account_id?: string | null;
+          platform_account_id?: string | null;
           provider?: ChannelProvider;
           instance_name?: string | null;
           username?: string | null;
@@ -252,6 +283,36 @@ export interface Database {
           /** Asignación: define el scope de lectura del lead para un Member (F3). */
           setter_id: string | null;
           vendedor_id: string | null;
+          // ── F25 (00029) ──
+          /** E.164, con `check` en la base (§14). Puede no existir. */
+          phone: string | null;
+          /** `false` solo cuando WhatsApp entregó el contacto sin número (F26). */
+          phone_resolved: boolean;
+          secondary_email: string | null;
+          country: string | null;
+          whatsapp_phone: string | null;
+          /** Fecha sin hora, `AAAA-MM-DD` (§7.1). */
+          next_followup_date: string | null;
+          do_not_contact: boolean;
+          do_not_contact_reason: string | null;
+          do_not_contact_at: string | null;
+          ai_conversation_summary: string | null;
+          lead_temperature: LeadTemperature | null;
+          /** `{ first_click?, last_click? }`. `first_click` no se sobrescribe nunca (trigger). */
+          attribution: Json;
+          deleted_at: string | null;
+          display_name_source: DisplayNameSource;
+          // ── §7.1, estado comercial y agenda (00030). Sin criterio propio todavía ──
+          pipeline_stage: PipelineStage | null;
+          deal_status: DealStatus | null;
+          deal_value: number | null;
+          deal_currency: string | null;
+          deal_closed_at: string | null;
+          pipedrive_person_id: string | null;
+          pipedrive_deal_id: string | null;
+          booking_status: BookingStatus | null;
+          booking_at: string | null;
+          booking_external_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -266,6 +327,30 @@ export interface Database {
           metadata?: Json | null;
           setter_id?: string | null;
           vendedor_id?: string | null;
+          phone?: string | null;
+          phone_resolved?: boolean;
+          secondary_email?: string | null;
+          country?: string | null;
+          whatsapp_phone?: string | null;
+          next_followup_date?: string | null;
+          do_not_contact?: boolean;
+          do_not_contact_reason?: string | null;
+          do_not_contact_at?: string | null;
+          ai_conversation_summary?: string | null;
+          lead_temperature?: LeadTemperature | null;
+          attribution?: Json;
+          deleted_at?: string | null;
+          display_name_source?: DisplayNameSource;
+          pipeline_stage?: PipelineStage | null;
+          deal_status?: DealStatus | null;
+          deal_value?: number | null;
+          deal_currency?: string | null;
+          deal_closed_at?: string | null;
+          pipedrive_person_id?: string | null;
+          pipedrive_deal_id?: string | null;
+          booking_status?: BookingStatus | null;
+          booking_at?: string | null;
+          booking_external_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -278,6 +363,30 @@ export interface Database {
           metadata?: Json | null;
           setter_id?: string | null;
           vendedor_id?: string | null;
+          phone?: string | null;
+          phone_resolved?: boolean;
+          secondary_email?: string | null;
+          country?: string | null;
+          whatsapp_phone?: string | null;
+          next_followup_date?: string | null;
+          do_not_contact?: boolean;
+          do_not_contact_reason?: string | null;
+          do_not_contact_at?: string | null;
+          ai_conversation_summary?: string | null;
+          lead_temperature?: LeadTemperature | null;
+          attribution?: Json;
+          deleted_at?: string | null;
+          display_name_source?: DisplayNameSource;
+          pipeline_stage?: PipelineStage | null;
+          deal_status?: DealStatus | null;
+          deal_value?: number | null;
+          deal_currency?: string | null;
+          deal_closed_at?: string | null;
+          pipedrive_person_id?: string | null;
+          pipedrive_deal_id?: string | null;
+          booking_status?: BookingStatus | null;
+          booking_at?: string | null;
+          booking_external_id?: string | null;
           updated_at?: string;
         };
         Relationships: [
@@ -297,6 +406,14 @@ export interface Database {
           channel_id: string;
           platform_sender_id: string;
           platform_username: string | null;
+          /**
+           * El identificador tal como llegó, sin transformar (F26, 00031). No
+           * se sobrescribe. Nullable hasta la migración de F27, que le pone
+           * NOT NULL cuando el código que lo escribe ya está desplegado.
+           */
+          raw_jid: string | null;
+          /** Cómo se direccionó en WhatsApp (`pn`, `lid`). Nulo en Instagram. */
+          addressing_mode: string | null;
           created_at: string;
         };
         Insert: {
@@ -305,10 +422,13 @@ export interface Database {
           channel_id: string;
           platform_sender_id: string;
           platform_username?: string | null;
+          raw_jid?: string | null;
+          addressing_mode?: string | null;
           created_at?: string;
         };
         Update: {
           platform_username?: string | null;
+          contact_id?: string;
         };
         Relationships: [
           {
@@ -726,6 +846,8 @@ export interface Database {
           postback_payload: string | null;
           callback_data: string | null;
           platform_message_id: string | null;
+          /** El identificador con que llegó el mensaje (F26, 00031). No se sobrescribe. */
+          remote_jid: string | null;
           sent_by_flow_id: string | null;
           sent_by_node_id: string | null;
           sent_by_user_id: string | null;
@@ -742,6 +864,7 @@ export interface Database {
           postback_payload?: string | null;
           callback_data?: string | null;
           platform_message_id?: string | null;
+          remote_jid?: string | null;
           sent_by_flow_id?: string | null;
           sent_by_node_id?: string | null;
           sent_by_user_id?: string | null;
@@ -1084,6 +1207,38 @@ export interface Database {
           },
         ];
       };
+      /** Historial de auditoría (F31, 00028). Solo inserta el servidor; nunca se edita ni se borra. */
+      audit_log: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          /** Nulo: el Sistema. */
+          actor_id: string | null;
+          actor_label: string;
+          action: string;
+          entity_type: string;
+          entity_id: string | null;
+          entity_label: string | null;
+          changes: Json;
+          detail: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          actor_id?: string | null;
+          actor_label: string;
+          action: string;
+          entity_type: string;
+          entity_id?: string | null;
+          entity_label?: string | null;
+          changes?: Json;
+          detail?: Json;
+          created_at?: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       email_log: {
         Row: {
           id: string;
@@ -1284,6 +1439,21 @@ export interface Database {
       [_ in never]: never;
     };
     Functions: {
+      /** F26 (00031). Carga el teléfono o devuelve el conflicto sin escribir. */
+      reconciliar_telefono: {
+        Args: { p_contacto: string; p_telefono: string; p_via: "mensaje" | "aviso_evolution" | "manual" };
+        Returns: Json;
+      };
+      /** F26 (00031). Solo Owner y Admin. Une y borra el absorbido; queda en audit_log. */
+      fusionar_contactos: {
+        Args: { p_conservar: string; p_absorber: string };
+        Returns: Json;
+      };
+      /** F26 (00031). Entrantes de WhatsApp desde una fecha, y cuántos sin teléfono (`@lid`). */
+      contar_mensajes_sin_telefono: {
+        Args: { p_workspace: string; p_desde: string };
+        Returns: { sin_telefono: number; total: number }[];
+      };
       increment_unread: {
         Args: {
           conv_id: string;

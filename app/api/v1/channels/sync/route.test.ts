@@ -51,9 +51,14 @@ function supabaseFalso() {
           h.escrituras.push(escritura);
           return cadena;
         },
-        insert: async (valores: Record<string, unknown>) => {
+        insert: (valores: Record<string, unknown>) => {
           h.escrituras.push({ tabla, tipo: "insert", valores });
-          return { error: null };
+          const id = `nuevo-${h.escrituras.length}`;
+          const resultado = { error: null };
+          return {
+            select: () => ({ single: async () => ({ data: { id }, error: null }) }),
+            then: (ok: (r: { error: null }) => unknown) => Promise.resolve(resultado).then(ok),
+          };
         },
         then: (ok: (r: { data: unknown; error: null }) => unknown) =>
           Promise.resolve({ data: tabla === "channels" && !escritura ? h.canales : null, error: null }).then(ok),
@@ -267,5 +272,58 @@ describe("5. La alerta de cero cuentas se cierra sola", () => {
     // Cerrar no avisa: el correo es solo para la condición que se abre.
     for (const fn of h.pendientes.splice(0)) await fn();
     expect(h.notificarAlerta).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * F26, criterio del 22/09/2026: la identidad del canal es la cuenta
+ * (`platformUserId`), no la ranura de Zernio (`_id`). Con respuestas
+ * simuladas: el caso real (Zernio dándole a `@alomercadeo` la ranura de
+ * `@theconsultour`) no se volvió a provocar.
+ */
+describe("6. La misma ranura de Zernio con otra cuenta", () => {
+  it("no renombra la fila: la desactiva, crea un canal nuevo y lo registra en el historial", async () => {
+    h.canales = [canal("ch-vieja", { late_account_id: "acc-a", platform_account_id: "111", username: "theconsultour", display_name: "theconsultour" })];
+    h.listAccounts.mockResolvedValue({ data: { accounts: [{ ...cuenta("acc-a", "p1"), username: "alomercadeo", platformUserId: "222" }] } });
+    await POST();
+
+    const enCanales = escriturasEnCanales();
+    // Ningún update cambia el nombre de la fila vieja.
+    expect(enCanales.some((e) => e.tipo === "update" && e.id === "ch-vieja" && "username" in e.valores)).toBe(false);
+    expect(enCanales).toContainEqual({ tabla: "channels", tipo: "update", valores: { is_active: false }, id: "ch-vieja" });
+    const insert = enCanales.find((e) => e.tipo === "insert");
+    expect(insert?.valores).toMatchObject({ late_account_id: "acc-a", platform_account_id: "222", username: "alomercadeo", is_active: true });
+    // La desactivación va antes que la inserción: solo un canal activo por ranura.
+    expect(enCanales.indexOf(insert!)).toBeGreaterThan(enCanales.findIndex((e) => e.id === "ch-vieja"));
+
+    const auditoria = h.escrituras.filter((e) => e.tabla === "audit_log");
+    expect(auditoria).toHaveLength(1);
+    expect((auditoria[0].valores as unknown as Record<string, unknown>[])[0]).toMatchObject({
+      action: "canal.reemplazado",
+      detail: { canal_viejo_id: "ch-vieja", cuenta_vieja: "111", cuenta_nueva: "222" },
+    });
+  });
+
+  it("control positivo: la misma cuenta con otro handle sí actualiza la fila, sin reemplazar", async () => {
+    h.canales = [canal("ch-a", { late_account_id: "acc-a", platform_account_id: "222", username: "viejo", display_name: "viejo" })];
+    h.listAccounts.mockResolvedValue({ data: { accounts: [{ ...cuenta("acc-a", "p1"), platformUserId: "222" }] } });
+    await POST();
+    const enCanales = escriturasEnCanales();
+    expect(enCanales.some((e) => e.tipo === "insert")).toBe(false);
+    expect(enCanales).toContainEqual(expect.objectContaining({ tipo: "update", id: "ch-a", valores: expect.objectContaining({ username: "acc-a" }) }));
+  });
+
+  it("primera observación: completa la identidad de la fila sin tocar nada más", async () => {
+    h.canales = [canal("ch-a", { late_account_id: "acc-a", platform_account_id: null, username: "acc-a", display_name: "acc-a" })];
+    h.listAccounts.mockResolvedValue({ data: { accounts: [{ ...cuenta("acc-a", "p1"), platformUserId: "222" }] } });
+    await POST();
+    expect(escriturasEnCanales()).toEqual([{ tabla: "channels", tipo: "update", valores: { platform_account_id: "222" }, id: "ch-a" }]);
+  });
+
+  it("si la cuenta no trae platformUserId, no se reemplaza nada", async () => {
+    h.canales = [canal("ch-a", { late_account_id: "acc-a", platform_account_id: "111", username: "acc-a", display_name: "acc-a" })];
+    h.listAccounts.mockResolvedValue({ data: { accounts: [cuenta("acc-a", "p1")] } });
+    await POST();
+    expect(escriturasEnCanales()).toEqual([]);
   });
 });

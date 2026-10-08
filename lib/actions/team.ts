@@ -4,6 +4,24 @@ import { after } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { esManager, getWorkspace } from "@/lib/workspace";
 import { enviarCorreo, contenidoDeInvitacion, aHtml } from "@/lib/correo";
+import { actorDe, registrarAuditoria } from "@/lib/auditoria";
+
+/**
+ * F31: los movimientos de equipo quedan en el historial. La etiqueta de la
+ * persona afectada se toma en el momento (nombre o correo), porque el historial
+ * sobrevive a que el usuario deje de existir.
+ */
+async function etiquetaDeUsuario(userId: string): Promise<string> {
+  try {
+    const service = await createServiceClient();
+    const { data } = await service.auth.admin.getUserById(userId);
+    const u = data?.user;
+    if (!u) return userId;
+    return actorDe(u).etiqueta;
+  } catch {
+    return userId;
+  }
+}
 
 /**
  * Roles asignables desde la UI. `owner` no está: no se otorga invitando ni
@@ -84,6 +102,14 @@ export async function inviteTeamMember(
   if (insertError) {
     return { error: insertError.message };
   }
+
+  await registrarAuditoria({
+    workspaceId,
+    actor: actorDe(user),
+    accion: "equipo.invitado",
+    entidad: { tipo: "invitacion", id: invite.id, etiqueta: trimmedEmail },
+    detalle: { rol: invite.role },
+  });
 
   // F23: la invitación llega por correo a quien se invita. El primer intento
   // corre acá, para poder decir en pantalla si salió; los reintentos van en
@@ -166,14 +192,27 @@ export async function changeTeamMemberRole(
     return { error: "No se puede cambiar el rol del Owner" };
   }
 
-  const { error: updateError } = await supabase
+  // `.select()` para saber si la fila cambió de verdad: una policy que deja
+  // afectar cero filas responde sin error, y eso no se audita como un cambio.
+  const { data: cambiadas, error: updateError } = await supabase
     .from("workspace_members")
     .update({ role: nuevoRol })
     .eq("workspace_id", workspaceId)
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .select("user_id");
 
   if (updateError) {
     return { error: updateError.message };
+  }
+
+  if ((cambiadas ?? []).length > 0 && objetivo.role !== nuevoRol) {
+    await registrarAuditoria({
+      workspaceId,
+      actor: actorDe(user),
+      accion: "equipo.rol_cambiado",
+      entidad: { tipo: "miembro", id: userId, etiqueta: await etiquetaDeUsuario(userId) },
+      cambios: { role: { antes: objetivo.role, despues: nuevoRol } },
+    });
   }
 
   return { ok: true };
@@ -199,14 +238,26 @@ export async function removeTeamMember(
     return { error: "No podés removerte a vos mismo del workspace" };
   }
 
-  const { error: deleteError } = await supabase
+  const etiqueta = await etiquetaDeUsuario(userId);
+  const { data: removidas, error: deleteError } = await supabase
     .from("workspace_members")
     .delete()
     .eq("workspace_id", workspaceId)
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .select("user_id, role");
 
   if (deleteError) {
     return { error: deleteError.message };
+  }
+
+  if ((removidas ?? []).length > 0) {
+    await registrarAuditoria({
+      workspaceId,
+      actor: actorDe(user),
+      accion: "equipo.removido",
+      entidad: { tipo: "miembro", id: userId, etiqueta },
+      detalle: { rol: removidas![0].role },
+    });
   }
 
   return { ok: true };
@@ -284,16 +335,26 @@ export async function acceptInvite(inviteId: string) {
     .update({ status: "accepted" })
     .eq("id", inviteId);
 
+  await registrarAuditoria(
+    {
+      workspaceId: invite.workspace_id,
+      actor: actorDe(user),
+      accion: "equipo.ingreso",
+      entidad: { tipo: "miembro", id: user.id, etiqueta: actorDe(user).etiqueta },
+      detalle: { rol: invite.role, invitacion_id: inviteId },
+    }
+  );
+
   return { ok: true, workspaceId: invite.workspace_id };
 }
 
 export async function revokeInvite(inviteId: string) {
-  const { workspace, role: rolPropio, supabase } = await getWorkspace();
+  const { workspace, user, role: rolPropio, supabase } = await getWorkspace();
 
   // Fetch the invite to get workspace_id
   const { data: invite, error: fetchError } = await supabase
     .from("workspace_invites")
-    .select("workspace_id")
+    .select("workspace_id, email")
     .eq("id", inviteId)
     .single();
 
@@ -312,13 +373,23 @@ export async function revokeInvite(inviteId: string) {
     return { error: "Solo Owner y Admin pueden revocar invitaciones" };
   }
 
-  const { error: deleteError } = await supabase
+  const { data: revocadas, error: deleteError } = await supabase
     .from("workspace_invites")
     .delete()
-    .eq("id", inviteId);
+    .eq("id", inviteId)
+    .select("id");
 
   if (deleteError) {
     return { error: deleteError.message };
+  }
+
+  if ((revocadas ?? []).length > 0) {
+    await registrarAuditoria({
+      workspaceId: workspace.id,
+      actor: actorDe(user),
+      accion: "equipo.invitacion_revocada",
+      entidad: { tipo: "invitacion", id: inviteId, etiqueta: invite.email },
+    });
   }
 
   return { ok: true };

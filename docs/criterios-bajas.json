@@ -187,5 +187,110 @@
     "nuevo": "- [x] Cierra una deuda del Bloque 1: la invitación deja de depender de copiar un link a mano",
     "motivo": "Tildado: Cumplido el 07/10/2026. La invitación sale por correo; el link queda solo de respaldo.",
     "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] Se agregan a `contacts`: `phone`, `secondary_email`, `country`, `whatsapp_phone`, `next_followup_date`, `do_not_contact`, `do_not_contact_reason`, `do_not_contact_at`, `ai_conversation_summary`, `lead_temperature`, `attribution`, `deleted_at`, `display_name_source`. Los campos de asignación ya existen desde el Bloque 1. **`instagram_username` estaba en esta lista y se sacó el 22 de septiembre de 2026:** el handle es por canal, no por contacto. Un contacto va a tener más de uno, y ya existe dónde guardarlo: `contact_channels.platform_username`",
+    "destino": "reescrito",
+    "nuevo": "- [x] Se agregan a `contacts`: `phone`, `secondary_email`, `country`, `whatsapp_phone`, `next_followup_date`, `do_not_contact`, `do_not_contact_reason`, `do_not_contact_at`, `ai_conversation_summary`, `lead_temperature`, `attribution`, `deleted_at`, `display_name_source`. Los campos de asignación ya existen desde el Bloque 1. **`instagram_username` estaba en esta lista y se sacó el 22 de septiembre de 2026:** el handle es por canal, no por contacto. Un contacto va a tener más de uno, y ya existe dónde guardarlo: `contact_channels.platform_username`",
+    "motivo": "Tildado: Cumplido el 07/10/2026. Migración 00029, aplicada ese día; `scripts/verify-contacto-extendido.mjs` comprueba que las columnas existen con sus valores por defecto.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] **El teléfono se normaliza a E.164 antes de guardarse**, en el servidor, no solo en el formulario, según la definición de §14. Sin esto, la deduplicación entre WhatsApp e Instagram falla y arreglarlo después implica migrar datos sucios (devuelto el 23/09/2026, auditoría #35b)",
+    "destino": "reescrito",
+    "nuevo": "- [x] **El teléfono se normaliza a E.164 antes de guardarse**, en el servidor, no solo en el formulario, según la definición de §14. Sin esto, la deduplicación entre WhatsApp e Instagram falla y arreglarlo después implica migrar datos sucios (devuelto el 23/09/2026, auditoría #35b)",
+    "motivo": "Tildado: Cumplido el 07/10/2026. `lib/telefono.ts` normaliza en el servidor según §14 (sin mínimo de dígitos), y un `check` de la 00029 rechaza en la base cualquier número que no sea E.164, probado contra la base real.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] El teléfono NO es obligatorio. Un contacto de WhatsApp puede existir sin teléfono conocido",
+    "destino": "reescrito",
+    "nuevo": "- [x] El teléfono NO es obligatorio. Un contacto de WhatsApp puede existir sin teléfono conocido",
+    "motivo": "Tildado: Cumplido el 07/10/2026. `phone` es opcional; el verificador crea un contacto sin teléfono.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] Campo `phone_resolved` que marca si el teléfono ya se conoce o sigue pendiente",
+    "destino": "reescrito",
+    "nuevo": "- [x] Campo `phone_resolved` que marca si el teléfono ya se conoce o sigue pendiente",
+    "motivo": "Tildado: Cumplido el 07/10/2026. `phone_resolved`, por defecto true, con un `check` que impide tener teléfono y estar sin resolver.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] Índices en teléfono, correo, `contact_channels.platform_username` y marca de borrado, y compuestos por espacio de trabajo con teléfono y con correo",
+    "destino": "reescrito",
+    "nuevo": "- [x] Índices en teléfono, correo, `contact_channels.platform_username` y marca de borrado, y compuestos por espacio de trabajo con teléfono y con correo",
+    "motivo": "Tildado: Cumplido el 07/10/2026. Los seis índices de la 00029, comprobados en el catálogo.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] Los campos personalizados que ya existen se conservan sin modificar",
+    "destino": "reescrito",
+    "nuevo": "- [x] Los campos personalizados que ya existen se conservan sin modificar",
+    "motivo": "Tildado: Cumplido el 07/10/2026. La 00029 no toca `custom_fields` ni `contact_custom_fields`; el recuento antes y después no cambió.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] Después de aplicar la migración de F25, `scripts/verify-lead-scope.mjs` se corre contra la base y da verde. El criterio original, \"RLS actualizada con la lógica de scope de leads de F3\", se había descartado por estar cumplido en el Bloque 1 con la 00019; eso vale solo mientras la migración nueva no abra un camino alrededor del scope, por ejemplo con una policy permisiva al lado de las de la 00019, y esta corrida es la que lo comprueba (devuelto el 23/09/2026, auditoría #38)",
+    "destino": "reescrito",
+    "nuevo": "- [x] Después de aplicar la migración de F25, `scripts/verify-lead-scope.mjs` se corre contra la base y da verde. El criterio original, \"RLS actualizada con la lógica de scope de leads de F3\", se había descartado por estar cumplido en el Bloque 1 con la 00019; eso vale solo mientras la migración nueva no abra un camino alrededor del scope, por ejemplo con una policy permisiva al lado de las de la 00019, y esta corrida es la que lo comprueba (devuelto el 23/09/2026, auditoría #38)",
+    "motivo": "Tildado: Cumplido el 07/10/2026. Corrido después de aplicar la 00029 y la 00030: 24 de 24.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] `contact_channels.platform_username` se escribe con el handle que trae el proveedor cuando lo trae: `participantUsername` en el listado y en `getInboxConversation`, `sender.username` en el webhook. Si ya tenía un valor, se reemplaza por el que trae el proveedor. **Si no lo trae, queda nulo. Nunca se deduce de la forma de otro campo**, aunque `participantName` tenga pinta de handle: hay nombres reales sin espacio, y un dato decidido por heurística falla en silencio. La identidad del canal no depende de esto: la resuelve F26 con `platformUserId`, y el handle es dato de presentación",
+    "destino": "reescrito",
+    "nuevo": "- [x] `contact_channels.platform_username` se escribe con el handle que trae el proveedor cuando lo trae: `participantUsername` en el listado y en `getInboxConversation`, `sender.username` en el webhook. Si ya tenía un valor, se reemplaza por el que trae el proveedor. **Si no lo trae, queda nulo. Nunca se deduce de la forma de otro campo**, aunque `participantName` tenga pinta de handle: hay nombres reales sin espacio, y un dato decidido por heurística falla en silencio. La identidad del canal no depende de esto: la resuelve F26 con `platformUserId`, y el handle es dato de presentación",
+    "motivo": "Tildado: Cumplido el 07/10/2026. `upsertContactForSender` y la importación (`lib/inbox-sync.ts`) escriben y reemplazan el handle que trae el proveedor y nunca lo deducen; probado con `lib/contacto-proveedor.test.ts`. `getInboxConversation` no lo llama hoy ningún camino.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] `attribution` es `jsonb` con default `'{}'`, con estructura de `first_click` y `last_click`",
+    "destino": "reescrito",
+    "nuevo": "- [x] `attribution` es `jsonb` con default `'{}'`, con estructura de `first_click` y `last_click`",
+    "motivo": "Tildado: Cumplido el 07/10/2026. 00029, con un `check` de que sea un objeto.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] `first_click` se escribe una sola vez y no se modifica nunca más. Es el dato que dice de dónde salió el lead, y se pierde para siempre si se sobreescribe",
+    "destino": "reescrito",
+    "nuevo": "- [x] `first_click` se escribe una sola vez y no se modifica nunca más. Es el dato que dice de dónde salió el lead, y se pierde para siempre si se sobreescribe",
+    "motivo": "Tildado: Cumplido el 07/10/2026. Un trigger de la 00029 rechaza sobrescribir o borrar un `first_click` ya escrito, probado contra la base real; la única excepción es la fusión de F26.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] No requiere política de acceso adicional: hereda la de `contacts`",
+    "destino": "reescrito",
+    "nuevo": "- [x] No requiere política de acceso adicional: hereda la de `contacts`",
+    "motivo": "Tildado: Cumplido el 07/10/2026. Ninguna policy nueva en `contacts`; `verify-lead-scope.mjs` en verde después de aplicar.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] Nunca se deduplica por nombre. Un duplicado visible y reconciliable es preferible a una fusión incorrecta, que es destructiva y difícil de deshacer",
+    "destino": "reescrito",
+    "nuevo": "- [x] Nunca se deduplica por nombre. Un duplicado visible y reconciliable es preferible a una fusión incorrecta, que es destructiva y difícil de deshacer",
+    "motivo": "Tildado: Cumplido el 07/10/2026. La búsqueda de `upsertContactForSender` es solo por canal y remitente, y las funciones de la 00031 buscan solo por teléfono exacto; probado con `lib/contacto-proveedor.test.ts`.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] Tabla `audit_log` con índices por espacio de trabajo, por entidad y por fecha",
+    "destino": "reescrito",
+    "nuevo": "- [x] Tabla `audit_log` con índices por espacio de trabajo, por entidad y por fecha",
+    "motivo": "Tildado: Cumplido el 07/10/2026. Migración 00028; los índices comprobados en el catálogo por `scripts/verify-auditoria.mjs`.",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] Owner y Admin ven todo; un Member solo sus propias acciones",
+    "destino": "reescrito",
+    "nuevo": "- [x] Owner y Admin ven todo; un Member solo sus propias acciones",
+    "motivo": "Tildado: Cumplido el 07/10/2026. RLS de la 00028, probada con tokens reales de Owner, Admin, Member y de otro espacio (`scripts/verify-auditoria.mjs`).",
+    "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] Nunca se elimina ni tiene borrado suave",
+    "destino": "reescrito",
+    "nuevo": "- [x] Nunca se elimina ni tiene borrado suave",
+    "motivo": "Tildado: Cumplido el 07/10/2026. Un trigger rechaza UPDATE, DELETE y TRUNCATE incluso con la clave de servicio, probado contra la base real; no hay `deleted_at` ni claves foráneas que arrastren el historial.",
+    "fecha": "2026-10-07"
   }
 ]

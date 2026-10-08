@@ -164,6 +164,30 @@ async function rpc(fn, args) {
   return texto ? JSON.parse(texto) : null;
 }
 
+/**
+ * F31: conectar y desconectar un canal queda en el historial de auditoría.
+ * El actor es el Sistema: el script corre con la clave de servicio, sin un
+ * usuario de la app detrás. Si el registro falla, se avisa y se sigue: el
+ * canal ya cambió, y el historial no puede deshacerlo.
+ */
+async function auditarCanal(workspaceId, canalId, accion, detalle) {
+  const r = await fetch(`${URL_BASE}/rest/v1/audit_log`, {
+    method: "POST",
+    headers: CABECERAS,
+    body: JSON.stringify({
+      workspace_id: workspaceId,
+      actor_id: null,
+      actor_label: "Sistema",
+      action: accion,
+      entity_type: "canal",
+      entity_id: canalId,
+      entity_label: `WhatsApp (instancia ${nombre})`,
+      detail: { origen: "setup-evolution-channel", ...detalle },
+    }),
+  });
+  if (!r.ok) console.log(`  aviso: no quedó en el historial (${accion}): HTTP ${r.status}`);
+}
+
 /** Llamada a Evolution con la clave global. La clave nunca se loguea. */
 async function evolution(ruta, { method = "GET", body, clave } = {}) {
   const r = await fetch(`${EVOLUTION_URL}${ruta}`, {
@@ -525,6 +549,7 @@ async function main() {
         headers: CABECERAS,
         body: JSON.stringify({ is_active: false }),
       });
+      await auditarCanal(workspaceId, c.id, "canal.desconectado", { motivo: "instancia_borrada" });
       ok(`token borrado de Vault y canal ${c.id} desactivado`);
     }
 
@@ -586,6 +611,7 @@ async function main() {
     );
   }
   ok("canal activo");
+  await auditarCanal(workspaceId, canalId, "canal.conectado", {});
 
   console.log(
     `\nCanal listo, SIN número vinculado.\n` +

@@ -237,6 +237,12 @@ export function ContactsView({
                         <span className="text-sm font-medium hover:underline">
                           {contact.display_name ?? "Unknown"}
                         </span>
+                        {/* F26: WhatsApp entregó este contacto sin su número. */}
+                        {!contact.phone_resolved && (
+                          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                            Sin resolver
+                          </span>
+                        )}
                       </Link>
                     </td>
                     <td className="px-4 py-3">

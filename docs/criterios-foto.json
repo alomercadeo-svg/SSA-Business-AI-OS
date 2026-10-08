@@ -879,7 +879,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F25: Modelo de contacto extendido"
     ],
-    "texto": "- [ ] Se agregan a `contacts`: `phone`, `secondary_email`, `country`, `whatsapp_phone`, `next_followup_date`, `do_not_contact`, `do_not_contact_reason`, `do_not_contact_at`, `ai_conversation_summary`, `lead_temperature`, `attribution`, `deleted_at`, `display_name_source`. Los campos de asignación ya existen desde el Bloque 1. **`instagram_username` estaba en esta lista y se sacó el 22 de septiembre de 2026:** el handle es por canal, no por contacto. Un contacto va a tener más de uno, y ya existe dónde guardarlo: `contact_channels.platform_username`"
+    "texto": "- [x] Se agregan a `contacts`: `phone`, `secondary_email`, `country`, `whatsapp_phone`, `next_followup_date`, `do_not_contact`, `do_not_contact_reason`, `do_not_contact_at`, `ai_conversation_summary`, `lead_temperature`, `attribution`, `deleted_at`, `display_name_source`. Los campos de asignación ya existen desde el Bloque 1. **`instagram_username` estaba en esta lista y se sacó el 22 de septiembre de 2026:** el handle es por canal, no por contacto. Un contacto va a tener más de uno, y ya existe dónde guardarlo: `contact_channels.platform_username`"
   },
   {
     "seccion": "F25: Modelo de contacto extendido",
@@ -888,7 +888,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F25: Modelo de contacto extendido"
     ],
-    "texto": "- [ ] **El teléfono se normaliza a E.164 antes de guardarse**, en el servidor, no solo en el formulario, según la definición de §14. Sin esto, la deduplicación entre WhatsApp e Instagram falla y arreglarlo después implica migrar datos sucios (devuelto el 23/09/2026, auditoría #35b)"
+    "texto": "- [x] **El teléfono se normaliza a E.164 antes de guardarse**, en el servidor, no solo en el formulario, según la definición de §14. Sin esto, la deduplicación entre WhatsApp e Instagram falla y arreglarlo después implica migrar datos sucios (devuelto el 23/09/2026, auditoría #35b)"
   },
   {
     "seccion": "F25: Modelo de contacto extendido",
@@ -897,7 +897,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F25: Modelo de contacto extendido"
     ],
-    "texto": "- [ ] El teléfono NO es obligatorio. Un contacto de WhatsApp puede existir sin teléfono conocido"
+    "texto": "- [x] El teléfono NO es obligatorio. Un contacto de WhatsApp puede existir sin teléfono conocido"
   },
   {
     "seccion": "F25: Modelo de contacto extendido",
@@ -906,7 +906,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F25: Modelo de contacto extendido"
     ],
-    "texto": "- [ ] Campo `phone_resolved` que marca si el teléfono ya se conoce o sigue pendiente"
+    "texto": "- [x] Campo `phone_resolved` que marca si el teléfono ya se conoce o sigue pendiente"
   },
   {
     "seccion": "F25: Modelo de contacto extendido",
@@ -915,7 +915,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F25: Modelo de contacto extendido"
     ],
-    "texto": "- [ ] Índices en teléfono, correo, `contact_channels.platform_username` y marca de borrado, y compuestos por espacio de trabajo con teléfono y con correo"
+    "texto": "- [x] Índices en teléfono, correo, `contact_channels.platform_username` y marca de borrado, y compuestos por espacio de trabajo con teléfono y con correo"
   },
   {
     "seccion": "F25: Modelo de contacto extendido",
@@ -924,7 +924,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F25: Modelo de contacto extendido"
     ],
-    "texto": "- [ ] Los campos personalizados que ya existen se conservan sin modificar"
+    "texto": "- [x] Los campos personalizados que ya existen se conservan sin modificar"
   },
   {
     "seccion": "F25: Modelo de contacto extendido",
@@ -933,7 +933,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F25: Modelo de contacto extendido"
     ],
-    "texto": "- [ ] Después de aplicar la migración de F25, `scripts/verify-lead-scope.mjs` se corre contra la base y da verde. El criterio original, \"RLS actualizada con la lógica de scope de leads de F3\", se había descartado por estar cumplido en el Bloque 1 con la 00019; eso vale solo mientras la migración nueva no abra un camino alrededor del scope, por ejemplo con una policy permisiva al lado de las de la 00019, y esta corrida es la que lo comprueba (devuelto el 23/09/2026, auditoría #38)"
+    "texto": "- [x] Después de aplicar la migración de F25, `scripts/verify-lead-scope.mjs` se corre contra la base y da verde. El criterio original, \"RLS actualizada con la lógica de scope de leads de F3\", se había descartado por estar cumplido en el Bloque 1 con la 00019; eso vale solo mientras la migración nueva no abra un camino alrededor del scope, por ejemplo con una policy permisiva al lado de las de la 00019, y esta corrida es la que lo comprueba (devuelto el 23/09/2026, auditoría #38)"
   },
   {
     "seccion": "F25: Modelo de contacto extendido",
@@ -942,7 +942,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F25: Modelo de contacto extendido"
     ],
-    "texto": "- [ ] `contact_channels.platform_username` se escribe con el handle que trae el proveedor cuando lo trae: `participantUsername` en el listado y en `getInboxConversation`, `sender.username` en el webhook. Si ya tenía un valor, se reemplaza por el que trae el proveedor. **Si no lo trae, queda nulo. Nunca se deduce de la forma de otro campo**, aunque `participantName` tenga pinta de handle: hay nombres reales sin espacio, y un dato decidido por heurística falla en silencio. La identidad del canal no depende de esto: la resuelve F26 con `platformUserId`, y el handle es dato de presentación"
+    "texto": "- [x] `contact_channels.platform_username` se escribe con el handle que trae el proveedor cuando lo trae: `participantUsername` en el listado y en `getInboxConversation`, `sender.username` en el webhook. Si ya tenía un valor, se reemplaza por el que trae el proveedor. **Si no lo trae, queda nulo. Nunca se deduce de la forma de otro campo**, aunque `participantName` tenga pinta de handle: hay nombres reales sin espacio, y un dato decidido por heurística falla en silencio. La identidad del canal no depende de esto: la resuelve F26 con `platformUserId`, y el handle es dato de presentación"
   },
   {
     "seccion": "F25: Modelo de contacto extendido",
@@ -960,7 +960,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F25: Modelo de contacto extendido"
     ],
-    "texto": "- [ ] `attribution` es `jsonb` con default `'{}'`, con estructura de `first_click` y `last_click`"
+    "texto": "- [x] `attribution` es `jsonb` con default `'{}'`, con estructura de `first_click` y `last_click`"
   },
   {
     "seccion": "F25: Modelo de contacto extendido",
@@ -969,7 +969,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F25: Modelo de contacto extendido"
     ],
-    "texto": "- [ ] `first_click` se escribe una sola vez y no se modifica nunca más. Es el dato que dice de dónde salió el lead, y se pierde para siempre si se sobreescribe"
+    "texto": "- [x] `first_click` se escribe una sola vez y no se modifica nunca más. Es el dato que dice de dónde salió el lead, y se pierde para siempre si se sobreescribe"
   },
   {
     "seccion": "F25: Modelo de contacto extendido",
@@ -987,7 +987,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F25: Modelo de contacto extendido"
     ],
-    "texto": "- [ ] No requiere política de acceso adicional: hereda la de `contacts`"
+    "texto": "- [x] No requiere política de acceso adicional: hereda la de `contacts`"
   },
   {
     "seccion": "F25: Modelo de contacto extendido",
@@ -1032,7 +1032,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F26: Identidad de canal y reconciliación de teléfonos"
     ],
-    "texto": "- [ ] Nunca se deduplica por nombre. Un duplicado visible y reconciliable es preferible a una fusión incorrecta, que es destructiva y difícil de deshacer"
+    "texto": "- [x] Nunca se deduplica por nombre. Un duplicado visible y reconciliable es preferible a una fusión incorrecta, que es destructiva y difícil de deshacer"
   },
   {
     "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
@@ -1599,7 +1599,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F31: Historial de auditoría"
     ],
-    "texto": "- [ ] Tabla `audit_log` con índices por espacio de trabajo, por entidad y por fecha"
+    "texto": "- [x] Tabla `audit_log` con índices por espacio de trabajo, por entidad y por fecha"
   },
   {
     "seccion": "F31: Historial de auditoría",
@@ -1617,7 +1617,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F31: Historial de auditoría"
     ],
-    "texto": "- [ ] Owner y Admin ven todo; un Member solo sus propias acciones"
+    "texto": "- [x] Owner y Admin ven todo; un Member solo sus propias acciones"
   },
   {
     "seccion": "F31: Historial de auditoría",
@@ -1626,7 +1626,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F31: Historial de auditoría"
     ],
-    "texto": "- [ ] Nunca se elimina ni tiene borrado suave"
+    "texto": "- [x] Nunca se elimina ni tiene borrado suave"
   },
   {
     "seccion": "F41: Asignación de setter y vendedor",

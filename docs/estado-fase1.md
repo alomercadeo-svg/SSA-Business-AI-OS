@@ -51,7 +51,7 @@ Los procedimientos ejecutables no van en ninguno de los dos: van en `docs/`, uno
 
 **Verificadores:** `npm run verify:security` corre `verify-lead-scope.mjs` (24 comprobaciones) y `verify-realtime-scope.mjs` (7). No corren con `npm test`, a propósito: la suite puede estar en verde con el scope roto.
 
-**Desde el 7 de octubre de 2026, 7 de 26:** ese día se completaron F22 (el criterio #5 que faltaba) y F23, en la sesión de cierre del Bloque 2 (abajo). Completas: F1, F2, F3, F4, F21, F22 y F23. **El Bloque 2 no queda cerrado del todo:** F24 sigue parcial, por la misma razón que antes. **Antes, desde el 7 de octubre de 2026, el avance se contaba sobre 26 y era 5 de 26:** ese día se sumó F42, respuesta por WhatsApp desde la bandeja, al Bloque 4. Lo que sigue es el recuento anterior, sobre 25. **Al 5 de octubre de 2026 el avance seguía en 5 de 25:** F24 tiene todos sus criterios cumplidos salvo probar "Desconectar" contra Zernio real, y no cuenta como completa. **Avance de la Fase 1, contado el 23 de septiembre de 2026 sobre la línea de estado de cada funcionalidad del plano.** **25 funcionalidades a construir**: F1 a F4 y F21 a F41 (desde el 07/10/2026, 26: F1 a F4 y F21 a F42). Quedan afuera F5, eliminada de la fase, y F6, F6b y F6c, que son del plan B. **5 completas:** F1, F2, F3, F4 y F21. **F22 está construida con un criterio pendiente**: la idempotencia igual para los dos canales, devuelta ese día por la auditoría (#5), que nadie comprobó todavía en los dos canales. Parciales, según su línea de estado: F24, F34 y F35.
+**Desde el 7 de octubre de 2026, a la noche, 8 de 26:** se completó F31, el historial de auditoría, en la sesión 1 del Bloque 3 (abajo), por la regla decidida ese día: completa es que todo lo que hace por sí misma funcione con datos reales, y que lo único pendiente sean registros de funcionalidades que todavía no existen y que ya tienen dueño escrito. Completas: F1, F2, F3, F4, F21, F22, F23 y F31. F25 y F26 quedan construidas y no completas: cierran con F27. **Antes, desde el 7 de octubre de 2026, 7 de 26:** ese día se completaron F22 (el criterio #5 que faltaba) y F23, en la sesión de cierre del Bloque 2 (abajo). Completas: F1, F2, F3, F4, F21, F22 y F23. **El Bloque 2 no queda cerrado del todo:** F24 sigue parcial, por la misma razón que antes. **Antes, desde el 7 de octubre de 2026, el avance se contaba sobre 26 y era 5 de 26:** ese día se sumó F42, respuesta por WhatsApp desde la bandeja, al Bloque 4. Lo que sigue es el recuento anterior, sobre 25. **Al 5 de octubre de 2026 el avance seguía en 5 de 25:** F24 tiene todos sus criterios cumplidos salvo probar "Desconectar" contra Zernio real, y no cuenta como completa. **Avance de la Fase 1, contado el 23 de septiembre de 2026 sobre la línea de estado de cada funcionalidad del plano.** **25 funcionalidades a construir**: F1 a F4 y F21 a F41 (desde el 07/10/2026, 26: F1 a F4 y F21 a F42). Quedan afuera F5, eliminada de la fase, y F6, F6b y F6c, que son del plan B. **5 completas:** F1, F2, F3, F4 y F21. **F22 está construida con un criterio pendiente**: la idempotencia igual para los dos canales, devuelta ese día por la auditoría (#5), que nadie comprobó todavía en los dos canales. Parciales, según su línea de estado: F24, F34 y F35.
 
 **Tests al cerrar el Bloque 1:** 108 en 12 archivos. El fork traía 60 en 7. **Ese número sube con cada bloque: no lo copies, contalo con `npm test`.**
 
@@ -399,7 +399,7 @@ Ningún criterio se reescribió ni se dio de baja; hay 17 nuevos: 1 en F24, 3 en
   - A **alomercadeo@gmail.com**, «WhatsApp está rechazando mensajes entrantes». Lo mandó `scripts/verify-correo-alertas.mjs`, que pasó 17 de 17: el receptor de producción respondió 401, abrió `webhook_auth_failed` en el workspace de prueba, y Resend aceptó el correo en el primer intento. Una segunda entrega llevó las ocurrencias a 2 y su aviso quedó `omitido_techo`, la prueba del techo por presencia. Al final se cerró la alerta por su id y se borró el canal descartable, que fue solo una fila en `channels`, sin instancia en Evolution. Marcos confirmó que llegó a Recibidos a las 13:58.
   - A **mapitti@gmail.com**, «Te invitaron a Pruebas de correo», desde Configuración › Equipo en producción. Antes se comprobó dos veces que esa dirección no era usuario. Marcos confirmó que llegó a las 14:01 y no la aceptó, porque aceptarla crea un usuario y su espacio propio. Se revocó borrando la fila por su id; la app sigue con un solo usuario.
 - **El verificador se niega antes de mandar:** contra el espacio real (tiene canales) y con un destinatario que no es el único miembro. Las dos negativas se comprobaron. Ojo: en el espacio real, la guarda de miembros sola no alcanzaría, porque alomercadeo@gmail.com es su único miembro y su Owner. Lo frena la de canales.
-- **Lo que no se probó en real:** los reintentos (solo con respuestas simuladas, porque no hubo ningún fallo) y la pantalla «Correos enviados», que no la miró nadie en producción.
+- **Lo que no se probó en real:** los reintentos (solo con respuestas simuladas, porque no hubo ningún fallo) y la pantalla «Correos enviados», que no la miró nadie en producción. **La pantalla quedó mirada después:** Marcos la vio en producción el 07/10 a las 14:20 (ver el registro de `4e0f93d`, abajo). Los reintentos siguen probados solo con respuestas simuladas.
 
 **Decidido con Marcos en la sesión:**
 - La alerta de instancia desconocida queda **sin correo**, con los datos en §15 del plano.
@@ -421,6 +421,93 @@ Ningún criterio se reescribió ni se dio de baja; hay 17 nuevos: 1 en F24, 3 en
 **Tests:** `npm test` da 411 de 411, con cero errores de tipos. El linter no marca nada en lo que se tocó.
 
 **Para la apertura de la próxima sesión:** anotar acá el hash del commit que cierra este registro, la salida de su corrida de `scripts/verificar-despliegue.mjs` y lo que Marcos vea en el historial de despliegues de Railway. El commit anterior de esta sesión, `759280a` (el código), se subió con el script, que salió con 0: el build pasó de `FbnAgTtCi9iW6aH_sahw7` a `cSpYuMKKIDMeT-LGT7R_X` a los 135 segundos, con `/login` en 200.
+- **Completado en la apertura del Bloque 3, sesión 1 (07/10/2026).** El commit que cierra este registro es `4e0f93d` (verificado con `git log`: 07/10/2026 14:05:25, hora de Costa Rica). Se subió con `scripts/verificar-despliegue.mjs` (push `759280a..4e0f93d`).
+  - **El script no dio verde, y no porque fallara el despliegue: el despliegue tardó más que su espera.** En sus 5 minutos el build siguió en `cSpYuMKKIDMeT-LGT7R_X` (el de `759280a`), y a las 14:10:38 se rindió con «Lo subido no está desplegado». Por su contrato eso es salida 1. El código de salida no se capturó directo: se imprimió el del `tail`, que dio 0, y no hay que confundirlos. A las 14:10:56 seguía el build viejo; a las 14:14:54 `/login` respondía 200 con el build `ny08BxtMHa45PTP00jwJq`. **Tardó entre 5 y 9 minutos**, contra 93 a 237 segundos en las sesiones anteriores. La causa de la demora no se averiguó. El script no se cambió: si la demora se repite, es el dato para decidir si se agranda la espera.
+  - **Railway, dicho por Marcos, con captura:** el 07/10 hacia las 14:14 vio la tarjeta ACTIVE con el commit «docs: F22 y F23 completas, el avance pasa a 7 de 26, y el registro de…», «Deployment successful», "8 minutes ago via GitHub".
+  - **La pestaña «Correos enviados», mirada en producción por Marcos el 07/10 a las 14:20,** en el espacio «Pruebas de correo». Dos filas: «Te invitaron a Pruebas de correo», a mapitti@gmail.com, 14:01, Enviado; y «WhatsApp está rechazando mensajes entrantes», a Owner y Admin, 13:58, Enviado. Debajo, la nota de reintentos. Con eso, lo que este registro marcaba como "no la miró nadie en producción" queda mirado.
+  - **Los números de las 14:10 y las 14:14 salen de la memoria que dejó la sesión del cierre del Bloque 2, no del repo.**
+
+---
+
+## Sesión del 7 de octubre de 2026, noche: Bloque 3, sesión 1 (F31, F25 y F26)
+
+**Apertura:** `node scripts/commits-sin-subir.mjs` dio «Sin commits sin subir contra origin/bloque-1-foundation»; el último era `4e0f93d`. Se completó el registro de `4e0f93d` (arriba). Hora de inicio, 17:37 de Costa Rica, leída con `TZ=America/Costa_Rica date`.
+
+**Resultado: F31 completa; F25 y F26 construidas y no completas, porque cierran con F27.** El avance pasa a 8 de 26. La regla que lo decide, fijada por Marcos ese día: una funcionalidad está completa cuando todo lo que hace por sí misma funciona con datos reales, y lo único pendiente son registros de funcionalidades que todavía no existen y que ya tienen dueño escrito.
+
+**Migraciones, cada una con `--dry-run` antes (listó solo las de su paso) y recuentos antes y después con `scripts/recuento-base.mjs`, nuevo y de solo lectura:**
+
+| Paso | Migración | Tablas | Migraciones | Filas que cambiaron |
+|---|---|---|---|---|
+| Antes | — | 27 | 27 | — |
+| 1 | 00028, `audit_log` (F31) | 28 | 28 | ninguna |
+| 2 | 00029 (F25) y 00030 (§7.1), en el mismo push | 28 | 30 | ninguna |
+| 3 | 00031, identidad de canal (F26) | 28 | 31 | ninguna en cantidad; las 260 filas de `contact_channels` recibieron `raw_jid` igual a `platform_sender_id`, sin ningún nulo |
+
+En los tres pasos, «Ale Admin's Workspace» siguió con 267 contactos, 260 canales de contacto, 267 conversaciones, 2 canales, 0 etiquetas de contacto y 0 campos propios. Los mensajes guardados siguen en 0: los entrantes se guardan recién con F27. `audit_log` quedó con 11 filas, **todas huérfanas e invisibles**: las dejaron los verificadores en sus espacios fantasma, ya borrados. En el espacio real hay 0 y en «Pruebas de correo» también 0.
+
+**Verificadores contra la base real.** Los tres nuevos se corrieron antes de su migración, fallaron, y pasaron después:
+- `scripts/verify-auditoria.mjs`: 19 de 19.
+- `scripts/verify-contacto-extendido.mjs`: 45 de 45.
+- `scripts/verify-identidad-canal.mjs`: 32 de 32.
+- `scripts/verify-lead-scope.mjs`, después de la 00029 y la 00030: **24 de 24**, sobre «Ale Admin's Workspace». El código de salida no se capturó directo (zsh no tiene `PIPESTATUS`); por el código del script, cero fallos es salida 0.
+
+Las piezas comunes de los verificadores nuevos están en `scripts/lib-verificador.mjs`. Trabajan en el espacio fantasma que crea el alta de sus usuarios de prueba, nunca en el real, porque lo que dejan en `audit_log` no se puede borrar.
+
+**Lo construido:**
+- **F31.**
+  - `lib/auditoria.ts`, la única escritura de `audit_log` desde el código. Nunca tumba la acción que registra y nunca guarda el valor de una clave.
+  - Los eventos de lo que existe:
+    - contacto creado, en el webhook, la importación y los comentarios;
+    - canal conectado, desconectado, con error (una vez por condición abierta) y reemplazado;
+    - cambios de configuración, en Integraciones, la clave de Zernio y la pestaña General;
+    - movimientos de equipo.
+  - **La pestaña General pasó a acción de servidor** (`lib/actions/configuracion.ts`): desde el navegador no había autor confiable.
+  - La pestaña «Historial de cambios».
+- **F25.**
+  - Las columnas, con el `check` de E.164 de §14, sin mínimo.
+  - `lib/telefono.ts` y `lib/atribucion.ts`.
+  - El handle del proveedor en el webhook y en la importación. La importación también lo refresca en las conversaciones ya importadas, así que la próxima «Sincronizar» completa el handle de los contactos que no lo tienen.
+- **F26.**
+  - La 00031 y `lib/identidad-whatsapp.ts`.
+  - La regla de identidad del canal en `lib/channel-rules.ts` (`decidirCanalDeCuenta`), usada por la sincronización y por `test-key`.
+  - En la ficha, la carga manual del teléfono y la propuesta de fusión (`components/contacts/telefono-sin-resolver.tsx`, `lib/actions/contactos.ts`), y la marca «Sin resolver» en la lista.
+  - La línea del contador en Canales, solo para el Owner.
+
+**Verificado contra Zernio en real, con un GET de solo lectura a `/v1/accounts`:** `platformUserId` viene en la raíz de cada cuenta, como texto. La de Instagram del negocio trae además `metadata.instagramScopedId`. No se apretó «Sincronizar» ni se escribió nada en Zernio.
+
+**Las pantallas, miradas en local contra la base de producción, en el Chrome de Marcos con su sesión.** En el espacio real se miraron la pestaña Historial de cambios (vacía) y la línea del contador de Canales, que da «0 de 0»; en Canales no se apretó ningún botón. En «Pruebas de correo» se crearon dos contactos de prueba, uno sin resolver y otro con +50670000009. En la ficha del primero se vio la marca y se cargó ese número: la propuesta mostró los dos lados, se apretó «No es la misma» y no se guardó nada. Después se borraron los dos contactos y se volvió a «Ale Admin's Workspace».
+- **Crear y borrar esos contactos no dejó filas en `audit_log`:** 11 antes y 11 después, 0 en «Pruebas de correo». Se escribieron directo con la clave de servicio, que no pasa por el código que audita.
+- **La elección de espacio vive en el navegador, no en la base:** la cookie httpOnly `zernflow_workspace_id`, que escribe `lib/actions/workspace.ts:26` y lee `lib/workspace.ts:44`. La de localhost no es la de producción.
+
+**Correo:** nada de esta sesión mandó ni puede mandar correo. La auditoría solo inserta filas, y no se corrió `verify-evolution-webhook.mjs` ni `verify-correo-alertas.mjs`.
+
+**Una diferencia de nombres para F27, que no se resolvió acá.** El pedido de la sesión nombró la suscripción a `CONTACTS_UPDATE` para la segunda vía de reconciliación. La investigación de Evolution, verificada en su código, nombra `contacts.upsert`, y ese evento **ya está suscripto** (`CONTACTS_UPSERT`, `scripts/setup-evolution-channel.mjs`). El plano dice «el aviso de actualización de contacto». **Si hace falta también `CONTACTS_UPDATE`, o si alcanza con `CONTACTS_UPSERT`, se decide en F27** mirando qué emite Evolution 2.3.7 en cada caso.
+
+**Tests:** `npm test` da 504 de 504, con cero errores de tipos. Los que protegen el handle, el reemplazo de canal y la regla de identidad se vieron en rojo con roturas a propósito, deshechas después. El linter no marca nada nuevo; quedan dos avisos que ya estaban en `components/inbox/message-thread.tsx`.
+
+**Hora de fin: 07/10/2026 18:35, hora de Costa Rica**, leída al commitear. La sesión duró 58 min, en un solo tramo.
+
+**Para la apertura de la próxima sesión:** anotar acá el hash del commit que cierra este registro, la salida de su corrida de `scripts/verificar-despliegue.mjs` y lo que Marcos vea en el historial de despliegues de Railway.
+
+### Lo que F27 tiene que cerrar de F25 y F26
+
+Con esto F25 y F26 pasan a completas. Cada punto con dónde está lo que ya existe:
+
+1. **Escribir `contact_channels.raw_jid` y `addressing_mode`** al crear el contacto de WhatsApp, con `identidadDeClave` (`lib/identidad-whatsapp.ts`), que devuelve el crudo tal como llegó, el modo y el teléfono o nulo. Después, **ponerle `NOT NULL` a `raw_jid`** en la migración de F27, comprobando antes que no quede ninguna fila nula. Hoy no hay ninguna: los caminos de Instagram ya lo escriben (`upsertContactForSender` en `lib/inbox-sync.ts`, y `processComment` en `lib/comment-processor.ts`). El trigger `identificador_inmutable` (00031) ya impide sobrescribirlo.
+2. **Escribir `messages.remote_jid`** en cada entrante que se guarde, con el `remoteJid` tal como llegó (`identidadDeClave(...).rawJid`). El mismo trigger lo protege.
+3. **Las dos vías automáticas de reconciliación.** Las dos llaman a `reconciliar_telefono(p_contacto, p_telefono, p_via)` (00031) con la clave de servicio:
+   - `p_via = 'mensaje'` cuando un mensaje posterior de la misma conversación trae el teléfono;
+   - `p_via = 'aviso_evolution'` cuando llega el aviso de contacto de Evolution. Hoy `procesarEventoEvolution` (`lib/evolution-processor.ts`) no procesa ese evento. Antes hay que decidir la suscripción (`CONTACTS_UPSERT`, ya suscripto, o además `CONTACTS_UPDATE`) en `scripts/setup-evolution-channel.mjs`; ver la diferencia de nombres de arriba.
+   - Si la función devuelve `conflicto`, no escribe nada. Mostrar esa sugerencia es de F29 (abajo).
+4. **El contador con datos reales:** `contar_mensajes_sin_telefono` (00031), que muestra `contador-sin-telefono.tsx` en Canales. Funciona solo cuando los entrantes de WhatsApp se guardan con `remote_jid`. Hoy da «0 de 0».
+5. **`last_click` y el origen de click-to-WhatsApp:** `toqueDe` y `aplicarToque` (`lib/atribucion.ts`), desde el `contextInfo.externalAdReply` del aviso de Evolution. El trigger de la 00029 ya impide sobrescribir `first_click`. Si Zernio manda la referencia del anuncio en Instagram no está verificado.
+6. **El relleno de nombres de F27 respeta `display_name_source = 'manual'`:** es el criterio de F25 que queda sin tildar por eso.
+
+**Lo que queda para otras funcionalidades:**
+- **«Ver la cola»** del contador lleva a la bandeja con el filtro «Teléfono sin resolver», que es de **F35**. Hasta entonces la línea se muestra sin el link.
+- **Las notas en `fusionar_contactos`, de F30.** La fusión comprueba en el catálogo que ninguna tabla con clave hacia `contacts` le siga apuntando al absorbido. Cuando F30 cree `contact_notes`, la fusión va a fallar a los gritos hasta que se las sume.
+- **La sugerencia de fusión en las vías automáticas, de F29** («¿Es la misma persona?»). Hoy la propuesta con los dos lados existe solo en la carga manual desde la ficha.
 
 ---
 
@@ -467,7 +554,7 @@ Después, el Bloque 3: modelo de contacto extendido (F25), identidad de canal y 
 
 | Sesión | Funcionalidades | Por qué juntas | Días reales | Anotado el |
 |---|---|---|---|---|
-| 1 | F31, F25, F26 | El modelo de contacto y la identidad de canal. **F31 primero:** F26 escribe en la auditoría, y la tabla no existe hasta F31 | | |
+| 1 | F31, F25, F26 | El modelo de contacto y la identidad de canal. **F31 primero:** F26 escribe en la auditoría, y la tabla no existe hasta F31 | Tramo 1: 07/10/2026 17:37 a 07/10/2026 18:35, hora de Costa Rica. Suma: 58 min | 07/10/2026 |
 | 2 | F27, F28, F39 | El camino de entrada. F28 y F39 cuelgan de F27 | | |
 | 3 | F29, F30, F41 | El lado de CRM, que no toca la ingesta. F41 va con F30 porque la asignación se ve y se edita en la ficha | | |
 | **Bloque** | | | **Planificado: 2 días** | |

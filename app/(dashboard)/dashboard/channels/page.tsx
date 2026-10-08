@@ -2,6 +2,7 @@ import { getWorkspaceAsManager } from "@/lib/workspace";
 import { CHANNEL_PUBLIC_COLUMNS } from "@/lib/safe-columns";
 import { ChannelsView } from "./channels-view";
 import { WebhookAlertsBanner } from "./webhook-alerts-banner";
+import { ContadorSinTelefono } from "./contador-sin-telefono";
 
 export default async function ChannelsPage() {
   const { workspace, supabase, role } = await getWorkspaceAsManager();
@@ -27,6 +28,8 @@ export default async function ChannelsPage() {
         workspaceId={workspace.id}
         esOwner={role === "owner"}
       />
+      {/* F26: solo para el Owner (§11). El Admin no lo ve. */}
+      {role === "owner" && <ContadorSinTelefono supabase={supabase} workspaceId={workspace.id} />}
       <ChannelsView
         channels={channels ?? []}
         workspaceId={workspace.id}

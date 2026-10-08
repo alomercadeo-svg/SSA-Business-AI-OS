@@ -231,6 +231,7 @@ export function MessageThread({
       postback_payload: null,
       callback_data: null,
       platform_message_id: null,
+      remote_jid: null,
       sent_by_flow_id: null,
       sent_by_node_id: null,
       sent_by_user_id: null,

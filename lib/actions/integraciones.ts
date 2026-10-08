@@ -23,6 +23,7 @@ import {
   type Mascara,
 } from "@/lib/integraciones";
 import { verificarTodas, consultarProveedor } from "@/lib/integraciones-estado";
+import { actorDe, etiquetaDeCanal, registrarAuditoria, type Cambios } from "@/lib/auditoria";
 
 const RUTA = "/dashboard/settings/integrations";
 
@@ -39,6 +40,21 @@ async function contextoManager(): Promise<
   const workspaceId = contexto.workspace.id;
   if (!workspaceId) return { ok: false, error: "No se pudo resolver el espacio de trabajo." };
   return { ok: true, contexto, workspaceId };
+}
+
+/**
+ * F31: cada cambio de esta pantalla es un "cambio de configuración" y queda en
+ * el historial (nota del 22/09/2026 en F31). De una clave se registra que se
+ * guardó o se borró, nunca el valor.
+ */
+async function auditarConfiguracion(ctx: { contexto: Contexto; workspaceId: string }, que: string, cambios?: Cambios) {
+  await registrarAuditoria({
+    workspaceId: ctx.workspaceId,
+    actor: actorDe(ctx.contexto.user),
+    accion: "configuracion.cambiada",
+    entidad: { tipo: "integracion", etiqueta: `Integraciones: ${que}` },
+    cambios,
+  });
 }
 
 /** La definición del proveedor, o null si no es ni del catálogo ni una fila del workspace. */
@@ -88,6 +104,7 @@ export async function guardarClave(proveedor: string, valor: string): Promise<Re
     .eq("workspace_id", workspaceId)
     .eq("proveedor", proveedor);
 
+  await auditarConfiguracion(ctx, `clave de ${d.nombre} guardada`);
   revalidatePath(RUTA);
   return { ok: true, mascara: mascaraDeClave(clave) };
 }
@@ -151,6 +168,12 @@ export async function probarYGuardarResend(
     .eq("workspace_id", workspaceId)
     .eq("proveedor", "resend");
 
+  const remitenteAntes = configComoObjeto(fila?.config).remitente ?? null;
+  await auditarConfiguracion(
+    ctx,
+    "clave de Resend guardada",
+    remitenteAntes === remitente.trim() ? undefined : { remitente: { antes: remitenteAntes, despues: remitente.trim() } }
+  );
   revalidatePath(RUTA);
   return { ok: true, mascara: mascaraDeClave(clave), estado: d.estado, detalle: d.detalle ?? null };
 }
@@ -181,6 +204,9 @@ export async function guardarRemitenteResend(remitente: string): Promise<Resulta
     .eq("proveedor", "resend");
   if (error) return { ok: false, error: "No se pudo guardar el remitente." };
 
+  await auditarConfiguracion(ctx, "remitente de Resend", {
+    remitente: { antes: configComoObjeto(fila?.config).remitente ?? null, despues: remitente.trim() },
+  });
   revalidatePath(RUTA);
   return { ok: true };
 }
@@ -207,6 +233,7 @@ export async function borrarClave(proveedor: string): Promise<Resultado> {
     .eq("workspace_id", workspaceId)
     .eq("proveedor", proveedor);
 
+  await auditarConfiguracion(ctx, `clave de ${d.nombre} borrada`);
   revalidatePath(RUTA);
   return { ok: true };
 }
@@ -241,6 +268,12 @@ export async function guardarModelo(proveedor: string, modelo: string): Promise<
     .eq("proveedor", proveedor);
   if (error) return { ok: false, error: "No se pudo guardar el modelo." };
 
+  const modeloAntes = (config as Record<string, unknown>).modelo ?? null;
+  if (modeloAntes !== (m || null)) {
+    await auditarConfiguracion(ctx, `modelo por defecto de ${d.nombre}`, {
+      modelo: { antes: modeloAntes, despues: m || null },
+    });
+  }
   revalidatePath(RUTA);
   return { ok: true };
 }
@@ -320,6 +353,13 @@ export async function desconectarCuentaInstagram(channelId: string, confirmacion
 
   await supabase.from("channels").update({ is_active: false }).eq("id", canal.id).eq("workspace_id", workspaceId);
 
+  await registrarAuditoria({
+    workspaceId,
+    actor: actorDe(ctx.contexto.user),
+    accion: "canal.desconectado",
+    entidad: { tipo: "canal", id: canal.id, etiqueta: etiquetaDeCanal(canal) },
+    detalle: { motivo: "desconectado_a_mano" },
+  });
   revalidatePath(RUTA);
   return { ok: true };
 }

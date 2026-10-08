@@ -16,6 +16,15 @@ const h = vi.hoisted(() => ({
   deleteAccount: vi.fn(),
   setSecret: vi.fn(async () => ({ error: null })),
   zernioKey: "zk-simulada" as string | null,
+  auditoria: [] as Record<string, unknown>[],
+}));
+
+vi.mock("@/lib/auditoria", async (original) => ({
+  ...(await original<typeof import("@/lib/auditoria")>()),
+  registrarAuditoria: async (e: Record<string, unknown>) => {
+    h.auditoria.push(e);
+    return true;
+  },
 }));
 
 function supabaseFalso() {
@@ -81,6 +90,7 @@ beforeEach(() => {
   h.setSecret.mockClear();
   h.zernioKey = "zk-simulada";
   consultarProveedor.mockClear();
+  h.auditoria.length = 0;
 });
 
 describe("desconectar una cuenta de Instagram", () => {
@@ -248,5 +258,42 @@ describe("Probar y guardar de Resend", () => {
     expect(r.ok).toBe(true);
     expect(h.setSecret).not.toHaveBeenCalled();
     expect(h.updates[0].valores).toMatchObject({ config: { remitente: REMITENTE } });
+  });
+});
+
+/**
+ * F31: cada cambio de esta pantalla es un "cambio de configuración" y queda en
+ * el historial con quién lo hizo (nota del 22/09/2026 en F31). De una clave
+ * queda que se guardó, nunca el valor.
+ */
+describe("los cambios de configuración quedan en el historial", () => {
+  it("guardar una clave de IA: queda el evento, sin la clave", async () => {
+    const clave = "sk-ant-" + "x".repeat(40);
+    const r = await guardarClave("anthropic", clave);
+    expect(r.ok).toBe(true);
+    expect(h.auditoria).toHaveLength(1);
+    expect(h.auditoria[0]).toMatchObject({ accion: "configuracion.cambiada", actor: { id: "u-1" }, entidad: { tipo: "integracion" } });
+    expect(JSON.stringify(h.auditoria)).not.toContain(clave);
+  });
+
+  it("Probar y guardar de Resend: queda el evento y el remitente nuevo, nunca la clave", async () => {
+    const clave = "re_" + "a".repeat(30);
+    await probarYGuardarResend(clave, "avisos@notificaciones.ejemplo.com");
+    expect(h.auditoria).toHaveLength(1);
+    expect(h.auditoria[0]).toMatchObject({ cambios: { remitente: { despues: "avisos@notificaciones.ejemplo.com" } } });
+    expect(JSON.stringify(h.auditoria)).not.toContain(clave);
+  });
+
+  it("desconectar la cuenta de Instagram: queda «canal desconectado»", async () => {
+    await desconectarCuentaInstagram("ch-1", "alomercadeo");
+    expect(h.auditoria).toMatchObject([{ accion: "canal.desconectado", entidad: { tipo: "canal", id: "ch-1", etiqueta: "Instagram @alomercadeo" } }]);
+  });
+
+  it("lo que se rechaza no deja rastro", async () => {
+    await desconectarCuentaInstagram("ch-1", "otra-cuenta");
+    await guardarClave("anthropic", "corta");
+    h.rol = "member";
+    await guardarClave("anthropic", "sk-ant-" + "x".repeat(40));
+    expect(h.auditoria).toHaveLength(0);
   });
 });

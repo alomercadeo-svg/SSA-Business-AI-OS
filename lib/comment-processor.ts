@@ -3,6 +3,7 @@ import type { Database, Json } from "@/lib/types/database";
 import { executeFlow } from "@/lib/flow-engine/engine";
 import { createZernioClient } from "@/lib/zernio-client";
 import { getZernioApiKey } from "@/lib/vault";
+import { registrarAuditoria } from "@/lib/auditoria";
 
 type Channel = Database["public"]["Tables"]["channels"]["Row"];
 type Trigger = Database["public"]["Tables"]["triggers"]["Row"];
@@ -159,6 +160,7 @@ export async function processComment({
         channel_id: channel.id,
         platform_sender_id: senderId,
         platform_username: comment.author.username || null,
+        raw_jid: senderId,
       });
 
       await supabase.from("analytics_events").insert({
@@ -166,6 +168,17 @@ export async function processComment({
         contact_id: contactId,
         event_type: "contact_created",
       });
+
+      await registrarAuditoria(
+        {
+          workspaceId: channel.workspace_id,
+          actor: null,
+          accion: "contacto.creado",
+          entidad: { tipo: "contacto", id: contactId, etiqueta: senderName },
+          detalle: { plataforma: channel.platform, canal_id: channel.id, origen: "comentario" },
+        },
+        supabase as unknown as SupabaseClient
+      );
     }
 
     let replySent = false;

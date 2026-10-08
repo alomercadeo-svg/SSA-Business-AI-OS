@@ -1,4 +1,5 @@
 import { NextResponse, after } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireManager } from "@/lib/workspace";
 import { CHANNEL_PUBLIC_COLUMNS } from "@/lib/safe-columns";
 import { createZernioClient } from "@/lib/zernio-client";
@@ -13,8 +14,10 @@ import { isSupportedPlatform } from "@/lib/platforms";
 import {
   ALERTA_CERO_CUENTAS,
   AVISO_CERO_CUENTAS,
+  decidirCanalDeCuenta,
   planDeSincronizacion,
 } from "@/lib/channel-rules";
+import { actorDe, auditarAlertaSiEsNueva, etiquetaDeCanal, registrarAuditoria } from "@/lib/auditoria";
 import { createServiceClient } from "@/lib/supabase/server";
 import { notificarAlerta } from "@/lib/correo";
 
@@ -34,7 +37,8 @@ import { notificarAlerta } from "@/lib/correo";
 export async function POST() {
   const { contexto, error: authError } = await requireManager();
   if (authError) return authError;
-  const { workspace, supabase } = contexto;
+  const { workspace, supabase, user } = contexto;
+  const actor = actorDe(user);
 
   const apiKey = await getZernioApiKey(supabase, workspace.id);
   if (!apiKey) {
@@ -74,10 +78,6 @@ export async function POST() {
     }
     const lateAccounts: NonNullable<typeof res.data>["accounts"] = res.data!.accounts;
 
-    const existingByZernioId = new Map(
-      (existingChannels ?? []).map((c) => [c.late_account_id, c])
-    );
-
     let created = 0;
     let updated = 0;
     const skipped: string[] = [];
@@ -95,10 +95,20 @@ export async function POST() {
       const acc = account as typeof account & { profilePicture?: string };
       const profilePic = acc.profilePicture || null;
 
-      const existing = existingByZernioId.get(account._id);
       const excede = plan.excedidas.has(account._id);
+      // F26: la identidad del canal es la cuenta (`platformUserId`), no la
+      // ranura de Zernio (`_id`). La regla está en `decidirCanalDeCuenta`.
+      const decision = decidirCanalDeCuenta(account, existingChannels ?? []);
 
-      if (existing) {
+      if (decision.tipo === "existente" && decision.completarIdentidad) {
+        await supabase
+          .from("channels")
+          .update({ platform_account_id: decision.completarIdentidad })
+          .eq("id", decision.canal.id);
+      }
+
+      if (decision.tipo === "existente") {
+        const existing = decision.canal;
         if (
           existing.username !== (account.username || null) ||
           existing.display_name !== (account.displayName || account.username || null) ||
@@ -123,23 +133,65 @@ export async function POST() {
             .eq("id", existing.id);
         }
       } else {
-        const { error: insertErr } = await supabase.from("channels").insert({
-          workspace_id: workspace.id,
-          platform: account.platform,
-          late_account_id: account._id,
-          username: account.username || null,
-          display_name: account.displayName || account.username || null,
-          profile_picture: profilePic,
-          is_active: true,
-          excede_plan_zernio: excede,
-        });
-        if (insertErr) {
+        // Reemplazo: la fila vieja se desactiva ANTES de insertar la nueva,
+        // porque desde la 00031 solo puede haber un canal activo por ranura.
+        // No se renombra: lo que colgaba de ella sigue siendo de la cuenta
+        // vieja, y la nueva arranca con su propia fecha de conexión.
+        if (decision.tipo === "reemplazar") {
+          await supabase.from("channels").update({ is_active: false }).eq("id", decision.viejo.id);
+        }
+        const { data: nuevo, error: insertErr } = await supabase
+          .from("channels")
+          .insert({
+            workspace_id: workspace.id,
+            platform: account.platform,
+            late_account_id: account._id,
+            platform_account_id: decision.identidad,
+            username: account.username || null,
+            display_name: account.displayName || account.username || null,
+            profile_picture: profilePic,
+            is_active: true,
+            excede_plan_zernio: excede,
+          })
+          .select("id")
+          .single();
+        if (insertErr || !nuevo) {
           // Reporting a channel we did not store is how #16 stayed hidden:
           // the platform check constraint rejected the row and the UI said OK.
           console.error("[channels/sync] channel insert failed:", insertErr);
-          failed.push(`${account.platform}: ${insertErr.message}`);
+          failed.push(`${account.platform}: ${insertErr?.message ?? "sin fila"}`);
+          if (decision.tipo === "reemplazar") {
+            // Sin canal nuevo, la cuenta se quedaría sin canal activo: se
+            // vuelve a encender la fila vieja y el reemplazo queda para la
+            // próxima sincronización.
+            await supabase.from("channels").update({ is_active: true }).eq("id", decision.viejo.id);
+          }
           continue;
         }
+        const etiqueta = etiquetaDeCanal({ platform: account.platform, username: account.username });
+        await registrarAuditoria(
+          decision.tipo === "reemplazar"
+            ? {
+                workspaceId: workspace.id,
+                actor,
+                accion: "canal.reemplazado",
+                entidad: { tipo: "canal", id: nuevo.id, etiqueta },
+                detalle: {
+                  canal_viejo_id: decision.viejo.id,
+                  cuenta_vieja: decision.viejo.platform_account_id,
+                  cuenta_nueva: decision.identidad,
+                  ranura_zernio: account._id,
+                  usuario_viejo: (decision.viejo as { username?: string | null }).username ?? null,
+                },
+              }
+            : {
+                workspaceId: workspace.id,
+                actor,
+                accion: "canal.conectado",
+                entidad: { tipo: "canal", id: nuevo.id, etiqueta },
+                detalle: { origen: "sincronizacion" },
+              }
+        );
         created++;
       }
     }
@@ -160,6 +212,14 @@ export async function POST() {
         .update({ is_active: false })
         .eq("id", channelId);
       deactivated++;
+      const canal = (existingChannels ?? []).find((c) => c.id === channelId);
+      await registrarAuditoria({
+        workspaceId: workspace.id,
+        actor,
+        accion: "canal.desconectado",
+        entidad: { tipo: "canal", id: channelId, etiqueta: canal ? etiquetaDeCanal(canal) : null },
+        detalle: { motivo: "cuenta_inexistente", origen: "sincronizacion" },
+      });
     }
 
     // La alerta va con el cliente de servicio porque `record_webhook_alert` solo
@@ -180,6 +240,7 @@ export async function POST() {
         if (alertaErr) console.error("[channels/sync] alert update failed:", alertaErr);
         else if (typeof alertaId === "string") {
           after(async () => {
+            await auditarAlertaSiEsNueva(servicio as unknown as SupabaseClient, alertaId);
             await notificarAlerta(alertaId);
           });
         }

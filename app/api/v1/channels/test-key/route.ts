@@ -10,6 +10,8 @@ import {
 import { backfillInboxConversations, canalesConCuentaDeZernio } from "@/lib/inbox-sync";
 import { isSupportedPlatform } from "@/lib/platforms";
 import { SECRET_NAMES, setWorkspaceSecret } from "@/lib/vault";
+import { actorDe, etiquetaDeCanal, registrarAuditoria } from "@/lib/auditoria";
+import { platformUserIdDe } from "@/lib/channel-rules";
 
 /**
  * POST /api/v1/channels/test-key
@@ -28,7 +30,7 @@ import { SECRET_NAMES, setWorkspaceSecret } from "@/lib/vault";
 export async function POST(request: NextRequest) {
   const { contexto, error: authError } = await requireManager();
   if (authError) return authError;
-  const { workspace, supabase } = contexto;
+  const { workspace, supabase, user } = contexto;
 
   const body = await request.json();
   const { apiKey } = body;
@@ -69,6 +71,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // F31: cambio de configuración. Se registra que se guardó, nunca la clave.
+  await registrarAuditoria({
+    workspaceId: workspace.id,
+    actor: actorDe(user),
+    accion: "configuracion.cambiada",
+    entidad: { tipo: "integracion", etiqueta: "Integraciones: clave de Zernio guardada" },
+  });
+
   // Register (or refresh) this deployment's webhook in Zernio so inbound
   // messages/comments reach the Inbox. Best-effort: a failure here must not
   // block saving the key or syncing channels.
@@ -100,17 +110,30 @@ export async function POST(request: NextRequest) {
     if (existingByLateId.has(account._id)) continue;
     if (!isSupportedPlatform(account.platform)) continue;
 
-    const { error: insertErr } = await supabase.from("channels").insert({
-      workspace_id: workspace.id,
-      platform: account.platform,
-      late_account_id: account._id,
-      username: account.username || null,
-      display_name: account.displayName || account.username || null,
-      profile_picture: account.profilePicture || null,
-      is_active: true,
-    });
+    const { data: nuevo, error: insertErr } = await supabase
+      .from("channels")
+      .insert({
+        workspace_id: workspace.id,
+        platform: account.platform,
+        late_account_id: account._id,
+        platform_account_id: platformUserIdDe(account),
+        username: account.username || null,
+        display_name: account.displayName || account.username || null,
+        profile_picture: account.profilePicture || null,
+        is_active: true,
+      })
+      .select("id")
+      .single();
     if (insertErr) {
       console.error("[test-key] channel insert failed:", insertErr);
+    } else if (nuevo) {
+      await registrarAuditoria({
+        workspaceId: workspace.id,
+        actor: actorDe(user),
+        accion: "canal.conectado",
+        entidad: { tipo: "canal", id: nuevo.id, etiqueta: etiquetaDeCanal({ platform: account.platform, username: account.username }) },
+        detalle: { origen: "clave_de_zernio" },
+      });
     }
   }
 

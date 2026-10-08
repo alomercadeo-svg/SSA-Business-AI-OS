@@ -152,3 +152,88 @@ export function planDeSincronizacion(entrada: {
     .map((c) => c.id);
   return { error: null, aDesactivar, ceroCuentas: false, excedidas, vigentes };
 }
+
+// ── La identidad de un canal es la cuenta, no la ranura (F26) ───────────────
+
+/**
+ * El identificador de la cuenta en la plataforma, tal como lo manda Zernio.
+ *
+ * El SDK (0.2.519) no lo declara en `SocialAccount`, pero llega en la raíz de
+ * cada cuenta de `GET /v1/accounts`. Verificado el 07/10/2026 con un GET de
+ * solo lectura: la cuenta de Instagram del negocio trae `platformUserId` como
+ * texto, y además `metadata.instagramScopedId`. Si no viene, o viene vacío, es
+ * nulo: la ausencia nunca se interpreta como "otra cuenta".
+ */
+export function platformUserIdDe(cuenta: unknown): string | null {
+  const v = (cuenta as { platformUserId?: unknown } | null)?.platformUserId;
+  if (typeof v === "number" && Number.isFinite(v)) return String(v);
+  if (typeof v !== "string") return null;
+  return v.trim() || null;
+}
+
+export interface CanalParaIdentidad {
+  id: string;
+  late_account_id: string | null;
+  platform_account_id: string | null;
+  is_active: boolean;
+}
+
+export type DecisionDeCuenta<C extends CanalParaIdentidad> =
+  /** No hay fila para esta cuenta: se crea. */
+  | { tipo: "crear"; identidad: string | null }
+  /** Es la misma cuenta: se actualizan los datos de presentación. */
+  | { tipo: "existente"; canal: C; completarIdentidad: string | null }
+  /** La ranura de Zernio pasó a otra cuenta: la fila vieja se desactiva y se crea otra. */
+  | { tipo: "reemplazar"; viejo: C; identidad: string };
+
+/**
+ * Qué hacer con una cuenta que trajo la sincronización (criterio de F26 del
+ * 22/09/2026).
+ *
+ * Lo medido ese día: Zernio le dio a `@alomercadeo` el mismo `_id` que tenía
+ * `@theconsultour`, y la sincronización renombró la fila. Todo lo que colgaba
+ * de ella pasó a colgar de otra cuenta, y la tarjeta mostraba la fecha de
+ * conexión de la vieja. La regla:
+ *
+ * - **Misma ranura y mismo `platformUserId`:** es la misma cuenta. Se actualiza
+ *   el nombre de usuario si cambió, que es legítimo: una cuenta puede cambiar su
+ *   handle sin dejar de ser ella.
+ * - **Misma ranura, la fila activa sin identidad registrada:** es la primera
+ *   vez que se observa. Se completa con la que trae Zernio. No hay forma de
+ *   saber si antes era otra; desde acá en adelante sí.
+ * - **Misma ranura, la fila activa con OTRA identidad:** no se renombra. Se
+ *   desactiva, se crea un canal nuevo y queda en el historial.
+ * - **La cuenta no trae `platformUserId`:** no se decide nada sobre la
+ *   identidad y se sigue como antes del 07/10/2026. Una ausencia nunca
+ *   desactiva un canal.
+ * - **Solo filas inactivas en esa ranura:** si alguna es de esta misma cuenta,
+ *   o no tiene identidad registrada, se toma esa, sin reactivarla (reactivar es
+ *   a mano, `activarCanal`). Si todas son de otras cuentas, se crea una nueva.
+ */
+export function decidirCanalDeCuenta<C extends CanalParaIdentidad>(
+  cuenta: { _id?: string; platformUserId?: unknown },
+  canales: readonly C[],
+): DecisionDeCuenta<C> {
+  const identidad = platformUserIdDe(cuenta);
+  const candidatos = canales.filter((c) => c.late_account_id === cuenta._id);
+  const activo = candidatos.find((c) => c.is_active);
+
+  if (!identidad) {
+    const canal = activo ?? candidatos[0];
+    return canal ? { tipo: "existente", canal, completarIdentidad: null } : { tipo: "crear", identidad: null };
+  }
+
+  const misma = candidatos.filter((c) => c.platform_account_id === identidad);
+  const mismaActiva = misma.find((c) => c.is_active) ?? (activo ? undefined : misma[0]);
+  if (mismaActiva) return { tipo: "existente", canal: mismaActiva, completarIdentidad: null };
+
+  if (activo) {
+    return activo.platform_account_id === null
+      ? { tipo: "existente", canal: activo, completarIdentidad: identidad }
+      : { tipo: "reemplazar", viejo: activo, identidad };
+  }
+
+  const inactivaSinIdentidad = candidatos.find((c) => c.platform_account_id === null);
+  if (inactivaSinIdentidad) return { tipo: "existente", canal: inactivaSinIdentidad, completarIdentidad: null };
+  return { tipo: "crear", identidad };
+}

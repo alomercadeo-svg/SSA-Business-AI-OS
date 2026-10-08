@@ -14,6 +14,7 @@
  */
 import { revalidatePath } from "next/cache";
 import { getWorkspaceOrNull, esManager } from "@/lib/workspace";
+import { actorDe, etiquetaDeCanal, registrarAuditoria } from "@/lib/auditoria";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -29,9 +30,17 @@ export async function activarCanal(channelId: string): Promise<Resultado> {
     .update({ is_active: true })
     .eq("id", channelId)
     .eq("workspace_id", workspaceId)
-    .select("id");
+    .select("id, platform, username, display_name, instance_name");
   if (error) return { ok: false, error: "No se pudo activar el canal." };
   if (!data?.length) return { ok: false, error: "No se encontró ese canal." };
+
+  await registrarAuditoria({
+    workspaceId,
+    actor: actorDe(contexto.user),
+    accion: "canal.conectado",
+    entidad: { tipo: "canal", id: data[0].id, etiqueta: etiquetaDeCanal(data[0]) },
+    detalle: { origen: "activado_a_mano" },
+  });
 
   revalidatePath("/dashboard/channels");
   return { ok: true };

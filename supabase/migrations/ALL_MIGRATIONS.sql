@@ -2901,3 +2901,767 @@ $$;
 revoke all on function public.reservar_correo_aviso(uuid, text, text, uuid, text[], text, text) from public;
 revoke all on function public.reservar_correo_aviso(uuid, text, text, uuid, text[], text, text) from anon, authenticated;
 grant execute on function public.reservar_correo_aviso(uuid, text, text, uuid, text[], text, text) to service_role;
+
+
+-- ============================================================
+-- MIGRATION 28: AUDIT LOG
+-- ============================================================
+-- ============================================================
+-- HISTORIAL DE AUDITORÍA (F31)
+-- ============================================================
+-- Quién hizo qué y cuándo. Una fila por evento: contacto creado, editado o
+-- reconciliado; canal conectado, desconectado, con error o reemplazado; cambios
+-- de configuración; movimientos de equipo. Es lo que lee la pestaña «Historial
+-- de cambios» de Configuración (§11).
+--
+-- NUNCA SE ELIMINA, Y LO HACE CUMPLIR LA BASE. No hay policies de escritura
+-- para usuarios, y un trigger rechaza UPDATE, DELETE y TRUNCATE para todos,
+-- incluida la clave de servicio. Tampoco tiene borrado suave: no hay
+-- `deleted_at`. La purga a 30 días del borrado suave de F30 no la toca.
+--
+-- SIN CLAVES FORÁNEAS, A PROPÓSITO. `workspace_id`, `actor_id` y `entity_id`
+-- son identificadores sueltos. Con una clave foránea, borrar un contacto (la
+-- purga de F30, la limpieza de los verificadores) o fallaría o se llevaría su
+-- historial en cascada, y las dos cosas contradicen "nunca se elimina". Por lo
+-- mismo, el nombre de quien actuó y el de la entidad se guardan como texto en
+-- el momento (`actor_label`, `entity_label`): sobreviven aunque el usuario o el
+-- contacto dejen de existir.
+--
+-- QUIÉN ESCRIBE. Solo el servidor, con la clave de servicio: `lib/auditoria.ts`
+-- y las funciones SQL que hacen el cambio y su registro en una sola operación
+-- (la reconciliación y la fusión de F26). Se decidió escribir desde el código y
+-- no con triggers sobre cada tabla porque los verificadores escriben directo
+-- contra la base real, y con triggers cada corrida dejaría en el espacio real,
+-- para siempre, filas de contactos y miembros de prueba.
+--
+-- QUIÉN LEE. Owner y Admin, todo su espacio. Un Member, solo las filas donde
+-- él es el actor (criterio de F31).
+--
+-- LA LISTA DE ACCIONES ES CERRADA. Un evento nuevo necesita esta migración o
+-- una posterior que reemplace el `check`, no solo código. Las que faltan las
+-- suma cada funcionalidad: eliminado y restaurado (F30), asignado (F41), no
+-- contactar (F34), importaciones (F37).
+--
+-- Idempotente: `if not exists`, `drop ... if exists` y `create or replace`.
+-- ============================================================
+
+create table if not exists audit_log (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null,
+  actor_id uuid,
+  actor_label text not null,
+  action text not null,
+  entity_type text not null,
+  entity_id uuid,
+  entity_label text,
+  changes jsonb not null default '{}',
+  detail jsonb not null default '{}',
+  created_at timestamptz not null default now()
+);
+
+alter table audit_log drop constraint if exists audit_log_action_check;
+alter table audit_log add constraint audit_log_action_check check (action in (
+  'contacto.creado',
+  'contacto.editado',
+  'contacto.reconciliado',
+  'contacto.fusionado',
+  'canal.conectado',
+  'canal.desconectado',
+  'canal.error',
+  'canal.reemplazado',
+  'configuracion.cambiada',
+  'equipo.invitado',
+  'equipo.invitacion_revocada',
+  'equipo.ingreso',
+  'equipo.rol_cambiado',
+  'equipo.removido'
+));
+
+alter table audit_log drop constraint if exists audit_log_entity_type_check;
+alter table audit_log add constraint audit_log_entity_type_check check (entity_type in (
+  'contacto', 'canal', 'espacio', 'integracion', 'miembro', 'invitacion'
+));
+
+create index if not exists audit_log_workspace_idx on audit_log (workspace_id, created_at desc);
+create index if not exists audit_log_entity_idx on audit_log (entity_type, entity_id);
+create index if not exists audit_log_created_idx on audit_log (created_at);
+-- Para la lectura del Member, que filtra por actor.
+create index if not exists audit_log_actor_idx on audit_log (actor_id, created_at desc);
+
+comment on table audit_log is
+  'Historial de auditoría (F31). Nunca se elimina: un trigger rechaza UPDATE, DELETE y TRUNCATE. Sin claves foráneas a propósito.';
+comment on column audit_log.actor_id is
+  'Quién actuó. Nulo es el Sistema: un webhook, la sincronización, una tarea automática.';
+comment on column audit_log.changes is
+  'Campo → {antes, despues}. Nunca el valor de una clave ni de un secreto: para eso, solo "guardada" o "borrada".';
+
+-- ── Inmutable ────────────────────────────────────────────────────────────
+create or replace function public.audit_log_inmutable()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  raise exception 'audit_log no se modifica ni se borra (F31): % rechazado', tg_op
+    using errcode = '42501';
+end;
+$$;
+
+drop trigger if exists audit_log_sin_cambios on audit_log;
+create trigger audit_log_sin_cambios
+  before update or delete on audit_log
+  for each row execute function public.audit_log_inmutable();
+
+drop trigger if exists audit_log_sin_truncate on audit_log;
+create trigger audit_log_sin_truncate
+  before truncate on audit_log
+  for each statement execute function public.audit_log_inmutable();
+
+-- ── Quién lee ────────────────────────────────────────────────────────────
+alter table audit_log enable row level security;
+
+drop policy if exists "audit_log: managers leen todo, members lo propio" on audit_log;
+create policy "audit_log: managers leen todo, members lo propio"
+  on audit_log for select to authenticated
+  using (
+    public.is_workspace_manager(workspace_id)
+    or (actor_id = (select auth.uid()) and public.is_workspace_member(workspace_id))
+  );
+
+revoke insert, update, delete, truncate on audit_log from anon, authenticated;
+
+
+-- ============================================================
+-- MIGRATION 29: CONTACTO EXTENDIDO
+-- ============================================================
+-- ============================================================
+-- MODELO DE CONTACTO EXTENDIDO (F25)
+-- ============================================================
+-- Las columnas de `contacts` que el negocio necesita para trabajar un lead
+-- (§7.1). Todas tienen un valor por defecto o son opcionales, así que el código
+-- que ya corre en producción sigue funcionando entre migrar y desplegar.
+--
+-- EL TELÉFONO ES E.164, Y LO HACE CUMPLIR LA BASE. §14 es la única definición:
+-- signo más, código de país y número, solo dígitos, hasta 15 en total. Sin
+-- mínimo: §14 no lo fija. El servidor normaliza antes de guardar
+-- (`lib/telefono.ts`); el `check` existe para que ningún camino, ni uno que se
+-- olvide de normalizar, pueda guardar un número sucio. Un número que no se
+-- puede normalizar no se guarda: se rechaza, no se inventa.
+--
+-- EL TELÉFONO NO ES OBLIGATORIO. Un contacto de WhatsApp puede llegar sin
+-- número (F26). `phone_resolved` marca ese caso: arranca en true, que es "no
+-- hay nada pendiente", y pasa a false solo cuando WhatsApp entrega un contacto
+-- sin número. Con false por defecto, los contactos de Instagram, que nunca
+-- traen teléfono, aparecerían todos como "teléfono sin resolver". Lo que no
+-- puede pasar es tener teléfono y estar sin resolver: lo frena un `check`.
+--
+-- `display_name_source`: de dónde salió el nombre. Un nombre `manual` no lo
+-- pisa ningún camino automático (criterio de F25). Hoy ningún camino reescribe
+-- el nombre de un contacto existente; el relleno de F27 tiene que respetarlo.
+--
+-- `attribution`: `{ first_click, last_click }`. `first_click` se escribe una
+-- sola vez y no se modifica nunca más: es el dato de dónde salió el lead, y se
+-- pierde para siempre si se sobreescribe. Lo frena un trigger, que rechaza (no
+-- corrige en silencio) cualquier cambio o borrado de un `first_click` ya
+-- escrito. La única excepción es la fusión de contactos de F26, que se queda
+-- con el más viejo de los dos y avisa con `app.fusion_contactos`.
+--
+-- `instagram_username` NO está, a propósito: el handle es por canal y vive en
+-- `contact_channels.platform_username` (decidido el 22/09/2026).
+--
+-- Los campos personalizados (`custom_fields`, `contact_custom_fields`) no se
+-- tocan. Las policies de `contacts` tampoco: las columnas nuevas heredan las de
+-- la 00019, y `scripts/verify-lead-scope.mjs` lo comprueba después de aplicar.
+--
+-- Idempotente: `add column if not exists`, `drop ... if exists` + `add`,
+-- `create index if not exists` y `create or replace`.
+-- ============================================================
+
+alter table contacts
+  add column if not exists phone text,
+  add column if not exists phone_resolved boolean not null default true,
+  add column if not exists secondary_email text,
+  add column if not exists country text,
+  add column if not exists whatsapp_phone text,
+  add column if not exists next_followup_date date,
+  add column if not exists do_not_contact boolean not null default false,
+  add column if not exists do_not_contact_reason text,
+  add column if not exists do_not_contact_at timestamptz,
+  add column if not exists ai_conversation_summary text,
+  add column if not exists lead_temperature text,
+  add column if not exists attribution jsonb not null default '{}',
+  add column if not exists deleted_at timestamptz,
+  add column if not exists display_name_source text not null default 'provider';
+
+alter table contacts drop constraint if exists contacts_phone_e164_check;
+alter table contacts add constraint contacts_phone_e164_check
+  check (phone is null or phone ~ '^\+[1-9][0-9]{0,14}$');
+
+alter table contacts drop constraint if exists contacts_whatsapp_phone_e164_check;
+alter table contacts add constraint contacts_whatsapp_phone_e164_check
+  check (whatsapp_phone is null or whatsapp_phone ~ '^\+[1-9][0-9]{0,14}$');
+
+alter table contacts drop constraint if exists contacts_phone_resolved_check;
+alter table contacts add constraint contacts_phone_resolved_check
+  check (phone is null or phone_resolved);
+
+alter table contacts drop constraint if exists contacts_display_name_source_check;
+alter table contacts add constraint contacts_display_name_source_check
+  check (display_name_source in ('provider', 'manual'));
+
+alter table contacts drop constraint if exists contacts_lead_temperature_check;
+alter table contacts add constraint contacts_lead_temperature_check
+  check (lead_temperature is null or lead_temperature in ('frio', 'tibio', 'caliente'));
+
+alter table contacts drop constraint if exists contacts_attribution_object_check;
+alter table contacts add constraint contacts_attribution_object_check
+  check (jsonb_typeof(attribution) = 'object');
+
+create index if not exists contacts_phone_idx on contacts (phone);
+create index if not exists contacts_email_idx on contacts (email);
+create index if not exists contacts_deleted_at_idx on contacts (deleted_at);
+create index if not exists contacts_workspace_phone_idx on contacts (workspace_id, phone);
+create index if not exists contacts_workspace_email_idx on contacts (workspace_id, email);
+create index if not exists contact_channels_platform_username_idx on contact_channels (platform_username);
+
+comment on column contacts.phone is
+  'E.164 (§14): +, código de país y número, solo dígitos, hasta 15. Lo exige un check. Puede no existir.';
+comment on column contacts.phone_resolved is
+  'false solo si WhatsApp entregó el contacto sin número (F26). true es "nada pendiente", con o sin teléfono.';
+comment on column contacts.display_name_source is
+  'provider o manual. Un nombre manual no lo pisa ningún camino automático (F25).';
+comment on column contacts.attribution is
+  '{ first_click, last_click }. first_click no se modifica nunca (trigger), salvo en una fusión de F26.';
+comment on column contacts.next_followup_date is
+  'Próximo seguimiento. Fecha sin hora (§7.1): "hoy" se decide con la zona horaria del negocio.';
+
+-- ── first_click no se modifica ───────────────────────────────────────────
+create or replace function public.contacts_first_click_inmutable()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if old.attribution ? 'first_click'
+     and (new.attribution -> 'first_click') is distinct from (old.attribution -> 'first_click')
+     and coalesce(current_setting('app.fusion_contactos', true), '') <> 'on' then
+    raise exception 'attribution.first_click se escribe una sola vez (F25)'
+      using errcode = '23514';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists contacts_first_click_inmutable on contacts;
+create trigger contacts_first_click_inmutable
+  before update of attribution on contacts
+  for each row execute function public.contacts_first_click_inmutable();
+
+
+-- ============================================================
+-- MIGRATION 30: CONTACTO ESTADO COMERCIAL
+-- ============================================================
+-- ============================================================
+-- ESTADO COMERCIAL HEREDADO Y AGENDA (§7.1)
+-- ============================================================
+-- Las diez columnas de `contacts` que §7.1 aplica "en el mismo lote que el
+-- resto de las extensiones de contacts del Bloque 3, en una migración numerada
+-- propia". Van en el mismo `supabase db push` que la 00029 (F25), decidido con
+-- Marcos el 07/10/2026.
+--
+-- NO TIENEN CRITERIO PROPIO EN ESTA SESIÓN. Las siete primeras las llena la
+-- migración desde Pipedrive (F38, Bloque 4); las tres de agenda, la integración
+-- con Calendly de la Fase 2. Se agregan ahora para no migrar datos después.
+-- Ninguna pantalla ni lógica las usa todavía.
+--
+-- LAS RESTRICCIONES, Y POR QUÉ UNA NO LA TIENE (§7.1):
+--   - `pipeline_stage`: las 13 etapas del embudo, escritas carácter por
+--     carácter como en el export, con la numeración adentro y el salto del 9
+--     al 11. Es un vocabulario propio del negocio: la base garantiza que nadie
+--     escriba una decimocuarta, ni "negociacion" al lado de "Negociación".
+--   - `deal_status`: abierto, ganado o perdido. Es independiente de la etapa:
+--     253 tratos están en "1. Nuevo contacto" y perdidos a la vez.
+--   - `booking_status`: los 5 estados de la agenda.
+--   - `deal_currency`: SIN restricción. Los códigos de moneda son un estándar
+--     de afuera; enumerar los dos de hoy (USD, CRC) solo garantiza que la
+--     importación se caiga el día que haya una campaña en otro país.
+--
+-- Idempotente: `add column if not exists` y `drop ... if exists` + `add`.
+-- ============================================================
+
+alter table contacts
+  add column if not exists pipeline_stage text,
+  add column if not exists deal_status text,
+  add column if not exists deal_value numeric,
+  add column if not exists deal_currency text,
+  add column if not exists deal_closed_at date,
+  add column if not exists pipedrive_person_id text,
+  add column if not exists pipedrive_deal_id text,
+  add column if not exists booking_status text,
+  add column if not exists booking_at timestamptz,
+  add column if not exists booking_external_id text;
+
+alter table contacts drop constraint if exists contacts_pipeline_stage_check;
+alter table contacts add constraint contacts_pipeline_stage_check check (pipeline_stage is null or pipeline_stage in (
+    '1. Nuevo contacto',
+    '2. Le escribí',
+    '3. Respondió',
+    '4. ¿Es mi cliente?',
+    '5. Le ofrecí una cita',
+    '6. Agendó',
+    '7. Confirmó asistencia',
+    '8. No llegó',
+    '9. Reagendó',
+    '11. Seguimiento intensivo',
+    '12. En espera de pago',
+    '13. ¡Cerrada!',
+    '14. Repesca'
+));
+
+alter table contacts drop constraint if exists contacts_deal_status_check;
+alter table contacts add constraint contacts_deal_status_check
+  check (deal_status is null or deal_status in ('abierto', 'ganado', 'perdido'));
+
+alter table contacts drop constraint if exists contacts_booking_status_check;
+alter table contacts add constraint contacts_booking_status_check
+  check (booking_status is null or booking_status in ('sin_agendar', 'agendada', 'asistio', 'no_asistio', 'cancelada'));
+
+comment on column contacts.pipeline_stage is
+  'Etapa del embudo heredado de Pipedrive (§7.1). Solo en contactos migrados (F38).';
+comment on column contacts.deal_currency is
+  'Moneda de deal_value. Sin restricción a propósito: es un estándar externo (§7.1).';
+comment on column contacts.booking_status is
+  'Estado de la agenda. Lo escribe la Fase 2 (Calendly).';
+
+
+-- ============================================================
+-- MIGRATION 31: IDENTIDAD DE CANAL
+-- ============================================================
+-- ============================================================
+-- IDENTIDAD DE CANAL Y RECONCILIACIÓN DE TELÉFONOS (F26)
+-- ============================================================
+-- Cuatro cosas:
+--
+-- 1. EL IDENTIFICADOR CRUDO. `contact_channels.raw_jid` guarda el
+--    identificador tal como llegó, sin transformar, y `addressing_mode` cómo se
+--    direccionó (`pn` o `lid` en WhatsApp). `messages.remote_jid` guarda el
+--    identificador con que llegó cada mensaje. Ninguno se sobrescribe una vez
+--    escrito: lo frena un trigger. Es lo que permite reconciliar después y
+--    reconstruir qué pasó.
+--
+--    `raw_jid` queda NULLABLE en esta migración, a propósito. §7.1 lo pide
+--    obligatorio, y lo va a ser: el NOT NULL lo pone la migración de F27,
+--    cuando el código que lo escribe ya esté desplegado. Ponerlo ahora haría
+--    fallar cada contacto nuevo de Instagram en los minutos entre migrar y
+--    desplegar, porque el código en producción todavía no lo manda. Las filas
+--    existentes (todas de Instagram) se rellenan con `platform_sender_id`, que
+--    es exactamente el identificador que mandó Zernio.
+--
+-- 2. LA IDENTIDAD DEL CANAL ES LA CUENTA, NO LA RANURA DEL PROVEEDOR. El
+--    22/09/2026 Zernio le dio a otra cuenta de Instagram el mismo `_id` que
+--    tenía la anterior, y la sincronización renombró la fila. Ahora:
+--    `platform_account_id` guarda el `platformUserId` de la cuenta, y el
+--    `unique (workspace_id, late_account_id)` del fork pasa a ser un índice
+--    único SOLO SOBRE CANALES ACTIVOS. Así una ranura reusada se resuelve
+--    desactivando la fila vieja y creando otra, sin perder el historial que
+--    colgaba de la vieja (`decidirCanalDeCuenta`, `lib/channel-rules.ts`).
+--    Ningún código usaba ese unique como `onConflict`: verificado en el repo.
+--
+-- 3. LA RECONCILIACIÓN. `reconciliar_telefono` carga el teléfono de un
+--    contacto, saca la marca de "sin resolver" y lo registra en el historial
+--    de auditoría, en la misma operación. Tres vías: un mensaje posterior y el
+--    aviso de contacto de Evolution (solo el servidor, F27 las llama), y la
+--    carga manual desde la ficha (el usuario que ve el contacto). Si el
+--    teléfono ya es de otro contacto, NO escribe: devuelve el conflicto para
+--    que una persona confirme la fusión. Y a un Member no le dice cuál es el
+--    otro contacto si no es suyo: mostrarlo rompería el scope de leads.
+--
+-- 4. LA FUSIÓN. `fusionar_contactos` la confirma una persona, nunca es
+--    automática, y solo la hacen Owner y Admin: borra un contacto, y deshacerla
+--    es caro. Une canales, conversaciones (si chocan en el mismo canal, mueve
+--    los mensajes a la que queda), etiquetas, campos propios, inscripciones,
+--    sesiones de flujo, destinatarios de difusiones, eventos y atribución (el
+--    primer clic más viejo y el último más nuevo). Antes de borrar el absorbido
+--    comprueba en el catálogo que NINGUNA tabla con clave hacia `contacts` le
+--    siga apuntando: cuando F30 sume `contact_notes`, la fusión falla a los
+--    gritos hasta que se las incluya, en vez de borrarlas en cascada. Deja en el
+--    historial una foto completa del absorbido, para poder reconstruir qué se
+--    unió si se confirmó por error (Flujo 2).
+--
+-- Y el contador de F26: `contar_mensajes_sin_telefono` cuenta los entrantes de
+-- WhatsApp de un período y cuántos llegaron sin teléfono. "Sin teléfono" es un
+-- `remote_jid` que termina en `@lid`: Evolution reemplaza el `@lid` por el JID
+-- con teléfono cuando lo tiene (investigación de Evolution, verificado en su
+-- código), así que el que queda en `@lid` es el que llegó sin número.
+--
+-- Idempotente: `add column if not exists`, `drop ... if exists`,
+-- `create index if not exists` y `create or replace`.
+-- ============================================================
+
+
+-- ── 1. Identificador crudo ───────────────────────────────────────────────
+
+alter table contact_channels
+  add column if not exists raw_jid text,
+  add column if not exists addressing_mode text;
+
+update contact_channels set raw_jid = platform_sender_id where raw_jid is null;
+
+alter table messages add column if not exists remote_jid text;
+
+comment on column contact_channels.raw_jid is
+  'Identificador tal como llegó, sin transformar (F26). No se sobrescribe. NOT NULL lo pone F27.';
+comment on column contact_channels.addressing_mode is
+  'Cómo se direccionó en WhatsApp: pn o lid (key.addressingMode de Evolution). Nulo en Instagram.';
+comment on column messages.remote_jid is
+  'Identificador con que llegó el mensaje (F26). No se sobrescribe.';
+
+create or replace function public.identificador_inmutable()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_viejo text := to_jsonb(old) ->> tg_argv[0];
+  v_nuevo text := to_jsonb(new) ->> tg_argv[0];
+begin
+  if v_viejo is not null and v_nuevo is distinct from v_viejo then
+    raise exception '%.% guarda el identificador tal como llegó y no se sobrescribe (F26)', tg_table_name, tg_argv[0]
+      using errcode = '23514';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists contact_channels_raw_jid_inmutable on contact_channels;
+create trigger contact_channels_raw_jid_inmutable
+  before update of raw_jid on contact_channels
+  for each row execute function public.identificador_inmutable('raw_jid');
+
+drop trigger if exists messages_remote_jid_inmutable on messages;
+create trigger messages_remote_jid_inmutable
+  before update of remote_jid on messages
+  for each row execute function public.identificador_inmutable('remote_jid');
+
+
+-- ── 2. Identidad del canal ───────────────────────────────────────────────
+
+alter table channels add column if not exists platform_account_id text;
+
+comment on column channels.platform_account_id is
+  'Identidad del canal: platformUserId de la cuenta en Zernio (F26). late_account_id es la ranura, que Zernio reusa.';
+
+alter table channels drop constraint if exists channels_workspace_id_late_account_id_key;
+
+create unique index if not exists channels_ranura_activa_key
+  on channels (workspace_id, late_account_id)
+  where is_active and late_account_id is not null;
+
+create unique index if not exists channels_cuenta_activa_key
+  on channels (workspace_id, platform, platform_account_id)
+  where is_active and platform_account_id is not null;
+
+
+-- ── Quién actúa, para el historial ───────────────────────────────────────
+-- El nombre se toma en el momento, igual que `actorDe` en lib/auditoria.ts.
+create or replace function public.etiqueta_de_actor(p_user uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    nullif(btrim(u.raw_user_meta_data ->> 'full_name'), ''),
+    u.email,
+    p_user::text
+  )
+  from auth.users u where u.id = p_user;
+$$;
+
+revoke all on function public.etiqueta_de_actor(uuid) from public, anon, authenticated;
+
+
+-- ── 3. Reconciliar un teléfono ───────────────────────────────────────────
+
+create or replace function public.reconciliar_telefono(
+  p_contacto uuid,
+  p_telefono text,
+  p_via text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_c public.contacts%rowtype;
+  v_uid uuid := auth.uid();
+  v_servidor boolean := coalesce(auth.role(), '') = 'service_role';
+  v_otro public.contacts%rowtype;
+  v_visible boolean;
+begin
+  if p_via not in ('mensaje', 'aviso_evolution', 'manual') then
+    raise exception 'reconciliar_telefono: vía desconocida %', p_via using errcode = '22023';
+  end if;
+  if p_telefono is null or p_telefono !~ '^\+[1-9][0-9]{0,14}$' then
+    raise exception 'reconciliar_telefono: el teléfono tiene que estar en E.164 (§14)' using errcode = '22023';
+  end if;
+
+  select * into v_c from public.contacts where id = p_contacto and deleted_at is null;
+  if not found then
+    raise exception 'reconciliar_telefono: el contacto no existe' using errcode = 'P0002';
+  end if;
+
+  -- Las vías automáticas son del servidor. La manual, de quien ve el contacto.
+  if p_via <> 'manual' and not v_servidor then
+    raise exception 'reconciliar_telefono: la vía % la usa solo el servidor', p_via using errcode = '42501';
+  end if;
+  if not v_servidor and not public.can_see_contact(v_c.workspace_id, v_c.setter_id, v_c.vendedor_id) then
+    raise exception 'reconciliar_telefono: sin acceso a ese contacto' using errcode = '42501';
+  end if;
+
+  if v_c.phone = p_telefono then
+    return jsonb_build_object('resultado', 'sin_cambios');
+  end if;
+
+  -- Nunca por nombre: solo por el teléfono exacto, en el mismo espacio.
+  select * into v_otro from public.contacts
+  where workspace_id = v_c.workspace_id and phone = p_telefono and id <> v_c.id and deleted_at is null
+  order by created_at
+  limit 1;
+
+  if found then
+    v_visible := v_servidor or public.can_see_contact(v_otro.workspace_id, v_otro.setter_id, v_otro.vendedor_id);
+    return jsonb_build_object(
+      'resultado', 'conflicto',
+      'visible', v_visible,
+      'otro_id', case when v_visible then v_otro.id else null end
+    );
+  end if;
+
+  update public.contacts
+    set phone = p_telefono, phone_resolved = true, updated_at = now()
+    where id = v_c.id;
+
+  insert into public.audit_log
+    (workspace_id, actor_id, actor_label, action, entity_type, entity_id, entity_label, changes, detail)
+  values (
+    v_c.workspace_id,
+    case when v_servidor then null else v_uid end,
+    case when v_servidor then 'Sistema' else coalesce(public.etiqueta_de_actor(v_uid), 'Usuario') end,
+    case when v_c.phone_resolved then 'contacto.editado' else 'contacto.reconciliado' end,
+    'contacto',
+    v_c.id,
+    v_c.display_name,
+    jsonb_build_object('phone', jsonb_build_object('antes', v_c.phone, 'despues', p_telefono)),
+    jsonb_build_object('via', p_via)
+  );
+
+  return jsonb_build_object('resultado', 'resuelto');
+end;
+$$;
+
+revoke all on function public.reconciliar_telefono(uuid, text, text) from public, anon;
+grant execute on function public.reconciliar_telefono(uuid, text, text) to authenticated, service_role;
+
+
+-- ── 4. Fusionar dos contactos ────────────────────────────────────────────
+
+create or replace function public.fusionar_contactos(
+  p_conservar uuid,
+  p_absorber uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_c public.contacts%rowtype;
+  v_a public.contacts%rowtype;
+  v_uid uuid := auth.uid();
+  v_servidor boolean := coalesce(auth.role(), '') = 'service_role';
+  v_conv record;
+  v_destino uuid;
+  v_movidas uuid[] := '{}';
+  v_unidas uuid[] := '{}';
+  v_foto jsonb;
+  v_fc jsonb;
+  v_lc jsonb;
+  r record;
+  v_quedan bigint;
+begin
+  if p_conservar = p_absorber then
+    raise exception 'fusionar_contactos: es el mismo contacto' using errcode = '22023';
+  end if;
+  select * into v_c from public.contacts where id = p_conservar and deleted_at is null for update;
+  select * into v_a from public.contacts where id = p_absorber and deleted_at is null for update;
+  if v_c.id is null or v_a.id is null then
+    raise exception 'fusionar_contactos: alguno de los dos contactos no existe' using errcode = 'P0002';
+  end if;
+  if v_c.workspace_id <> v_a.workspace_id then
+    raise exception 'fusionar_contactos: son de espacios distintos' using errcode = '22023';
+  end if;
+  if not v_servidor and not public.is_workspace_manager(v_c.workspace_id) then
+    raise exception 'fusionar_contactos: solo Owner y Admin' using errcode = '42501';
+  end if;
+
+  -- La foto, antes de mover nada: es lo que permite reconstruir la fusión.
+  v_foto := jsonb_build_object(
+    'contacto', to_jsonb(v_a),
+    'etiquetas', (select coalesce(jsonb_agg(tag_id), '[]') from public.contact_tags where contact_id = v_a.id),
+    'campos', (select coalesce(jsonb_agg(jsonb_build_object('field_id', field_id, 'value', value)), '[]')
+               from public.contact_custom_fields where contact_id = v_a.id),
+    'canales', (select coalesce(jsonb_agg(jsonb_build_object('channel_id', channel_id, 'platform_sender_id', platform_sender_id)), '[]')
+                from public.contact_channels where contact_id = v_a.id)
+  );
+
+  -- Conversaciones: una por canal y contacto. Si los dos tienen en el mismo
+  -- canal, los mensajes pasan a la que queda y la otra se borra vacía.
+  for v_conv in select * from public.conversations where contact_id = v_a.id loop
+    select id into v_destino from public.conversations
+      where contact_id = v_c.id and channel_id = v_conv.channel_id;
+    if v_destino is null then
+      update public.conversations set contact_id = v_c.id where id = v_conv.id;
+      v_movidas := v_movidas || v_conv.id;
+    else
+      update public.messages set conversation_id = v_destino where conversation_id = v_conv.id;
+      update public.conversations d set
+        last_message_at = greatest(d.last_message_at, v_conv.last_message_at),
+        last_message_preview = case when v_conv.last_message_at > d.last_message_at
+                                    then v_conv.last_message_preview else d.last_message_preview end,
+        unread_count = coalesce(d.unread_count, 0) + coalesce(v_conv.unread_count, 0),
+        assigned_to = coalesce(d.assigned_to, v_conv.assigned_to)
+      where d.id = v_destino;
+      delete from public.conversations where id = v_conv.id;
+      v_unidas := v_unidas || v_conv.id;
+    end if;
+  end loop;
+
+  update public.contact_channels set contact_id = v_c.id where contact_id = v_a.id;
+
+  insert into public.contact_tags (contact_id, tag_id)
+    select v_c.id, tag_id from public.contact_tags where contact_id = v_a.id
+    on conflict do nothing;
+  delete from public.contact_tags where contact_id = v_a.id;
+
+  -- Campos propios: manda el valor del que queda; el absorbido completa huecos.
+  insert into public.contact_custom_fields (contact_id, field_id, value)
+    select v_c.id, field_id, value from public.contact_custom_fields where contact_id = v_a.id
+    on conflict do nothing;
+  delete from public.contact_custom_fields where contact_id = v_a.id;
+
+  -- Inscripciones: una por secuencia. Si los dos estaban, queda la del que queda.
+  update public.sequence_enrollments e set contact_id = v_c.id
+    where e.contact_id = v_a.id
+      and not exists (select 1 from public.sequence_enrollments x where x.contact_id = v_c.id and x.sequence_id = e.sequence_id);
+  delete from public.sequence_enrollments where contact_id = v_a.id;
+
+  update public.flow_sessions set contact_id = v_c.id where contact_id = v_a.id;
+  update public.broadcast_recipients set contact_id = v_c.id where contact_id = v_a.id;
+  update public.analytics_events set contact_id = v_c.id where contact_id = v_a.id;
+
+  -- La atribución: el primer clic más viejo y el último más nuevo. Es la única
+  -- escritura que puede cambiar un first_click ya escrito (trigger de la 00029).
+  v_fc := case
+    when v_c.attribution -> 'first_click' is null then v_a.attribution -> 'first_click'
+    when v_a.attribution -> 'first_click' is null then v_c.attribution -> 'first_click'
+    when (v_a.attribution #>> '{first_click,captured_at}') < (v_c.attribution #>> '{first_click,captured_at}')
+      then v_a.attribution -> 'first_click'
+    else v_c.attribution -> 'first_click' end;
+  v_lc := case
+    when v_c.attribution -> 'last_click' is null then v_a.attribution -> 'last_click'
+    when v_a.attribution -> 'last_click' is null then v_c.attribution -> 'last_click'
+    when (v_a.attribution #>> '{last_click,captured_at}') > (v_c.attribution #>> '{last_click,captured_at}')
+      then v_a.attribution -> 'last_click'
+    else v_c.attribution -> 'last_click' end;
+
+  perform set_config('app.fusion_contactos', 'on', true);
+  update public.contacts set
+    attribution = jsonb_strip_nulls(jsonb_build_object('first_click', v_fc, 'last_click', v_lc)),
+    phone = coalesce(phone, v_a.phone),
+    phone_resolved = case when coalesce(phone, v_a.phone) is not null then true else phone_resolved and v_a.phone_resolved end,
+    email = coalesce(email, v_a.email),
+    secondary_email = coalesce(secondary_email, v_a.secondary_email),
+    country = coalesce(country, v_a.country),
+    whatsapp_phone = coalesce(whatsapp_phone, v_a.whatsapp_phone),
+    setter_id = coalesce(setter_id, v_a.setter_id),
+    vendedor_id = coalesce(vendedor_id, v_a.vendedor_id),
+    last_interaction_at = greatest(last_interaction_at, v_a.last_interaction_at),
+    updated_at = now()
+  where id = v_c.id;
+  perform set_config('app.fusion_contactos', '', true);
+
+  -- La guarda: nada que apunte al absorbido puede irse en cascada sin que
+  -- esta función lo haya movido. Una tabla nueva con clave hacia contacts
+  -- (contact_notes, de F30) hace fallar la fusión hasta que se la incluya.
+  for r in
+    select c.conrelid::regclass as tabla, a.attname as columna
+    from pg_constraint c
+    join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any (c.conkey)
+    where c.contype = 'f' and c.confrelid = 'public.contacts'::regclass
+  loop
+    execute format('select count(*) from %s where %I = $1', r.tabla, r.columna) into v_quedan using v_a.id;
+    if v_quedan > 0 then
+      raise exception 'fusionar_contactos: % todavía tiene % filas del contacto absorbido; hay que sumarla a la fusión', r.tabla, v_quedan
+        using errcode = '55000';
+    end if;
+  end loop;
+
+  delete from public.contacts where id = v_a.id;
+
+  insert into public.audit_log
+    (workspace_id, actor_id, actor_label, action, entity_type, entity_id, entity_label, changes, detail)
+  values (
+    v_c.workspace_id,
+    case when v_servidor then null else v_uid end,
+    case when v_servidor then 'Sistema' else coalesce(public.etiqueta_de_actor(v_uid), 'Usuario') end,
+    'contacto.fusionado',
+    'contacto',
+    v_c.id,
+    v_c.display_name,
+    '{}',
+    jsonb_build_object(
+      'absorbido_id', v_a.id,
+      'absorbido_nombre', v_a.display_name,
+      'absorbido', v_foto -> 'contacto',
+      'foto', v_foto,
+      'conversaciones_movidas', to_jsonb(v_movidas),
+      'conversaciones_unidas', to_jsonb(v_unidas)
+    )
+  );
+
+  return jsonb_build_object('resultado', 'fusionado', 'conservado', v_c.id, 'absorbido', v_a.id);
+end;
+$$;
+
+revoke all on function public.fusionar_contactos(uuid, uuid) from public, anon;
+grant execute on function public.fusionar_contactos(uuid, uuid) to authenticated, service_role;
+
+
+-- ── El contador de F26 ───────────────────────────────────────────────────
+-- security invoker: cuenta lo que quien llama puede leer. La pantalla lo
+-- muestra solo al Owner (§11, Canales), que lee todo su espacio.
+create or replace function public.contar_mensajes_sin_telefono(
+  p_workspace uuid,
+  p_desde timestamptz
+)
+returns table (sin_telefono integer, total integer)
+language sql
+stable
+set search_path = ''
+as $$
+  select
+    count(*) filter (where m.remote_jid like '%@lid')::integer,
+    count(*)::integer
+  from public.messages m
+  join public.conversations v on v.id = m.conversation_id
+  where v.workspace_id = p_workspace
+    and v.platform = 'whatsapp'
+    and m.direction = 'inbound'
+    and m.created_at >= p_desde;
+$$;
+
+revoke all on function public.contar_mensajes_sin_telefono(uuid, timestamptz) from public, anon;
+grant execute on function public.contar_mensajes_sin_telefono(uuid, timestamptz) to authenticated, service_role;

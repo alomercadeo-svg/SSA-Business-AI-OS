@@ -14,12 +14,22 @@ const h = vi.hoisted(() => ({
   rol: "owner",
   updates: [] as Record<string, unknown>[],
   filtros: [] as [string, unknown][],
+  auditoria: [] as Record<string, unknown>[],
+}));
+
+vi.mock("@/lib/auditoria", async (original) => ({
+  ...(await original<typeof import("@/lib/auditoria")>()),
+  registrarAuditoria: async (e: Record<string, unknown>) => {
+    h.auditoria.push(e);
+    return true;
+  },
 }));
 
 vi.mock("@/lib/workspace", () => ({
   esManager: (r: string) => r === "owner" || r === "admin",
   getWorkspaceOrNull: async () => ({
     workspace: { id: "ws-1" },
+    user: { id: "u-1", email: "owner@ssa-test.local", user_metadata: { full_name: "Ale" } },
     role: h.rol,
     supabase: {
       from: () => {
@@ -50,6 +60,7 @@ beforeEach(() => {
   h.rol = "owner";
   h.updates.length = 0;
   h.filtros.length = 0;
+  h.auditoria.length = 0;
 });
 
 describe("activar un canal", () => {
@@ -60,6 +71,23 @@ describe("activar un canal", () => {
     expect(h.updates).toEqual([{ is_active: true }]);
     expect(h.filtros).toContainEqual(["id", "ch-1"]);
     expect(h.filtros).toContainEqual(["workspace_id", "ws-1"]);
+  });
+
+  it("queda en el historial como «canal conectado», con quien lo activó (F31)", async () => {
+    await activarCanal("ch-1");
+    expect(h.auditoria).toHaveLength(1);
+    expect(h.auditoria[0]).toMatchObject({
+      workspaceId: "ws-1",
+      accion: "canal.conectado",
+      actor: { id: "u-1", etiqueta: "Ale" },
+      entidad: { tipo: "canal", id: "ch-1" },
+    });
+  });
+
+  it("un Member que no puede activar tampoco deja rastro en el historial", async () => {
+    h.rol = "member";
+    await activarCanal("ch-1");
+    expect(h.auditoria).toHaveLength(0);
   });
 
   it("nunca escribe is_active = false", async () => {

@@ -12,7 +12,9 @@ import {
   type MotivoRechazo,
 } from "@/lib/evolution-webhook";
 import { procesarEventoEvolution } from "@/lib/evolution-processor";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { notificarAlerta } from "@/lib/correo";
+import { auditarAlertaSiEsNueva } from "@/lib/auditoria";
 import type { Database } from "@/lib/types/database";
 
 /**
@@ -322,6 +324,8 @@ async function registrarAlerta(
   if (opts.workspaceId && typeof data === "string") {
     const alertaId = data;
     after(async () => {
+      // F31: «canal con error», una vez por condición abierta.
+      await auditarAlertaSiEsNueva(supabase as unknown as SupabaseClient, alertaId);
       await notificarAlerta(alertaId);
     });
   }

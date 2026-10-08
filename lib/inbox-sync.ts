@@ -10,6 +10,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Zernio } from "./zernio-client";
 import { messagePreview } from "@/lib/message-preview";
+import { registrarAuditoria } from "@/lib/auditoria";
 
 /** Cap per channel: 4 pages x 50 conversations. */
 const MAX_PAGES_PER_CHANNEL = 4;
@@ -43,6 +44,12 @@ interface ZernioInboxConversation {
   id?: string;
   participantId?: string;
   participantName?: string;
+  /**
+   * El handle. El SDK (0.2.519) no lo declara en el listado, pero llega: se
+   * midió el 22/09/2026 (F25, nota "Por qué, medido"). Si no viene, el handle
+   * no se deduce de `participantName`, aunque tenga pinta de handle.
+   */
+  participantUsername?: string | null;
   participantPicture?: string | null;
   lastMessage?: string;
   updatedTime?: string;
@@ -58,6 +65,18 @@ interface ZernioInboxConversation {
  * sender was already known on this channel.
  * With `stampExisting: false` an existing contact's last_interaction_at is
  * left untouched; the caller stamps it once the interaction is confirmed.
+ *
+ * F25 y F31, agregado el 07/10/2026:
+ *   - El handle (`platform_username`) se escribe con el que trae el proveedor,
+ *     también en un contacto que ya existía: si cambió, se reemplaza. Si el
+ *     aviso no lo trae, no se borra el que había: que no venga no prueba que
+ *     cambió. Nunca se deduce de otro campo.
+ *   - El nombre de un contacto que ya existe no se toca: ni acá ni en ningún
+ *     otro camino automático. Un nombre `manual` (F25) no lo pisa nadie.
+ *   - La búsqueda es solo por (canal, identificador del remitente). Nunca por
+ *     nombre: F26 prefiere un duplicado visible a una fusión equivocada.
+ *   - Un contacto nuevo queda en el historial de auditoría, con el Sistema
+ *     como actor.
  */
 export async function upsertContactForSender({
   supabase,
@@ -70,7 +89,7 @@ export async function upsertContactForSender({
   stampExisting = true,
 }: {
   supabase: SupabaseClient;
-  channel: { id: string; workspace_id: string };
+  channel: { id: string; workspace_id: string; platform?: string };
   senderId: string;
   senderName: string;
   senderPicture: string | null;
@@ -80,12 +99,16 @@ export async function upsertContactForSender({
 }): Promise<{ contactId: string; existed: boolean } | null> {
   const { data: existingContactChannel } = await supabase
     .from("contact_channels")
-    .select("contact_id")
+    .select("contact_id, platform_username")
     .eq("channel_id", channel.id)
     .eq("platform_sender_id", senderId)
     .single();
 
   if (existingContactChannel) {
+    const handle = handleDelProveedor(senderUsername);
+    if (handle && handle !== existingContactChannel.platform_username) {
+      await actualizarHandle(supabase, channel.id, senderId, handle);
+    }
     if (stampExisting) {
       await supabase
         .from("contacts")
@@ -112,7 +135,10 @@ export async function upsertContactForSender({
     contact_id: newContact.id,
     channel_id: channel.id,
     platform_sender_id: senderId,
-    platform_username: senderUsername ?? null,
+    platform_username: handleDelProveedor(senderUsername),
+    // F26: el identificador tal como llegó. Para Instagram es el id del
+    // remitente que manda Zernio, el mismo valor que platform_sender_id.
+    raw_jid: senderId,
   });
 
   await supabase.from("analytics_events").insert({
@@ -121,7 +147,43 @@ export async function upsertContactForSender({
     event_type: "contact_created",
   });
 
+  await registrarAuditoria(
+    {
+      workspaceId: channel.workspace_id,
+      actor: null,
+      accion: "contacto.creado",
+      entidad: { tipo: "contacto", id: newContact.id, etiqueta: senderName },
+      detalle: { plataforma: channel.platform ?? null, canal_id: channel.id },
+    },
+    supabase
+  );
+
   return { contactId: newContact.id, existed: false };
+}
+
+/** El handle como lo trae el proveedor, sin la arroba. Vacío o ausente es nulo. */
+export function handleDelProveedor(username: string | null | undefined): string | null {
+  if (typeof username !== "string") return null;
+  const limpio = username.trim().replace(/^@/, "");
+  return limpio || null;
+}
+
+/**
+ * Reemplaza el handle de un remitente en un canal (F25). Solo se llama con un
+ * handle que trajo el proveedor; la ausencia nunca borra el que había.
+ */
+export async function actualizarHandle(
+  supabase: SupabaseClient,
+  channelId: string,
+  senderId: string,
+  handle: string
+): Promise<void> {
+  const { error } = await supabase
+    .from("contact_channels")
+    .update({ platform_username: handle })
+    .eq("channel_id", channelId)
+    .eq("platform_sender_id", senderId);
+  if (error) console.error("[inbox-sync] no se pudo actualizar el handle:", error.message);
 }
 
 /**
@@ -206,7 +268,15 @@ async function backfillChannel({
       // ones are dropped so they cannot overwrite it.
       if (seenParticipants.has(conv.participantId)) continue;
       seenParticipants.add(conv.participantId);
-      if (known.has(conv.id)) continue;
+      if (known.has(conv.id)) {
+        // La conversación ya está, pero el handle se refresca igual (F25): es
+        // el único camino por el que los contactos importados antes del
+        // 07/10/2026, que quedaron sin handle, lo reciben sin esperar un
+        // mensaje nuevo.
+        const handle = handleDelProveedor(conv.participantUsername);
+        if (handle) await actualizarHandle(supabase, channel.id, conv.participantId, handle);
+        continue;
+      }
       if (await importConversation({ supabase, workspaceId, channel, conv })) {
         imported++;
       }
@@ -234,10 +304,11 @@ async function importConversation({
   const interactionAt = conv.updatedTime ?? new Date().toISOString();
   const contact = await upsertContactForSender({
     supabase,
-    channel: { id: channel.id, workspace_id: workspaceId },
+    channel: { id: channel.id, workspace_id: workspaceId, platform: channel.platform },
     senderId: conv.participantId!,
     senderName: conv.participantName || conv.participantId!,
     senderPicture: conv.participantPicture || null,
+    senderUsername: conv.participantUsername,
     interactionAt,
     stampExisting: false,
   });
