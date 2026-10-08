@@ -671,6 +671,22 @@ Corrieron los dos caminos: el receptor, que guardó el mensaje, y el relleno, qu
 
 **Pendiente de la pantalla de la bandeja (F35): el separador de fecha dice «Today» sobre mensajes de ayer.** `formatDateSeparator` (`components/inbox/message-thread.tsx:22-29`, del fork) llama «Today» a todo lo de las últimas 24 horas y «Yesterday» a lo de entre 24 y 48, no al día del calendario. Lo vio Marcos el 08/10/2026 en un mensaje del 07/10 a las 19:27. No se tocó.
 
+**Criterios tildados al cerrar el tramo 1, decididos por Marcos el 08/10/2026**, cada uno registrado como reescrito en `docs/criterios-bajas.json` con su prueba (foto: 324 líneas):
+- **F27:** 13 de 14, todos salvo el #6 (tipos soportados).
+- **F25:** «nombre manual» y «origen de click-to-WhatsApp».
+- **F26:** identificador crudo y modo, identificador de cada mensaje, contacto sin teléfono con marca, y el contador.
+- **Sin tildar:** en F25, `last_click`. En F26, las tres vías de reconciliación, la propuesta de fusión, la fusión con notas (F30) y la identidad del canal.
+- **El avance no cambia:** sigue en 9 de 26. F27 cierra con el #6 en el tramo 2; F25 y F26 siguen sin completar.
+
+**Pendientes para el tramo 2, además de F39 y F28:**
+- **F27 #6, tipos soportados:**
+  - un aviso firmado por cada tipo en `scripts/verify-guardado-whatsapp.mjs`: texto, imagen, audio, documento, video, sticker, ubicación y respuesta;
+  - un recuento sin contenido de los 478 adjuntos importados de Instagram, por `message_type`.
+- **F25, el segundo toque de `last_click`:** dos avisos firmados con `externalAdReply` sobre el mismo contacto. El segundo tiene que actualizar `last_click` sin tocar `first_click`.
+- **F25, la atribución del anuncio de Meta en Instagram:** verificar en los tipos de `@zernio/node`, con archivo y línea, si `message.received` o `getInboxConversation` la traen, y proponer si se construye. Hoy ningún camino de Instagram escribe un toque.
+- El origen de los 7 contactos sin `contact_channels` (276 contra 269 antes de la importación; ya estaban el 07/10), contado sin leer contenido.
+- La verificación de las tareas programadas en Railway, antes de F39.
+
 **Pendiente de F35 (S7): cargar los mensajes anteriores de una conversación.** Desde el despliegue B, `GET` de `app/api/v1/messages/route.ts` trae los últimos `MENSAJES_POR_HILO` (200) mensajes de la base y devuelve `hayAnteriores`; el hilo (`components/inbox/message-thread.tsx`, `MessageThread`) muestra «Hay mensajes anteriores que no se muestran acá» y no tiene forma de traerlos. Es lo mismo que hacía la ruta anterior con Zernio (la última página, con aviso), así que no deja de verse nada que antes se viera. Al 08/10/2026 hay al menos una conversación de @alomercadeo con 253 mensajes: los 53 más viejos están en la base y no se ven desde la bandeja.
 
 ---

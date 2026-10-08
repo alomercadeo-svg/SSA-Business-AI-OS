@@ -619,7 +619,7 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 **Criterios del nombre y del handle.** Agregados el 22 de septiembre de 2026, después de medir qué manda Zernio. El razonamiento está en la nota de abajo.
 
 - [x] `contact_channels.platform_username` se escribe con el handle que trae el proveedor cuando lo trae: `participantUsername` en el listado y en `getInboxConversation`, `sender.username` en el webhook. Si ya tenía un valor, se reemplaza por el que trae el proveedor. **Si no lo trae, queda nulo. Nunca se deduce de la forma de otro campo**, aunque `participantName` tenga pinta de handle: hay nombres reales sin espacio, y un dato decidido por heurística falla en silencio. La identidad del canal no depende de esto: la resuelve F26 con `platformUserId`, y el handle es dato de presentación
-- [ ] `contacts.display_name_source` registra de dónde salió el nombre: `provider` o `manual`. **Un nombre de origen `manual` no lo pisa nunca ningún camino automático**: ni la importación, ni el webhook, ni el relleno de F27
+- [x] `contacts.display_name_source` registra de dónde salió el nombre: `provider` o `manual`. **Un nombre de origen `manual` no lo pisa nunca ningún camino automático**: ni la importación, ni el webhook, ni el relleno de F27
 
 > **Por qué, medido el 22 de septiembre de 2026.** Zernio manda el handle en el campo del nombre, tanto en el listado de conversaciones como en el webhook. De las 500 conversaciones reproducidas, solo 2 traían un nombre real, y eran exactamente las 2 que traían `instagramProfile`: el perfil que Zernio completa, en la muestra de ese día, justo después de un mensaje entrante. En nuestra base, los 200 contactos importados quedaron con el handle como nombre y sin `platform_username`, porque la importación no lee `participantUsername` (la interfaz de `lib/inbox-sync.ts:42-51` ni siquiera lo declara). Ningún camino reescribe un nombre existente, así que sin F27 se quedan así para siempre. El relleno está en F27.
 
@@ -629,7 +629,7 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 - [x] `first_click` se escribe una sola vez y no se modifica nunca más. Es el dato que dice de dónde salió el lead, y se pierde para siempre si se sobreescribe
 - [ ] `last_click` se actualiza en cada interacción nueva que traiga parámetros de seguimiento
 - [x] No requiere política de acceso adicional: hereda la de `contacts`
-- [ ] Para contactos que lleguen por un anuncio de click-to-WhatsApp se registra el origen. La marca de ventana de 72 horas que eso habilita es del plan B: ver el apéndice
+- [x] Para contactos que lleguen por un anuncio de click-to-WhatsApp se registra el origen. La marca de ventana de 72 horas que eso habilita es del plan B: ver el apéndice
 
 #### F26: Identidad de canal y reconciliación de teléfonos
 
@@ -641,9 +641,9 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Criterios de aceptación:**
 
-- [ ] `contact_channels` guarda el identificador crudo tal como llegó y el modo de direccionamiento, además del teléfono derivado
-- [ ] Cada mensaje guarda el identificador con el que llegó, sin sobrescribirlo
-- [ ] Un contacto sin teléfono conocido entra como contacto nuevo, con marca visible de "teléfono sin resolver"
+- [x] `contact_channels` guarda el identificador crudo tal como llegó y el modo de direccionamiento, además del teléfono derivado
+- [x] Cada mensaje guarda el identificador con el que llegó, sin sobrescribirlo
+- [x] Un contacto sin teléfono conocido entra como contacto nuevo, con marca visible de "teléfono sin resolver"
 - [x] Nunca se deduplica por nombre. Un duplicado visible y reconciliable es preferible a una fusión incorrecta, que es destructiva y difícil de deshacer
 - [ ] Reconciliación posterior por tres vías, todas con registro en el historial de auditoría:
     1. Un mensaje posterior de la misma conversación que sí traiga el teléfono
@@ -651,7 +651,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
     3. Carga manual del teléfono por el operador desde la ficha. Esta es la que garantiza que el caso nunca queda trabado, y es barata de construir
 - [ ] Al reconciliar, si ya existe otro contacto con ese teléfono, se propone la fusión mostrando los dos lados. La fusión la confirma una persona, nunca es automática
 - [ ] Al fusionar se unifican conversaciones, notas, etiquetas y atribución
-- [ ] Instrumentación obligatoria: contador de cuántos mensajes entrantes llegan sin teléfono resuelto, visible para el Owner. Es el dato que decide si esto es marginal o si hay que invertir más
+- [x] Instrumentación obligatoria: contador de cuántos mensajes entrantes llegan sin teléfono resuelto, visible para el Owner. Es el dato que decide si esto es marginal o si hay que invertir más
 - [ ] **La identidad de un canal es la cuenta en la plataforma, no la ranura del proveedor.** `channels` guarda el identificador de la cuenta en la plataforma (`platformUserId` en la respuesta de Zernio), y `late_account_id` queda solo como referencia al proveedor. Si una sincronización encuentra el mismo `late_account_id` con otro `platformUserId`, **no renombra la fila**: la desactiva, crea un canal nuevo para la cuenta nueva, y lo registra en el historial de auditoría. Agregado el 22 de septiembre de 2026, antes de fijar la línea de base del Bloque 3; el motivo está abajo
 
 > **Hallazgo del 22 de septiembre de 2026: el identificador de cuenta de Zernio no identifica una cuenta de Instagram.** Afecta a esta funcionalidad y a F29. **Decidido el mismo día: entra en F26**, como el último criterio de arriba. No es ampliación de alcance: F26 es la funcionalidad de la identidad de canal, y hoy usa como identidad un campo que se midió que no identifica una cuenta. F29 no cambia.
@@ -670,34 +670,34 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** que las conversaciones con los leads vivan en la base del negocio y no en un proveedor.
 
-**Estado: no construido** (verificado el 22 de septiembre de 2026: `messages` tiene 0 filas después de 9 entregas de webhook, y nada en el código inserta entrantes).
+**Estado: construida, no completa** (8 de octubre de 2026, tramo 1 de la sesión 2 del Bloque 3). Migración 00032; los dos receptores guardan antes del acuse (`lib/mensajes-guardado.ts`, `lib/zernio-aviso.ts`, `lib/evolution-guardado.ts`); la bandeja guarda lo que envía y lee de la base (`fcca3be`); la importación del historial trajo 568 conversaciones y 3.571 mensajes. 13 de 14 criterios tildados. **Falta el #6, tipos soportados**: un aviso firmado por tipo y el recuento por tipo de los adjuntos de Instagram, en el tramo 2. El detalle está en `docs/estado-fase1.md`. Antes decía: no construido (verificado el 22 de septiembre de 2026: `messages` tiene 0 filas después de 9 entregas de webhook, y nada en el código inserta entrantes).
 
 **Criterios de aceptación:**
 
-- [ ] Los mensajes entrantes se guardan en `messages`. Hoy solo se guardan los salientes
-- [ ] Restricción de unicidad sobre la combinación de chat, identificador de mensaje y dirección, no sobre el identificador solo: ese identificador lo genera el teléfono que envía y es único por conversación, no en todo el sistema. La propia base de Evolution no deduplica, así que los duplicados son esperables
-- [ ] La fecha del proveedor viene en segundos y se convierte al guardar
-- [ ] Se contemplan las dos formas del aviso: el de mensaje individual trae un objeto, el de sincronización trae una lista
-- [ ] Se guarda la referencia al mensaje citado, para poder reconstruir hilos, aunque ese mensaje todavía no exista de nuestro lado
+- [x] Los mensajes entrantes se guardan en `messages`. Hoy solo se guardan los salientes
+- [x] Restricción de unicidad sobre la combinación de chat, identificador de mensaje y dirección, no sobre el identificador solo: ese identificador lo genera el teléfono que envía y es único por conversación, no en todo el sistema. La propia base de Evolution no deduplica, así que los duplicados son esperables
+- [x] La fecha del proveedor viene en segundos y se convierte al guardar
+- [x] Se contemplan las dos formas del aviso: el de mensaje individual trae un objeto, el de sincronización trae una lista
+- [x] Se guarda la referencia al mensaje citado, para poder reconstruir hilos, aunque ese mensaje todavía no exista de nuestro lado
 - [ ] Tipos soportados: texto, imagen, audio, documento, video, sticker, ubicación y respuesta a otro mensaje
-- [ ] La base pasa a ser la fuente de verdad de la bandeja. Después de esta funcionalidad, la bandeja no consulta más al proveedor para mostrar mensajes
-- [ ] El camino de entrada es el mismo para Instagram y WhatsApp, sin condicionales por plataforma más allá del adaptador
-- [ ] **Importación del historial de Instagram que ya existe.** Ver abajo: sin esto, el criterio anterior hace que la bandeja pierda las conversaciones viejas el día que se migre
-- [ ] **Relleno oportunista del nombre y el handle, con techo.** Al procesar un `message.received` de Instagram, si el remitente tiene `contact_channels.profile_status = 'pending'`, se relee esa sola conversación con `zernio.messages.getInboxConversation` (`GET /v1/inbox/conversations/{conversationId}`, con `accountId` obligatorio). Va en el procesamiento en segundo plano, **después** del acuse de recibo, nunca antes. Si la respuesta trae `instagramProfile`:
+- [x] La base pasa a ser la fuente de verdad de la bandeja. Después de esta funcionalidad, la bandeja no consulta más al proveedor para mostrar mensajes
+- [x] El camino de entrada es el mismo para Instagram y WhatsApp, sin condicionales por plataforma más allá del adaptador
+- [x] **Importación del historial de Instagram que ya existe.** Ver abajo: sin esto, el criterio anterior hace que la bandeja pierda las conversaciones viejas el día que se migre
+- [x] **Relleno oportunista del nombre y el handle, con techo.** Al procesar un `message.received` de Instagram, si el remitente tiene `contact_channels.profile_status = 'pending'`, se relee esa sola conversación con `zernio.messages.getInboxConversation` (`GET /v1/inbox/conversations/{conversationId}`, con `accountId` obligatorio). Va en el procesamiento en segundo plano, **después** del acuse de recibo, nunca antes. Si la respuesta trae `instagramProfile`:
     - se escribe `platform_username` con `participantUsername`;
     - se escribe `contacts.display_name` con `participantName`, **solo si** `display_name_source` es `provider`;
     - `profile_status` pasa a `complete`.
 
   Si no lo trae, se suma uno a `profile_attempts`, y **a los 3 intentos `profile_status` pasa a `unavailable` y no se reintenta más**. La señal de "ya tiene nombre real" es que venga `instagramProfile`, **no la forma del nombre**. Rendirse cuesta cero: el contacto se queda con el handle, que es donde está hoy. Sin el techo, cada contacto cuyo perfil nunca se complete dispararía una llamada extra a la API en cada mensaje entrante, para siempre. Con los datos de hoy, eso serían 498 de 500
-- [ ] **Control positivo del relleno, determinista.** Se prueba con la respuesta de `getInboxConversation` **simulada**, no contra Zernio en vivo. Tres casos:
+- [x] **Control positivo del relleno, determinista.** Se prueba con la respuesta de `getInboxConversation` **simulada**, no contra Zernio en vivo. Tres casos:
     1. Un contacto con nombre de origen `provider` y `profile_status = 'pending'` **recibe** nombre y handle cuando la respuesta simulada trae `instagramProfile`.
     2. **No cambia nada** cuando no lo trae, salvo `profile_attempts`.
     3. Un nombre de origen `manual` no se pisa aunque la respuesta traiga perfil.
 
   **Probar solo el tercer caso no alcanza:** no distingue entre "está bien hecho" y "está todo congelado". **Y no va contra la API real** porque, en lo medido, el perfil aparece alrededor de un segundo antes de la entrega del webhook. Un test que dependa de ganar esa carrera falla de vez en cuando, y un test así termina desactivado, que es perder el control positivo entero
-- [ ] Se guardan los mensajes que el negocio escribe fuera del sistema: en Instagram, los avisos message.sent de lo escrito desde la app (hoy el receptor los descarta en app/api/webhooks/late/route.ts:167, que ignora todo evento que no sea message.received, incluido message.sent; y en la :190 descarta además los message.received con dirección outgoing, para no procesar en bucle los propios envíos); en WhatsApp, los mensajes propios (from_me) escritos desde el teléfono. Un mensaje enviado desde la bandeja no se guarda dos veces
-- [ ] Control positivo: un mensaje escrito desde la app de Instagram con la cuenta de prueba aparece en la bandeja leyendo de la base; uno enviado desde la bandeja aparece una sola vez
-- [ ] Control positivo de WhatsApp, con un aviso de prueba firmado de Evolution: un mensaje propio (from_me = true) escrito desde el teléfono se guarda como mensaje del negocio; si ese mismo mensaje ya estaba guardado porque se envió desde la bandeja, no se guarda dos veces
+- [x] Se guardan los mensajes que el negocio escribe fuera del sistema: en Instagram, los avisos message.sent de lo escrito desde la app (hoy el receptor los descarta en app/api/webhooks/late/route.ts:167, que ignora todo evento que no sea message.received, incluido message.sent; y en la :190 descarta además los message.received con dirección outgoing, para no procesar en bucle los propios envíos); en WhatsApp, los mensajes propios (from_me) escritos desde el teléfono. Un mensaje enviado desde la bandeja no se guarda dos veces
+- [x] Control positivo: un mensaje escrito desde la app de Instagram con la cuenta de prueba aparece en la bandeja leyendo de la base; uno enviado desde la bandeja aparece una sola vez
+- [x] Control positivo de WhatsApp, con un aviso de prueba firmado de Evolution: un mensaje propio (from_me = true) escrito desde el teléfono se guarda como mensaje del negocio; si ese mismo mensaje ya estaba guardado porque se envió desde la bandeja, no se guarda dos veces
 
 > **Los tres criterios de arriba entraron el 7 de octubre de 2026, antes de medir el Bloque 3.** El motivo y el registro del ajuste de la línea de base están en §0 y en `docs/estado-fase1.md`.
 >
@@ -2209,6 +2209,7 @@ No se deciden leyendo documentación. Se instrumentan y se miran.
 
   **Se decide antes de construir la bandeja.**
 - **Encontrado el 08/10/2026, sin resolver: un espacio de trabajo con `contact_channels` no se puede borrar entero.** Desde la 00025, la clave de `contact_channels.channel_id` hacia `channels` es NO ACTION, y al borrar el espacio Postgres frena el borrado del canal mientras quedan `contact_channels` apuntándolo (error 23503, `contact_channels_channel_id_fkey`). La 00025 decía que la NO ACTION «no traba el borrado de un workspace entero»: su verificador lo probó sin `contact_channels`. Apareció en la limpieza de `scripts/verify-guardado-whatsapp.mjs`, que ahora borra los contactos antes que el espacio. Importa si algún día se borra un espacio real desde la base.
+- **La vía 2 de reconciliación de F26, «el aviso de actualización de contacto que manda Evolution», no se puede cumplir con Evolution 2.3.7 (decidido por Marcos el 08/10/2026, queda sin tildar).** Los avisos de contacto traen solo `{ remoteJid, pushName, profilePicUrl, instanceId }`: los del camino del mensaje (`whatsapp.baileys.service.ts:1496-1506`, emitidos en `:1524` y `:1544`) repiten el identificador que ya trajo el mensaje, después del reemplazo de `:1478-1479`; los de la sincronización (`:819`, `:861` y `:909`) traen el identificador crudo y nada más. Ninguno trae a la vez el `@lid` y el teléfono, que es lo que hace falta para reconciliar. **Lo de `senderPn` es inferencia:** sale de leer un solo archivo de Baileys 7.0.0-rc.9 (`src/Utils/decode-wa-message.ts`, donde no se asigna), que se supone que es la versión que usa Evolution 2.3.7 (`"baileys": "7.0.0-rc.9"` en su `package.json`); el resto de Baileys no se leyó.
 - **Las vías automáticas de reconciliación de F26 con Evolution 2.3.7 (verificado en el código el 08/10/2026, sin llamar a Evolution).** La copia de `whatsapp.baileys.service.ts` que se leyó es la de la etiqueta `2.3.7`: su huella de git (`60e857fc…`) es igual a la del repositorio público. Esa versión usa Baileys `7.0.0-rc.9`.
   - **La primera fuente de `docs/investigacion-evolution-api.md:790-791`, «un mensaje posterior que traiga `remoteJidAlt`» con el teléfono, no se cumple con 2.3.7.** Cuando `remoteJid` es `@lid` y hay `remoteJidAlt`, Evolution pisa `remoteJid` con el teléfono antes de avisar (`:1478-1479`), y el `@lid` no viaja en ningún otro campo.
   - **`senderPn` no lo llena Baileys:** en `src/Utils/decode-wa-message.ts` de la etiqueta `v7.0.0-rc.9` no se asigna. Solo se leyó ese archivo; que el paquete de npm sea esa etiqueta es inferencia.
