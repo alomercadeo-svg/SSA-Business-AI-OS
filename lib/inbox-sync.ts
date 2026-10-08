@@ -12,8 +12,13 @@ import type { Zernio } from "./zernio-client";
 import { messagePreview } from "@/lib/message-preview";
 import { registrarAuditoria, type Actor } from "@/lib/auditoria";
 
-/** Cap per channel: 4 pages x 50 conversations. */
-const MAX_PAGES_PER_CHANNEL = 4;
+/**
+ * Tope de SEGURIDAD por canal: 40 páginas de 50 (2.000 conversaciones), por
+ * encima de las 500 que documenta Zernio por cuenta. Hasta el 08/10/2026 era 4
+ * (200), siempre desde las más recientes, y repetir la sincronización no bajaba
+ * de ahí (F27). Si corta acá en vez de por el final del listado, lo dice.
+ */
+export const MAX_PAGES_PER_CHANNEL = 40;
 const PAGE_SIZE = 50;
 
 export interface BackfillChannel {
@@ -212,12 +217,20 @@ export async function backfillInboxConversations({
   channels: BackfillChannel[];
   /** Quien disparó la importación: queda como autor de «contacto creado» (F31). */
   actor?: Actor | null;
-}): Promise<{ imported: number }> {
+}): Promise<{ imported: number; cortadosPorTope: string[] }> {
   let imported = 0;
+  const cortadosPorTope: string[] = [];
 
   for (const channel of channels) {
     try {
-      imported += await backfillChannel({ supabase, zernio, workspaceId, channel, actor });
+      const r = await backfillChannel({ supabase, zernio, workspaceId, channel, actor });
+      imported += r.imported;
+      if (r.cortadoPorTope) {
+        cortadosPorTope.push(channel.id);
+        console.warn(
+          `[inbox-sync] el canal ${channel.id} cortó en el tope de ${MAX_PAGES_PER_CHANNEL} páginas, no en el final del listado`,
+        );
+      }
     } catch (err) {
       console.error(
         `[inbox-sync] backfill failed for channel ${channel.id} (${channel.platform}):`,
@@ -226,7 +239,7 @@ export async function backfillInboxConversations({
     }
   }
 
-  return { imported };
+  return { imported, cortadosPorTope };
 }
 
 async function backfillChannel({
@@ -241,7 +254,7 @@ async function backfillChannel({
   workspaceId: string;
   channel: BackfillChannel;
   actor: Actor | null;
-}): Promise<number> {
+}): Promise<{ imported: number; cortadoPorTope: boolean }> {
   const { data: existingRows } = await supabase
     .from("conversations")
     .select("late_conversation_id")
@@ -292,11 +305,11 @@ async function backfillChannel({
     }
 
     const pagination = res.data?.pagination;
-    if (!pagination?.hasMore || !pagination.nextCursor) break;
+    if (!pagination?.hasMore || !pagination.nextCursor) return { imported, cortadoPorTope: false };
     cursor = pagination.nextCursor;
   }
 
-  return imported;
+  return { imported, cortadoPorTope: true };
 }
 
 async function importConversation({

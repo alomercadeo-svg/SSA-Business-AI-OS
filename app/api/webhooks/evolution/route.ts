@@ -11,7 +11,7 @@ import {
   type ClaveMensaje,
   type MotivoRechazo,
 } from "@/lib/evolution-webhook";
-import { procesarEventoEvolution } from "@/lib/evolution-processor";
+import { guardarEventoEvolution, procesarEventoEvolution } from "@/lib/evolution-processor";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { notificarAlerta } from "@/lib/correo";
 import { auditarAlertaSiEsNueva } from "@/lib/auditoria";
@@ -252,15 +252,25 @@ async function manejarWebhook(request: NextRequest) {
     return clave === null || nuevas.includes(clave);
   });
 
+  // ── 5b. Guardar los mensajes ANTES del acuse (F27) ────────────────────────
+  //
+  // Solo escrituras en la base: contacto, conversación y mensaje. Nada llama a
+  // Evolution ni a otro servicio. Si falla, se liberan los reclamos y se
+  // responde 500: Evolution reintenta (hasta 10 veces,
+  // `docs/investigacion-evolution-api.md:240`), y un aviso reclamado y no
+  // guardado ya no se pierde en silencio (deuda de §15, 07/10/2026).
+  const evento = { supabase, canal, evento: payload.event ?? "", instancia, mensajes: paraProcesar };
+  try {
+    await guardarEventoEvolution(evento);
+  } catch (err) {
+    console.error("[evolution] no se pudo guardar:", err instanceof Error ? err.message : "error");
+    if (nuevas.length > 0) await supabase.from("webhook_events").delete().in("event_id", nuevas);
+    return NextResponse.json({ error: "No se pudo guardar" }, { status: 500 });
+  }
+
   after(async () => {
     try {
-      await procesarEventoEvolution({
-        supabase,
-        canal,
-        evento: payload.event ?? "",
-        instancia,
-        mensajes: paraProcesar,
-      });
+      await procesarEventoEvolution({ ...evento, data: payload.data });
     } catch (err) {
       console.error("[evolution] error procesando el evento:", err);
     }

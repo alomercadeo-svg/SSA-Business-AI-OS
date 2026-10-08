@@ -118,7 +118,7 @@ function idDePerfil(perfil: CuentaParaPlan["profileId"]): string | undefined {
 export function planDeSincronizacion(entrada: {
   cuentas: unknown;
   perfiles: unknown;
-  canales: readonly (CanalParaReglas & { id: string })[];
+  canales: readonly (CanalParaReglas & { id: string; platform_account_id?: string | null })[];
 }): PlanDeSincronizacion {
   if (!Array.isArray(entrada.cuentas) || !Array.isArray(entrada.perfiles)) {
     return { error: ERROR_FORMA_INESPERADA };
@@ -147,8 +147,15 @@ export function planDeSincronizacion(entrada: {
     return { error: null, aDesactivar: [], ceroCuentas: true, excedidas, vigentes };
   }
 
+  // Una cuenta que volvió con otra ranura (F26, 08/10/2026) sigue vigente
+  // aunque su ranura vieja ya no venga: la sincronización le cambia la ranura
+  // a esa fila en vez de apagarla.
+  const identidadesVigentes = new Set(
+    cuentas.map((c) => platformUserIdDe(c)).filter((id): id is string => id !== null),
+  );
   const aDesactivar = entrada.canales
     .filter((c) => debeDesactivarseCanal(c, vigentes))
+    .filter((c) => !(c.platform_account_id && identidadesVigentes.has(c.platform_account_id)))
     .map((c) => c.id);
   return { error: null, aDesactivar, ceroCuentas: false, excedidas, vigentes };
 }
@@ -171,18 +178,34 @@ export function platformUserIdDe(cuenta: unknown): string | null {
   return v.trim() || null;
 }
 
+/** Sin plataforma de un lado no se puede decir que sean distintas. */
+function mismaPlataforma(a: string | null | undefined, b: string | null | undefined): boolean {
+  return !a || !b || a === b;
+}
+
 export interface CanalParaIdentidad {
   id: string;
   late_account_id: string | null;
   platform_account_id: string | null;
   is_active: boolean;
+  /** Para no cruzar plataformas al buscar por identidad. Opcional en los tests. */
+  platform?: string | null;
+  created_at?: string | null;
+}
+
+function masReciente<C extends CanalParaIdentidad>(canales: readonly C[]): C | undefined {
+  return [...canales].sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))[0];
 }
 
 export type DecisionDeCuenta<C extends CanalParaIdentidad> =
   /** No hay fila para esta cuenta: se crea. */
   | { tipo: "crear"; identidad: string | null }
-  /** Es la misma cuenta: se actualizan los datos de presentación. */
-  | { tipo: "existente"; canal: C; completarIdentidad: string | null }
+  /**
+   * Es la misma cuenta: se actualizan los datos de presentación. Con
+   * `actualizarRanura`, la cuenta volvió con otro `_id` de Zernio y la fila
+   * pasa a apuntar a la ranura nueva.
+   */
+  | { tipo: "existente"; canal: C; completarIdentidad: string | null; actualizarRanura?: string }
   /** La ranura de Zernio pasó a otra cuenta: la fila vieja se desactiva y se crea otra. */
   | { tipo: "reemplazar"; viejo: C; identidad: string };
 
@@ -209,9 +232,14 @@ export type DecisionDeCuenta<C extends CanalParaIdentidad> =
  * - **Solo filas inactivas en esa ranura:** si alguna es de esta misma cuenta,
  *   o no tiene identidad registrada, se toma esa, sin reactivarla (reactivar es
  *   a mano, `activarCanal`). Si todas son de otras cuentas, se crea una nueva.
+ * - **La misma cuenta con OTRA ranura** (hueco anotado el 08/10/2026): si por
+ *   ranura no aparece esta cuenta, se busca por `platform_account_id` en la
+ *   misma plataforma, la activa primero. Esa fila es la cuenta: se toma, con
+ *   `actualizarRanura`, y no se reactiva. Antes se creaba otra fila de la misma
+ *   cuenta y el historial quedaba colgando de la vieja.
  */
 export function decidirCanalDeCuenta<C extends CanalParaIdentidad>(
-  cuenta: { _id?: string; platformUserId?: unknown },
+  cuenta: { _id?: string; platformUserId?: unknown; platform?: string | null },
   canales: readonly C[],
 ): DecisionDeCuenta<C> {
   const identidad = platformUserIdDe(cuenta);
@@ -231,6 +259,21 @@ export function decidirCanalDeCuenta<C extends CanalParaIdentidad>(
     return activo.platform_account_id === null
       ? { tipo: "existente", canal: activo, completarIdentidad: identidad }
       : { tipo: "reemplazar", viejo: activo, identidad };
+  }
+
+  // Sin fila activa en esta ranura, la cuenta puede tener su fila en otra
+  // ranura (Zernio le dio otro `_id`): la fila de la cuenta manda.
+  if (cuenta._id) {
+    const deLaCuenta = canales.filter(
+      (c) =>
+        c.platform_account_id === identidad &&
+        c.late_account_id !== cuenta._id &&
+        mismaPlataforma(c.platform, cuenta.platform),
+    );
+    const enOtraRanura = deLaCuenta.find((c) => c.is_active) ?? masReciente(deLaCuenta);
+    if (enOtraRanura) {
+      return { tipo: "existente", canal: enOtraRanura, completarIdentidad: null, actualizarRanura: cuenta._id };
+    }
   }
 
   const inactivaSinIdentidad = candidatos.find((c) => c.platform_account_id === null);

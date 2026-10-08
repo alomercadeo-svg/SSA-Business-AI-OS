@@ -10,6 +10,12 @@ import {
   WEBHOOK_EVENTS,
 } from "@/lib/zernio-webhook";
 import { backfillInboxConversations, canalesConCuentaDeZernio } from "@/lib/inbox-sync";
+import {
+  importarMensajes,
+  reservarImportacion,
+  terminarImportacion,
+  type ResultadoDeMensajes,
+} from "@/lib/importacion-historial";
 import { isSupportedPlatform } from "@/lib/platforms";
 import {
   ALERTA_CERO_CUENTAS,
@@ -104,6 +110,15 @@ export async function POST() {
         await supabase
           .from("channels")
           .update({ platform_account_id: decision.completarIdentidad })
+          .eq("id", decision.canal.id);
+      }
+
+      // La misma cuenta volvió con otra ranura de Zernio: la fila de la cuenta
+      // pasa a la ranura nueva, con su historial. No se reactiva: eso es a mano.
+      if (decision.tipo === "existente" && decision.actualizarRanura) {
+        await supabase
+          .from("channels")
+          .update({ late_account_id: decision.actualizarRanura })
           .eq("id", decision.canal.id);
       }
 
@@ -271,25 +286,52 @@ export async function POST() {
       console.error("[channels/sync] webhook auto-registration failed:", err);
     }
 
-    // Backfill conversations that predate webhook registration (best-effort).
-    let conversationsImported = 0;
-    try {
-      const { data: activeChannels } = await supabase
-        .from("channels")
-        .select("id, late_account_id, platform")
-        .eq("workspace_id", workspace.id)
-        .eq("is_active", true);
-
-      const { imported } = await backfillInboxConversations({
-        supabase,
-        zernio,
-        workspaceId: workspace.id,
-        channels: canalesConCuentaDeZernio(activeChannels ?? []),
-        actor,
+    // F27: la importación del historial (conversaciones hasta el final del
+    // listado y todos sus mensajes) corre en segundo plano: son cientos de
+    // llamadas a Zernio y no entran en un pedido. Con el cliente de servicio,
+    // porque después de la respuesta no hay sesión. Se retoma sola: ver
+    // `lib/importacion-historial.ts`. Una sola por espacio a la vez.
+    const { data: activeChannels } = await supabase
+      .from("channels")
+      .select("id, late_account_id, platform")
+      .eq("workspace_id", workspace.id)
+      .eq("is_active", true);
+    const canalesAImportar = canalesConCuentaDeZernio(activeChannels ?? []);
+    const servicioImportacion = await createServiceClient();
+    const importacionTomada =
+      canalesAImportar.length > 0 && (await reservarImportacion(servicioImportacion, workspace.id));
+    if (importacionTomada) {
+      after(async () => {
+        let conversaciones: Awaited<ReturnType<typeof backfillInboxConversations>> | null = null;
+        let mensajes: ResultadoDeMensajes | null = null;
+        let error: string | null = null;
+        try {
+          conversaciones = await backfillInboxConversations({
+            supabase: servicioImportacion,
+            zernio,
+            workspaceId: workspace.id,
+            channels: canalesAImportar,
+            actor,
+          });
+          mensajes = await importarMensajes({
+            supabase: servicioImportacion,
+            zernio,
+            channels: canalesAImportar,
+          });
+          if (mensajes.cortadaPorLimite) error = "Zernio pidió esperar (429): lo que falta queda pendiente";
+          else if (mensajes.conError > 0) error = `${mensajes.conError} conversaciones con error: quedan pendientes`;
+        } catch (err) {
+          error = err instanceof Error ? err.message : "error";
+          console.error("[channels/sync] importación del historial:", error);
+        } finally {
+          await terminarImportacion(
+            servicioImportacion,
+            workspace.id,
+            { conversaciones, mensajes, terminada_at: new Date().toISOString() },
+            error,
+          );
+        }
       });
-      conversationsImported = imported;
-    } catch (err) {
-      console.error("[channels/sync] inbox backfill failed:", err);
     }
 
     // Return updated channel list
@@ -305,7 +347,10 @@ export async function POST() {
         created,
         updated,
         deactivated,
-        conversationsImported,
+        conversationsImported: 0,
+        // La importación del historial sigue después de esta respuesta.
+        importandoHistorial: importacionTomada,
+        importacionYaEnCurso: canalesAImportar.length > 0 && !importacionTomada,
         skipped: [...new Set(skipped)],
         failed,
         aviso: plan.ceroCuentas ? AVISO_CERO_CUENTAS : null,

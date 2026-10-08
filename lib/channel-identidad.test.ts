@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { decidirCanalDeCuenta, platformUserIdDe, type CanalParaIdentidad } from "./channel-rules";
+import { decidirCanalDeCuenta, planDeSincronizacion, platformUserIdDe, type CanalParaIdentidad } from "./channel-rules";
 
 /**
  * La identidad de un canal es la cuenta, no la ranura del proveedor (criterio
@@ -72,3 +72,71 @@ describe("decidirCanalDeCuenta", () => {
     expect(decidirCanalDeCuenta({ _id: RANURA, platformUserId: "222" }, [inactivo])).toEqual({ tipo: "existente", canal: inactivo, completarIdentidad: null });
   });
 });
+
+/**
+ * Hueco anotado el 08/10/2026 («Lo que F27 tiene que cerrar de F25 y F26»,
+ * aparte): los candidatos se buscaban solo por ranura (`late_account_id`). Si
+ * una cuenta vuelve con otro `_id` y el mismo `platformUserId`, se creaba otra
+ * fila de la misma cuenta y el historial quedaba colgando de la vieja.
+ * Escritos en rojo contra `lib/channel-rules.ts` de `8e21367`.
+ */
+describe("decidirCanalDeCuenta: la misma cuenta con otra ranura", () => {
+  const RANURA_NUEVA = "7bbb00000000000000000001";
+
+  it("vuelve con otro _id y el platformUserId de una fila INACTIVA → esa fila, con la ranura nueva, sin crear otra", () => {
+    const vieja = canal({ id: "vieja", platform_account_id: "222", is_active: false });
+    expect(decidirCanalDeCuenta({ _id: RANURA_NUEVA, platformUserId: "222" }, [vieja])).toEqual({
+      tipo: "existente",
+      canal: vieja,
+      completarIdentidad: null,
+      actualizarRanura: RANURA_NUEVA,
+    });
+  });
+
+  it("lo mismo con la fila ACTIVA (Zernio cambió la ranura sin desconectar) → la misma fila", () => {
+    const activa = canal({ id: "activa", platform_account_id: "222" });
+    expect(decidirCanalDeCuenta({ _id: RANURA_NUEVA, platformUserId: "222" }, [activa])).toEqual({
+      tipo: "existente",
+      canal: activa,
+      completarIdentidad: null,
+      actualizarRanura: RANURA_NUEVA,
+    });
+  });
+
+  it("con una activa y una inactiva de la misma cuenta, toma la activa", () => {
+    const inactiva = canal({ id: "inactiva", late_account_id: "otra", platform_account_id: "222", is_active: false });
+    const activa = canal({ id: "activa", platform_account_id: "222" });
+    expect(decidirCanalDeCuenta({ _id: RANURA_NUEVA, platformUserId: "222" }, [inactiva, activa])).toMatchObject({
+      tipo: "existente",
+      canal: { id: "activa" },
+    });
+  });
+
+  it("no cruza plataformas: el mismo identificador en otra plataforma no es la misma cuenta", () => {
+    const fb = { ...canal({ id: "fb", platform_account_id: "222", is_active: false }), platform: "facebook" };
+    expect(
+      decidirCanalDeCuenta({ _id: RANURA_NUEVA, platformUserId: "222", platform: "instagram" }, [fb]),
+    ).toEqual({ tipo: "crear", identidad: "222" });
+  });
+
+  it("control positivo: otra cuenta con ranura nueva se sigue creando", () => {
+    const vieja = canal({ id: "vieja", platform_account_id: "222", is_active: false });
+    expect(decidirCanalDeCuenta({ _id: RANURA_NUEVA, platformUserId: "333" }, [vieja])).toEqual({ tipo: "crear", identidad: "333" });
+  });
+
+  it("la sincronización no desactiva la fila activa cuya cuenta volvió con otra ranura", () => {
+    const canales = [
+      { id: "activa", provider: "zernio", late_account_id: RANURA, platform_account_id: "222", is_active: true },
+      { id: "otra", provider: "zernio", late_account_id: "ranura-x", platform_account_id: "999", is_active: true },
+    ];
+    const plan = planDeSincronizacion({
+      cuentas: [{ _id: RANURA_NUEVA, platformUserId: "222" }],
+      perfiles: [],
+      canales,
+    });
+    // La cuenta 222 vino (con otra ranura): su fila no se apaga. La 999 no vino:
+    // esa sí, que es el control positivo de la limpieza.
+    expect(plan).toMatchObject({ error: null, aDesactivar: ["otra"] });
+  });
+});
+

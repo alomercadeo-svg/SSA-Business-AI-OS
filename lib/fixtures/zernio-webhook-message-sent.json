@@ -1,0 +1,49 @@
+{
+  "_fixture": "Real, observado: GET /v1/webhooks/logs?event=message.sent, leído el 2026-10-08T21:14:59.935Z. Entrega del 2026-10-08T19:02:14.000Z, HTTP 200, intento 1. Cuenta de prueba @poderosascomunidad. Cada valor real se reemplazó por uno falso, distinto y consistente entre los dos archivos (nombres, identificadores, textos, imágenes); instagramProfile tiene valores inventados. Se conservan las igualdades del original. Saliente con sentVia \"api\": lo mandó nuestro servidor (el control sin etiqueta de la prueba de HUMAN_AGENT del 08/10/2026). Un saliente escrito desde la app de Instagram no estaba en el log: cualquier test de ese caso usa un aviso inventado hasta el control 2 de la sesión 2 del Bloque 3.",
+  "payload": {
+    "id": "00000000-0000-4000-8000-000000000009",
+    "event": "message.sent",
+    "message": {
+      "id": "fffffffffffffffffffffffa",
+      "conversationId": "fffffffffffffffffffffff3",
+      "platform": "instagram",
+      "platformMessageId": "PRUEBA_ID_PLATAFORMA_11_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "direction": "outgoing",
+      "text": "<texto de prueba>",
+      "attachments": [],
+      "sender": {
+        "id": "99999999999999912",
+        "name": "cuenta_negocio_prueba",
+        "username": "cuenta_negocio_prueba",
+        "picture": "https://ejemplo.invalid/picture"
+      },
+      "sentAt": "2026-10-08T19:02:13.205Z",
+      "isRead": true,
+      "sentVia": "api",
+      "automationId": null,
+      "workflowId": null,
+      "executionId": null,
+      "broadcastId": null,
+      "sequenceId": null
+    },
+    "conversation": {
+      "id": "fffffffffffffffffffffff3",
+      "platformConversationId": "9999999999999995",
+      "participantId": "9999999999999995",
+      "participantName": "Contacto Prueba",
+      "participantUsername": "contacto_prueba",
+      "participantPicture": "https://ejemplo.invalid/participantPicture",
+      "status": "active",
+      "contactId": "fffffffffffffffffffffff6"
+    },
+    "account": {
+      "id": "fffffffffffffffffffffff7",
+      "platform": "instagram",
+      "username": "cuenta_negocio_prueba",
+      "displayName": "cuenta_negocio_prueba",
+      "profileId": "fffffffffffffffffffffff8",
+      "accountId": "fffffffffffffffffffffff7"
+    },
+    "timestamp": "2026-10-08T19:02:13.231Z"
+  }
+}

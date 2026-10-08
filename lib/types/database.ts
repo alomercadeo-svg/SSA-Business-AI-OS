@@ -69,6 +69,10 @@ export type FlowStatus = "draft" | "published" | "archived";
 export type ConversationStatus = "open" | "closed" | "snoozed";
 export type MessageDirection = "inbound" | "outbound";
 export type MessageStatus = "pending" | "sent" | "delivered" | "failed";
+/** F27 (00032): si el historial del proveedor ya está entero en la base. */
+export type HistorialEstado = "pendiente" | "completo" | "incompleto" | "no_disponible";
+/** F28: estado del adjunto de un mensaje. */
+export type MediaStatus = "pendiente" | "descargado" | "fallido" | "no_disponible";
 export type BroadcastStatus =
   | "draft"
   | "scheduled"
@@ -218,6 +222,8 @@ export interface Database {
            * (migración 00026). Es un estado propio: no desactiva el canal.
            */
           excede_plan_zernio: boolean;
+          /** Último mensaje entrante recibido por el receptor (F27, 00032). Lo vigila F39. */
+          last_inbound_at: string | null;
           last_comment_cursor: string | null;
           comment_rules: Json | null;
           created_at: string;
@@ -238,6 +244,7 @@ export interface Database {
           webhook_secret?: string | null;
           is_active?: boolean;
           excede_plan_zernio?: boolean;
+          last_inbound_at?: string | null;
           last_comment_cursor?: string | null;
           comment_rules?: Json | null;
           created_at?: string;
@@ -256,6 +263,7 @@ export interface Database {
           webhook_secret?: string | null;
           is_active?: boolean;
           excede_plan_zernio?: boolean;
+          last_inbound_at?: string | null;
           last_comment_cursor?: string | null;
           comment_rules?: Json | null;
           updated_at?: string;
@@ -408,12 +416,14 @@ export interface Database {
           platform_username: string | null;
           /**
            * El identificador tal como llegó, sin transformar (F26, 00031). No
-           * se sobrescribe. Nullable hasta la migración de F27, que le pone
-           * NOT NULL cuando el código que lo escribe ya está desplegado.
+           * se sobrescribe. NOT NULL desde la 00032 (F27).
            */
-          raw_jid: string | null;
+          raw_jid: string;
           /** Cómo se direccionó en WhatsApp (`pn`, `lid`). Nulo en Instagram. */
           addressing_mode: string | null;
+          /** Si el proveedor ya completó el perfil (F27, 00032). Techo de 3 intentos. */
+          profile_status: "pending" | "complete" | "unavailable";
+          profile_attempts: number;
           created_at: string;
         };
         Insert: {
@@ -422,13 +432,18 @@ export interface Database {
           channel_id: string;
           platform_sender_id: string;
           platform_username?: string | null;
-          raw_jid?: string | null;
+          raw_jid: string;
           addressing_mode?: string | null;
+          profile_status?: "pending" | "complete" | "unavailable";
+          profile_attempts?: number;
           created_at?: string;
         };
         Update: {
           platform_username?: string | null;
           contact_id?: string;
+          addressing_mode?: string | null;
+          profile_status?: "pending" | "complete" | "unavailable";
+          profile_attempts?: number;
         };
         Relationships: [
           {
@@ -782,6 +797,9 @@ export interface Database {
           last_message_preview: string | null;
           unread_count: number;
           is_automation_paused: boolean;
+          /** Si el historial del proveedor ya está entero en la base (F27, 00032). */
+          historial_estado: HistorialEstado;
+          historial_importado_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -798,11 +816,15 @@ export interface Database {
           last_message_preview?: string | null;
           unread_count?: number;
           is_automation_paused?: boolean;
+          historial_estado?: HistorialEstado;
+          historial_importado_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           late_conversation_id?: string | null;
+          historial_estado?: HistorialEstado;
+          historial_importado_at?: string | null;
           status?: ConversationStatus;
           assigned_to?: string | null;
           last_message_at?: string | null;
@@ -848,6 +870,12 @@ export interface Database {
           platform_message_id: string | null;
           /** El identificador con que llegó el mensaje (F26, 00031). No se sobrescribe. */
           remote_jid: string | null;
+          /** F27 (00032). Nulo en los que escribía el fork antes. */
+          message_type: string | null;
+          quoted_message_id: string | null;
+          /** F28: ruta en Storage y estado del adjunto. Nulo = sin adjunto. */
+          media_path: string | null;
+          media_status: MediaStatus | null;
           sent_by_flow_id: string | null;
           sent_by_node_id: string | null;
           sent_by_user_id: string | null;
@@ -865,6 +893,10 @@ export interface Database {
           callback_data?: string | null;
           platform_message_id?: string | null;
           remote_jid?: string | null;
+          message_type?: string | null;
+          quoted_message_id?: string | null;
+          media_path?: string | null;
+          media_status?: MediaStatus | null;
           sent_by_flow_id?: string | null;
           sent_by_node_id?: string | null;
           sent_by_user_id?: string | null;
@@ -874,6 +906,9 @@ export interface Database {
         Update: {
           status?: MessageStatus;
           platform_message_id?: string | null;
+          sent_by_user_id?: string | null;
+          media_path?: string | null;
+          media_status?: MediaStatus | null;
         };
         Relationships: [
           {
@@ -1208,6 +1243,38 @@ export interface Database {
         ];
       };
       /** Historial de auditoría (F31, 00028). Solo inserta el servidor; nunca se edita ni se borra. */
+      /** Una fila por tarea del servidor (F27, 00032). RLS sin políticas: solo servicio. */
+      tareas_estado: {
+        Row: {
+          clave: string;
+          workspace_id: string | null;
+          ultima_ejecucion_at: string | null;
+          ultimo_ok_at: string | null;
+          ocupada_hasta: string | null;
+          resultado: Json;
+          ultimo_error: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          clave: string;
+          workspace_id?: string | null;
+          ultima_ejecucion_at?: string | null;
+          ultimo_ok_at?: string | null;
+          ocupada_hasta?: string | null;
+          resultado?: Json;
+          ultimo_error?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          ultima_ejecucion_at?: string | null;
+          ultimo_ok_at?: string | null;
+          ocupada_hasta?: string | null;
+          resultado?: Json;
+          ultimo_error?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       audit_log: {
         Row: {
           id: string;
@@ -1440,6 +1507,11 @@ export interface Database {
     };
     Functions: {
       /** F26 (00031). Carga el teléfono o devuelve el conflicto sin escribir. */
+      /** F27 (00032). Toma una tarea si está libre o vencida. Solo servicio. */
+      reservar_tarea: {
+        Args: { p_clave: string; p_workspace_id: string | null; p_minutos: number };
+        Returns: boolean;
+      };
       reconciliar_telefono: {
         Args: { p_contacto: string; p_telefono: string; p_via: "mensaje" | "aviso_evolution" | "manual" };
         Returns: Json;

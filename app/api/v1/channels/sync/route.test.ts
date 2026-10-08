@@ -103,6 +103,17 @@ vi.mock("@/lib/inbox-sync", () => ({
   canalesConCuentaDeZernio: (c: unknown[]) => c,
 }));
 
+const imp = vi.hoisted(() => ({
+  reservar: vi.fn(async () => true),
+  importarMensajes: vi.fn(async () => ({ completas: 0, incompletas: 0, noDisponibles: 0, conError: 0, mensajes: 0, cortadaPorLimite: false })),
+  terminar: vi.fn(async () => {}),
+}));
+vi.mock("@/lib/importacion-historial", () => ({
+  reservarImportacion: imp.reservar,
+  importarMensajes: imp.importarMensajes,
+  terminarImportacion: imp.terminar,
+}));
+
 const { POST } = await import("./route");
 
 const canal = (id: string, extra: Record<string, unknown>): Fila => ({
@@ -338,7 +349,74 @@ describe("la importación recibe el actor de quien la disparó", () => {
     backfill.mockClear();
     h.listAccounts.mockResolvedValue({ data: { accounts: [cuenta("acc-a", "p1"), cuenta("acc-b", "p1")] } });
     await POST();
+    // Desde F27 la importación corre en segundo plano, después de responder.
+    for (const fn of h.pendientes.splice(0)) await fn();
     expect(backfill).toHaveBeenCalledTimes(1);
     expect(backfill.mock.calls[0][0]).toMatchObject({ actor: { id: "u-1", etiqueta: "u-1" } });
+  });
+});
+
+/**
+ * F26, hueco anotado el 08/10/2026: la misma cuenta vuelve con otro `_id` de
+ * Zernio. Antes se creaba una fila nueva de la misma cuenta y, si la vieja
+ * estaba activa, se la apagaba por no venir su ranura.
+ */
+describe("la misma cuenta con otra ranura", () => {
+  it("fila inactiva: le cambia la ranura, no crea otra y no la reactiva", async () => {
+    h.canales = [
+      canal("ch-a", { late_account_id: "acc-vieja", platform_account_id: "222", is_active: false, username: "acc-a", display_name: "acc-a" }),
+    ];
+    h.listAccounts.mockResolvedValue({ data: { accounts: [{ ...cuenta("acc-a", "p1"), _id: "acc-nueva", platformUserId: "222" }] } });
+    await POST();
+    const enCanales = escriturasEnCanales();
+    expect(enCanales.filter((e) => e.tipo === "insert")).toEqual([]);
+    expect(enCanales).toContainEqual({ tabla: "channels", tipo: "update", valores: { late_account_id: "acc-nueva" }, id: "ch-a" });
+    expect(enCanales.some((e) => e.valores.is_active === true)).toBe(false);
+  });
+
+  it("fila activa: le cambia la ranura y no la desactiva", async () => {
+    h.canales = [
+      canal("ch-a", { late_account_id: "acc-vieja", platform_account_id: "222", username: "acc-a", display_name: "acc-a" }),
+    ];
+    h.listAccounts.mockResolvedValue({ data: { accounts: [{ ...cuenta("acc-a", "p1"), _id: "acc-nueva", platformUserId: "222" }] } });
+    await POST();
+    expect(escriturasEnCanales()).toContainEqual({ tabla: "channels", tipo: "update", valores: { late_account_id: "acc-nueva" }, id: "ch-a" });
+    expect(desactivados()).toEqual([]);
+    expect(escriturasEnCanales().filter((e) => e.tipo === "insert")).toEqual([]);
+  });
+});
+
+/**
+ * F27: la importación del historial corre después de responder, y no arranca
+ * dos veces a la vez en el mismo espacio.
+ */
+describe("la importación del historial", () => {
+  beforeEach(() => {
+    backfill.mockClear();
+    imp.reservar.mockReset();
+    imp.reservar.mockResolvedValue(true);
+    imp.importarMensajes.mockClear();
+    imp.terminar.mockClear();
+    h.listAccounts.mockResolvedValue({ data: { accounts: [cuenta("acc-a", "p1"), cuenta("acc-b", "p1")] } });
+  });
+
+  it("responde antes de importar, y después importa conversaciones y mensajes y libera la reserva", async () => {
+    const res = await POST();
+    const cuerpo = await res.json();
+    expect(cuerpo.synced).toMatchObject({ importandoHistorial: true, importacionYaEnCurso: false });
+    expect(backfill).not.toHaveBeenCalled();
+    for (const fn of h.pendientes.splice(0)) await fn();
+    expect(backfill).toHaveBeenCalledTimes(1);
+    expect(imp.importarMensajes).toHaveBeenCalledTimes(1);
+    expect(imp.terminar).toHaveBeenCalledTimes(1);
+  });
+
+  it("si ya hay una en curso, no arranca otra y lo dice", async () => {
+    imp.reservar.mockResolvedValue(false);
+    const res = await POST();
+    const cuerpo = await res.json();
+    expect(cuerpo.synced).toMatchObject({ importandoHistorial: false, importacionYaEnCurso: true });
+    for (const fn of h.pendientes.splice(0)) await fn();
+    expect(backfill).not.toHaveBeenCalled();
   });
 });

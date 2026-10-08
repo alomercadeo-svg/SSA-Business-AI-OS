@@ -44,6 +44,7 @@ const { pendientes, estado } = vi.hoisted(() => ({
     secretoAnterior: null as string | null,
     eventosReclamados: [] as string[],
     rpcs: [] as Array<{ fn: string; args: Record<string, unknown> }>,
+    liberados: [] as string[],
   },
 }));
 
@@ -74,8 +75,10 @@ vi.mock("@/lib/correo", () => ({
 }));
 
 const procesarEventoEvolution = vi.fn();
+const guardarEventoEvolution = vi.fn(async (..._args: unknown[]) => {});
 vi.mock("@/lib/evolution-processor", () => ({
   procesarEventoEvolution: (...args: unknown[]) => procesarEventoEvolution(...args),
+  guardarEventoEvolution: (...args: unknown[]) => guardarEventoEvolution(...args),
 }));
 
 /**
@@ -91,6 +94,12 @@ function crearSupabaseFalso() {
       is: () => cadena,
       order: () => cadena,
       returns: () => cadena,
+      delete: () => ({
+        in: async (_col: string, ids: string[]) => {
+          estado.liberados.push(...ids);
+          return { error: null };
+        },
+      }),
       maybeSingle: async () => ({ data: tabla === "channels" ? estado.canal : null, error: null }),
       single: async () => ({ data: tabla === "channels" ? estado.canal : null, error: null }),
       insert: async (fila: Record<string, unknown>) => {
@@ -223,6 +232,9 @@ beforeEach(() => {
   estado.secretoAnterior = null;
   estado.eventosReclamados = [];
   estado.rpcs = [];
+  estado.liberados = [];
+  guardarEventoEvolution.mockReset();
+  guardarEventoEvolution.mockResolvedValue(undefined);
 });
 
 // ── 1. Autenticación ────────────────────────────────────────────────────────
@@ -604,6 +616,42 @@ describe("el acuse sale antes del procesamiento", () => {
     expect(arg).toMatchObject({ evento: "messages.upsert", instancia: INSTANCIA });
     expect((arg.canal as Record<string, unknown>).id).toBe("ch-evo-1");
     expect(arg.mensajes).toHaveLength(1);
+  });
+});
+
+/**
+ * F27: el mensaje se guarda ANTES del acuse. Es un cambio sobre la afirmación
+ * de F22 de arriba, decidido el 08/10/2026: guardar son solo escrituras en la
+ * base, y es lo único que impide perder un aviso reclamado y no guardado. Lo
+ * demás (avisos de contacto, resumen) sigue después del acuse. Escritos en rojo
+ * contra el receptor de `8e21367`, que no guardaba nada.
+ */
+describe("F27: guardar antes del acuse", () => {
+  it("guarda los mensajes antes de responder, con el canal y el evento verificados", async () => {
+    const res = await POST(pedido(cuerpo(), await firmar()));
+    expect(res.status).toBe(200);
+    expect(guardarEventoEvolution).toHaveBeenCalledTimes(1);
+    const [arg] = guardarEventoEvolution.mock.calls[0] as [Record<string, unknown>];
+    expect(arg).toMatchObject({ evento: "messages.upsert", instancia: INSTANCIA });
+    expect(arg.mensajes).toHaveLength(1);
+  });
+
+  it("si guardar falla, libera el reclamo y responde 500 para que Evolution reintente", async () => {
+    guardarEventoEvolution.mockRejectedValue(new Error("falla simulada"));
+    const res = await POST(pedido(cuerpo(), await firmar()));
+    expect(res.status).toBe(500);
+    expect(estado.liberados).toHaveLength(1);
+    expect(estado.liberados[0]).toMatch(/^evolution:/);
+    expect(pendientes).toHaveLength(0);
+  });
+
+  it("el reintento, con el reclamo liberado, vuelve a intentar guardar (control positivo)", async () => {
+    guardarEventoEvolution.mockRejectedValueOnce(new Error("falla simulada"));
+    await POST(pedido(cuerpo(), await firmar()));
+    estado.eventosReclamados = estado.eventosReclamados.filter((c) => !estado.liberados.includes(c));
+    const res = await POST(pedido(cuerpo(), await firmar()));
+    expect(res.status).toBe(200);
+    expect(guardarEventoEvolution).toHaveBeenCalledTimes(2);
   });
 });
 

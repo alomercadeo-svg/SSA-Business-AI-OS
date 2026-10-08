@@ -68,8 +68,10 @@ vi.mock("@/lib/vault", async (importOriginal) => {
 
 // El procesamiento de cada canal, observado. Es lo que cuenta "se procesó".
 const procesarEventoEvolution = vi.fn();
+const guardarEventoEvolution = vi.fn(async (..._args: unknown[]) => {});
 vi.mock("@/lib/evolution-processor", () => ({
   procesarEventoEvolution: (...args: unknown[]) => procesarEventoEvolution(...args),
+  guardarEventoEvolution: (...args: unknown[]) => guardarEventoEvolution(...args),
 }));
 
 const upsertContactForSender = vi.fn();

@@ -1,41 +1,35 @@
 /**
- * Procesamiento de los eventos de Evolution, después del acuse.
+ * Procesamiento de los eventos de Evolution.
  *
- * ESTE MÓDULO ES UN STUB A PROPÓSITO, y es la frontera entre el Bloque 2 y el
- * Bloque 3.
+ * Hasta el 08/10/2026 era un stub que solo registraba un resumen: la frontera
+ * entre el Bloque 2 (la cañería) y el Bloque 3. Con F27 tiene dos mitades:
  *
- * El Bloque 2 construye la cañería: el receptor autentica el aviso, controla
- * que no esté repetido, responde 200 y llama a esta función. El Bloque 3 (F27,
- * guardado de mensajes entrantes) le pone el cuerpo adentro: resolver el
- * contacto, guardar el mensaje, bajar el adjunto, actualizar la conversación.
- *
- * La frontera está en una sola función para que el Bloque 3 no tenga que tocar
- * la ruta. Lo que hoy está probado del receptor —el orden del acuse, la
- * autenticación, la idempotencia, las alertas— sigue probado sin cambios.
+ *   - `guardarEventoEvolution`, ANTES del acuse: los mensajes (contacto,
+ *     conversación y mensaje, solo escrituras en la base). Si falla, el
+ *     receptor libera el reclamo y responde 500, y Evolution reintenta.
+ *   - `procesarEventoEvolution`, DESPUÉS del acuse: los avisos de contacto
+ *     (vía 2 de F26) y el resumen en el log.
  *
  * ┌──────────────────────────────────────────────────────────────────────────┐
- * │ CONSECUENCIA QUE HAY QUE TENER PRESENTE                                   │
- * │                                                                           │
- * │ Mientras esta función no guarde nada, cada mensaje que llegue se DESCARTA │
- * │ después de acusar 200. No es un error y no dispara ninguna alerta: para   │
- * │ Evolution la entrega salió bien y no la reintenta.                        │
- * │                                                                           │
- * │ Por eso el número de WhatsApp NO se vincula hasta que F27 **y F32** estén │
- * │ construidas y probadas. Si se vincula antes, los mensajes reales de los   │
- * │ leads se pierden de la peor forma: en silencio y con acuse de éxito. El   │
- * │ único síntoma serían conversaciones que nunca existieron.                 │
- * │                                                                           │
- * │ F32 es la otra mitad: sin estado de sesión ni reconexión, una sesión      │
- * │ caída se ve igual que un día tranquilo y nadie puede volver a vincular    │
- * │ desde la interfaz. F39 detecta el silencio, pero detectar no es           │
- * │ reconectar.                                                               │
- * │                                                                           │
- * │ Ver docs/requerimientos-fase1.md §4.7 y el Flujo 4, paso 5.               │
+ * │ El número de WhatsApp sigue sin vincularse: la compuerta son F27 **y     │
+ * │ F32** (§4.7 del plano). F27 guarda; F32 avisa cuando la sesión se cae y  │
+ * │ permite volver a vincular. F32 es del Bloque 4.                          │
  * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * Ningún log de acá escribe el cuerpo del aviso: trae la API key de la
+ * instancia.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ClaveMensaje } from "@/lib/evolution-webhook";
+import {
+  EVENTOS_CON_MENSAJES,
+  EVENTOS_DE_CONTACTO,
+  guardarMensajesDeEvolution,
+  normalizarEvento,
+  procesarAvisoDeContacto,
+  type MensajeEvolution,
+} from "@/lib/evolution-guardado";
 
 export interface MensajeEntrante {
   key?: ClaveMensaje;
@@ -54,23 +48,41 @@ export interface EventoEvolution {
   mensajes: MensajeEntrante[];
 }
 
-/**
- * Procesa un evento ya autenticado y sin duplicados.
- *
- * Hoy solo registra un resumen. El resumen es deliberadamente pobre en datos:
- * el cuerpo del aviso de Evolution incluye la API key de la instancia, que
- * autoriza mandar mensajes y borrarla, así que ni este log ni ningún otro del
- * camino escriben el payload crudo. Lo que se registra —evento, instancia,
- * cantidad y tipos— alcanza para responder "¿está entrando algo?" sin ser un
- * canal de fuga.
- */
-export async function procesarEventoEvolution(evento: EventoEvolution): Promise<void> {
-  const tipos = [...new Set(evento.mensajes.map((m) => m.messageType ?? "desconocido"))];
+/** ¿Este evento trae mensajes que hay que guardar antes del acuse? */
+export function traeMensajes(evento: string): boolean {
+  return EVENTOS_CON_MENSAJES.has(normalizarEvento(evento));
+}
 
+/**
+ * Guarda los mensajes de un evento ya autenticado y sin duplicados. Corre
+ * ANTES del acuse; tira si no pudo guardar.
+ */
+export async function guardarEventoEvolution(evento: EventoEvolution): Promise<void> {
+  if (!traeMensajes(evento.evento)) return;
+  await guardarMensajesDeEvolution(
+    evento.supabase,
+    evento.canal,
+    evento.evento,
+    evento.mensajes as MensajeEvolution[],
+  );
+}
+
+/**
+ * Lo que va después del acuse: los avisos de contacto y el resumen. El resumen
+ * es pobre en datos a propósito (evento, instancia, cantidad y tipos): alcanza
+ * para responder "¿está entrando algo?" sin ser un canal de fuga.
+ */
+export async function procesarEventoEvolution(evento: EventoEvolution & { data?: unknown }): Promise<void> {
+  const nombre = normalizarEvento(evento.evento);
+  let reconciliados = 0;
+  if (EVENTOS_DE_CONTACTO.has(nombre)) {
+    reconciliados = await procesarAvisoDeContacto(evento.supabase, evento.canal, evento.data);
+  }
+  const tipos = [...new Set(evento.mensajes.map((m) => m.messageType ?? "desconocido"))];
   console.log(
     `[evolution] evento=${evento.evento} instancia=${evento.instancia} ` +
     `canal=${evento.canal.id} mensajes=${evento.mensajes.length}` +
-    (tipos.length > 0 ? ` tipos=${tipos.join(",")}` : "") +
-    ` — NO se guarda nada: F27 todavía no está construido.`
+    (tipos.length > 0 && traeMensajes(evento.evento) ? ` tipos=${tipos.join(",")}` : "") +
+    (EVENTOS_DE_CONTACTO.has(nombre) ? ` reconciliados=${reconciliados}` : ""),
   );
 }

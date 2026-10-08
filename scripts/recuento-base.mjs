@@ -29,6 +29,12 @@
  *   node scripts/recuento-base.mjs --json                  el resultado crudo, para guardar
  *   node scripts/recuento-base.mjs --desde 2026-10-08T11:40:00-06:00
  *
+ *   - desde el 08/10/2026 (F27), si existen las columnas de la 00032: por canal,
+ *     cuántas conversaciones hay en cada `historial_estado` (qué quedó a medio
+ *     importar), mensajes entrantes y salientes, y con adjunto; y el estado de
+ *     las tareas del servidor (`tareas_estado`): si la importación corre, cuándo
+ *     terminó y su resultado. Solo cantidades.
+ *
  * Nació el 07/10/2026 con F31, F25 y F26, que piden recuentos antes y después
  * de cada `supabase db push`. Sirve igual para F27.
  */
@@ -113,6 +119,26 @@ select case when to_regclass('public.audit_log') is null then null
   ) q) end as r
 `;
 
+// F27: solo si ya está la 00032. Cantidades, nunca contenido.
+const SQL_HISTORIAL = `
+select json_build_object(
+  'por_canal', (select json_agg(row_to_json(q) order by q.usuario) from (
+    select coalesce(ch.username, ch.instance_name) as usuario, ch.last_inbound_at as ultimo_entrante,
+      (select json_object_agg(estado, n) from (select v.historial_estado as estado, count(*)::int as n
+         from public.conversations v where v.channel_id = ch.id group by 1) e) as historial,
+      (select count(*)::int from public.messages m join public.conversations v on v.id = m.conversation_id
+         where v.channel_id = ch.id and m.direction = 'inbound') as entrantes,
+      (select count(*)::int from public.messages m join public.conversations v on v.id = m.conversation_id
+         where v.channel_id = ch.id and m.direction = 'outbound') as salientes,
+      (select count(*)::int from public.messages m join public.conversations v on v.id = m.conversation_id
+         where v.channel_id = ch.id and m.media_status is not null) as con_adjunto
+    from public.channels ch) q),
+  'tareas', (select json_agg(json_build_object('clave', t.clave, 'ocupada_hasta', t.ocupada_hasta,
+      'ultima_ejecucion_at', t.ultima_ejecucion_at, 'ultimo_ok_at', t.ultimo_ok_at,
+      'ultimo_error', t.ultimo_error, 'resultado', t.resultado) order by t.clave) from public.tareas_estado t)
+) as r
+`;
+
 function consultar(sql) {
   const salida = execFileSync("npx", ["supabase", "db", "query", "--linked", "-o", "json", sql], {
     encoding: "utf8",
@@ -136,10 +162,16 @@ try {
   auditPorAccion = null;
 }
 const canales = consultar(SQL_CANALES) ?? [];
+let historial = null;
+try {
+  historial = consultar(SQL_HISTORIAL);
+} catch {
+  historial = null; // antes de la 00032
+}
 
 if (process.argv.includes("--json")) {
   console.log(
-    JSON.stringify({ ...r, audit_log: auditPorEspacio, audit_log_por_accion: auditPorAccion, canales, desde: DESDE }, null, 2)
+    JSON.stringify({ ...r, audit_log: auditPorEspacio, audit_log_por_accion: auditPorAccion, canales, historial, desde: DESDE }, null, 2)
   );
   process.exit(0);
 }
@@ -184,3 +216,26 @@ if (auditPorAccion) {
     console.log(`    ${a.espacio} · ${a.accion}: ${a.n} (última ${a.ultima}, ${a.ultima_entidad ?? "sin etiqueta"})`);
   }
 }
+
+if (historial) {
+  console.log("");
+  console.log("Historial (F27), por canal:");
+  for (const c of historial.por_canal ?? []) {
+    console.log(
+      `    ${c.usuario ?? "(sin usuario)"}: conversaciones por estado ${JSON.stringify(c.historial ?? {})} · ` +
+        `mensajes entrantes ${c.entrantes}, salientes ${c.salientes}, con adjunto ${c.con_adjunto} · ` +
+        `último entrante ${c.ultimo_entrante ?? "(nunca)"}`
+    );
+  }
+  console.log("Tareas del servidor:");
+  if (!(historial.tareas ?? []).length) console.log("    (ninguna registrada)");
+  for (const t of historial.tareas ?? []) {
+    console.log(
+      `    ${t.clave}: ${t.ocupada_hasta ? `EN CURSO hasta ${t.ocupada_hasta}` : "libre"} · ` +
+        `última ${t.ultima_ejecucion_at ?? "-"} · último ok ${t.ultimo_ok_at ?? "-"}` +
+        (t.ultimo_error ? ` · error: ${t.ultimo_error}` : "")
+    );
+    if (t.resultado && Object.keys(t.resultado).length) console.log(`        ${JSON.stringify(t.resultado)}`);
+  }
+}
+

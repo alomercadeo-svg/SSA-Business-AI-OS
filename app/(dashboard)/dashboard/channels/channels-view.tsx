@@ -132,6 +132,8 @@ export function ChannelsView({
         updated,
         deactivated,
         conversationsImported = 0,
+        importandoHistorial = false,
+        importacionYaEnCurso = false,
         failed = [],
         skipped = [],
         aviso = null,
@@ -149,6 +151,13 @@ export function ChannelsView({
         setSyncMessage(
           `Nothing to connect: ZernFlow does not support ${skipped.join(", ")}`
         );
+      } else if (importandoHistorial || importacionYaEnCurso) {
+        // F27: la importación del historial sigue en segundo plano.
+        setSyncMessage(
+          importandoHistorial
+            ? "Canales al día. El historial de mensajes se está importando en segundo plano: puede tardar varios minutos."
+            : "Canales al día. Ya hay una importación del historial en curso."
+        );
       } else if (nothingChanged) {
         setSyncMessage("All channels up to date");
       } else {
@@ -159,7 +168,10 @@ export function ChannelsView({
         if (conversationsImported > 0) parts.push(`${conversationsImported} conversations imported`);
         setSyncMessage(parts.join(", "));
       }
-      setTimeout(() => setSyncMessage(null), failed.length > 0 || aviso ? 10000 : 4000);
+      setTimeout(
+        () => setSyncMessage(null),
+        failed.length > 0 || aviso || importandoHistorial || importacionYaEnCurso ? 10000 : 4000
+      );
     } catch {
       setSyncMessage("Failed to sync. Check your connection.");
     } finally {

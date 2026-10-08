@@ -5,6 +5,7 @@ import { getZernioApiKey } from "@/lib/vault";
 import { messagePreview } from "@/lib/message-preview";
 import { traerMensajesDeConversacion } from "@/lib/zernio-message-map";
 import { registrarFalloDeZernio } from "@/lib/integraciones-estado";
+import { guardarEnvioDeLaBandeja } from "@/lib/mensajes-guardado";
 
 /**
  * GET /api/v1/messages?conversationId=...
@@ -100,7 +101,9 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/v1/messages
  *
- * Sends a message via Zernio API. No local message storage — Zernio is the source of truth.
+ * Sends a message via Zernio API and stores it in `messages` (F27): the base is
+ * the inbox's source of truth. The provider's echo (`message.sent`) carries the
+ * same id and hits the unique constraint, so the message is stored once.
  */
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -161,7 +164,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "API key not configured" }, { status: 400 });
   }
 
-  // Send via Zernio SDK — Zernio stores the message, no local insert needed
+  // Send via Zernio SDK, then store it (F27)
   try {
     const zernio = createZernioClient(apiKey);
     const res = await zernio.messages.sendInboxMessage({
@@ -170,6 +173,38 @@ export async function POST(request: NextRequest) {
     });
 
     const messageId = (res.data as any)?.data?.messageId ?? null;
+    const enviadoAt = new Date().toISOString();
+
+    // F27: se guarda con el cliente de servicio, después de que la RLS del
+    // usuario autorizó la conversación (arriba). Hace falta el de servicio
+    // porque, si el echo llegó primero, esto es un UPDATE de `sent_by_user_id`,
+    // y `messages` no tiene política de UPDATE. `remote_jid` es el del lead en
+    // el canal, el mismo que escribe el echo: el trigger de la 00031 no deja
+    // cambiarlo una vez escrito.
+    const servicio = await createServiceClient();
+    const { data: delLead } = await servicio
+      .from("contact_channels")
+      .select("platform_sender_id")
+      .eq("channel_id", conversation.channel_id)
+      .eq("contact_id", conversation.contact_id)
+      .maybeSingle();
+    const guardado = await guardarEnvioDeLaBandeja(servicio, {
+      conversationId,
+      direction: "outbound",
+      platformMessageId: messageId,
+      text,
+      attachments: null,
+      messageType: "texto",
+      quotedMessageId: null,
+      remoteJid: (delLead as { platform_sender_id?: string } | null)?.platform_sender_id ?? null,
+      createdAt: enviadoAt,
+      sentByUserId: user.id,
+    });
+    if (guardado.error) {
+      // El mensaje ya salió: no se responde error, porque reintentar lo
+      // mandaría dos veces. El echo lo va a guardar igual, sin autor.
+      console.error("[messages] enviado y no guardado:", guardado.error.message);
+    }
 
     // Update conversation's last message info (ZernFlow-specific metadata)
     await supabase
@@ -183,7 +218,7 @@ export async function POST(request: NextRequest) {
     // Return a message-shaped response for the UI's optimistic update
     return NextResponse.json(
       {
-        id: messageId ?? `sent-${Date.now()}`,
+        id: guardado.id ?? messageId ?? `sent-${Date.now()}`,
         conversation_id: conversationId,
         direction: "outbound",
         text,
@@ -196,7 +231,7 @@ export async function POST(request: NextRequest) {
         sent_by_node_id: null,
         sent_by_user_id: user.id,
         status: "sent",
-        created_at: new Date().toISOString(),
+        created_at: enviadoAt,
       },
       { status: 201 }
     );

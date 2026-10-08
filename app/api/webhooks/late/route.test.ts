@@ -36,6 +36,9 @@ const { pendientes, estado } = vi.hoisted(() => ({
     workspaceSecret: null as string | null,
     claimDuplicado: false,
     eventosReclamados: [] as string[],
+    escrituras: [] as Array<{ tabla: string; tipo: string; valores?: unknown; opciones?: unknown }>,
+    falloAlGuardar: false,
+    importacionOk: null as string | null,
   },
 }));
 
@@ -63,6 +66,11 @@ vi.mock("@/lib/flow-engine/engine", () => ({
   executeFlow: (...args: unknown[]) => executeFlow(...args),
 }));
 
+const rellenarPerfilSiFalta = vi.fn(async () => "no_aplica");
+vi.mock("@/lib/relleno-perfil", () => ({
+  rellenarPerfilSiFalta: (...args: unknown[]) => rellenarPerfilSiFalta(...(args as [])),
+}));
+
 const processComment = vi.fn();
 vi.mock("@/lib/comment-processor", () => ({
   processComment: (...args: unknown[]) => processComment(...args),
@@ -79,8 +87,23 @@ function crearSupabaseFalso() {
     const cadena = {
       select: () => cadena,
       eq: () => cadena,
-      upsert: () => cadena,
-      update: () => cadena,
+      upsert: (valores: unknown, opciones?: unknown) => {
+        estado.escrituras.push({ tabla, tipo: "upsert", valores, opciones });
+        if (tabla === "messages") {
+          return Promise.resolve({ error: estado.falloAlGuardar ? { message: "falla simulada" } : null });
+        }
+        return cadena;
+      },
+      update: (valores: unknown) => {
+        estado.escrituras.push({ tabla, tipo: "update", valores });
+        return cadena;
+      },
+      delete: () => {
+        estado.escrituras.push({ tabla, tipo: "delete" });
+        return cadena;
+      },
+      is: () => cadena,
+      or: () => cadena,
       single: async () => resolver(tabla, "single"),
       maybeSingle: async () => resolver(tabla, "maybeSingle"),
       insert: async (fila: Record<string, unknown>) => {
@@ -111,6 +134,9 @@ function crearSupabaseFalso() {
     }
     if (tabla === "conversations") {
       return { data: { id: "conv-1", is_automation_paused: false }, error: null };
+    }
+    if (tabla === "tareas_estado") {
+      return { data: estado.importacionOk ? { ultimo_ok_at: estado.importacionOk } : null, error: null };
     }
     return { data: null, error: null };
   };
@@ -205,6 +231,9 @@ function eventoComentario(id = "evt-c1") {
   });
 }
 
+const guardadosEnMessages = () =>
+  estado.escrituras.filter((e) => e.tabla === "messages" && e.tipo === "upsert").flatMap((e) => e.valores as Record<string, unknown>[]);
+
 async function correrPendientes() {
   const cola = pendientes.splice(0, pendientes.length);
   for (const fn of cola) await fn();
@@ -225,6 +254,9 @@ beforeEach(() => {
   estado.workspaceSecret = SECRET;
   estado.claimDuplicado = false;
   estado.eventosReclamados = [];
+  estado.escrituras = [];
+  estado.falloAlGuardar = false;
+  estado.importacionOk = null;
   upsertContactForSender.mockReset();
   upsertContactForSender.mockResolvedValue({ contactId: "contact-1", existed: false });
   matchTrigger.mockReset();
@@ -380,26 +412,25 @@ describe("tipos de evento", () => {
   });
 
   /**
-   * Este test existía y no servía: mandaba `direction: "outbound"`, el mismo
-   * literal inventado que comparaba el handler. Un test que repite el error del
-   * código lo confirma en vez de atraparlo, y pasaba en verde mientras el guard
-   * no filtraba absolutamente nada.
+   * Hasta el 08/10/2026 este test exigía que un `message.received` con
+   * dirección `outgoing` se descartara con `reason: "outgoing"`, para no
+   * procesar en bucle los propios envíos. Con F27 lo que escribe el negocio se
+   * GUARDA (si no, deja de verse en la bandeja), y lo que evita el bucle es
+   * que nunca dispara flujos. El test pasa a exigir eso.
    *
-   * Los literales del proveedor son `"incoming"` y `"outgoing"`.
-   *
-   * Exige el motivo, no solo `skipped`. El 22/09/2026 se comprobó que con
-   * `skipped: true` a secas el test seguía en verde aunque el filtro de
-   * dirección no fuera el que descartaba: el handler tiene otros caminos que
-   * también devuelven `skipped`. Y es el único control que tiene ese filtro,
-   * porque un mensaje real no lo alcanza: `message.sent` se descarta antes, en
-   * el filtro por tipo de evento.
+   * Historia que se conserva: el test original mandaba `"outbound"`, el mismo
+   * literal inventado que comparaba el handler, y pasaba en verde mientras el
+   * guard no filtraba nada. Los literales del proveedor son `"incoming"` y
+   * `"outgoing"`.
    */
-  it("ignora los mensajes salientes para no hacer un bucle consigo mismo", async () => {
+  it("un saliente se guarda como del negocio y no dispara flujos", async () => {
     const body = eventoMensaje({ plataforma: "instagram", direccion: "outgoing" });
 
     const res = await POST(pedido(body, { "x-late-signature": firmar(body) }));
-    await expect(res.json()).resolves.toMatchObject({ skipped: true, reason: "outgoing" });
+    await expect(res.json()).resolves.toEqual({ ok: true, queued: true });
+    expect(guardadosEnMessages()).toEqual([expect.objectContaining({ direction: "outbound" })]);
     expect(pendientes).toHaveLength(0);
+    expect(matchTrigger).not.toHaveBeenCalled();
   });
 
   /**
@@ -437,5 +468,100 @@ describe("tipos de evento", () => {
   it("responde 400 ante un cuerpo que no es JSON", async () => {
     const res = await POST(pedido("esto no es json"));
     expect(res.status).toBe(400);
+  });
+});
+
+/**
+ * F27: guardar lo que entra, también lo que el negocio escribe fuera del
+ * sistema. Con las dos entregas reales del log de Zernio (08/10/2026, cuenta de
+ * prueba, datos reemplazados). Escritos en rojo contra el receptor de `8e21367`,
+ * que descartaba `message.sent` en el filtro por tipo de evento, descartaba los
+ * entrantes de otra cuenta conectada en el filtro de cuenta propia, y no
+ * guardaba nada.
+ */
+import recibidoReal from "@/lib/fixtures/zernio-webhook-message-received.json";
+import enviadoReal from "@/lib/fixtures/zernio-webhook-message-sent.json";
+
+function avisoReal(fuente: { payload: Record<string, unknown> }, cambios: (p: Record<string, any>) => void = () => {}) {
+  const p = JSON.parse(JSON.stringify(fuente.payload));
+  p.account.id = "acct-1"; // la ranura del canal del test
+  cambios(p);
+  return JSON.stringify(p);
+}
+
+
+describe("F27: el receptor guarda los mensajes", () => {
+  it("un entrante de un lead se guarda ANTES del acuse, y dispara el flujo después (control positivo)", async () => {
+    const body = avisoReal(recibidoReal);
+    const res = await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    expect(res.status).toBe(200);
+    // Antes de correr after(): el mensaje ya está guardado.
+    expect(guardadosEnMessages()).toEqual([
+      expect.objectContaining({ direction: "inbound", platform_message_id: recibidoReal.payload.message.platformMessageId }),
+    ]);
+    await correrPendientes();
+    expect(matchTrigger).toHaveBeenCalledTimes(1);
+  });
+
+  it("un entrante actualiza la marca del último entrante del canal (F39)", async () => {
+    const body = avisoReal(recibidoReal);
+    await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    expect(estado.escrituras).toContainEqual(
+      expect.objectContaining({ tabla: "channels", tipo: "update", valores: { last_inbound_at: expect.any(String) } }),
+    );
+  });
+
+  it("message.sent (real, sentVia api) de la propia cuenta: se guarda como del negocio, en la conversación del participante, sin flujo", async () => {
+    // El autor de un saliente es la cuenta del negocio (en la entrega real,
+    // sender.username == account.username), que es un canal activo del
+    // espacio: el filtro de cuenta propia lo descartaba. Un echo escrito desde
+    // la app de Instagram todavía no se observó: este fixture es de la API.
+    estado.senderChannel = { id: "ch-1" };
+    const body = avisoReal(enviadoReal);
+    const res = await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    expect(res.status).toBe(200);
+    expect(guardadosEnMessages()).toEqual([
+      expect.objectContaining({ direction: "outbound", platform_message_id: enviadoReal.payload.message.platformMessageId }),
+    ]);
+    expect(upsertContactForSender.mock.calls[0][0]).toMatchObject({
+      senderId: enviadoReal.payload.conversation.participantId,
+    });
+    await correrPendientes();
+    expect(matchTrigger).not.toHaveBeenCalled();
+    expect(estado.escrituras.some((e) => e.tabla === "channels" && e.tipo === "update")).toBe(false);
+  });
+
+  it("un entrante cuyo autor es otra cuenta conectada del espacio se guarda, sin flujo", async () => {
+    estado.senderChannel = { id: "ch-2" };
+    const body = avisoReal(recibidoReal);
+    const res = await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    expect(res.status).toBe(200);
+    expect(guardadosEnMessages()).toEqual([expect.objectContaining({ direction: "inbound" })]);
+    await correrPendientes();
+    expect(matchTrigger).not.toHaveBeenCalled();
+  });
+
+  it("si guardar falla, libera el reclamo y responde 500 para que el proveedor reintente", async () => {
+    estado.falloAlGuardar = true;
+    const body = avisoReal(recibidoReal);
+    const res = await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    expect(res.status).toBe(500);
+    expect(estado.escrituras).toContainEqual(expect.objectContaining({ tabla: "webhook_events", tipo: "delete" }));
+    expect(pendientes).toHaveLength(0);
+  });
+
+  it("un lead nuevo después de una importación completa: su conversación queda completa", async () => {
+    estado.importacionOk = "2026-10-08T21:00:00Z";
+    const body = avisoReal(recibidoReal);
+    await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    expect(estado.escrituras).toContainEqual(
+      expect.objectContaining({ tabla: "conversations", tipo: "update", valores: expect.objectContaining({ historial_estado: "completo" }) }),
+    );
+  });
+
+  it("antes de la primera importación, la conversación de un lead nuevo queda pendiente (la trae la importación)", async () => {
+    const body = avisoReal(recibidoReal);
+    await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    expect(estado.escrituras.some((e) => e.tabla === "conversations" && e.tipo === "update")).toBe(false);
   });
 });

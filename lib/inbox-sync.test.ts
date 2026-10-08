@@ -321,20 +321,49 @@ describe("backfillInboxConversations", () => {
     });
   });
 
-  it("hard-caps pagination at 4 pages per channel", async () => {
+  /**
+   * F27: el techo era 4 páginas de 50 (200 conversaciones), siempre desde las
+   * más recientes, y repetir la sincronización no bajaba de ahí. El 22/09/2026
+   * Zernio tenía 500 y la base quedó en 200. Ahora recorre hasta que Zernio
+   * dice que no hay más, con un tope de seguridad de 40 páginas (2.000), por
+   * encima de las 500 documentadas, y si corta por el tope LO DICE: los dos
+   * cortes se ven igual en el resultado. Escrito en rojo contra el techo de 4.
+   */
+  it("recorre hasta el final del listado, más allá de las 4 páginas de antes", async () => {
     const fake = makeFakeSupabase({});
-    const z = fakeZernio([
-      { data: [conv("c1")], pagination: { hasMore: true, nextCursor: "next" } },
-    ]);
+    const paginas = Array.from({ length: 11 }, (_, i) => ({
+      data: [conv(`c${i}`)],
+      pagination: { hasMore: i < 10, nextCursor: i < 10 ? `cur-${i + 1}` : null },
+    }));
+    const z = fakeZernio(paginas);
 
-    await backfillInboxConversations({
+    const res = await backfillInboxConversations({
       supabase: fake.client,
       zernio: z.client,
       workspaceId: "ws-1",
       channels: [channel],
     });
 
-    expect(z.list).toHaveBeenCalledTimes(4);
+    expect(z.list).toHaveBeenCalledTimes(11);
+    expect(res.imported).toBe(11);
+    expect(res.cortadosPorTope).toEqual([]);
+  });
+
+  it("con un listado que no termina, corta en el tope de seguridad y lo dice", async () => {
+    const fake = makeFakeSupabase({});
+    const z = fakeZernio([
+      { data: [conv("c1")], pagination: { hasMore: true, nextCursor: "next" } },
+    ]);
+
+    const res = await backfillInboxConversations({
+      supabase: fake.client,
+      zernio: z.client,
+      workspaceId: "ws-1",
+      channels: [channel],
+    });
+
+    expect(z.list).toHaveBeenCalledTimes(40);
+    expect(res.cortadosPorTope).toEqual([channel.id]);
   });
 
   it("skips items without an id or participantId", async () => {

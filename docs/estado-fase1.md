@@ -579,6 +579,12 @@ Los 7 contactos importados el 08/10 no tienen su fila. El del webhook sí la tie
 **Hora de fin: 08/10/2026 13:09, hora de Costa Rica**, leída al commitear. Un solo tramo, de 11:16 a 13:09.
 
 **Para la apertura de la próxima sesión:** anotar acá el hash del commit que cierra este registro, la salida de su corrida de `scripts/verificar-despliegue.mjs` y lo que Marcos vea en el historial de despliegues de Railway.
+- **Completado en la apertura de la sesión 2 del Bloque 3 (08/10/2026, 14:20).** Ese día hubo tres commits, cada uno subido con su propia corrida del script. Hashes y horas verificados con `git log` (hora de Costa Rica). Las salidas de `ee9ef12` y `8e21367` **salen de la memoria que dejó la sesión del 08/10, no del repo**, y coinciden con las que anotó Marcos en el pedido de la sesión 2:
+  - `43f8de6`, el código de F24: ya anotado arriba (salida 0, 257 segundos).
+  - `ee9ef12` (13:09:30), el que cierra este registro. Push `43f8de6..ee9ef12`, salida 0, capturada directo: a las 13:09:33 leyó el build `mnw795ja8Jtj8Kw6VpA-0`, y a los 147 segundos (13:12:02) pasó a `DQ6ElJ9M6A3rTRRHK2Zh2`, con `/login` en 200.
+  - `8e21367` (13:26), el retrabajo de F31 (abajo). Push `ee9ef12..8e21367`, salida 0: el build pasó de `DQ6ElJ9M6A3rTRRHK2Zh2` a `ptil6wH_ZFft1Ooi3q8FG` a los 113 segundos (13:26:50 a 13:28:45), con `/login` en 200.
+- **Railway, dicho por Marcos, con captura, el 08/10 a las 13:52:** ACTIVE el commit «fix(F31): la importación registra «contacto creado», con quien la disp…», «Deployment successful», subido 25 minutos antes. **El HISTORY no se miró**: no se sabe qué muestra para `43f8de6` y `ee9ef12`.
+- **El plan gratuito de Zernio admite dos cuentas**, dicho por Marcos el 08/10/2026. Con @alomercadeo y @poderosascomunidad conectadas, el perfil está en el límite: una tercera cuenta quedaría excedida o sería paga.
 
 ### Retrabajo de F31, el mismo 8 de octubre: la importación no registraba «contacto creado»
 
@@ -659,7 +665,7 @@ Después, el Bloque 3: modelo de contacto extendido (F25), identidad de canal y 
 | Sesión | Funcionalidades | Por qué juntas | Días reales | Anotado el |
 |---|---|---|---|---|
 | 1 | F31, F25, F26 | El modelo de contacto y la identidad de canal. **F31 primero:** F26 escribe en la auditoría, y la tabla no existe hasta F31 | Tramo 1: 07/10/2026 17:37 a 07/10/2026 18:35. Tramo 2, retrabajo de F31: 08/10/2026 13:16 a 08/10/2026 13:26. Hora de Costa Rica. Suma: 68 min (1 h 8 min) | 07/10/2026 y 08/10/2026 |
-| 2 | F27, F28, F39 | El camino de entrada. F28 y F39 cuelgan de F27 | | |
+| 2 | F27, F28, F39 | El camino de entrada. F28 y F39 cuelgan de F27 | Tramo 1: 08/10/2026 14:20 a (en curso). Hora de Costa Rica | 08/10/2026 |
 | 3 | F29, F30, F41 | El lado de CRM, que no toca la ingesta. F41 va con F30 porque la asignación se ve y se edita en la ficha | | |
 | **Bloque** | | | **Planificado: 2 días** | |
 

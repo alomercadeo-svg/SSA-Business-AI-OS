@@ -8,6 +8,10 @@ import { upsertContactForSender } from "@/lib/inbox-sync";
 import { processComment } from "@/lib/comment-processor";
 import type { Database } from "@/lib/types/database";
 import { messagePreview } from "@/lib/message-preview";
+import { guardarMensajes } from "@/lib/mensajes-guardado";
+import { contactoDelAviso, esSaliente, mensajeDelAviso, type AvisoDeMensajeZernio } from "@/lib/zernio-aviso";
+import { rellenarPerfilSiFalta } from "@/lib/relleno-perfil";
+import { claveDeImportacion } from "@/lib/importacion-historial";
 
 // ── Zernio API webhook payload ───────────────────────────────────────────────
 
@@ -163,33 +167,22 @@ async function handleWebhook(request: NextRequest) {
     return handleCommentWebhook(parsed as CommentWebhookPayload, body, signature, eventId);
   }
 
-  // Everything else besides message.received is acknowledged and ignored
-  if (parsed.event !== "message.received") {
+  // F27: se guardan los dos eventos de mensaje. `message.sent` es el echo de
+  // lo que escribe el negocio, desde la bandeja o desde la app de Instagram;
+  // hasta el 08/10/2026 se descartaba acá y, con la bandeja leyendo de la base,
+  // esas respuestas dejarían de verse.
+  if (parsed.event !== "message.received" && parsed.event !== "message.sent") {
     return NextResponse.json({ ok: true, skipped: true });
   }
 
   const payload = parsed as WebhookPayload;
-
   const { message: msg, account } = payload;
 
-  // Descarta los salientes para no hacer un bucle consigo mismo.
-  //
-  // ACÁ ESTABA EL BUG, y es la tercera vez que aparece el mismo en este
-  // proyecto. Se comparaba contra `"outbound"`, un literal que el proveedor no
-  // manda nunca: los suyos son `"incoming"` y `"outgoing"`. Verificado contra
-  // los tipos generados del SDK y contra 8 entregas reales del log de Zernio el
-  // 21/09/2026. La comparación nunca daba verdadero, así que este guard no
-  // filtraba nada desde que se escribió.
-  //
-  // Se compara contra `"outgoing"` y no contra `"incoming"` a propósito, igual
-  // que `traducirDireccion` en `lib/zernio-message-map.ts`, pero por el motivo
-  // opuesto: allá lo seguro es tratar lo desconocido como entrante para no
-  // atribuirle al negocio un mensaje que no escribió; acá lo seguro es NO
-  // descartarlo, porque descartar un mensaje de un lead lo pierde para siempre.
-  // Las dos elecciones dejan el literal desconocido del lado del contacto.
-  if (msg.direction === "outgoing") {
-    return NextResponse.json({ ok: true, skipped: true, reason: "outgoing" });
-  }
+  // Lo que escribe el negocio. Se guarda como saliente y nunca dispara flujos,
+  // que era lo que evitaba el filtro viejo de dirección: procesar en bucle los
+  // propios envíos. Se compara contra `"outgoing"` y no contra `"incoming"`
+  // (ver `esSaliente`): un literal desconocido queda del lado del lead.
+  const saliente = esSaliente(payload);
 
   const supabase = await createServiceClient();
 
@@ -205,10 +198,12 @@ async function handleWebhook(request: NextRequest) {
     return NextResponse.json({ error: "Channel not found" }, { status: 404 });
   }
 
-  // Prevent loops: if the sender is another connected account in this
-  // workspace, skip. This happens when both sides of a DM conversation
-  // are connected (e.g. during testing).
-  if (msg.sender.username) {
+  // Dos cuentas conectadas del mismo espacio que se escriben (pasa en pruebas):
+  // el mensaje es real y se guarda, pero no dispara flujos, que es el bucle que
+  // este filtro existía para evitar. Antes se descartaba entero. Un saliente no
+  // pasa por acá: su autor es siempre la propia cuenta.
+  let entreCuentasPropias = false;
+  if (!saliente && msg.sender.username) {
     const { data: senderChannel } = await supabase
       .from("channels")
       .select("id")
@@ -216,10 +211,7 @@ async function handleWebhook(request: NextRequest) {
       .eq("username", msg.sender.username)
       .eq("is_active", true)
       .maybeSingle();
-
-    if (senderChannel) {
-      return NextResponse.json({ ok: true, skipped: true, reason: "sender_is_own_account" });
-    }
+    entreCuentasPropias = Boolean(senderChannel);
   }
 
   if (!verificarFirma(await resolveWebhookSecret(supabase, channel), body, signature, channel)) {
@@ -230,91 +222,158 @@ async function handleWebhook(request: NextRequest) {
     return NextResponse.json({ ok: true, skipped: true, reason: "duplicate_event" });
   }
 
-  // Ack immediately and process after the response: Zernio aborts deliveries
-  // at 5s and retries, so contact upserts + flow execution (Zernio sends, AI
-  // nodes) must never run before the 200 goes out.
-  after(async () => {
-    try {
-      await processMessageEvent(supabase, payload, channel);
-    } catch (err) {
-      console.error("Webhook message processing error:", err);
-    }
-  });
+  // ANTES del acuse: contacto, conversación y mensaje, solo escrituras en la
+  // base (nada de esto llama a Zernio). Si falla, se libera el reclamo y se
+  // responde 500 para que el proveedor reintente: un aviso reclamado y no
+  // guardado se perdía en silencio (deuda de §15, 07/10/2026). Que Zernio
+  // reintente ante un 500 no está verificado; su log de entregas tiene un
+  // `attemptNumber` que "increments on retries" (SDK 0.2.519, index.d.ts:6712).
+  let guardado: Guardado;
+  try {
+    guardado = await guardarAviso(supabase, payload, channel, saliente);
+  } catch (err) {
+    console.error("[webhooks/late] no se pudo guardar el mensaje:", err instanceof Error ? err.message : err);
+    if (eventId) await supabase.from("webhook_events").delete().eq("event_id", eventId);
+    return NextResponse.json({ error: "No se pudo guardar el mensaje" }, { status: 500 });
+  }
+
+  // Después del acuse, lo que sí llama afuera: el relleno del perfil (Zernio)
+  // y los flujos (que mandan mensajes). Zernio corta las entregas a los 5
+  // segundos, según el comentario que trae el fork (`53cb513`); no verificado.
+  if (!saliente && !entreCuentasPropias) {
+    after(async () => {
+      try {
+        await rellenarPerfilSiFalta(supabase, {
+          channel,
+          senderId: guardado.senderId,
+          conversacionDeZernio: payload.conversation.id,
+        });
+      } catch (err) {
+        console.error("[webhooks/late] relleno de perfil:", err instanceof Error ? err.message : err);
+      }
+      try {
+        await correrFlujos(supabase, payload, channel, guardado);
+      } catch (err) {
+        console.error("Webhook message processing error:", err);
+      }
+    });
+  }
 
   return NextResponse.json({ ok: true, queued: true });
 }
 
-async function processMessageEvent(
+type Canal = Database["public"]["Tables"]["channels"]["Row"];
+
+interface Guardado {
+  contactId: string;
+  contactExisted: boolean;
+  conversationId: string;
+  isAutomationPaused: boolean;
+  /** El identificador del lead en el canal (`contact_channels.platform_sender_id`). */
+  senderId: string;
+}
+
+/**
+ * Contacto, conversación y mensaje. Tira si algo no se pudo escribir: el que
+ * llama libera el reclamo y responde 500.
+ */
+async function guardarAviso(
   supabase: Awaited<ReturnType<typeof createServiceClient>>,
   payload: WebhookPayload,
-  channel: Database["public"]["Tables"]["channels"]["Row"],
-) {
-  const { message: msg, conversation: conv, account, metadata } = payload;
+  channel: Canal,
+  saliente: boolean,
+): Promise<Guardado> {
+  const aviso = payload as unknown as AvisoDeMensajeZernio;
+  const lead = contactoDelAviso(aviso);
+  if (!lead) throw new Error("el aviso no trae a quién pertenece la conversación");
 
-  // ── Upsert contact ───────────────────────────────────────────────────────
-
-  const senderId = msg.sender.id;
-  const senderName = msg.sender.name || msg.sender.username || senderId;
-
+  const ahora = new Date().toISOString();
   const contact = await upsertContactForSender({
     supabase,
     channel,
-    senderId,
-    senderName,
-    senderPicture: msg.sender.picture || null,
-    senderUsername: msg.sender.username || null,
-    interactionAt: new Date().toISOString(),
+    ...lead,
+    interactionAt: ahora,
+    stampExisting: !saliente,
   });
+  if (!contact) throw new Error("no se pudo crear el contacto");
 
-  if (!contact) {
-    console.error("Failed to create contact for webhook message");
-    return;
-  }
-
-  const contactId = contact.contactId;
-
-  // ── Upsert conversation ──────────────────────────────────────────────────
-
-  const preview = messagePreview(msg.text);
-
+  const preview = messagePreview(payload.message.text);
   const { data: conversation } = await supabase
     .from("conversations")
     .upsert(
       {
         workspace_id: channel.workspace_id,
         channel_id: channel.id,
-        contact_id: contactId,
+        contact_id: contact.contactId,
         platform: channel.platform,
-        late_conversation_id: conv.id,
+        late_conversation_id: payload.conversation.id,
         status: "open",
-        last_message_at: new Date().toISOString(),
+        last_message_at: ahora,
         last_message_preview: preview,
-        unread_count: 1,
+        // Un saliente no deja nada sin leer.
+        ...(saliente ? {} : { unread_count: 1 }),
       },
       { onConflict: "channel_id,contact_id" }
     )
     .select("id, is_automation_paused")
     .single();
+  if (!conversation) throw new Error("no se pudo guardar la conversación");
 
-  if (!conversation) {
-    console.error("Failed to upsert conversation for webhook message");
-    return;
-  }
-
-  if (contact.existed) {
+  if (contact.existed && !saliente) {
     await supabase
-      .rpc("increment_unread", {
-        conv_id: conversation.id,
-        preview,
-      })
+      .rpc("increment_unread", { conv_id: conversation.id, preview })
       .then(() => {});
   }
 
-  // Messages are stored by Zernio (source of truth) — no local insert needed.
+  // Un lead que no conocíamos, DESPUÉS de una importación completa del
+  // historial, es una conversación nueva: todo su historial es lo que entra
+  // desde ahora. Se marca completa para que la bandeja no le muestre el aviso
+  // de «historial sin importar». Antes de la primera importación queda
+  // `pendiente`: puede ser una conversación vieja que la importación tiene que
+  // traer entera.
+  if (!contact.existed) {
+    const { data: importacion } = await supabase
+      .from("tareas_estado")
+      .select("ultimo_ok_at")
+      .eq("clave", claveDeImportacion(channel.workspace_id))
+      .maybeSingle();
+    if ((importacion as { ultimo_ok_at?: string | null } | null)?.ultimo_ok_at) {
+      await supabase
+        .from("conversations")
+        .update({ historial_estado: "completo", historial_importado_at: ahora })
+        .eq("id", conversation.id)
+        .eq("historial_estado", "pendiente");
+    }
+  }
 
-  // ── Flow engine ───────────────────────────────────────────────────────────
+  const { error } = await guardarMensajes(supabase, [
+    mensajeDelAviso(aviso, conversation.id, lead.senderId),
+  ]);
+  if (error) throw new Error(`messages: ${error.message}`);
 
-  if (!conversation.is_automation_paused) {
+  if (!saliente) {
+    await supabase.from("channels").update({ last_inbound_at: ahora }).eq("id", channel.id);
+  }
+
+  return {
+    contactId: contact.contactId,
+    contactExisted: contact.existed,
+    conversationId: conversation.id,
+    isAutomationPaused: Boolean(conversation.is_automation_paused),
+    senderId: lead.senderId,
+  };
+}
+
+async function correrFlujos(
+  supabase: Awaited<ReturnType<typeof createServiceClient>>,
+  payload: WebhookPayload,
+  channel: Canal,
+  guardado: Guardado,
+) {
+  const { message: msg, conversation: conv, account, metadata } = payload;
+  const contactId = guardado.contactId;
+
+  if (!guardado.isAutomationPaused) {
     const incomingMessage = {
       text: msg.text || undefined,
       postbackPayload: metadata?.postbackPayload || undefined,
@@ -338,9 +397,9 @@ async function processMessageEvent(
       const trigger = await matchTrigger(supabase, {
         channelId: channel.id,
         workspaceId: channel.workspace_id,
-        conversationId: conversation.id,
+        conversationId: guardado.conversationId,
         message: incomingMessage,
-        isFirstMessage: !contact.existed,
+        isFirstMessage: !guardado.contactExisted,
       });
       if (trigger) {
         try {
@@ -349,7 +408,7 @@ async function processMessageEvent(
             flowId: trigger.flow_id,
             channelId: channel.id,
             contactId,
-            conversationId: conversation.id,
+            conversationId: guardado.conversationId,
             workspaceId: channel.workspace_id,
             incomingMessage,
             lateConversationId: conv.id,
