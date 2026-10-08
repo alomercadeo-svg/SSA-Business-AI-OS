@@ -496,6 +496,11 @@ Las piezas comunes de los verificadores nuevos están en `scripts/lib-verificado
 **Hora de fin: 07/10/2026 18:35, hora de Costa Rica**, leída al commitear. La sesión duró 58 min, en un solo tramo.
 
 **Para la apertura de la próxima sesión:** anotar acá el hash del commit que cierra este registro, la salida de su corrida de `scripts/verificar-despliegue.mjs` y lo que Marcos vea en el historial de despliegues de Railway.
+- **Completado en la apertura del 8 de octubre.** Esa noche hubo tres commits, cada uno subido con su propia corrida del script. Hashes y horas verificados con `git log` (hora de Costa Rica); las salidas del script **salen de la memoria que dejó la sesión del 07/10, no del repo**:
+  - `36d2e07` (18:36:00), el que cierra este registro. Push `4e0f93d..36d2e07`, salida 0, capturada directo: a las 18:36:06 leyó el build `ny08BxtMHa45PTP00jwJq`, y a los 134 segundos (18:38:22) pasó a `-MJKgmJX3SAwsXzu2WGJj`, con `/login` en 200.
+  - `a02c88c` (18:59:11), cómo se hizo el GET a Zernio y las dos reglas del `CLAUDE.md`, fuera de la medición. Push `36d2e07..a02c88c`, salida 0: el build pasó de `-MJKgmJX3SAwsXzu2WGJj` a `0S6jPGeTVfzyJuWA-Ktll` (18:59:17 a 19:01:23), con `/login` en 200.
+  - `7ad04ba` (19:16:17), el arreglo de `test-key`, fuera de la medición. Push `a02c88c..7ad04ba`, salida 0: el build pasó de `0S6jPGeTVfzyJuWA-Ktll` a `i16KueAsycWzB5BBp8gm3` (19:16:23 a 19:18:18), con `/login` en 200.
+- **Railway, dicho por Marcos, con captura, el 07/10 a las 19:23:** ACTIVE `7ad04ba` («fix(test-key): no devolver al navegador las cuentas de Zernio tal com…», «Deployment successful»); en HISTORY, REMOVED `a02c88c`, `36d2e07`, `4e0f93d` y `759280a`; ningún FAILED a la vista.
 
 ### Lo que F27 tiene que cerrar de F25 y F26
 
@@ -511,11 +516,26 @@ Con esto F25 y F26 pasan a completas. Cada punto con dónde está lo que ya exis
 5. **`last_click` y el origen de click-to-WhatsApp:** `toqueDe` y `aplicarToque` (`lib/atribucion.ts`), desde el `contextInfo.externalAdReply` del aviso de Evolution. El trigger de la 00029 ya impide sobrescribir `first_click`. Si Zernio manda la referencia del anuncio en Instagram no está verificado.
 6. **El relleno de nombres de F27 respeta `display_name_source = 'manual'`:** es el criterio de F25 que queda sin tildar por eso.
 
+**Aparte, anotado el 08/10/2026: un hueco de la regla de identidad del criterio de F26.** No depende de mensajes guardados; es un hueco de la regla de identidad del criterio de F26 («`late_account_id` queda solo como referencia al proveedor»). Verificado leyendo el código, sin arreglar:
+- `decidirCanalDeCuenta` (`lib/channel-rules.ts:213-239`) busca los candidatos **solo** por `late_account_id` (`:218`). Si una cuenta desconectada se vuelve a conectar y Zernio le da un `_id` distinto, no hay candidatos y devuelve `crear` (`:238`), aunque el `platformUserId` sea el de una fila inactiva que ya existe.
+- La sincronización crea entonces un canal nuevo, activo, con el mismo `platform_account_id`. El índice `channels_cuenta_activa_key` (00031) lo permite porque solo mira los activos.
+- El historial queda colgando del canal viejo. La importación busca las conversaciones conocidas por canal (`lib/inbox-sync.ts:236-239`), así que en el canal nuevo vuelve a importar las mismas; que el contacto también se duplique, por el `unique (channel_id, platform_sender_id)` de `contact_channels`, es inferencia.
+- «Activar» sobre el canal viejo falla: dejaría dos canales activos de la misma cuenta, el índice lo rechaza, y `activarCanal` responde «No se pudo activar el canal» (`lib/actions/canales.ts:33`) sin decir por qué.
+- Si Zernio reusa el `_id`, que es lo que se midió en F26, no pasa: la fila vieja se encuentra como `existente` y «Activar» la enciende con su historial.
+
 **Lo que queda para otras funcionalidades:**
 - **«Ver la cola»** del contador lleva a la bandeja con el filtro «Teléfono sin resolver», que es de **F35**. Hasta entonces la línea se muestra sin el link.
 - **Las notas en `fusionar_contactos`, de F30.** La fusión comprueba en el catálogo que ninguna tabla con clave hacia `contacts` le siga apuntando al absorbido. Cuando F30 cree `contact_notes`, la fusión va a fallar a los gritos hasta que se las sume.
 - **La sugerencia de fusión en las vías automáticas, de F29** («¿Es la misma persona?»). Hoy la propuesta con los dos lados existe solo en la carga manual desde la ficha.
 - `attachments` de los mensajes de Zernio pasa al navegador tal como lo manda el proveedor (`lib/zernio-message-map.ts:239`). Se revisa en F27 y F28, cuando la bandeja pase a leer de la base y los adjuntos se guarden.
+
+---
+
+## Sesión del 8 de octubre de 2026: F24 y HUMAN_AGENT
+
+**Apertura:** `node scripts/commits-sin-subir.mjs` dio «Sin commits sin subir contra origin/bloque-1-foundation»; el último era `7ad04ba`. Se completó el registro de los tres commits del 07/10 a la noche (arriba). Hora de inicio, 11:16 de Costa Rica, leída con `TZ=America/Costa_Rica date`. No es una sesión del Bloque 3 y no toca su tabla: los tramos se anotan acá para estimar.
+
+**Las tareas programadas, dicho por Marcos el 08/10:** ningún servicio de Railway (SSA-Business-AI-OS, evolution y evolution-db) tiene «Cron Schedule». Eso descarta el Cron Schedule de Railway, **no** un mecanismo dentro del código que se programe solo al arrancar la app. Que los crons del fork no corren en producción queda como **probable, con más fuerza** que antes; la verificación en el código es del plan de S5.
 
 ---
 

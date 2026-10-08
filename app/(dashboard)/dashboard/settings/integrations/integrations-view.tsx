@@ -29,6 +29,7 @@ import {
 import type { IntegrationEstado, IntegrationTipo } from "@/lib/types/database";
 import { EstadoWebhook } from "./estado-webhook";
 import { AvisoCanalInactivo } from "./aviso-canal-inactivo";
+import { ConfirmarDesconexion } from "./confirmar-desconexion";
 
 interface CuentaInstagram {
   id: string;
@@ -466,6 +467,7 @@ function Instagram({ t, cuentas }: { t: Tarjeta; cuentas: CuentaInstagram[] }) {
   const [valor, setValor] = useState("");
   const [mensaje, setMensaje] = useState<{ ok: boolean; texto: string } | null>(null);
   const [probando, setProbando] = useState(false);
+  const [aDesconectar, setADesconectar] = useState<CuentaInstagram | null>(null);
   const router = useRouter();
 
   async function probarYGuardar() {
@@ -533,18 +535,28 @@ function Instagram({ t, cuentas }: { t: Tarjeta; cuentas: CuentaInstagram[] }) {
               <span className="block">@{c.username}</span>
               <AvisoCanalInactivo activo={c.activa} />
             </span>
-            {/* Deshabilitado el 23/09/2026 hasta probarlo contra Zernio real con la
-                aprobación de Marcos: desconecta el único canal vivo. La acción de
-                servidor sigue existiendo, con sus tests. Lo cuida
-                desconectar-deshabilitado.test.ts. */}
+            {/* Habilitado el 08/10/2026, después de estar deshabilitado desde el
+                23/09/2026. Solo abre la confirmación que pide escribir el nombre
+                de la cuenta; lo cuida desconectar-deshabilitado.test.ts. */}
             {c.activa && (
-              <button type="button" disabled className={claseBoton} title="Desconectar no está disponible todavía">
-                Desconectar no está disponible todavía
+              <button type="button" className={claseBoton} onClick={() => setADesconectar(c)}>
+                Desconectar
               </button>
             )}
           </div>
         ))}
       </div>
+
+      {aDesconectar && (
+        <ConfirmarDesconexion
+          cuenta={aDesconectar}
+          onCerrar={() => setADesconectar(null)}
+          onHecho={() => {
+            setADesconectar(null);
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

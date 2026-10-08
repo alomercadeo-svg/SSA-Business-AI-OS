@@ -14,14 +14,33 @@
  *   - `audit_log`, si existe. Si no existe, lo dice en vez de fallar: antes de la
  *     00028 esa es justamente la respuesta correcta.
  *
+ *   - por canal (desde el 08/10/2026, para la prueba de «Desconectar» de F24):
+ *     id, plataforma, usuario, si está activo, `platform_account_id`,
+ *     `excede_plan_zernio`, y cuántas conversaciones, contactos y mensajes
+ *     cuelgan de él. Con `--desde`, cuántas conversaciones de cada canal se
+ *     crearon después de esa hora: separa un lead real que escribió en el medio
+ *     de un efecto de la prueba;
+ *   - `audit_log` por espacio y por acción, con la hora y la etiqueta de la
+ *     entidad de la última. La etiqueta es la del historial («Instagram
+ *     @cuenta»), nunca el contenido de un mensaje ni datos de un contacto.
+ *
  * Uso:
- *   node scripts/recuento-base.mjs            tabla legible
- *   node scripts/recuento-base.mjs --json     el resultado crudo, para guardar
+ *   node scripts/recuento-base.mjs                         tabla legible
+ *   node scripts/recuento-base.mjs --json                  el resultado crudo, para guardar
+ *   node scripts/recuento-base.mjs --desde 2026-10-08T11:40:00-06:00
  *
  * Nació el 07/10/2026 con F31, F25 y F26, que piden recuentos antes y después
  * de cada `supabase db push`. Sirve igual para F27.
  */
 import { execFileSync } from "node:child_process";
+
+// `--desde` entra en el SQL, así que se acepta solo una fecha ISO y nada más.
+const iDesde = process.argv.indexOf("--desde");
+const DESDE = iDesde >= 0 ? process.argv[iDesde + 1] : null;
+if (DESDE !== null && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(Z|[+-]\d{2}:\d{2})$/.test(DESDE ?? "")) {
+  console.error("--desde necesita una fecha ISO con zona, por ejemplo 2026-10-08T11:40:00-06:00");
+  process.exit(2);
+}
 
 const TABLAS = [
   "contacts",
@@ -66,6 +85,34 @@ select case when to_regclass('public.audit_log') is null then null
   ) q) end as r
 `;
 
+// Por canal. Solo cantidades e identificadores de cuenta, nunca contenido.
+const SQL_CANALES = `
+select json_agg(row_to_json(q) order by q.espacio, q.plataforma, q.usuario) as r from (
+  select e.name as espacio, ch.id, ch.platform as plataforma, ch.provider as proveedor,
+    coalesce(ch.username, ch.instance_name) as usuario, ch.is_active as activo,
+    ch.platform_account_id, ch.excede_plan_zernio,
+    (select count(*)::int from public.conversations v where v.channel_id = ch.id) as conversaciones,
+    (select count(distinct cc.contact_id)::int from public.contact_channels cc where cc.channel_id = ch.id) as contactos,
+    (select count(*)::int from public.messages m join public.conversations v on v.id = m.conversation_id where v.channel_id = ch.id) as mensajes,
+    ${
+      DESDE
+        ? `(select count(*)::int from public.conversations v where v.channel_id = ch.id and v.created_at > '${DESDE}'::timestamptz)`
+        : "null::int"
+    } as conversaciones_desde
+  from public.channels ch join public.workspaces e on e.id = ch.workspace_id
+) q
+`;
+
+const SQL_AUDIT_ACCIONES = `
+select case when to_regclass('public.audit_log') is null then null
+  else (select json_agg(row_to_json(q) order by q.espacio, q.accion) from (
+    select coalesce(e.name, '(sin espacio o espacio borrado)') as espacio, a.action as accion, count(*)::int as n,
+      max(a.created_at) as ultima,
+      (array_agg(a.entity_label order by a.created_at desc))[1] as ultima_entidad
+    from public.audit_log a left join public.workspaces e on e.id = a.workspace_id group by 1, 2
+  ) q) end as r
+`;
+
 function consultar(sql) {
   const salida = execFileSync("npx", ["supabase", "db", "query", "--linked", "-o", "json", sql], {
     encoding: "utf8",
@@ -77,17 +124,23 @@ function consultar(sql) {
 }
 
 let auditPorEspacio;
+let auditPorAccion;
 const r = consultar(SQL);
 try {
   // Con la tabla inexistente, el `case` igual referencia public.audit_log y
   // Postgres lo rechaza al planificar. Ese rechazo es la respuesta "no existe".
   auditPorEspacio = r.existe_audit_log ? consultar(SQL_AUDIT) : null;
+  auditPorAccion = r.existe_audit_log ? consultar(SQL_AUDIT_ACCIONES) : null;
 } catch {
   auditPorEspacio = null;
+  auditPorAccion = null;
 }
+const canales = consultar(SQL_CANALES) ?? [];
 
 if (process.argv.includes("--json")) {
-  console.log(JSON.stringify({ ...r, audit_log: auditPorEspacio }, null, 2));
+  console.log(
+    JSON.stringify({ ...r, audit_log: auditPorEspacio, audit_log_por_accion: auditPorAccion, canales, desde: DESDE }, null, 2)
+  );
   process.exit(0);
 }
 
@@ -108,4 +161,26 @@ else {
   const total = (auditPorEspacio ?? []).reduce((s, f) => s + f.n, 0);
   console.log(`audit_log: ${total}`);
   for (const f of auditPorEspacio ?? []) console.log(`    ${f.espacio}: ${f.n}`);
+}
+
+console.log("");
+console.log(`Canales${DESDE ? ` (conversaciones nuevas desde ${DESDE})` : ""}:`);
+for (const c of canales) {
+  console.log(
+    `    ${c.espacio} · ${c.plataforma}/${c.proveedor} · ${c.usuario ?? "(sin usuario)"} · ${c.activo ? "activo" : "INACTIVO"}`
+  );
+  console.log(`        id ${c.id}`);
+  console.log(`        platform_account_id ${c.platform_account_id ?? "(nulo)"} · excede_plan_zernio ${c.excede_plan_zernio}`);
+  console.log(
+    `        conversaciones ${c.conversaciones} · contactos ${c.contactos} · mensajes ${c.mensajes}` +
+      (DESDE ? ` · conversaciones creadas desde --desde: ${c.conversaciones_desde}` : "")
+  );
+}
+
+if (auditPorAccion) {
+  console.log("");
+  console.log("audit_log por acción:");
+  for (const a of auditPorAccion) {
+    console.log(`    ${a.espacio} · ${a.accion}: ${a.n} (última ${a.ultima}, ${a.ultima_entidad ?? "sin etiqueta"})`);
+  }
 }

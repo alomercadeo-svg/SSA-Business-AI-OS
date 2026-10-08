@@ -8,6 +8,7 @@ import {
   agruparPorTipo,
   aTarjeta,
   textoConexionEvolution,
+  confirmacionCoincide,
 } from "./integraciones";
 
 /**
@@ -137,5 +138,31 @@ describe("el texto de la conexión con Evolution", () => {
 
   it("sin verificar no se presenta como desconectada", () => {
     expect(textoConexionEvolution("sin_verificar")).not.toMatch(/desconect/i);
+  });
+});
+
+/**
+ * La confirmación de «Desconectar» (F24, criterio del 07/10/2026): hay que
+ * escribir el nombre de la cuenta. Una sola comparación, la misma en el diálogo
+ * y en la acción del servidor. Se vio en rojo el 08/10/2026: no existía.
+ */
+describe("la confirmación que pide escribir el nombre de la cuenta", () => {
+  it("acepta el nombre exacto, con @ adelante, con mayúsculas o con espacios alrededor", () => {
+    expect(confirmacionCoincide("poderosascomunidad", "poderosascomunidad")).toBe(true);
+    expect(confirmacionCoincide("@poderosascomunidad", "poderosascomunidad")).toBe(true);
+    expect(confirmacionCoincide("  PoderosasComunidad ", "poderosascomunidad")).toBe(true);
+  });
+
+  it("rechaza un nombre parecido, otra cuenta, o nada", () => {
+    expect(confirmacionCoincide("poderosascomunida", "poderosascomunidad")).toBe(false);
+    expect(confirmacionCoincide("poderosas comunidad", "poderosascomunidad")).toBe(false);
+    expect(confirmacionCoincide("alomercadeo", "poderosascomunidad")).toBe(false);
+    expect(confirmacionCoincide("", "poderosascomunidad")).toBe(false);
+    expect(confirmacionCoincide("@", "poderosascomunidad")).toBe(false);
+  });
+
+  it("si la cuenta no tiene nombre, nada coincide: ni siquiera un texto vacío", () => {
+    expect(confirmacionCoincide("", "")).toBe(false);
+    expect(confirmacionCoincide("", null)).toBe(false);
   });
 });

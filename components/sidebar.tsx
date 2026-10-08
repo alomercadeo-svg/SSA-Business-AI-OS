@@ -60,6 +60,12 @@ const navigation = [
   { name: "Integraciones", href: "/dashboard/settings/integrations", icon: KeyRound, soloManagers: true },
 ];
 
+/** Las entradas del menú que ve un rol: las de `soloManagers`, solo Owner y Admin. */
+export function entradasVisibles(rol: string | undefined) {
+  const esManager = rol === "owner" || rol === "admin";
+  return navigation.filter((item) => !("soloManagers" in item) || esManager);
+}
+
 export function Sidebar({
   workspace,
   workspaces,
@@ -70,8 +76,7 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const rol = workspaces.find((w) => w.id === workspace.id)?.role;
-  const esManager = rol === "owner" || rol === "admin";
-  const visibles = navigation.filter((item) => !("soloManagers" in item) || esManager);
+  const visibles = entradasVisibles(rol);
   // La entrada activa es la de href más largo que coincide: sin esto,
   // /dashboard/settings/integrations marcaría también a Settings.
   const activa = visibles

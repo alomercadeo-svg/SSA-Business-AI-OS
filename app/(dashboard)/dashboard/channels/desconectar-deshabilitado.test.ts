@@ -72,30 +72,33 @@ describe("la ruta que borra un canal con su historial", () => {
 });
 
 /**
- * El botón "Desconectar" de F24, en la pantalla de integraciones, también queda
- * deshabilitado hasta probarlo contra Zernio real con la aprobación de Marcos
- * (23/09/2026). Su acción, `desconectarCuentaInstagram`, no borra nada, pero
- * nunca se ejercitó contra la cuenta real y desconecta el único canal vivo.
- * La acción se conserva, con sus tests; lo que se corta es el camino desde la
- * interfaz. Se vio en rojo antes de deshabilitar el botón.
+ * El botón "Desconectar" de F24, en la pantalla de integraciones. Estuvo
+ * deshabilitado del 23/09/2026 al 08/10/2026, hasta probarlo contra Zernio real
+ * con una cuenta de prueba y la aprobación de Marcos: desconecta un canal vivo.
+ * Desde el 08/10/2026 está habilitado, y el único camino a la acción es el
+ * diálogo que pide escribir el nombre de la cuenta. Este bloque se invirtió ese
+ * día y se vio en rojo antes de habilitar el botón.
  */
 describe("el botón Desconectar de la pantalla de integraciones", () => {
   const archivos = [...archivosDeInterfaz(join(RAIZ, "app")), ...archivosDeInterfaz(join(RAIZ, "components"))];
   const VISTA = "app/(dashboard)/dashboard/settings/integrations/integrations-view.tsx";
+  const DIALOGO = "app/(dashboard)/dashboard/settings/integrations/confirmar-desconexion.tsx";
 
   it("hay archivos de interfaz que revisar, incluida la pantalla de integraciones", () => {
     expect(archivos.map((a) => relative(RAIZ, a).split(/[\\/]/).join("/"))).toContain(VISTA);
   });
 
-  it("ningún archivo de interfaz llama a la acción de desconectar", () => {
-    const infractores = archivos
+  it("la acción de desconectar se llama solo desde el diálogo que pide escribir el nombre", () => {
+    const quienes = archivos
       .filter((a) => readFileSync(a, "utf8").includes("desconectarCuentaInstagram"))
-      .map((a) => relative(RAIZ, a));
-    expect(infractores, "La desconexión de F24 no se habilita desde la interfaz sin probarla contra Zernio real.").toEqual([]);
+      .map((a) => relative(RAIZ, a).split(/[\\/]/).join("/"));
+    expect(quienes, "Solo el diálogo de confirmación puede llamar a la acción (criterio de F24).").toEqual([DIALOGO]);
   });
 
-  it("el botón dice que desconectar no está disponible", () => {
-    expect(readFileSync(join(RAIZ, VISTA), "utf8")).toContain("Desconectar no está disponible todavía");
+  it("la pantalla usa el diálogo y ya no dice que desconectar no está disponible", () => {
+    const vista = readFileSync(join(RAIZ, VISTA), "utf8");
+    expect(vista).toContain("ConfirmarDesconexion");
+    expect(vista).not.toContain("Desconectar no está disponible todavía");
   });
 });
 

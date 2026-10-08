@@ -21,6 +21,7 @@ import {
   mascaraDeClave,
   PROVEEDORES,
   type Mascara,
+  confirmacionCoincide,
 } from "@/lib/integraciones";
 import { verificarTodas, consultarProveedor } from "@/lib/integraciones-estado";
 import { actorDe, etiquetaDeCanal, registrarAuditoria, type Cambios } from "@/lib/auditoria";
@@ -292,8 +293,6 @@ export async function verificarIntegraciones(): Promise<Resultado> {
   return { ok: true };
 }
 
-const normalizarCuenta = (s: string | null | undefined) => (s ?? "").trim().replace(/^@/, "").toLowerCase();
-
 function estadoHttp(e: unknown): number | null {
   const s = (e as { statusCode?: unknown })?.statusCode;
   return typeof s === "number" ? s : null;
@@ -326,8 +325,7 @@ export async function desconectarCuentaInstagram(channelId: string, confirmacion
     return { ok: false, error: "No se encontró esa cuenta de Instagram." };
   }
 
-  const esperado = normalizarCuenta(canal.username);
-  if (!esperado || normalizarCuenta(confirmacion) !== esperado) {
+  if (!confirmacionCoincide(confirmacion, canal.username)) {
     return { ok: false, error: `Para desconectar, escribí el nombre de la cuenta: @${canal.username}.` };
   }
 
@@ -351,15 +349,29 @@ export async function desconectarCuentaInstagram(channelId: string, confirmacion
     }
   }
 
-  await supabase.from("channels").update({ is_active: false }).eq("id", canal.id).eq("workspace_id", workspaceId);
+  // Un UPDATE que no toca ninguna fila no da error (la lección del Bloque 1),
+  // así que se piden las filas de vuelta. Si falla o no toca ninguna, la cuenta
+  // igual ya no está en Zernio: se audita la desconexión, con la marca de que el
+  // CRM no quedó al día, y no se responde ok. No se promete qué hace después la
+  // sincronización: depende de si quedan otras cuentas (hallazgo del 08/10/2026).
+  const { data: tocadas, error: errorUpdate } = await supabase
+    .from("channels")
+    .update({ is_active: false })
+    .eq("id", canal.id)
+    .eq("workspace_id", workspaceId)
+    .select("id");
+  const crmActualizado = !errorUpdate && (tocadas?.length ?? 0) > 0;
 
   await registrarAuditoria({
     workspaceId,
     actor: actorDe(ctx.contexto.user),
     accion: "canal.desconectado",
     entidad: { tipo: "canal", id: canal.id, etiqueta: etiquetaDeCanal(canal) },
-    detalle: { motivo: "desconectado_a_mano" },
+    detalle: crmActualizado ? { motivo: "desconectado_a_mano" } : { motivo: "desconectado_a_mano", crm_actualizado: false },
   });
   revalidatePath(RUTA);
+  if (!crmActualizado) {
+    return { ok: false, error: "La cuenta se desconectó en Zernio, pero el CRM no se actualizó: el canal sigue figurando activo." };
+  }
   return { ok: true };
 }

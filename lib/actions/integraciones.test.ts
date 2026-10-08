@@ -17,6 +17,8 @@ const h = vi.hoisted(() => ({
   setSecret: vi.fn(async () => ({ error: null })),
   zernioKey: "zk-simulada" as string | null,
   auditoria: [] as Record<string, unknown>[],
+  /** Lo que devuelve el `update` de `channels`: filas tocadas o error. */
+  resultadoUpdate: { data: [{ id: "ch-1" }], error: null } as { data: { id: string }[] | null; error: { message: string } | null },
 }));
 
 vi.mock("@/lib/auditoria", async (original) => ({
@@ -30,19 +32,22 @@ vi.mock("@/lib/auditoria", async (original) => ({
 function supabaseFalso() {
   return {
     from(tabla: string) {
+      let esUpdate = false;
       const cadena = {
         select: () => cadena,
         eq: () => cadena,
         maybeSingle: async () => ({ data: tabla === "channels" ? h.canal : null, error: null }),
         update: (valores: Record<string, unknown>) => {
           h.updates.push({ tabla, valores });
+          esUpdate = true;
           return cadena;
         },
         delete: () => {
           h.deletes.push(tabla);
           return cadena;
         },
-        then: (ok: (r: { data: null; error: null }) => unknown) => Promise.resolve({ data: null, error: null }).then(ok),
+        then: (ok: (r: unknown) => unknown) =>
+          Promise.resolve(esUpdate && tabla === "channels" ? h.resultadoUpdate : { data: null, error: null }).then(ok),
       };
       return cadena;
     },
@@ -77,7 +82,7 @@ const consultarProveedor = vi.hoisted(() =>
 );
 vi.mock("@/lib/integraciones-estado", () => ({ verificarTodas, consultarProveedor }));
 
-const { desconectarCuentaInstagram, guardarClave, verificarIntegraciones, probarYGuardarResend, guardarRemitenteResend } =
+const { desconectarCuentaInstagram, guardarClave, verificarIntegraciones, probarYGuardarResend, guardarRemitenteResend, guardarModelo } =
   await import("./integraciones");
 
 beforeEach(() => {
@@ -91,6 +96,7 @@ beforeEach(() => {
   h.zernioKey = "zk-simulada";
   consultarProveedor.mockClear();
   h.auditoria.length = 0;
+  h.resultadoUpdate = { data: [{ id: "ch-1" }], error: null };
 });
 
 describe("desconectar una cuenta de Instagram", () => {
@@ -133,6 +139,38 @@ describe("desconectar una cuenta de Instagram", () => {
     const r = await desconectarCuentaInstagram("ch-1", "alomercadeo");
     expect(r.ok).toBe(false);
     expect(h.updates.filter((u) => u.tabla === "channels")).toEqual([]);
+  });
+
+  /**
+   * Zernio ya borró la cuenta, pero el CRM no quedó al día. Antes la acción
+   * respondía ok igual: el UPDATE que afecta cero filas no da error (la lección
+   * del Bloque 1). Se vieron en rojo antes del arreglo, el 08/10/2026.
+   */
+  it("si el update del canal falla, no responde ok, lo dice, y audita que el CRM no se actualizó", async () => {
+    h.resultadoUpdate = { data: null, error: { message: "permiso denegado" } };
+    const r = await desconectarCuentaInstagram("ch-1", "alomercadeo");
+    expect(r.ok).toBe(false);
+    expect(r.ok ? "" : r.error).toBe("La cuenta se desconectó en Zernio, pero el CRM no se actualizó: el canal sigue figurando activo.");
+    expect(h.deleteAccount).toHaveBeenCalledTimes(1);
+    expect(h.auditoria).toMatchObject([
+      { accion: "canal.desconectado", detalle: { motivo: "desconectado_a_mano", crm_actualizado: false } },
+    ]);
+  });
+
+  it("si el update no toca ninguna fila, es lo mismo que un error", async () => {
+    h.resultadoUpdate = { data: [], error: null };
+    const r = await desconectarCuentaInstagram("ch-1", "alomercadeo");
+    expect(r.ok).toBe(false);
+    expect(r.ok ? "" : r.error).toBe("La cuenta se desconectó en Zernio, pero el CRM no se actualizó: el canal sigue figurando activo.");
+    expect(h.auditoria).toMatchObject([{ accion: "canal.desconectado", detalle: { crm_actualizado: false } }]);
+  });
+
+  /** La contraparte: con el update bien, la auditoría no dice que falló. */
+  it("con el update bien, la auditoría no marca crm_actualizado en false", async () => {
+    const r = await desconectarCuentaInstagram("ch-1", "alomercadeo");
+    expect(r.ok).toBe(true);
+    expect(h.auditoria).toHaveLength(1);
+    expect((h.auditoria[0].detalle as Record<string, unknown>).crm_actualizado).not.toBe(false);
   });
 
   it("un Member no puede, aunque mande la confirmación correcta", async () => {
@@ -295,5 +333,41 @@ describe("los cambios de configuración quedan en el historial", () => {
     h.rol = "member";
     await guardarClave("anthropic", "sk-ant-" + "x".repeat(40));
     expect(h.auditoria).toHaveLength(0);
+  });
+});
+
+/**
+ * El modelo por defecto de cada proveedor de IA (F24). Escrito el 08/10/2026
+ * sobre una acción que ya existía: se vio en rojo sacando un momento la
+ * validación del nombre del modelo, y volviéndola a poner.
+ */
+describe("guardar el modelo por defecto de un proveedor de IA", () => {
+  it("guarda el modelo en config y deja el cambio en el historial", async () => {
+    const r = await guardarModelo("openai", " gpt-4o ");
+    expect(r.ok).toBe(true);
+    expect(h.updates).toContainEqual({
+      tabla: "integration_configs",
+      valores: expect.objectContaining({ config: { modelo: "gpt-4o" } }),
+    });
+    expect(h.auditoria).toMatchObject([{ accion: "configuracion.cambiada", cambios: { modelo: { antes: null, despues: "gpt-4o" } } }]);
+  });
+
+  it("rechaza un nombre de modelo con caracteres raros, sin escribir nada", async () => {
+    const r = await guardarModelo("anthropic", "claude; drop table");
+    expect(r.ok).toBe(false);
+    expect(h.updates).toEqual([]);
+  });
+
+  it("un proveedor que no lleva modelo, como Resend, no lo acepta", async () => {
+    const r = await guardarModelo("resend", "cualquiera");
+    expect(r.ok).toBe(false);
+    expect(h.updates).toEqual([]);
+  });
+
+  it("un Member no puede", async () => {
+    h.rol = "member";
+    const r = await guardarModelo("google", "gemini-2.5-pro");
+    expect(r.ok).toBe(false);
+    expect(h.updates).toEqual([]);
   });
 });

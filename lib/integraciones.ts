@@ -97,6 +97,19 @@ export function validarFormatoClave(d: DefinicionProveedor, valor: string): stri
   return null;
 }
 
+const normalizarCuenta = (s: string | null | undefined) => (s ?? "").trim().replace(/^@/, "").toLowerCase();
+
+/**
+ * ¿Lo que se escribió para confirmar «Desconectar» es el nombre de la cuenta?
+ * Acepta «@» adelante, mayúsculas y espacios alrededor. Una cuenta sin nombre
+ * no coincide con nada. Es la misma comparación en el diálogo y en la acción
+ * del servidor (criterio de F24 del 07/10/2026).
+ */
+export function confirmacionCoincide(escrito: string | null | undefined, cuenta: string | null | undefined): boolean {
+  const esperado = normalizarCuenta(cuenta);
+  return esperado !== "" && normalizarCuenta(escrito) === esperado;
+}
+
 export interface Mascara {
   largo: number;
   /** Nulo si la clave es tan corta que mostrar cuatro caracteres sería mostrar demasiado. */
