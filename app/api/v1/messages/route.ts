@@ -3,14 +3,28 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { createZernioClient } from "@/lib/zernio-client";
 import { getZernioApiKey } from "@/lib/vault";
 import { messagePreview } from "@/lib/message-preview";
-import { traerMensajesDeConversacion } from "@/lib/zernio-message-map";
 import { registrarFalloDeZernio } from "@/lib/integraciones-estado";
 import { guardarEnvioDeLaBandeja } from "@/lib/mensajes-guardado";
+
+/** Cuántos mensajes trae el hilo de una vez: los más recientes. */
+export const MENSAJES_POR_HILO = 200;
 
 /**
  * GET /api/v1/messages?conversationId=...
  *
- * Fetches messages from the Zernio API (source of truth) instead of a local mirror.
+ * Lee los mensajes de la BASE (F27): desde el 08/10/2026 la base es la fuente
+ * de verdad de la bandeja, y esta ruta no consulta más al proveedor. Lee con
+ * el cliente del usuario, así que el scope de leads lo aplica la RLS.
+ *
+ * Devuelve además el estado del historial de la conversación: si no está
+ * entero en la base (la importación no la terminó, o la cuenta está
+ * desconectada), el hilo lo dice en vez de verse vacío o incompleto sin
+ * explicación. El 08/10/2026 una cuenta desconectada mostraba un hilo vacío y
+ * sin aviso, porque le pedía los mensajes a Zernio.
+ *
+ * Los adjuntos viajan SIN la dirección del proveedor: solo el tipo y su estado.
+ * La URL de Meta vence y no tiene por qué llegar al navegador; el archivo se
+ * muestra desde Storage cuando F28 lo baje.
  */
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -24,10 +38,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "conversationId required" }, { status: 400 });
   }
 
-  // Look up the Zernio conversation ID and workspace API key
   const { data: conversation } = await supabase
     .from("conversations")
-    .select("late_conversation_id, workspace_id, channels(late_account_id)")
+    .select("id, historial_estado, channels(is_active)")
     .eq("id", conversationId)
     .maybeSingle();
 
@@ -36,10 +49,6 @@ export async function GET(request: NextRequest) {
   // lead. La RLS devuelve vacío en los dos casos, así que no se pueden
   // distinguir desde acá, y tampoco conviene: decir "existe pero no es tuya"
   // confirma la existencia de un lead ajeno.
-  //
-  // El código va aparte del mensaje para que el cliente pueda mostrar algo
-  // claro. Antes esto era un 404 genérico que la bandeja interpretaba como
-  // "conversación sin mensajes" y renderizaba un hilo vacío, sin explicación.
   if (!conversation) {
     return NextResponse.json(
       {
@@ -50,52 +59,36 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (!conversation.late_conversation_id) {
-    return NextResponse.json({ error: "Conversation not found or missing Zernio ID" }, { status: 404 });
+  const { data: filas, error } = await supabase
+    .from("messages")
+    .select(
+      "id, conversation_id, direction, text, attachments, quick_reply_payload, postback_payload, callback_data, platform_message_id, remote_jid, message_type, quoted_message_id, media_path, media_status, sent_by_flow_id, sent_by_node_id, sent_by_user_id, status, created_at"
+    )
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
+    .limit(MENSAJES_POR_HILO + 1);
+
+  if (error) {
+    console.error("[messages] no se pudieron leer los mensajes:", error.message);
+    return NextResponse.json({ error: "No se pudieron leer los mensajes" }, { status: 500 });
   }
 
-  // La conversación ya se leyó con el cliente del usuario, así que la RLS (y el
-  // scope de leads) autorizó el acceso. La clave se lee con el cliente de
-  // servicio porque un Member no tiene permiso sobre Vault y sí tiene que poder
-  // responder sus propias conversaciones: la clave nunca sale del servidor.
-  const apiKey = await getZernioApiKey(await createServiceClient(), conversation.workspace_id);
+  const recientes = (filas ?? []).slice(0, MENSAJES_POR_HILO).reverse();
+  const canal = conversation.channels as { is_active?: boolean } | null;
+  return NextResponse.json({
+    messages: recientes.map((m) => ({ ...m, attachments: adjuntosSinDireccion(m.attachments) })),
+    hayAnteriores: (filas ?? []).length > MENSAJES_POR_HILO,
+    historial: {
+      estado: conversation.historial_estado,
+      canalActivo: canal?.is_active !== false,
+    },
+  });
+}
 
-  if (!apiKey) {
-    return NextResponse.json({ error: "API key not configured" }, { status: 400 });
-  }
-
-  const channel = conversation.channels as { late_account_id: string } | null;
-  if (!channel?.late_account_id) {
-    return NextResponse.json({ error: "Channel not found" }, { status: 404 });
-  }
-
-  // Fetch messages from Zernio API
-  try {
-    const zernio = createZernioClient(apiKey);
-
-    // La traída y la traducción viven en lib/zernio-message-map.ts, donde
-    // tienen test con fixtures de la respuesta real: son las partes que pueden
-    // equivocarse sin que nada falle, porque un campo mal nombrado devuelve
-    // undefined en vez de error, y una página faltante devuelve menos mensajes
-    // en vez de un error.
-    //
-    // La respuesta trae `hayAnteriores` además de los mensajes: se pide la
-    // última página, así que en una conversación larga queda historial afuera y
-    // la pantalla tiene que decirlo.
-    return NextResponse.json(
-      await traerMensajesDeConversacion(zernio, {
-        conversationIdDeZernio: conversation.late_conversation_id,
-        accountId: channel.late_account_id,
-        conversationIdLocal: conversationId,
-      })
-    );
-  } catch (error) {
-    console.error("Failed to fetch messages from Zernio API:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch messages" },
-      { status: 500 }
-    );
-  }
+/** Solo el tipo de cada adjunto: la dirección del proveedor no sale del servidor. */
+function adjuntosSinDireccion(adjuntos: unknown): { type: string | null }[] | null {
+  if (!Array.isArray(adjuntos) || adjuntos.length === 0) return null;
+  return adjuntos.map((a) => ({ type: typeof a?.type === "string" ? a.type : null }));
 }
 
 /**

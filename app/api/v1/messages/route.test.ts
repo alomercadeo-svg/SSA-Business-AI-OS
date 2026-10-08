@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { NextRequest } from "next/server";
+import { NextRequest as NextRequestReal, type NextRequest } from "next/server";
 
 /**
  * `POST /api/v1/messages`, el envío desde la bandeja (F27). Zernio y la base
@@ -13,6 +13,10 @@ import type { NextRequest } from "next/server";
  */
 
 const h = vi.hoisted(() => ({
+  filasDeMensajes: [] as Record<string, unknown>[],
+  historialEstado: "completo",
+  canalActivo: true,
+  limite: 0,
   upserts: [] as Array<{ tabla: string; valores: Record<string, unknown>; opciones: Record<string, unknown> }>,
   sendInboxMessage: vi.fn(),
 }));
@@ -25,6 +29,11 @@ function supabaseFalso() {
         select: () => cadena,
         eq: () => cadena,
         update: () => cadena,
+        order: () => cadena,
+        limit: (n: number) => {
+          h.limite = n;
+          return Promise.resolve({ data: h.filasDeMensajes.slice(0, n), error: null });
+        },
         maybeSingle: async () =>
           tabla === "conversations"
             ? {
@@ -34,7 +43,8 @@ function supabaseFalso() {
                   channel_id: "ch-1",
                   contact_id: "ct-1",
                   late_conversation_id: "zc-1",
-                  channels: { late_account_id: "acc-1" },
+                  channels: { late_account_id: "acc-1", is_active: h.canalActivo },
+                  historial_estado: h.historialEstado,
                 },
               }
             : { data: { platform_sender_id: "lead-ig-1" } },
@@ -59,7 +69,7 @@ vi.mock("@/lib/zernio-client", () => ({
 }));
 vi.mock("@/lib/integraciones-estado", () => ({ registrarFalloDeZernio: vi.fn() }));
 
-const { POST } = await import("./route");
+const { GET, POST, MENSAJES_POR_HILO } = await import("./route");
 
 const pedido = (cuerpo: unknown) =>
   new Request("http://localhost/api/v1/messages", {
@@ -102,3 +112,52 @@ describe("POST /api/v1/messages guarda lo enviado (F27)", () => {
     expect(h.upserts).toEqual([]);
   });
 });
+
+/**
+ * F27: la bandeja lee de la base. Escritos en rojo contra la ruta que le pedía
+ * los mensajes a Zernio.
+ */
+describe("GET /api/v1/messages lee de la base (F27)", () => {
+  const leer = () => GET(new NextRequestReal("http://localhost/api/v1/messages?conversationId=conv-1"));
+  const fila = (id: string, extra: Record<string, unknown> = {}) => ({
+    id, conversation_id: "conv-1", direction: "inbound", text: id, attachments: null, created_at: `2026-10-0${id.length}T10:00:00Z`, ...extra,
+  });
+
+  beforeEach(() => {
+    h.filasDeMensajes = [];
+    h.historialEstado = "completo";
+    h.canalActivo = true;
+  });
+
+  it("devuelve los mensajes de la base en orden cronológico, sin llamar a Zernio", async () => {
+    h.filasDeMensajes = [fila("m2"), fila("m1")]; // la base los da del más nuevo al más viejo
+    const res = await leer();
+    const cuerpo = await res.json();
+    expect(cuerpo.messages.map((m: { id: string }) => m.id)).toEqual(["m1", "m2"]);
+    expect(cuerpo.hayAnteriores).toBe(false);
+    expect(h.sendInboxMessage).not.toHaveBeenCalled();
+  });
+
+  it("los adjuntos viajan sin la dirección del proveedor", async () => {
+    h.filasDeMensajes = [fila("m1", { attachments: [{ type: "image", url: "https://lookaside.fbsbx.com/secreto", refreshUrl: "x" }], media_status: "pendiente" })];
+    const cuerpo = await (await leer()).json();
+    expect(cuerpo.messages[0].attachments).toEqual([{ type: "image" }]);
+    expect(JSON.stringify(cuerpo)).not.toContain("lookaside");
+  });
+
+  it("dice cuando hay más mensajes que los que trae", async () => {
+    h.filasDeMensajes = Array.from({ length: MENSAJES_POR_HILO + 1 }, (_, i) => fila(`m${i}`));
+    const cuerpo = await (await leer()).json();
+    expect(h.limite).toBe(MENSAJES_POR_HILO + 1);
+    expect(cuerpo.messages).toHaveLength(MENSAJES_POR_HILO);
+    expect(cuerpo.hayAnteriores).toBe(true);
+  });
+
+  it("devuelve el estado del historial: una cuenta desconectada sin importar no se ve como un hilo vacío", async () => {
+    h.historialEstado = "pendiente";
+    h.canalActivo = false;
+    const cuerpo = await (await leer()).json();
+    expect(cuerpo.historial).toEqual({ estado: "pendiente", canalActivo: false });
+  });
+});
+

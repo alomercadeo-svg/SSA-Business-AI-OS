@@ -11,7 +11,14 @@ import { importarMensajes, TOPE_DE_PAGINAS_POR_CONVERSACION } from "./importacio
  *   - que una respuesta sin lista no marca nada como completo.
  */
 
-type Conv = { id: string; late_conversation_id: string; contact_id: string; historial_estado: string };
+type Conv = {
+  id: string;
+  late_conversation_id: string;
+  contact_id: string;
+  historial_estado: string;
+  last_message_at?: string | null;
+  last_message_preview?: string | null;
+};
 
 function baseFalsa(convs: Conv[]) {
   const mensajes = new Map<string, Record<string, unknown>>();
@@ -163,4 +170,31 @@ describe("importación de mensajes (F27)", () => {
     expect(llamada).toHaveBeenCalledTimes(1);
     expect(llamada.mock.calls[0][0].path.conversationId).toBe("z-b");
   });
+
+  /**
+   * La importación adelanta la fecha y el preview de la conversación con el
+   * mensaje más nuevo que guarda, y nunca los atrasa. Escrito en rojo el
+   * 08/10/2026: la importación de ese día dejó 52 conversaciones con
+   * `last_message_at` más viejo que su último mensaje guardado.
+   */
+  it("una conversación existente con un mensaje más nuevo que su fecha: adelanta last_message_at y el preview", async () => {
+    const c = { ...conv("a"), last_message_at: "2026-09-21T14:39:53.000Z", last_message_preview: "viejo" };
+    const { supabase } = baseFalsa([c]);
+    const nuevo = { ...msg("m2"), message: "lo último", createdAt: "2026-10-07T04:45:53.000Z" };
+    const viejo = { ...msg("m1"), createdAt: "2026-09-01T10:00:00.000Z" };
+    const { zernio } = zernioCon({ "z-a": [{ messages: [nuevo, viejo], hasMore: false }] });
+    await importarMensajes({ supabase: supabase as never, zernio, channels: [canal] });
+    expect(c.last_message_at).toBe("2026-10-07T04:45:53.000Z");
+    expect(c.last_message_preview).toBe("lo último");
+  });
+
+  it("nunca atrasa: si la fecha de la conversación es más nueva que todo lo importado, queda igual", async () => {
+    const c = { ...conv("a"), last_message_at: "2026-10-08T21:00:00.000Z", last_message_preview: "reciente" };
+    const { supabase } = baseFalsa([c]);
+    const { zernio } = zernioCon({ "z-a": [{ messages: [msg("m1")], hasMore: false }] });
+    await importarMensajes({ supabase: supabase as never, zernio, channels: [canal] });
+    expect(c.last_message_at).toBe("2026-10-08T21:00:00.000Z");
+    expect(c.last_message_preview).toBe("reciente");
+  });
 });
+

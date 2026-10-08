@@ -621,6 +621,34 @@ Los 7 contactos importados el 08/10 no tienen su fila. El del webhook sí la tie
 
 ---
 
+## Sesión del 8 de octubre de 2026, tarde: Bloque 3, sesión 2 (F27, F28 y F39)
+
+**En curso.** Apertura a las 14:20 de Costa Rica, con `node scripts/commits-sin-subir.mjs` en «Sin commits sin subir» y el último commit `8e21367`. El registro completo se escribe al cerrar el tramo; acá va lo que no puede esperar.
+
+**Corte por cierre forzado.** La sesión de Claude Code se cerró a la fuerza hacia las 16:15 (hora aproximada, dicha por Marcos) y se retomó a las 16:32, con `commits-sin-subir.mjs` en «Sin commits sin subir» y el último commit `b4470a3`. La medición sigue en el tramo 1, desde las 14:20; el hueco de 16:15 a 16:32 queda anotado para cuando se sume el tramo.
+
+**Dos filas de producción modificadas a propósito para el control 0 de F25, todavía sin usar.** En «Ale Admin's Workspace», con la clave de servicio y la aprobación de Marcos:
+- el contacto de @marcospittimusic (`f2747f9b…`): `display_name` «Marcos, nombre manual de prueba» y `display_name_source` `manual`;
+- su `contact_channels` (`e41a7a38…`): `profile_status` `pending` y `profile_attempts` 0.
+
+Valores originales, a los que se vuelve al terminar el control (mostrándole antes a Marcos qué se escribe): «Marcos Pitti music», `provider`, `complete` y 0. El handle (`platform_username`) no se tocó. Esas escrituras no dejan «contacto editado» en el historial, porque no pasan por el código que audita.
+
+**Desde el despliegue B y hasta F28, la bandeja muestra los adjuntos como «Adjunto», sin la imagen.** Son los 478 mensajes con adjunto que trajo la importación del 08/10/2026 y los que lleguen después: quedan con `media_status = 'pendiente'`, y la dirección del proveedor no llega al navegador. Hoy no le afecta a nadie, porque el negocio todavía no trabaja desde la bandeja (nota del 22/09/2026 en F27, sobre el techo de 200). Lo resuelve F28.
+
+**`last_message_at` corregido en 55 conversaciones, el 08/10/2026, con la aprobación de Marcos.** Tenían una fecha más vieja que su mensaje más nuevo guardado, porque hasta `b4470a3` el receptor de Zernio solo movía la fecha con un entrante (`app/api/webhooks/late/route.ts:167`, `:190` y `:290-291` de `8e21367`), y la importación no tocaba las conversaciones que ya existían (`lib/inbox-sync.ts:360-364`). De las 55, en 54 lo posterior eran solo salientes; la restante es `a1ab8f5d` (§15 del plano).
+- La corrección puso `last_message_at` en la hora del proveedor del mensaje más nuevo y recalculó `last_message_preview` con el mismo recorte que `messagePreview` (100 caracteres), adentro de la base y sin imprimir contenido. Solo adelantó fechas.
+- **Primero se corrigieron 52 (16:50) y después 3 (16:52).** La primera lista se armó con una tolerancia de 1 minuto, y dejó afuera 3 con diferencias de 0,05, 1,2 y 55 segundos, de la misma causa. El total corregido es 55 (52 + 3).
+- Recuento después, sin tolerancia: cero conversaciones con un mensaje más nuevo que su `last_message_at`. La de 253 mensajes (`868585de`) pasó del puesto 106 al 9 de la lista de la bandeja.
+- **El código que faltaba:** desde el despliegue B, la importación adelanta `last_message_at` y `last_message_preview` cuando guarda un mensaje más nuevo que la fecha de la conversación, sin tolerancia, y nunca la atrasa (`lib/importacion-historial.ts`). Su test se vio en rojo antes del arreglo; el de «nunca atrasa», con una rotura a propósito.
+
+**`last_message_at` mezcla dos horas, y no se arregla hoy.** El receptor y la bandeja escriben la hora de RECEPCIÓN (`new Date()` al procesar el aviso o el envío); la importación y la corrección de arriba, la hora del PROVEEDOR del mensaje. Para ordenar la lista alcanza; para medir tiempos de respuesta, no.
+
+**Pendiente, sin investigar: 304 conversaciones con `last_message_preview` que no coincide con el texto de su mensaje más nuevo.** Contado el 08/10/2026, sin leer contenido, entre las que no tenían la fecha desfasada. No se tocaron. **Inferencia, no verificado:** puede ser una diferencia de formato y no un desfasaje (por ejemplo, el preview que viene del listado de Zernio, como «[Attachment]», frente a un mensaje guardado sin texto).
+
+**Pendiente de F35 (S7): cargar los mensajes anteriores de una conversación.** Desde el despliegue B, `GET` de `app/api/v1/messages/route.ts` trae los últimos `MENSAJES_POR_HILO` (200) mensajes de la base y devuelve `hayAnteriores`; el hilo (`components/inbox/message-thread.tsx`, `MessageThread`) muestra «Hay mensajes anteriores que no se muestran acá» y no tiene forma de traerlos. Es lo mismo que hacía la ruta anterior con Zernio (la última página, con aviso), así que no deja de verse nada que antes se viera. Al 08/10/2026 hay al menos una conversación de @alomercadeo con 253 mensajes: los 53 más viejos están en la base y no se ven desde la bandeja.
+
+---
+
 ## Siguiente paso
 
 **`docs/purga-y-reconexion-instagram.md` está cerrado**, desde el 22 de septiembre de 2026, con el despliegue verificado. Railway despliega `bloque-1-foundation` con despliegue automático al subir, verificado ese día en la interfaz. El último despliegue verificado es `d3eb410`, el 23 de septiembre de 2026, con la tarjeta ACTIVE en "Deployment successful" (captura de Marcos).

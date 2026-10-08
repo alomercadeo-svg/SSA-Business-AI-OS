@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Lock, MessageSquare, RefreshCw, User } from "lucide-react";
 import { ConversationList } from "@/components/inbox/conversation-list";
 import { MessageThread } from "@/components/inbox/message-thread";
+import type { EstadoDelHistorial } from "@/lib/historial-aviso";
 import { ContactPanel } from "@/components/inbox/contact-panel";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ export function InboxView({
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [hayAnteriores, setHayAnteriores] = useState(false);
+  const [historial, setHistorial] = useState<EstadoDelHistorial | null>(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [showContactPanel, setShowContactPanel] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -67,6 +69,7 @@ export function InboxView({
     if (!selected) {
       setMessages([]);
       setHayAnteriores(false);
+      setHistorial(null);
       return;
     }
 
@@ -85,6 +88,7 @@ export function InboxView({
           const data = await res.json();
           setMessages(data?.messages ?? []);
           setHayAnteriores(data?.hayAnteriores === true);
+          setHistorial(data?.historial ?? null);
         } else {
           const data = await res.json().catch(() => null);
           setMessages([]);
@@ -201,6 +205,7 @@ export function InboxView({
               conversation={selected}
               messages={messages}
               hayAnteriores={hayAnteriores}
+              historial={historial}
             />
           )}
         </div>

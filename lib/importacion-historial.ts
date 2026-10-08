@@ -36,6 +36,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { mapearMensajesDeZernio, TAMANO_DE_PAGINA, type ClienteDeMensajes } from "./zernio-message-map";
 import { guardarMensajes, tipoPorAdjuntos, type AdjuntoCrudo } from "./mensajes-guardado";
 import type { BackfillChannel } from "./inbox-sync";
+import { messagePreview } from "./message-preview";
 
 export const TOPE_DE_PAGINAS_POR_CONVERSACION = 50;
 export const MINUTOS_DE_RESERVA = 30;
@@ -90,7 +91,7 @@ export async function importarMensajes({
   for (const canal of channels) {
     const { data: convs } = await supabase
       .from("conversations")
-      .select("id, late_conversation_id, contact_id")
+      .select("id, late_conversation_id, contact_id, last_message_at")
       .eq("channel_id", canal.id)
       .in("historial_estado", ["pendiente", "incompleto"])
       .not("late_conversation_id", "is", null);
@@ -102,9 +103,13 @@ export async function importarMensajes({
       ((identidades ?? []) as Array<{ contact_id: string; platform_sender_id: string }>).map((i) => [i.contact_id, i.platform_sender_id]),
     );
 
-    for (const conv of (convs ?? []) as Array<{ id: string; late_conversation_id: string; contact_id: string }>) {
+    for (const conv of (convs ?? []) as Array<{ id: string; late_conversation_id: string; contact_id: string; last_message_at: string | null }>) {
       let cursor: string | undefined;
       let terminada = false;
+      // El mensaje más nuevo de lo importado, para adelantar la fecha y el
+      // preview de la conversación. Nunca se atrasan: el receptor puede tener
+      // uno más reciente que lo que devuelve el listado.
+      let masNuevo: { at: string; texto: string | null } | null = null;
       try {
         for (let pagina = 0; pagina < TOPE_DE_PAGINAS_POR_CONVERSACION; pagina++) {
           const res = await conReintento(
@@ -142,6 +147,11 @@ export async function importarMensajes({
           );
           if (error) throw new Error(`messages: ${error.message}`);
           r.mensajes += filas.length;
+          for (const m of filas) {
+            if (!masNuevo || new Date(m.created_at).getTime() > new Date(masNuevo.at).getTime()) {
+              masNuevo = { at: m.created_at, texto: m.text };
+            }
+          }
 
           const pag = res.data?.pagination;
           if (!pag?.hasMore || !pag.nextCursor) {
@@ -150,9 +160,18 @@ export async function importarMensajes({
           }
           cursor = pag.nextCursor;
         }
+        const adelanta =
+          masNuevo !== null &&
+          (!conv.last_message_at || new Date(masNuevo.at).getTime() > new Date(conv.last_message_at).getTime());
         await supabase
           .from("conversations")
-          .update({ historial_estado: terminada ? "completo" : "incompleto", historial_importado_at: new Date().toISOString() })
+          .update({
+            historial_estado: terminada ? "completo" : "incompleto",
+            historial_importado_at: new Date().toISOString(),
+            ...(adelanta && masNuevo
+              ? { last_message_at: masNuevo.at, last_message_preview: messagePreview(masNuevo.texto) }
+              : {}),
+          })
           .eq("id", conv.id);
         if (terminada) r.completas++;
         else r.incompletas++;

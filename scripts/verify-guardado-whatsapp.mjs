@@ -226,5 +226,12 @@ await correr(async () => {
   } finally {
     const borrar = await rpcAdmin("delete_secret", { secret_name: "evolution_webhook_secret", workspace_id: espacio });
     check(borrar.status < 300, "se borró el secreto de prueba", `HTTP ${borrar.status}`);
+    // Los contactos ANTES que el espacio: desde la 00025 la clave de
+    // contact_channels hacia channels es NO ACTION, y borrar el espacio entero
+    // con contact_channels adentro falla (encontrado el 08/10/2026 en la
+    // primera corrida en verde). Borrar los contactos se lleva en cascada sus
+    // canales de contacto, conversaciones y mensajes.
+    const sinContactos = await admin(`contacts?workspace_id=eq.${espacio}`, { method: "DELETE" });
+    check(sinContactos.status < 300, "se borraron los contactos de prueba", `HTTP ${sinContactos.status}`);
   }
 });

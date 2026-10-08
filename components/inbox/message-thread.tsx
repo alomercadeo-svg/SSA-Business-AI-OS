@@ -1,5 +1,6 @@
 "use client";
 
+import { avisoDelHistorial, type EstadoDelHistorial } from "@/lib/historial-aviso";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Send, Paperclip, Bot, User, MessageSquare, CheckCircle, Clock, RotateCcw, Loader2, History } from "lucide-react";
@@ -43,7 +44,16 @@ function shouldShowDateSeparator(
   return currentDate !== previousDate;
 }
 
-function MessageBubble({ message }: { message: Message }) {
+/**
+ * Un mensaje sin texto ni adjunto. Lo medido es que Zernio devuelve
+ * `message: ""` para buena parte del historial viejo de Instagram (nota de
+ * F27); de quién es la falta no se sabe, y el texto no lo afirma. La
+ * importación del 08/10/2026 trajo 825 así. Sin esto se dibujaba una burbuja
+ * vacía.
+ */
+export const TEXTO_SIN_CONTENIDO = "El contenido de este mensaje no está disponible.";
+
+export function MessageBubble({ message }: { message: Message }) {
   const isInbound = message.direction === "inbound";
   const isBot = message.sent_by_flow_id !== null;
 
@@ -70,10 +80,13 @@ function MessageBubble({ message }: { message: Message }) {
           )}
         >
           {message.text && <p className="whitespace-pre-wrap">{message.text}</p>}
+          {!message.text && !message.attachments && (
+            <p className="italic opacity-70">{TEXTO_SIN_CONTENIDO}</p>
+          )}
           {message.attachments && (
             <div className="mt-1">
               <Paperclip className="inline h-3 w-3" />
-              <span className="ml-1 text-xs opacity-70">Attachment</span>
+              <span className="ml-1 text-xs opacity-70">Adjunto</span>
             </div>
           )}
         </div>
@@ -113,10 +126,12 @@ function MessageBubble({ message }: { message: Message }) {
   );
 }
 
+
 export function MessageThread({
   conversation,
   messages: initialMessages,
   hayAnteriores = false,
+  historial = null,
 }: {
   conversation: Conversation | null;
   messages: Message[];
@@ -127,6 +142,7 @@ export function MessageThread({
    * avisar" a "faltan los viejos sin avisar" no sería una mejora.
    */
   hayAnteriores?: boolean;
+  historial?: EstadoDelHistorial | null;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -380,6 +396,11 @@ export function MessageThread({
       {/* Messages */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4">
         <div className="mx-auto max-w-2xl space-y-4">
+          {avisoDelHistorial(historial) && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+              {avisoDelHistorial(historial)}
+            </div>
+          )}
           {hayAnteriores && (
             <div className="flex items-center gap-3 pb-2">
               <div className="h-px flex-1 bg-border" />
