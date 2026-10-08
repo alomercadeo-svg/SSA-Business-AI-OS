@@ -18,9 +18,13 @@
  * - En un entrante, `sender.id`, `sender.username` y `sender.name` son iguales
  *   a los del participante. Trae `instagramProfile` y no trae `picture`.
  * - Los dos fixtures son de la cuenta de prueba, y el saliente tiene
- *   `sentVia: "api"` (lo mandó nuestro servidor). Un saliente escrito desde la
- *   app de Instagram no estaba en el log: qué `sentVia` y qué `sender` trae se
- *   anota con el control 2 de la sesión 2 del Bloque 3.
+ *   `sentVia: "api"` (lo mandó nuestro servidor).
+ * - **El echo de lo escrito desde la app de Instagram, observado el
+ *   08/10/2026** (control 2, entrega de las 17:15:33 de Costa Rica, HTTP 200):
+ *   llega como `message.sent` con `sentVia` NULO y `sender.username` igual a
+ *   `account.username`, igual que el de la API. Así que el contacto sale de la
+ *   conversación también ahí. `sentVia` es lo único que distingue los dos
+ *   orígenes (`"api"` frente a nulo); hoy no se guarda.
  * - `message.platformMessageId` es el identificador que devuelve el listado de
  *   mensajes (`id`), medido el 21/09/2026: es lo que hace que el aviso y la
  *   importación no dupliquen.

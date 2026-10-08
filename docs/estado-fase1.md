@@ -625,6 +625,8 @@ Los 7 contactos importados el 08/10 no tienen su fila. El del webhook sí la tie
 
 **En curso.** Apertura a las 14:20 de Costa Rica, con `node scripts/commits-sin-subir.mjs` en «Sin commits sin subir» y el último commit `8e21367`. El registro completo se escribe al cerrar el tramo; acá va lo que no puede esperar.
 
+**Fin del tramo 1: 08/10/2026 17:48**, leída al commitear el cierre. El tramo cierra F27; F39 y F28 van en el tramo 2. Suma: 191 min (3 h 11 min), sin contar el hueco de 16:15 a 16:32.
+
 **Corte por cierre forzado.** La sesión de Claude Code se cerró a la fuerza hacia las 16:15 (hora aproximada, dicha por Marcos) y se retomó a las 16:32, con `commits-sin-subir.mjs` en «Sin commits sin subir» y el último commit `b4470a3`. La medición sigue en el tramo 1, desde las 14:20; el hueco de 16:15 a 16:32 queda anotado para cuando se sume el tramo.
 
 **Dos filas de producción modificadas a propósito para el control 0 de F25, todavía sin usar.** En «Ale Admin's Workspace», con la clave de servicio y la aprobación de Marcos:
@@ -632,6 +634,26 @@ Los 7 contactos importados el 08/10 no tienen su fila. El del webhook sí la tie
 - su `contact_channels` (`e41a7a38…`): `profile_status` `pending` y `profile_attempts` 0.
 
 Valores originales, a los que se vuelve al terminar el control (mostrándole antes a Marcos qué se escribe): «Marcos Pitti music», `provider`, `complete` y 0. El handle (`platform_username`) no se tocó. Esas escrituras no dejan «contacto editado» en el historial, porque no pasan por el código que audita.
+
+**Veredicto del control 0 de F25: vale.** Regla acordada: vale si `profile_status` pasa a `complete` (o sube `profile_attempts`) y `display_name` sigue siendo el manual; si no se mueve ninguno, es no concluyente.
+- Marcos escribió «Test 5:12» desde @marcospittimusic a @poderosascomunidad a las 17:12:15 (hora del proveedor). A las 17:12:51 la fila tenía `profile_status` `complete` y `profile_attempts` 0: Zernio trajo el perfil en el primer intento.
+- `display_name` seguía siendo «Marcos, nombre manual de prueba», con `display_name_source` `manual`.
+- Releído a las 17:42:03, igual.
+
+Corrieron los dos caminos: el receptor, que guardó el mensaje, y el relleno, que leyó el perfil y no tocó el nombre. El handle no prueba nada acá, porque el receptor lo escribe con cada mensaje.
+
+**Las dos filas, vueltas a sus valores originales a las 17:42:18**, con la aprobación de Marcos: «Marcos Pitti music», `provider`, `complete` y 0. Releídas después, iguales a esas; el handle sigue en `marcospittimusic`, sin tocar.
+
+**Los despliegues del tramo 1**, los dos con `node scripts/verificar-despliegue.mjs` y salida capturada directo. Hora de Costa Rica:
+- **A, `b4470a3`** (los receptores guardan; la bandeja todavía lee de Zernio). Push `8e21367..b4470a3`, salida 0: a las 15:22:07 leyó el build `ptil6wH_ZFft1Ooi3q8FG`, y a los 93 segundos (15:23:42) pasó a `xfQWezJuXDXwQiMszWWmc`, con `/login` en 200.
+- **B, `fcca3be`** (la bandeja lee de la base). Push `b4470a3..fcca3be`, salida 0: a las 16:53:02 leyó el build `xfQWezJuXDXwQiMszWWmc`, y a las 16:54:57, unos 115 segundos después, pasó a `HbTjJT0eMqBkKo-ZIMIlL`, con `/login` en 200.
+- Railway no lo miró nadie en este tramo: el script no dice qué commit quedó activo.
+
+**`scripts/verify-guardado-whatsapp.mjs` contra el receptor de producción**, en un espacio fantasma, con un canal descartable y un secreto generado por el propio script:
+- **15:02, código viejo, antes de la 00032: falló, salida 1.** 4 pasaron (el acuse 200 dos veces, el borrado del secreto y la limpieza), 5 fallaron (nada se guardó) y 3 no concluyentes.
+- **15:16, código viejo, con la 00032 aplicada: falló igual, salida 1.** Mismos números.
+- **15:35, después del despliegue A: 24 de 25, salida 1.** Pasó todo el guardado y falló la limpieza: el espacio fantasma no se pudo borrar, por la NO ACTION de la 00025 (`contact_channels` hacia `channels`). Se borraron a mano los datos de prueba (los contactos primero, después el espacio) y se corrigió la limpieza del script.
+- **~15:37, con la limpieza corregida: 26 de 26, salida 0.** Quedaron los 2 espacios reales.
 
 **Desde el despliegue B y hasta F28, la bandeja muestra los adjuntos como «Adjunto», sin la imagen.** Son los 478 mensajes con adjunto que trajo la importación del 08/10/2026 y los que lleguen después: quedan con `media_status = 'pendiente'`, y la dirección del proveedor no llega al navegador. Hoy no le afecta a nadie, porque el negocio todavía no trabaja desde la bandeja (nota del 22/09/2026 en F27, sobre el techo de 200). Lo resuelve F28.
 
@@ -644,6 +666,10 @@ Valores originales, a los que se vuelve al terminar el control (mostrándole ant
 **`last_message_at` mezcla dos horas, y no se arregla hoy.** El receptor y la bandeja escriben la hora de RECEPCIÓN (`new Date()` al procesar el aviso o el envío); la importación y la corrección de arriba, la hora del PROVEEDOR del mensaje. Para ordenar la lista alcanza; para medir tiempos de respuesta, no.
 
 **Pendiente, sin investigar: 304 conversaciones con `last_message_preview` que no coincide con el texto de su mensaje más nuevo.** Contado el 08/10/2026, sin leer contenido, entre las que no tenían la fecha desfasada. No se tocaron. **Inferencia, no verificado:** puede ser una diferencia de formato y no un desfasaje (por ejemplo, el preview que viene del listado de Zernio, como «[Attachment]», frente a un mensaje guardado sin texto).
+
+**El echo de lo escrito desde la app de Instagram, observado el 08/10/2026** (control 2). Se leyó con una llamada de solo lectura a `GET /v1/webhooks/logs?event=message.sent&limit=20`, aprobada por Marcos, desde una ruta temporal del servidor local que no se commiteó; se descartó sin imprimir todo lo que no era de @poderosascomunidad y no se guardó nada en archivos. La entrega del control 2 fue a las 17:15:33, con HTTP 200 y `sentAt` 17:15:28.602, la misma hora del proveedor que quedó guardada. Trae **`sentVia` nulo** y **`sender.username` igual a `account.username`**. El saliente enviado por la API trae `sentVia: "api"`. Coincide con lo que suponía el código (el autor de un echo es la propia cuenta), así que la marca de los tests y de `lib/zernio-aviso.ts` pasó de «no observado» a «observado el 08/10». `sentVia` es lo único que distingue «escrito desde la app» de «enviado por el sistema», y hoy no se guarda: lo va a necesitar la línea «Enviado desde la app de Instagram» de la bandeja (§11, Bloque 4).
+
+**Pendiente de la pantalla de la bandeja (F35): el separador de fecha dice «Today» sobre mensajes de ayer.** `formatDateSeparator` (`components/inbox/message-thread.tsx:22-29`, del fork) llama «Today» a todo lo de las últimas 24 horas y «Yesterday» a lo de entre 24 y 48, no al día del calendario. Lo vio Marcos el 08/10/2026 en un mensaje del 07/10 a las 19:27. No se tocó.
 
 **Pendiente de F35 (S7): cargar los mensajes anteriores de una conversación.** Desde el despliegue B, `GET` de `app/api/v1/messages/route.ts` trae los últimos `MENSAJES_POR_HILO` (200) mensajes de la base y devuelve `hayAnteriores`; el hilo (`components/inbox/message-thread.tsx`, `MessageThread`) muestra «Hay mensajes anteriores que no se muestran acá» y no tiene forma de traerlos. Es lo mismo que hacía la ruta anterior con Zernio (la última página, con aviso), así que no deja de verse nada que antes se viera. Al 08/10/2026 hay al menos una conversación de @alomercadeo con 253 mensajes: los 53 más viejos están en la base y no se ven desde la bandeja.
 
@@ -693,7 +719,7 @@ Después, el Bloque 3: modelo de contacto extendido (F25), identidad de canal y 
 | Sesión | Funcionalidades | Por qué juntas | Días reales | Anotado el |
 |---|---|---|---|---|
 | 1 | F31, F25, F26 | El modelo de contacto y la identidad de canal. **F31 primero:** F26 escribe en la auditoría, y la tabla no existe hasta F31 | Tramo 1: 07/10/2026 17:37 a 07/10/2026 18:35. Tramo 2, retrabajo de F31: 08/10/2026 13:16 a 08/10/2026 13:26. Hora de Costa Rica. Suma: 68 min (1 h 8 min) | 07/10/2026 y 08/10/2026 |
-| 2 | F27, F28, F39 | El camino de entrada. F28 y F39 cuelgan de F27 | Tramo 1: 08/10/2026 14:20 a (en curso). Hora de Costa Rica | 08/10/2026 |
+| 2 | F27, F28, F39 | El camino de entrada. F28 y F39 cuelgan de F27 | Tramo 1, F27: 08/10/2026 14:20 a 08/10/2026 17:48, con un corte de 16:15 a 16:32 por el cierre forzado de la sesión, que no se cuenta. Hora de Costa Rica. Suma del tramo 1: 191 min (3 h 11 min). F39 y F28 van en el tramo 2 | 08/10/2026 |
 | 3 | F29, F30, F41 | El lado de CRM, que no toca la ingesta. F41 va con F30 porque la asignación se ve y se edita en la ficha | | |
 | **Bloque** | | | **Planificado: 2 días** | |
 

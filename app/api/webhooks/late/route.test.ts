@@ -514,8 +514,9 @@ describe("F27: el receptor guarda los mensajes", () => {
   it("message.sent (real, sentVia api) de la propia cuenta: se guarda como del negocio, en la conversación del participante, sin flujo", async () => {
     // El autor de un saliente es la cuenta del negocio (en la entrega real,
     // sender.username == account.username), que es un canal activo del
-    // espacio: el filtro de cuenta propia lo descartaba. Un echo escrito desde
-    // la app de Instagram todavía no se observó: este fixture es de la API.
+    // espacio: el filtro de cuenta propia lo descartaba. El fixture es de la
+    // API; el echo escrito desde la app se observó el 08/10/2026 (control 2):
+    // sentVia nulo y sender.username == account.username, igual que acá.
     estado.senderChannel = { id: "ch-1" };
     const body = avisoReal(enviadoReal);
     const res = await POST(pedido(body, { "x-late-signature": firmar(body) }));
