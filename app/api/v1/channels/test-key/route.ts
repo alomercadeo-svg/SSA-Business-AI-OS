@@ -156,5 +156,8 @@ export async function POST(request: NextRequest) {
     console.error("[test-key] inbox backfill failed:", err);
   }
 
-  return NextResponse.json({ accounts });
+  // Solo la cantidad: es lo único que usan las dos pantallas que llaman acá.
+  // Las cuentas tal como vienen de Zernio traen campos del proveedor que no
+  // tienen que llegar al navegador, como `byokCredentials` (07/10/2026).
+  return NextResponse.json({ accountCount: accounts.length });
 }

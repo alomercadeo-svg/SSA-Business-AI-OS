@@ -483,7 +483,7 @@ function Instagram({ t, cuentas }: { t: Tarjeta; cuentas: CuentaInstagram[] }) {
       if (!res.ok) {
         setMensaje({ ok: false, texto: `Zernio rechazó la clave: ${data.error ?? `HTTP ${res.status}`}` });
       } else {
-        setMensaje({ ok: true, texto: `Clave guardada. Zernio devolvió ${data.accounts?.length ?? 0} cuentas.` });
+        setMensaje({ ok: true, texto: `Clave guardada. Zernio devolvió ${data.accountCount ?? 0} cuentas.` });
         setValor("");
         router.refresh();
       }

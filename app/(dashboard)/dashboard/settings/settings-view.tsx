@@ -95,10 +95,10 @@ export function SettingsView({
         return;
       }
 
-      const accounts = data.accounts || [];
+      const accountCount: number = typeof data.accountCount === "number" ? data.accountCount : 0;
       setTestResult({
         success: true,
-        accountCount: accounts.length,
+        accountCount,
       });
 
       // Key was saved and channels synced server-side

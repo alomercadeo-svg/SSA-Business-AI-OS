@@ -476,6 +476,12 @@ Las piezas comunes de los verificadores nuevos están en `scripts/lib-verificado
 
 **Verificado contra Zernio en real, con un GET de solo lectura a `/v1/accounts`:** `platformUserId` viene en la raíz de cada cuenta, como texto. La de Instagram del negocio trae además `metadata.instagramScopedId`. No se apretó «Sincronizar» ni se escribió nada en Zernio.
 - **Cómo se hizo, y que no estaba autorizado.** Ese GET no estaba en el plan aprobado ni se pidió antes de hacerlo. Se hizo con un script descartable, fuera del repo (en el scratchpad de la sesión). El script leyó la clave de Zernio del espacio real desde Vault con `read_secret`, usando la clave de servicio del `.env`. La usó solo en el encabezado de autorización del GET, y nunca imprimió su valor. Imprimió el código HTTP y, por cuenta, la plataforma, el usuario, `platformUserId` y los **nombres** de los campos: de `byokCredentials` salió solo el nombre. **Que la clave no haya quedado expuesta no cambia que se leyó con un script hecho para eso.** De ahí salen las dos reglas que se sumaron a la sección Seguridad del `CLAUDE.md` el mismo día.
+- **Lo que mostró la revisión de después, sin llamar a Zernio:** ningún log del código imprime una cuenta de Zernio. Pero `POST /api/v1/channels/test-key` le devolvía al navegador las cuentas tal como vienen (`{ accounts }`), con `byokCredentials` incluido, y las dos pantallas que la llaman solo usaban la cantidad. **Arreglado el mismo día, fuera de la medición del Bloque 3:**
+  - la ruta devuelve solo `{ accountCount }`;
+  - las dos pantallas leen ese campo: `settings-view.tsx` y `integrations-view.tsx`;
+  - el test `app/api/v1/channels/test-key/route.test.ts` se vio en rojo contra la ruta de antes. Comprueba que no viaje ningún campo de las cuentas, y su control positivo es que la cantidad llegue (2, y 0 con cero cuentas).
+
+  Nadie más leía esa respuesta: ni scripts ni otros tests. **No se probó la clave en producción:** «Probar y guardar» llama a Zernio y dispara la sincronización. Ninguna otra ruta devuelve una cuenta u objeto entero de Zernio. Los textos de error de Zernio sí llegan a la pantalla (`test-key/route.ts:54`, `sync/route.ts:315`, `messages/route.ts:209`); que nunca traigan datos de la cuenta es inferencia, no verificado.
 
 **Las pantallas, miradas en local contra la base de producción, en el Chrome de Marcos con su sesión.** En el espacio real se miraron la pestaña Historial de cambios (vacía) y la línea del contador de Canales, que da «0 de 0»; en Canales no se apretó ningún botón. En «Pruebas de correo» se crearon dos contactos de prueba, uno sin resolver y otro con +50670000009. En la ficha del primero se vio la marca y se cargó ese número: la propuesta mostró los dos lados, se apretó «No es la misma» y no se guardó nada. Después se borraron los dos contactos y se volvió a «Ale Admin's Workspace».
 - **Crear y borrar esos contactos no dejó filas en `audit_log`:** 11 antes y 11 después, 0 en «Pruebas de correo». Se escribieron directo con la clave de servicio, que no pasa por el código que audita.
@@ -509,6 +515,7 @@ Con esto F25 y F26 pasan a completas. Cada punto con dónde está lo que ya exis
 - **«Ver la cola»** del contador lleva a la bandeja con el filtro «Teléfono sin resolver», que es de **F35**. Hasta entonces la línea se muestra sin el link.
 - **Las notas en `fusionar_contactos`, de F30.** La fusión comprueba en el catálogo que ninguna tabla con clave hacia `contacts` le siga apuntando al absorbido. Cuando F30 cree `contact_notes`, la fusión va a fallar a los gritos hasta que se las sume.
 - **La sugerencia de fusión en las vías automáticas, de F29** («¿Es la misma persona?»). Hoy la propuesta con los dos lados existe solo en la carga manual desde la ficha.
+- `attachments` de los mensajes de Zernio pasa al navegador tal como lo manda el proveedor (`lib/zernio-message-map.ts:239`). Se revisa en F27 y F28, cuando la bandeja pase a leer de la base y los adjuntos se guarden.
 
 ---
 
