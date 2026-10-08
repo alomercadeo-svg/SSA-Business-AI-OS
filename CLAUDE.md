@@ -173,6 +173,8 @@ Reglas:
 - Firma HMAC validada en todos los webhooks de Zernio antes de procesar.
 - Service Role Key solo en servidor.
 - Logs sin tokens, contraseñas ni claves.
+- Ninguna verificación que lea un secreto o llame a un servicio externo (Zernio, Evolution, Resend, Meta) se hace sin pedirla antes, aunque sea de solo lectura. Un secreto no se lee con un script hecho para eso: se usa por el mismo camino del servidor que usa la app.
+- Desde localhost contra la base de producción, solo se toca lo que la prueba necesita. Nunca «Sincronizar», probar claves, conectar ni desconectar cuentas: test-key, connect y sync registran el webhook contra NEXT_PUBLIC_APP_URL, y en desarrollo pueden dejarlo apuntando a localhost.
 
 ## Datos
 
