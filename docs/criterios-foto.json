@@ -699,7 +699,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] Pantalla en `/settings/integrations`, solo para Owner y Admin, con el control de rol hecho en el servidor"
+    "texto": "- [x] Pantalla en `/settings/integrations`, solo para Owner y Admin, con el control de rol hecho en el servidor"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -708,7 +708,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] Pantalla accesible desde el sidebar, solo para Owner y Admin (devuelto el 23/09/2026, auditoría #20a)"
+    "texto": "- [x] Pantalla accesible desde el sidebar, solo para Owner y Admin (devuelto el 23/09/2026, auditoría #20a)"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -717,7 +717,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] Sección de canales de mensajería, con Instagram vía Zernio y WhatsApp vía Evolution. El estado de sesión de WhatsApp y la reconexión con código QR son de F32. Facebook y X no van (decidido el 22 de septiembre de 2026, ver §0)"
+    "texto": "- [x] Sección de canales de mensajería, con Instagram vía Zernio y WhatsApp vía Evolution. El estado de sesión de WhatsApp y la reconexión con código QR son de F32. Facebook y X no van (decidido el 22 de septiembre de 2026, ver §0)"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -726,7 +726,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] Instagram (Zernio): API key, estado, conectar y desconectar (devuelto el 23/09/2026, auditoría #22b y #22c)"
+    "texto": "- [x] Instagram (Zernio): API key, estado, conectar y desconectar (devuelto el 23/09/2026, auditoría #22b y #22c)"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -735,7 +735,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] Desconectar un canal pide confirmación explícita que nombra la cuenta y advierte que los mensajes entrantes dejan de llegar. Motivo: la cuenta conectada es la del negocio y recibe leads reales, y un clic no puede cortar el único canal vivo (agregado el 23/09/2026)"
+    "texto": "- [x] Desconectar un canal pide confirmación explícita que nombra la cuenta y advierte que los mensajes entrantes dejan de llegar. Motivo: la cuenta conectada es la del negocio y recibe leads reales, y un clic no puede cortar el único canal vivo (agregado el 23/09/2026)"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -744,7 +744,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] Desconectar un canal pide escribir el nombre de la cuenta para confirmar («Escribí alomercadeo para confirmar», en el prototipo), y no desconecta si lo escrito no coincide (agregado el 07/10/2026, del prototipo aprobado el 06/10/2026)"
+    "texto": "- [x] Desconectar un canal pide escribir el nombre de la cuenta para confirmar («Escribí alomercadeo para confirmar», en el prototipo), y no desconecta si lo escrito no coincide (agregado el 07/10/2026, del prototipo aprobado el 06/10/2026)"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -753,7 +753,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] Desconectar nunca borra conversaciones ni mensajes: marca el canal como inactivo y conserva el historial. Motivo: es una decisión cerrada del proyecto que el historial viva en la base local, y migrar sin historial no es migrar. La ruta heredada `DELETE /api/v1/channels/[channelId]`, que borra la fila del canal y en cascada sus conversaciones y mensajes, se reemplaza antes de volver a habilitar el botón de la pantalla de Canales, deshabilitado desde `5a9e2af` (agregado el 23/09/2026). **Cumplido el 05/10/2026, y la protección vive en la base:** la ruta responde 405 (`96494a7`), la migración 00025 pasa a NO ACTION las claves de `channel_id` de las seis tablas con historia (`ff737db`; NO ACTION y no RESTRICT, para no trabar el borrado de un workspace entero), y la pantalla de Canales ya no tiene botón de borrar y manda a Integraciones (`0c29097`). La 00025 se aplicó el 05/10/2026, y `scripts/verify-channels-restrict.mjs` pasó 10 de 10 en un workspace de prueba propio: borrar un canal con conversación y mensaje falla y los dos siguen, un canal sin historia se borra, y borrar un workspace entero funciona y no deja nada"
+    "texto": "- [x] Desconectar nunca borra conversaciones ni mensajes: marca el canal como inactivo y conserva el historial. Motivo: es una decisión cerrada del proyecto que el historial viva en la base local, y migrar sin historial no es migrar. La ruta heredada `DELETE /api/v1/channels/[channelId]`, que borra la fila del canal y en cascada sus conversaciones y mensajes, se reemplaza antes de volver a habilitar el botón de la pantalla de Canales, deshabilitado desde `5a9e2af` (agregado el 23/09/2026). **Cumplido el 05/10/2026, y la protección vive en la base:** la ruta responde 405 (`96494a7`), la migración 00025 pasa a NO ACTION las claves de `channel_id` de las seis tablas con historia (`ff737db`; NO ACTION y no RESTRICT, para no trabar el borrado de un workspace entero), y la pantalla de Canales ya no tiene botón de borrar y manda a Integraciones (`0c29097`). La 00025 se aplicó el 05/10/2026, y `scripts/verify-channels-restrict.mjs` pasó 10 de 10 en un workspace de prueba propio: borrar un canal con conversación y mensaje falla y los dos siguen, un canal sin historia se borra, y borrar un workspace entero funciona y no deja nada"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -762,7 +762,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] Sección de correo, con Resend, su dominio verificado y su estado (devuelto el 23/09/2026, auditoría #27b)"
+    "texto": "- [x] Sección de correo, con Resend, su dominio verificado y su estado (devuelto el 23/09/2026, auditoría #27b)"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -771,7 +771,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] Sección de proveedores de IA, con OpenAI, Anthropic y Google, cada uno con su clave y su modelo por defecto"
+    "texto": "- [x] Sección de proveedores de IA, con OpenAI, Anthropic y Google, cada uno con su clave y su modelo por defecto"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -780,7 +780,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] Todas las claves van a Vault. Ninguna viaja al navegador: la pantalla muestra \"configurada\" o \"sin configurar\" según exista el secreto, nunca su valor"
+    "texto": "- [x] Todas las claves van a Vault. Ninguna viaja al navegador: la pantalla muestra \"configurada\" o \"sin configurar\" según exista el secreto, nunca su valor"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -789,7 +789,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] Cada integración es un registro con su tipo. Agregar una nueva en la Etapa 2 no requiere cambiar la base de datos"
+    "texto": "- [x] Cada integración es un registro con su tipo. Agregar una nueva en la Etapa 2 no requiere cambiar la base de datos"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -798,7 +798,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] Al guardar una clave se valida el formato, con largo mínimo y prefijo esperado donde corresponda"
+    "texto": "- [x] Al guardar una clave se valida el formato, con largo mínimo y prefijo esperado donde corresponda"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -816,7 +816,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] El estado se guarda en `integration_configs`, con estado (conectado, desconectado, sin verificar o sin configurar), `verificado_el` y `ultimo_error`, y llega a la pantalla abierta por Realtime, sin recargar"
+    "texto": "- [x] El estado se guarda en `integration_configs`, con estado (conectado, desconectado, sin verificar o sin configurar), `verificado_el` y `ultimo_error`, y llega a la pantalla abierta por Realtime, sin recargar"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -825,7 +825,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] \"Sin verificar\" significa que no se pudo preguntar, y nunca se muestra como \"desconectado\""
+    "texto": "- [x] \"Sin verificar\" significa que no se pudo preguntar, y nunca se muestra como \"desconectado\""
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -834,7 +834,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] **Control positivo:** con la pantalla abierta, se fuerza un fallo de credenciales y la tarjeta cambia sin recargar"
+    "texto": "- [x] **Control positivo:** con la pantalla abierta, se fuerza un fallo de credenciales y la tarjeta cambia sin recargar"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -843,7 +843,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] **Control negativo:** un Member suscrito a `integration_configs` no recibe el evento. Es la prueba que `scripts/verify-realtime-scope.mjs` hace para `conversations` y `messages`, repetida para esta tabla y con su canario: el mismo evento le tiene que llegar antes a un Owner suscrito, o el resultado es no concluyente"
+    "texto": "- [x] **Control negativo:** un Member suscrito a `integration_configs` no recibe el evento. Es la prueba que `scripts/verify-realtime-scope.mjs` hace para `conversations` y `messages`, repetida para esta tabla y con su canario: el mismo evento le tiene que llegar antes a un Owner suscrito, o el resultado es no concluyente (tildado el 08/10/2026: el canario fue un Admin; la política usa `is_workspace_manager` para Owner y Admin, y no se usa un Owner de prueba por lo que explica `verify-integration-configs.mjs:15-18`)"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -852,7 +852,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] **Estado del registro del webhook de Zernio, visible en la sección de canales:** si está registrado, contra qué URL, y cuándo se verificó por última vez. Se lee de `GET /v1/webhooks/settings`, que ya devuelve todo eso"
+    "texto": "- [x] **Estado del registro del webhook de Zernio, visible en la sección de canales:** si está registrado, contra qué URL, y cuándo se verificó por última vez. Se lee de `GET /v1/webhooks/settings`, que ya devuelve todo eso"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -861,7 +861,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] Ese estado nunca muestra el secreto de firma, que esa misma respuesta trae en texto plano. A lo sumo longitud y últimos cuatro caracteres, igual que el resto de las claves"
+    "texto": "- [x] Ese estado nunca muestra el secreto de firma, que esa misma respuesta trae en texto plano. A lo sumo longitud y últimos cuatro caracteres, igual que el resto de las claves"
   },
   {
     "seccion": "F24: Pantalla de integraciones y claves de IA",
@@ -870,7 +870,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F24: Pantalla de integraciones y claves de IA"
     ],
-    "texto": "- [ ] Una cuenta de Zernio cuyo perfil excede el límite del plan no se desactiva al sincronizar: queda activa, con el estado \"Excede el límite del plan de Zernio\" visible en su tarjeta de la pantalla de Canales (agregado el 06/10/2026, `1283e28`, migración 00026). **Su efecto sobre la recepción de mensajes no está verificado:** no se sabe si Zernio sigue entregando los mensajes de una cuenta excedida, y no hay ninguna cuenta excedida para medirlo. La marca sale de `Profile.isOverLimit` del SDK, no de la cuenta. Construido y probado con respuestas simuladas; la pastilla no se vio en producción por la misma razón"
+    "texto": "- [x] Una cuenta de Zernio cuyo perfil excede el límite del plan no se desactiva al sincronizar: queda activa, con el estado \"Excede el límite del plan de Zernio\" visible en su tarjeta de la pantalla de Canales (agregado el 06/10/2026, `1283e28`, migración 00026). **Su efecto sobre la recepción de mensajes no está verificado:** no se sabe si Zernio sigue entregando los mensajes de una cuenta excedida, y no hay ninguna cuenta excedida para medirlo. La marca sale de `Profile.isOverLimit` del SDK, no de la cuenta. Construido y probado con respuestas simuladas; la pastilla no se vio en producción por la misma razón"
   },
   {
     "seccion": "F25: Modelo de contacto extendido",

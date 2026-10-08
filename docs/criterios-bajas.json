@@ -292,5 +292,138 @@
     "nuevo": "- [x] Nunca se elimina ni tiene borrado suave",
     "motivo": "Tildado: Cumplido el 07/10/2026. Un trigger rechaza UPDATE, DELETE y TRUNCATE incluso con la clave de servicio, probado contra la base real; no hay `deleted_at` ni claves foráneas que arrastren el historial.",
     "fecha": "2026-10-07"
+  },
+  {
+    "texto": "- [ ] Pantalla en `/settings/integrations`, solo para Owner y Admin, con el control de rol hecho en el servidor",
+    "destino": "reescrito",
+    "nuevo": "- [x] Pantalla en `/settings/integrations`, solo para Owner y Admin, con el control de rol hecho en el servidor",
+    "motivo": "Tildado: Cumplido el 08/10/2026. La guarda es `getWorkspaceAsManager` en el servidor (`page.tsx:18`) y cada acción la repite (`contextoManager`). `settings/integrations/page.test.ts`: un Member vuelve a /dashboard sin que se lea `integration_configs` ni Vault, y Owner y Admin sí la leen (control positivo); visto en rojo cambiando la guarda por `getWorkspace`.",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] Pantalla accesible desde el sidebar, solo para Owner y Admin (devuelto el 23/09/2026, auditoría #20a)",
+    "destino": "reescrito",
+    "nuevo": "- [x] Pantalla accesible desde el sidebar, solo para Owner y Admin (devuelto el 23/09/2026, auditoría #20a)",
+    "motivo": "Tildado: Cumplido el 08/10/2026. `entradasVisibles` en `components/sidebar.tsx`; `components/sidebar.test.ts`: un Member no ve Integraciones, Owner y Admin sí, y el Member ve el resto del menú. Visto en rojo sacando `soloManagers`.",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] Sección de canales de mensajería, con Instagram vía Zernio y WhatsApp vía Evolution. El estado de sesión de WhatsApp y la reconexión con código QR son de F32. Facebook y X no van (decidido el 22 de septiembre de 2026, ver §0)",
+    "destino": "reescrito",
+    "nuevo": "- [x] Sección de canales de mensajería, con Instagram vía Zernio y WhatsApp vía Evolution. El estado de sesión de WhatsApp y la reconexión con código QR son de F32. Facebook y X no van (decidido el 22 de septiembre de 2026, ver §0)",
+    "motivo": "Tildado: Cumplido el 08/10/2026. `lib/integraciones.test.ts` (catálogo sin Facebook ni X, y un proveedor fuera del catálogo aparece sin tocar código). En producción, la sección muestra Instagram y WhatsApp.",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] Instagram (Zernio): API key, estado, conectar y desconectar (devuelto el 23/09/2026, auditoría #22b y #22c)",
+    "destino": "reescrito",
+    "nuevo": "- [x] Instagram (Zernio): API key, estado, conectar y desconectar (devuelto el 23/09/2026, auditoría #22b y #22c)",
+    "motivo": "Tildado: Cumplido el 08/10/2026. Probado en producción con la cuenta de prueba @poderosascomunidad: clave y estado en la tarjeta, conectar desde Canales (canal `e6ad79a8…`, «canal conectado» a las 12:20:47) y desconectar desde Integraciones («canal desconectado» a las 12:27:50, «1 cuenta en Zernio» después). @alomercadeo no cambió en ningún recuento.",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] Desconectar un canal pide confirmación explícita que nombra la cuenta y advierte que los mensajes entrantes dejan de llegar. Motivo: la cuenta conectada es la del negocio y recibe leads reales, y un clic no puede cortar el único canal vivo (agregado el 23/09/2026)",
+    "destino": "reescrito",
+    "nuevo": "- [x] Desconectar un canal pide confirmación explícita que nombra la cuenta y advierte que los mensajes entrantes dejan de llegar. Motivo: la cuenta conectada es la del negocio y recibe leads reales, y un clic no puede cortar el único canal vivo (agregado el 23/09/2026)",
+    "motivo": "Tildado: Cumplido el 08/10/2026. `confirmar-desconexion.tsx` nombra la cuenta y advierte que los mensajes dejan de llegar; `confirmar-desconexion.test.ts` lo comprueba en HTML. Visto en producción por Marcos con @poderosascomunidad (captura).",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] Desconectar un canal pide escribir el nombre de la cuenta para confirmar («Escribí alomercadeo para confirmar», en el prototipo), y no desconecta si lo escrito no coincide (agregado el 07/10/2026, del prototipo aprobado el 06/10/2026)",
+    "destino": "reescrito",
+    "nuevo": "- [x] Desconectar un canal pide escribir el nombre de la cuenta para confirmar («Escribí alomercadeo para confirmar», en el prototipo), y no desconecta si lo escrito no coincide (agregado el 07/10/2026, del prototipo aprobado el 06/10/2026)",
+    "motivo": "Tildado: Cumplido el 08/10/2026. `confirmacionCoincide`, la misma comparación en el diálogo y en el servidor. `confirmar-desconexion.test.ts`, con la acción real y Zernio simulado: si no coincide no llama a Zernio ni toca la base; si coincide desconecta (control positivo). En producción, con «poderosascomunida» el botón quedó deshabilitado.",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] Desconectar nunca borra conversaciones ni mensajes: marca el canal como inactivo y conserva el historial. Motivo: es una decisión cerrada del proyecto que el historial viva en la base local, y migrar sin historial no es migrar. La ruta heredada `DELETE /api/v1/channels/[channelId]`, que borra la fila del canal y en cascada sus conversaciones y mensajes, se reemplaza antes de volver a habilitar el botón de la pantalla de Canales, deshabilitado desde `5a9e2af` (agregado el 23/09/2026). **Cumplido el 05/10/2026, y la protección vive en la base:** la ruta responde 405 (`96494a7`), la migración 00025 pasa a NO ACTION las claves de `channel_id` de las seis tablas con historia (`ff737db`; NO ACTION y no RESTRICT, para no trabar el borrado de un workspace entero), y la pantalla de Canales ya no tiene botón de borrar y manda a Integraciones (`0c29097`). La 00025 se aplicó el 05/10/2026, y `scripts/verify-channels-restrict.mjs` pasó 10 de 10 en un workspace de prueba propio: borrar un canal con conversación y mensaje falla y los dos siguen, un canal sin historia se borra, y borrar un workspace entero funciona y no deja nada",
+    "destino": "reescrito",
+    "nuevo": "- [x] Desconectar nunca borra conversaciones ni mensajes: marca el canal como inactivo y conserva el historial. Motivo: es una decisión cerrada del proyecto que el historial viva en la base local, y migrar sin historial no es migrar. La ruta heredada `DELETE /api/v1/channels/[channelId]`, que borra la fila del canal y en cascada sus conversaciones y mensajes, se reemplaza antes de volver a habilitar el botón de la pantalla de Canales, deshabilitado desde `5a9e2af` (agregado el 23/09/2026). **Cumplido el 05/10/2026, y la protección vive en la base:** la ruta responde 405 (`96494a7`), la migración 00025 pasa a NO ACTION las claves de `channel_id` de las seis tablas con historia (`ff737db`; NO ACTION y no RESTRICT, para no trabar el borrado de un workspace entero), y la pantalla de Canales ya no tiene botón de borrar y manda a Integraciones (`0c29097`). La 00025 se aplicó el 05/10/2026, y `scripts/verify-channels-restrict.mjs` pasó 10 de 10 en un workspace de prueba propio: borrar un canal con conversación y mensaje falla y los dos siguen, un canal sin historia se borra, y borrar un workspace entero funciona y no deja nada",
+    "motivo": "Tildado: Cumplido el 08/10/2026. Además de lo del 05/10/2026, con datos reales: al desconectar @poderosascomunidad su canal quedó inactivo con sus 2 conversaciones y 2 contactos, y `confirmar-desconexion.test.ts` comprueba que no se toca ninguna tabla con historia.",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] Sección de correo, con Resend, su dominio verificado y su estado (devuelto el 23/09/2026, auditoría #27b)",
+    "destino": "reescrito",
+    "nuevo": "- [x] Sección de correo, con Resend, su dominio verificado y su estado (devuelto el 23/09/2026, auditoría #27b)",
+    "motivo": "Tildado: Cumplido el 08/10/2026. Tests de `probarYGuardarResend` (`lib/actions/integraciones.test.ts`) y en uso real desde F23 (07/10/2026).",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] Sección de proveedores de IA, con OpenAI, Anthropic y Google, cada uno con su clave y su modelo por defecto",
+    "destino": "reescrito",
+    "nuevo": "- [x] Sección de proveedores de IA, con OpenAI, Anthropic y Google, cada uno con su clave y su modelo por defecto",
+    "motivo": "Tildado: Cumplido el 08/10/2026. Catálogo con los tres y `conModelo`; `guardarModelo` con tests nuevos en `lib/actions/integraciones.test.ts` (guarda y audita, rechaza un nombre raro, Resend no lleva modelo, un Member no puede), vistos en rojo sacando la validación.",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] Todas las claves van a Vault. Ninguna viaja al navegador: la pantalla muestra \"configurada\" o \"sin configurar\" según exista el secreto, nunca su valor",
+    "destino": "reescrito",
+    "nuevo": "- [x] Todas las claves van a Vault. Ninguna viaja al navegador: la pantalla muestra \"configurada\" o \"sin configurar\" según exista el secreto, nunca su valor",
+    "motivo": "Tildado: Cumplido el 08/10/2026. `lib/integraciones.test.ts` (la tarjeta lleva la máscara, nunca la clave), `lib/actions/integraciones.test.ts` y `lib/vault.test.ts`.",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] Cada integración es un registro con su tipo. Agregar una nueva en la Etapa 2 no requiere cambiar la base de datos",
+    "destino": "reescrito",
+    "nuevo": "- [x] Cada integración es un registro con su tipo. Agregar una nueva en la Etapa 2 no requiere cambiar la base de datos",
+    "motivo": "Tildado: Cumplido el 08/10/2026. Migración 00024, con `lib/integration-configs-migration.test.ts` y `lib/integraciones.test.ts`.",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] Al guardar una clave se valida el formato, con largo mínimo y prefijo esperado donde corresponda",
+    "destino": "reescrito",
+    "nuevo": "- [x] Al guardar una clave se valida el formato, con largo mínimo y prefijo esperado donde corresponda",
+    "motivo": "Tildado: Cumplido el 08/10/2026. `validarFormatoClave`, con `lib/integraciones.test.ts` y `lib/actions/integraciones.test.ts`.",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] El estado se guarda en `integration_configs`, con estado (conectado, desconectado, sin verificar o sin configurar), `verificado_el` y `ultimo_error`, y llega a la pantalla abierta por Realtime, sin recargar",
+    "destino": "reescrito",
+    "nuevo": "- [x] El estado se guarda en `integration_configs`, con estado (conectado, desconectado, sin verificar o sin configurar), `verificado_el` y `ultimo_error`, y llega a la pantalla abierta por Realtime, sin recargar",
+    "motivo": "Tildado: Cumplido el 08/10/2026. Migración 00024 y su test. Visto en producción el 08/10/2026 en el paso 4f: el estado llegó a la pestaña abierta sin recargar.",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] \"Sin verificar\" significa que no se pudo preguntar, y nunca se muestra como \"desconectado\"",
+    "destino": "reescrito",
+    "nuevo": "- [x] \"Sin verificar\" significa que no se pudo preguntar, y nunca se muestra como \"desconectado\"",
+    "motivo": "Tildado: Cumplido el 08/10/2026. `lib/integraciones-estado.test.ts` y `lib/integraciones.test.ts` (sin verificar nunca es desconectado).",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] **Control positivo:** con la pantalla abierta, se fuerza un fallo de credenciales y la tarjeta cambia sin recargar",
+    "destino": "reescrito",
+    "nuevo": "- [x] **Control positivo:** con la pantalla abierta, se fuerza un fallo de credenciales y la tarjeta cambia sin recargar",
+    "motivo": "Tildado: Cumplido el 08/10/2026. En producción, en el espacio «Pruebas de correo»: con Integraciones abierta en dos pestañas, una clave de OpenAI inventada guardada en la B pasó la A a «Sin verificar» sin recargar; al recargar la B, OpenAI la rechazó y la A pasó sola a «Desconectado», con «El proveedor rechazó la clave (HTTP 401)». La clave se borró después.",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] **Control negativo:** un Member suscrito a `integration_configs` no recibe el evento. Es la prueba que `scripts/verify-realtime-scope.mjs` hace para `conversations` y `messages`, repetida para esta tabla y con su canario: el mismo evento le tiene que llegar antes a un Owner suscrito, o el resultado es no concluyente",
+    "destino": "reescrito",
+    "nuevo": "- [x] **Control negativo:** un Member suscrito a `integration_configs` no recibe el evento. Es la prueba que `scripts/verify-realtime-scope.mjs` hace para `conversations` y `messages`, repetida para esta tabla y con su canario: el mismo evento le tiene que llegar antes a un Owner suscrito, o el resultado es no concluyente (tildado el 08/10/2026: el canario fue un Admin; la política usa `is_workspace_manager` para Owner y Admin, y no se usa un Owner de prueba por lo que explica `verify-integration-configs.mjs:15-18`)",
+    "motivo": "Tildado: Cumplido el 08/10/2026. Pasó 5 de 5 el 23/09/2026 con `scripts/verify-integration-configs.mjs`. El canario fue un Admin y no un Owner: la política usa `is_workspace_manager`, la misma para Owner y Admin, y no se usa un Owner de prueba por lo que explica `verify-integration-configs.mjs:15-18`. Decidido por Marcos el 08/10/2026.",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] **Estado del registro del webhook de Zernio, visible en la sección de canales:** si está registrado, contra qué URL, y cuándo se verificó por última vez. Se lee de `GET /v1/webhooks/settings`, que ya devuelve todo eso",
+    "destino": "reescrito",
+    "nuevo": "- [x] **Estado del registro del webhook de Zernio, visible en la sección de canales:** si está registrado, contra qué URL, y cuándo se verificó por última vez. Se lee de `GET /v1/webhooks/settings`, que ya devuelve todo eso",
+    "motivo": "Tildado: Cumplido el 08/10/2026. `estado-webhook.tsx`, con `estado-webhook.test.ts`, y visto en nuestra pantalla de producción con la pantalla abierta: capturas de Marcos de las 12:15, 12:23 y 12:31, registrado hacia `app.alomercadeo.com/api/webhooks/late`, activo, con los tres eventos y la última verificación. A las 12:31, después de desconectar @poderosascomunidad, seguía igual.",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] Ese estado nunca muestra el secreto de firma, que esa misma respuesta trae en texto plano. A lo sumo longitud y últimos cuatro caracteres, igual que el resto de las claves",
+    "destino": "reescrito",
+    "nuevo": "- [x] Ese estado nunca muestra el secreto de firma, que esa misma respuesta trae en texto plano. A lo sumo longitud y últimos cuatro caracteres, igual que el resto de las claves",
+    "motivo": "Tildado: Cumplido el 08/10/2026. `estado-webhook.test.ts` y `lib/integraciones-estado.test.ts`; en producción la tarjeta muestra solo el largo y los últimos cuatro (…85b1).",
+    "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] Una cuenta de Zernio cuyo perfil excede el límite del plan no se desactiva al sincronizar: queda activa, con el estado \"Excede el límite del plan de Zernio\" visible en su tarjeta de la pantalla de Canales (agregado el 06/10/2026, `1283e28`, migración 00026). **Su efecto sobre la recepción de mensajes no está verificado:** no se sabe si Zernio sigue entregando los mensajes de una cuenta excedida, y no hay ninguna cuenta excedida para medirlo. La marca sale de `Profile.isOverLimit` del SDK, no de la cuenta. Construido y probado con respuestas simuladas; la pastilla no se vio en producción por la misma razón",
+    "destino": "reescrito",
+    "nuevo": "- [x] Una cuenta de Zernio cuyo perfil excede el límite del plan no se desactiva al sincronizar: queda activa, con el estado \"Excede el límite del plan de Zernio\" visible en su tarjeta de la pantalla de Canales (agregado el 06/10/2026, `1283e28`, migración 00026). **Su efecto sobre la recepción de mensajes no está verificado:** no se sabe si Zernio sigue entregando los mensajes de una cuenta excedida, y no hay ninguna cuenta excedida para medirlo. La marca sale de `Profile.isOverLimit` del SDK, no de la cuenta. Construido y probado con respuestas simuladas; la pastilla no se vio en producción por la misma razón",
+    "motivo": "Tildado como EXCEPCIÓN a la regla del 07/10/2026, decidida por Marcos el 08/10/2026: probado solo con respuestas simuladas (`app/api/v1/channels/sync/route.test.ts`), porque una cuenta excedida no se puede producir a propósito sin poner en riesgo @alomercadeo. La parte con datos reales: en la sincronización real del 08/10/2026, con dos cuentas, ninguna quedó marcada. Si aparece una cuenta excedida real, esa pasa a ser la prueba.",
+    "fecha": "2026-10-08"
   }
 ]
