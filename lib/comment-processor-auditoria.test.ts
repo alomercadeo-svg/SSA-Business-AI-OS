@@ -15,6 +15,14 @@ vi.mock("@/lib/flow-engine/engine", () => ({ executeFlow: async () => {} }));
 vi.mock("@/lib/vault", () => ({ getZernioApiKey: async () => null }));
 vi.mock("@/lib/zernio-client", () => ({ createZernioClient: () => ({}) }));
 
+/**
+ * Desde el 08/10/2026, `registrarAuditoria` escribe siempre con el cliente de
+ * servicio que crea ella. Acá ese cliente es la misma base falsa del test, que
+ * así sigue viendo la fila de `audit_log`.
+ */
+const servicio = vi.hoisted(() => ({ cliente: null as unknown }));
+vi.mock("@/lib/supabase/server", () => ({ createServiceClient: async () => servicio.cliente }));
+
 const { processComment } = await import("./comment-processor");
 
 function baseFalsa() {
@@ -43,6 +51,7 @@ function baseFalsa() {
       return b;
     },
   };
+  servicio.cliente = client;
   return { client: client as unknown as SupabaseClient, inserts };
 }
 

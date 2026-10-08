@@ -572,13 +572,46 @@ Los tests nuevos se vieron en rojo: los del diálogo y la comparación porque no
 - La importación registra la auditoría con ese cliente (`lib/inbox-sync.ts:150-158`), y la 00028 le quita a los usuarios el permiso de insertar en `audit_log` (línea 123).
 - El rechazo solo va al log (`lib/auditoria.ts:112-113`).
 
-Los 7 contactos importados el 08/10 no tienen su fila. El del webhook sí la tiene, porque ese camino usa el cliente de servicio. **F31 se dio por completa el 07/10 con este camino roto.** Queda para decidir con Marcos.
+Los 7 contactos importados el 08/10 no tienen su fila. El del webhook sí la tiene, porque ese camino usa el cliente de servicio. **F31 se dio por completa el 07/10 con este camino roto.** Se arregló el mismo día, en un tramo aparte (abajo).
 
 **Tests:** `npm test` da 530 de 530 al subir `43f8de6`, con cero errores de tipos y el linter sin avisos en lo tocado.
 
 **Hora de fin: 08/10/2026 13:09, hora de Costa Rica**, leída al commitear. Un solo tramo, de 11:16 a 13:09.
 
 **Para la apertura de la próxima sesión:** anotar acá el hash del commit que cierra este registro, la salida de su corrida de `scripts/verificar-despliegue.mjs` y lo que Marcos vea en el historial de despliegues de Railway.
+
+### Retrabajo de F31, el mismo 8 de octubre: la importación no registraba «contacto creado»
+
+**Se mide como retrabajo de la sesión 1 del Bloque 3**, que construyó F31: tramo 2 de esa fila en la tabla de medición, de 13:16 a 13:26. La línea de base no cambia.
+
+**Las llamadas a la auditoría, revisadas antes del arreglo.**
+- Le pasaban un cliente a `registrarAuditoria` tres llamadores:
+  - `lib/inbox-sync.ts:150`, el defecto;
+  - `lib/comment-processor.ts:172`, con el cliente de servicio del webhook;
+  - `auditarAlerta` en `lib/auditoria.ts:158`, con el de servicio de quien la llama (la sincronización y el receptor de Evolution).
+- Las otras 17 llamadas no le pasaban cliente, así que usaban el de servicio que crea la función.
+- **El único camino roto era `upsertContactForSender` desde la importación, y entraba por dos rutas:** `sync` (`route.ts:283`) y `test-key` («Probar y guardar», `route.ts:149`). Desde el webhook funcionaba.
+
+**El arreglo, decidido con Marcos:**
+- `registrarAuditoria` ya no recibe cliente: escribe siempre con el de servicio que crea ella. Su comentario ya exigía uno de servicio, y el defecto pasó igual; sin el parámetro no se puede repetir.
+- La importación recibe un `actor`. `sync` y `test-key` le pasan el usuario de la sesión. El webhook no pasa ninguno y queda «Sistema».
+- No se tocó la 00028 ni ninguna política: ningún usuario recupera el permiso de insertar en `audit_log`.
+
+**Tests, vistos en rojo antes del arreglo:**
+- `lib/inbox-sync-auditoria.test.ts`, con la `registrarAuditoria` real: el cliente del usuario rechaza `audit_log` como la base, y la importación no dejaba la fila. El control positivo: con el arreglo la fila queda, escrita con el cliente de servicio y con el usuario como actor, no «Sistema».
+- Los tests de las rutas `sync` y `test-key`: que le pasen el actor a la importación.
+- En `lib/auditoria.test.ts`, que `auditarAlerta` escriba con el de servicio y no con el cliente con que lee la alerta. Se vio en rojo poniendo un momento la versión anterior del módulo.
+- Los tres tests que pasaban un cliente (`lib/auditoria.test.ts`, `lib/contacto-proveedor.test.ts` y `lib/comment-processor-auditoria.test.ts`) pasaron a simular `createServiceClient`.
+
+**Los 7 contactos importados el 08/10/2026, entre las 12:20:49 y las 12:21:13, en «Ale Admin's Workspace», no se completan:** quedan sin su fila de «contacto creado», a propósito. `audit_log` no se puede borrar, así que cualquier relleno lo decide Marcos.
+
+**Sin prueba real todavía:** no se apretó Sincronizar ni se conectó nada. La prueba real es la próxima sincronización o «Probar y guardar» que importe un contacto nuevo. Se anota acá cuando ocurra, con el autor que quede en el historial.
+
+**El rastro visible de un rechazo de la auditoría** quedó en §15 del plano como propuesta no decidida.
+
+**El avance sigue en 9 de 26 si este arreglo se sube hoy.** Si no se sube, se corrige a 8 hasta que se suba.
+
+**Tests:** `npm test` da 535 de 535, con cero errores de tipos, y el linter no marca nada en lo tocado.
 
 ---
 
@@ -625,7 +658,7 @@ Después, el Bloque 3: modelo de contacto extendido (F25), identidad de canal y 
 
 | Sesión | Funcionalidades | Por qué juntas | Días reales | Anotado el |
 |---|---|---|---|---|
-| 1 | F31, F25, F26 | El modelo de contacto y la identidad de canal. **F31 primero:** F26 escribe en la auditoría, y la tabla no existe hasta F31 | Tramo 1: 07/10/2026 17:37 a 07/10/2026 18:35, hora de Costa Rica. Suma: 58 min | 07/10/2026 |
+| 1 | F31, F25, F26 | El modelo de contacto y la identidad de canal. **F31 primero:** F26 escribe en la auditoría, y la tabla no existe hasta F31 | Tramo 1: 07/10/2026 17:37 a 07/10/2026 18:35. Tramo 2, retrabajo de F31: 08/10/2026 13:16 a 08/10/2026 13:26. Hora de Costa Rica. Suma: 68 min (1 h 8 min) | 07/10/2026 y 08/10/2026 |
 | 2 | F27, F28, F39 | El camino de entrada. F28 y F39 cuelgan de F27 | | |
 | 3 | F29, F30, F41 | El lado de CRM, que no toca la ingesta. F41 va con F30 porque la asignación se ve y se edita en la ficha | | |
 | **Bloque** | | | **Planificado: 2 días** | |

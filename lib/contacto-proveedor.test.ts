@@ -1,7 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Zernio } from "./zernio-client";
 import { backfillInboxConversations, handleDelProveedor, upsertContactForSender } from "./inbox-sync";
+
+/**
+ * Desde el 08/10/2026, `registrarAuditoria` escribe siempre con el cliente de
+ * servicio que crea ella. Acá ese cliente es la misma base falsa del test, que
+ * así sigue viendo la fila de `audit_log`.
+ */
+const servicio = vi.hoisted(() => ({ cliente: null as unknown }));
+vi.mock("@/lib/supabase/server", () => ({ createServiceClient: async () => servicio.cliente }));
 
 /**
  * Lo que el proveedor escribe en un contacto, y lo que no puede escribir.
@@ -58,6 +66,7 @@ function baseFalsa(seed: { canalPorRemitente?: Record<string, { contact_id: stri
       return b;
     },
   };
+  servicio.cliente = client;
   return { client: client as unknown as SupabaseClient, ops };
 }
 

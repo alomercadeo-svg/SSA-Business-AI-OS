@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -10,11 +10,22 @@ import { join } from "node:path";
  * y está en `scripts/verify-auditoria.mjs`.
  */
 
+/**
+ * `registrarAuditoria` escribe siempre con el cliente de servicio que crea ella
+ * (desde el 08/10/2026 no recibe cliente). Acá ese cliente es el falso que el
+ * test registre; sin ninguno, crearlo falla.
+ */
+const servicio = vi.hoisted(() => ({ cliente: null as unknown }));
 vi.mock("@/lib/supabase/server", () => ({
   createServiceClient: async () => {
-    throw new Error("el test tiene que pasar su propio cliente");
+    if (!servicio.cliente) throw new Error("no hay cliente de servicio en este test");
+    return servicio.cliente;
   },
 }));
+
+beforeEach(() => {
+  servicio.cliente = null;
+});
 
 const {
   ACCIONES_AUDITORIA,
@@ -27,8 +38,11 @@ const {
   textoDeEvento,
 } = await import("./auditoria");
 
-/** Cliente falso: guarda los inserts de audit_log y responde lecturas fijas. */
-function clienteFalso(opts: { errorAlInsertar?: string; filas?: Record<string, unknown> } = {}) {
+/**
+ * Cliente falso: guarda los inserts de audit_log y responde lecturas fijas. Con
+ * `deServicio` (el valor por defecto) queda además como el cliente de servicio.
+ */
+function clienteFalso(opts: { errorAlInsertar?: string; filas?: Record<string, unknown>; deServicio?: boolean } = {}) {
   const insertados: unknown[] = [];
   const cliente = {
     from: (tabla: string) => ({
@@ -41,6 +55,7 @@ function clienteFalso(opts: { errorAlInsertar?: string; filas?: Record<string, u
       }),
     }),
   };
+  if (opts.deServicio !== false) servicio.cliente = cliente;
   return { cliente: cliente as never, insertados };
 }
 
@@ -55,7 +70,7 @@ describe("la lista de acciones", () => {
 
 describe("registrarAuditoria", () => {
   it("escribe la fila con el actor, y el Sistema cuando no hay actor", async () => {
-    const { cliente, insertados } = clienteFalso();
+    const { insertados } = clienteFalso();
     const ok = await registrarAuditoria(
       [
         {
@@ -65,8 +80,7 @@ describe("registrarAuditoria", () => {
           entidad: { tipo: "invitacion", id: "inv", etiqueta: "x@y.z" },
         },
         { workspaceId: "ws", actor: null, accion: "contacto.creado", entidad: { tipo: "contacto", id: "c" } },
-      ],
-      cliente
+      ]
     );
     expect(ok).toBe(true);
     expect(insertados).toMatchObject([
@@ -76,16 +90,16 @@ describe("registrarAuditoria", () => {
   });
 
   it("si la base rechaza, devuelve false y no lanza: la acción que registra sigue", async () => {
-    const { cliente } = clienteFalso({ errorAlInsertar: "sin conexión" });
+    clienteFalso({ errorAlInsertar: "sin conexión" });
     const errores = vi.spyOn(console, "error").mockImplementation(() => {});
     await expect(
-      registrarAuditoria({ workspaceId: "ws", actor: null, accion: "contacto.creado", entidad: { tipo: "contacto" } }, cliente)
+      registrarAuditoria({ workspaceId: "ws", actor: null, accion: "contacto.creado", entidad: { tipo: "contacto" } })
     ).resolves.toBe(false);
     expect(errores).toHaveBeenCalled();
     errores.mockRestore();
   });
 
-  it("si ni siquiera hay cliente, tampoco lanza", async () => {
+  it("si no se puede crear el cliente de servicio, tampoco lanza", async () => {
     const errores = vi.spyOn(console, "error").mockImplementation(() => {});
     await expect(
       registrarAuditoria({ workspaceId: "ws", actor: null, accion: "contacto.creado", entidad: { tipo: "contacto" } })
@@ -140,6 +154,19 @@ describe("canal con error: una vez por condición abierta", () => {
     expect(insertados).toMatchObject([
       { action: "canal.error", entity_id: "ch", entity_label: "WhatsApp (instancia ssa-wa)", actor_label: "Sistema" },
     ]);
+  });
+
+  /**
+   * Lee la alerta con el cliente que recibe, pero escribe con el de servicio,
+   * aunque el que recibe pudiera escribir. Visto en rojo el 08/10/2026 con la
+   * versión que pasaba su cliente a `registrarAuditoria`.
+   */
+  it("la fila se escribe con el cliente de servicio, no con el que lee la alerta", async () => {
+    const lector = clienteFalso({ filas: alerta(1), deServicio: false });
+    const deServicio = clienteFalso();
+    await auditarAlertaSiEsNueva(lector.cliente, "al-1");
+    expect(lector.insertados).toHaveLength(0);
+    expect(deServicio.insertados).toMatchObject([{ action: "canal.error" }]);
   });
 
   it("las ocurrencias siguientes no: el historial no se puede limpiar", async () => {

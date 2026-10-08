@@ -151,6 +151,7 @@ export async function POST(request: NextRequest) {
       zernio: createZernioClient(apiKey.trim()),
       workspaceId: workspace.id,
       channels: canalesConCuentaDeZernio(activeChannels ?? []),
+      actor: actorDe(user),
     });
   } catch (err) {
     console.error("[test-key] inbox backfill failed:", err);

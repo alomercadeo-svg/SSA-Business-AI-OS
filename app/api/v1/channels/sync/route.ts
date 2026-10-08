@@ -285,6 +285,7 @@ export async function POST() {
         zernio,
         workspaceId: workspace.id,
         channels: canalesConCuentaDeZernio(activeChannels ?? []),
+        actor,
       });
       conversationsImported = imported;
     } catch (err) {

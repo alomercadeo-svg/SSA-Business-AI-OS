@@ -10,7 +10,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Zernio } from "./zernio-client";
 import { messagePreview } from "@/lib/message-preview";
-import { registrarAuditoria } from "@/lib/auditoria";
+import { registrarAuditoria, type Actor } from "@/lib/auditoria";
 
 /** Cap per channel: 4 pages x 50 conversations. */
 const MAX_PAGES_PER_CHANNEL = 4;
@@ -75,8 +75,12 @@ interface ZernioInboxConversation {
  *     otro camino automático. Un nombre `manual` (F25) no lo pisa nadie.
  *   - La búsqueda es solo por (canal, identificador del remitente). Nunca por
  *     nombre: F26 prefiere un duplicado visible a una fusión equivocada.
- *   - Un contacto nuevo queda en el historial de auditoría, con el Sistema
- *     como actor.
+ *   - Un contacto nuevo queda en el historial de auditoría. El actor es quien
+ *     disparó la importación (sincronizar o «Probar y guardar»); en el webhook
+ *     no actúa nadie y queda el Sistema. Desde el 08/10/2026 la auditoría se
+ *     escribe siempre con el cliente de servicio, no con `supabase`: la
+ *     importación recibe el cliente del usuario, que no puede insertar en
+ *     `audit_log` (00028), y la fila se perdía.
  */
 export async function upsertContactForSender({
   supabase,
@@ -87,6 +91,7 @@ export async function upsertContactForSender({
   senderUsername,
   interactionAt,
   stampExisting = true,
+  actor = null,
 }: {
   supabase: SupabaseClient;
   channel: { id: string; workspace_id: string; platform?: string };
@@ -96,6 +101,8 @@ export async function upsertContactForSender({
   senderUsername?: string | null;
   interactionAt: string;
   stampExisting?: boolean;
+  /** Quien disparó la importación. Nulo en el webhook: el Sistema. */
+  actor?: Actor | null;
 }): Promise<{ contactId: string; existed: boolean } | null> {
   const { data: existingContactChannel } = await supabase
     .from("contact_channels")
@@ -147,16 +154,13 @@ export async function upsertContactForSender({
     event_type: "contact_created",
   });
 
-  await registrarAuditoria(
-    {
-      workspaceId: channel.workspace_id,
-      actor: null,
-      accion: "contacto.creado",
-      entidad: { tipo: "contacto", id: newContact.id, etiqueta: senderName },
-      detalle: { plataforma: channel.platform ?? null, canal_id: channel.id },
-    },
-    supabase
-  );
+  await registrarAuditoria({
+    workspaceId: channel.workspace_id,
+    actor,
+    accion: "contacto.creado",
+    entidad: { tipo: "contacto", id: newContact.id, etiqueta: senderName },
+    detalle: { plataforma: channel.platform ?? null, canal_id: channel.id },
+  });
 
   return { contactId: newContact.id, existed: false };
 }
@@ -200,17 +204,20 @@ export async function backfillInboxConversations({
   zernio,
   workspaceId,
   channels,
+  actor = null,
 }: {
   supabase: SupabaseClient;
   zernio: Zernio;
   workspaceId: string;
   channels: BackfillChannel[];
+  /** Quien disparó la importación: queda como autor de «contacto creado» (F31). */
+  actor?: Actor | null;
 }): Promise<{ imported: number }> {
   let imported = 0;
 
   for (const channel of channels) {
     try {
-      imported += await backfillChannel({ supabase, zernio, workspaceId, channel });
+      imported += await backfillChannel({ supabase, zernio, workspaceId, channel, actor });
     } catch (err) {
       console.error(
         `[inbox-sync] backfill failed for channel ${channel.id} (${channel.platform}):`,
@@ -227,11 +234,13 @@ async function backfillChannel({
   zernio,
   workspaceId,
   channel,
+  actor,
 }: {
   supabase: SupabaseClient;
   zernio: Zernio;
   workspaceId: string;
   channel: BackfillChannel;
+  actor: Actor | null;
 }): Promise<number> {
   const { data: existingRows } = await supabase
     .from("conversations")
@@ -277,7 +286,7 @@ async function backfillChannel({
         if (handle) await actualizarHandle(supabase, channel.id, conv.participantId, handle);
         continue;
       }
-      if (await importConversation({ supabase, workspaceId, channel, conv })) {
+      if (await importConversation({ supabase, workspaceId, channel, conv, actor })) {
         imported++;
       }
     }
@@ -295,11 +304,13 @@ async function importConversation({
   workspaceId,
   channel,
   conv,
+  actor,
 }: {
   supabase: SupabaseClient;
   workspaceId: string;
   channel: BackfillChannel;
   conv: ZernioInboxConversation;
+  actor: Actor | null;
 }): Promise<boolean> {
   const interactionAt = conv.updatedTime ?? new Date().toISOString();
   const contact = await upsertContactForSender({
@@ -311,6 +322,7 @@ async function importConversation({
     senderUsername: conv.participantUsername,
     interactionAt,
     stampExisting: false,
+    actor,
   });
 
   if (!contact) {

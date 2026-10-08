@@ -97,8 +97,9 @@ vi.mock("@/lib/zernio-webhook", () => ({
   getOrCreateWorkspaceWebhookSecret: async () => "secreto",
   WEBHOOK_EVENTS: ["message.received"],
 }));
+const backfill = vi.hoisted(() => vi.fn(async (_opciones: Record<string, unknown>) => ({ imported: 0 })));
 vi.mock("@/lib/inbox-sync", () => ({
-  backfillInboxConversations: async () => ({ imported: 0 }),
+  backfillInboxConversations: backfill,
   canalesConCuentaDeZernio: (c: unknown[]) => c,
 }));
 
@@ -325,5 +326,19 @@ describe("6. La misma ranura de Zernio con otra cuenta", () => {
     h.listAccounts.mockResolvedValue({ data: { accounts: [cuenta("acc-a", "p1")] } });
     await POST();
     expect(escriturasEnCanales()).toEqual([]);
+  });
+});
+
+/**
+ * F31: la importación audita «contacto creado» a nombre de quien la disparó.
+ * Se vio en rojo el 08/10/2026: la ruta no le pasaba ningún actor.
+ */
+describe("la importación recibe el actor de quien la disparó", () => {
+  it("le pasa a la importación el usuario de la sesión", async () => {
+    backfill.mockClear();
+    h.listAccounts.mockResolvedValue({ data: { accounts: [cuenta("acc-a", "p1"), cuenta("acc-b", "p1")] } });
+    await POST();
+    expect(backfill).toHaveBeenCalledTimes(1);
+    expect(backfill.mock.calls[0][0]).toMatchObject({ actor: { id: "u-1", etiqueta: "u-1" } });
   });
 });

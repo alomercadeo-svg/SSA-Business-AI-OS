@@ -97,17 +97,17 @@ export function filaDeAuditoria(evento: EventoAuditoria) {
 /**
  * Registra uno o más eventos. Devuelve si quedaron escritos; nunca lanza.
  *
- * `cliente` tiene que ser uno con la clave de servicio. Si el llamador ya tiene
- * uno (el webhook, la sincronización), lo pasa; si no, se crea.
+ * Escribe SIEMPRE con un cliente de servicio que crea ella: la 00028 le quita a
+ * los usuarios el permiso de insertar en `audit_log`. Hasta el 08/10/2026
+ * recibía un cliente opcional, con un comentario que exigía que fuera de
+ * servicio, y la importación le pasaba el del usuario: la fila se rechazaba y
+ * el rechazo solo iba al log. Sin el parámetro, ese error no se puede repetir.
  */
-export async function registrarAuditoria(
-  eventos: EventoAuditoria | EventoAuditoria[],
-  cliente?: SupabaseClient
-): Promise<boolean> {
+export async function registrarAuditoria(eventos: EventoAuditoria | EventoAuditoria[]): Promise<boolean> {
   const lista = Array.isArray(eventos) ? eventos : [eventos];
   if (lista.length === 0) return true;
   try {
-    const supabase = cliente ?? ((await createServiceClient()) as unknown as SupabaseClient);
+    const supabase = (await createServiceClient()) as unknown as SupabaseClient;
     const { error } = await supabase.from("audit_log").insert(lista.map(filaDeAuditoria));
     if (error) {
       console.error("[auditoria] no se pudo registrar:", lista.map((e) => e.accion).join(", "), error.message);
@@ -162,8 +162,7 @@ async function auditarAlerta(supabase: SupabaseClient, alertaId: string): Promis
       accion: "canal.error",
       entidad: { tipo: "canal", id: alerta.channel_id, etiqueta },
       detalle: { condicion: alerta.alert_condition, fuente: alerta.source, alerta_id: alertaId },
-    },
-    supabase
+    }
   );
 }
 

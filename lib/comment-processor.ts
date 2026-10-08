@@ -176,8 +176,7 @@ export async function processComment({
           accion: "contacto.creado",
           entidad: { tipo: "contacto", id: contactId, etiqueta: senderName },
           detalle: { plataforma: channel.platform, canal_id: channel.id, origen: "comentario" },
-        },
-        supabase as unknown as SupabaseClient
+        }
       );
     }
 
