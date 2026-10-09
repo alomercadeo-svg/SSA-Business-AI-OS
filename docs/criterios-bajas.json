@@ -565,5 +565,61 @@
     "nuevo": "- [x] Cada canal guarda la marca de tiempo del último evento entrante recibido, actualizada por el receptor",
     "motivo": "Tildado el 08/10/2026, tramo 2 de la sesión 2 del Bloque 3, decidido por Marcos. F39. Construido en F27: `channels.last_inbound_at` (00032), escrita por `app/api/webhooks/late/route.ts:354-356` (Instagram, solo si no es saliente) y `lib/evolution-guardado.ts:305` y `:308-310` (WhatsApp, solo entrantes que no son historial). Instagram, con datos reales: `last_inbound_at` de @poderosascomunidad (`e6ad79a8`) leído a las 18:35:51 y a las 18:40:34, los dos en 17:12:18.599; Marcos mandó «Test F39» desde @marcospittimusic a las 18:42; leído a las 18:43:16, en 18:43:00.435 (hora de recepción). Mensaje atribuido: entre 18:41:00 y 18:43:30 hubo un solo entrante del canal, `aab45b41`, en la conversación `c6628c4e` con @marcospittimusic, a las 18:42:57.503 (hora del proveedor). WhatsApp, con aviso firmado: paso 1 de `scripts/verify-guardado-whatsapp.mjs` («el canal registró su último entrante»), corrida de 18:37:03 a 18:37:33 en 43 de 43, salida 0. Llegada real de WhatsApp: se comprueba en la puesta en marcha del número.",
     "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] Un trabajo periódico la compara contra un umbral configurable por canal, expresado en horas hábiles según la zona horaria del negocio, y abre una condición en `webhook_alerts` cuando se supera",
+    "destino": "reescrito",
+    "nuevo": "- [x] Un trabajo periódico la compara contra un umbral configurable por canal, expresado en horas hábiles según la zona horaria del negocio, y abre una condición en `webhook_alerts` cuando se supera",
+    "motivo": "Tildado el 09/10/2026, tramo 3 de la sesión 2 del Bloque 3, decidido por Marcos. F39. Datos reales. El trabajo: `POST /api/cron/tareas` (`8fa052d`), llamado cada 10 minutos por el servicio «vigilancia-cron» de Railway; las horas hábiles, con la zona IANA y el horario del espacio (`lib/horas-habiles.ts`, 00033). Abrió la condición dos veces en producción: en «Ale Admin's Workspace», @poderosascomunidad con límite 1, alerta `16f7896b` a las 14:10:52 (6,2 de 1 horas hábiles; se cerró sola a las 14:30:52 al volver el límite a vacío); en «Pruebas de correo», un canal descartable con límite 1, alerta `834f7663` a las 15:40:31 (13,7 de 1; se cerró sola a las 16:11:59 al borrar el canal).",
+    "fecha": "2026-10-09"
+  },
+  {
+    "texto": "- [ ] La alerta de silencio del canal se envía por correo vía F23",
+    "destino": "reescrito",
+    "nuevo": "- [x] La alerta de silencio del canal se envía por correo vía F23",
+    "motivo": "Tildado el 09/10/2026, tramo 3 de la sesión 2 del Bloque 3, decidido por Marcos. F39. Datos reales. Un correo a alomercadeo@gmail.com, único Owner o Admin de «Pruebas de correo»: fila de `email_log` `68a9bbdc`, con `alerta_id` `834f7663`, creada a las 15:40:32, «enviado» en el primer intento; Marcos lo vio en Recibidos a las 15:40, desde avisos@notificaciones.alomercadeo.com. Cero filas nuevas con ese `alerta_id` en las corridas de las 15:51:56 y de las 16:00, ni «pendiente» ni «omitido_techo»: el correo sale solo al abrir (`occurrences = 1`, `lib/vigilancia-canales.ts`), no por el techo de una hora.",
+    "fecha": "2026-10-09"
+  },
+  {
+    "texto": "- [ ] El mismo trabajo escribe su propia marca de última ejecución, visible en la interfaz. Esa marca es el control positivo del chequeo: **sin ella, F39 no se puede dar por verde**",
+    "destino": "reescrito",
+    "nuevo": "- [x] El mismo trabajo escribe su propia marca de última ejecución, visible en la interfaz. Esa marca es el control positivo del chequeo: **sin ella, F39 no se puede dar por verde**",
+    "motivo": "Tildado el 09/10/2026, tramo 3 de la sesión 2 del Bloque 3, decidido por Marcos. F39. Datos reales. `tareas_estado`, una fila por espacio (`vigilancia_canales:<espacio>`); se muestra `ultimo_ok_at`, que solo avanza si la revisión terminó bien (test visto fallar con una rotura a propósito). Vista por Marcos en Configuración, Vigilancia de canales: «Última revisión: hace 3 min» con la corrida de las 13:40, y «hace 2 min» con la de las 15:40, sin rojo. Avanzó en cada corrida leída desde la primera, a las 13:31.",
+    "fecha": "2026-10-09"
+  },
+  {
+    "texto": "- [ ] Con el canal activo y el receptor detenido a propósito, la condición se abre",
+    "destino": "reescrito",
+    "nuevo": "- [x] Con el canal activo y el receptor detenido a propósito, la condición se abre",
+    "motivo": "Tildado el 09/10/2026, tramo 3 de la sesión 2 del Bloque 3, decidido por Marcos. F39. Datos reales del silencio, con el receptor sin detener. Detenerlo obliga a tocar la suscripción, que es una sola para las dos cuentas, y corta lo que entra de @alomercadeo. La prueba: 5,74 horas hábiles de silencio real de @poderosascomunidad (canal activo, último entrante el 08/10 a las 18:43), con su límite en 1; la corrida de las 14:10 abrió la alerta `16f7896b` a las 14:10:52.",
+    "fecha": "2026-10-09"
+  },
+  {
+    "texto": "- [ ] Con el trabajo periódico detenido a propósito, la marca de última ejecución envejece y se ve en pantalla",
+    "destino": "reescrito",
+    "nuevo": "- [x] Con el trabajo periódico detenido a propósito, la marca de última ejecución envejece y se ve en pantalla",
+    "motivo": "Tildado el 09/10/2026, tramo 3 de la sesión 2 del Bloque 3, decidido por Marcos. F39. Datos reales, con el Cron Schedule de «vigilancia-cron» en `0 0 1 1 *` en vez de borrarlo (motivo en `docs/estado-fase1.md`: la documentación de Railway no dice qué política de reinicio queda sin Cron Schedule). Sin corridas desde las 14:40; Marcos vio el rojo a las 15:13 («Última revisión: hace 32 min») y, al volver a `*/10 * * * *` (15:40), la marca avanzó y se vio sin rojo.",
+    "fecha": "2026-10-09"
+  },
+  {
+    "texto": "- [ ] **El mismo trabajo consulta la lista de eventos registrada en el proveedor y la compara contra la constante esperada** (`WEBHOOK_EVENTS` de `lib/zernio-webhook.ts`). Si difieren, abre una condición en `webhook_alerts` **nombrando qué evento falta**, no un aviso genérico",
+    "destino": "reescrito",
+    "nuevo": "- [x] **El mismo trabajo consulta la lista de eventos registrada en el proveedor y la compara contra la constante esperada** (`WEBHOOK_EVENTS` de `lib/zernio-webhook.ts`). Si difieren, abre una condición en `webhook_alerts` **nombrando qué evento falta**, no un aviso genérico",
+    "motivo": "Tildado el 09/10/2026, tramo 3 de la sesión 2 del Bloque 3, decidido por Marcos. F39. La lectura es real: en «Ale Admin's Workspace», `leerWebhook` (el camino de la pantalla de Integraciones) leyó los tres eventos en cada corrida, entre ellas la de las 13:31 y la de las 16:30; Marcos los vio en la pestaña con su hora. Que nombre el evento que falta («Falta: message.sent», condición `suscripcion_incompleta`) está probado solo con la respuesta simulada (`lib/vigilancia-suscripcion.test.ts`), porque producirlo de verdad corta @alomercadeo: misma categoría que la excepción del criterio siguiente.",
+    "fecha": "2026-10-09"
+  },
+  {
+    "texto": "- [ ] Con un evento sacado a propósito de la suscripción, la condición se abre aunque el canal esté recibiendo mensajes con normalidad",
+    "destino": "reescrito",
+    "nuevo": "- [x] Con un evento sacado a propósito de la suscripción, la condición se abre aunque el canal esté recibiendo mensajes con normalidad",
+    "motivo": "Tildado el 09/10/2026, tramo 3 de la sesión 2 del Bloque 3, decidido por Marcos. F39. Tildado como EXCEPCIÓN, decidida por Marcos el 08/10/2026, de la misma categoría que el criterio de F24 de la cuenta excedida: probado solo con la respuesta de Zernio simulada (`lib/vigilancia-suscripcion.test.ts`, «con un evento sacado, la condición se abre aunque el canal esté recibiendo mensajes»), porque la suscripción real es una sola para las dos cuentas y sacarle un evento corta lo que entra de @alomercadeo.",
+    "fecha": "2026-10-09"
+  },
+  {
+    "texto": "- [ ] Tipos soportados: texto, imagen, audio, documento, video, sticker, ubicación y respuesta a otro mensaje",
+    "destino": "reescrito",
+    "nuevo": "- [x] Tipos soportados: texto, imagen, audio, documento, video, sticker, ubicación y respuesta a otro mensaje",
+    "motivo": "Tildado el 09/10/2026, tramo 3 de la sesión 2 del Bloque 3, decidido por Marcos. F27 #6. Instagram con datos reales: texto, imagen, audio y video, del recuento del tramo 2; la respuesta, con la fila `fe4c6077` (14:52 del 09/10), cuyo `quoted_message_id` es el de un mensaje ya guardado en la conversación `c6628c4e` (desde `8fa052d` se lee `metadata.quotedMessageId`). Instagram no produce documento, sticker ni ubicación, y eso no es un hueco (decidido el 08/10). WhatsApp, los ocho tipos con aviso firmado (tramo 2). `share`, `template` y `ephemeral` no están en la lista del criterio; quedaron como candidatos para F35, a decidir antes de S7.",
+    "fecha": "2026-10-09"
   }
 ]

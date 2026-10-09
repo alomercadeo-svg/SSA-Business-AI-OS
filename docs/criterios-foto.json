@@ -1158,7 +1158,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F27: Guardado de mensajes entrantes"
     ],
-    "texto": "- [ ] Tipos soportados: texto, imagen, audio, documento, video, sticker, ubicación y respuesta a otro mensaje"
+    "texto": "- [x] Tipos soportados: texto, imagen, audio, documento, video, sticker, ubicación y respuesta a otro mensaje"
   },
   {
     "seccion": "F27: Guardado de mensajes entrantes",
@@ -1320,7 +1320,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F39: Detección de silencio del canal"
     ],
-    "texto": "- [ ] Un trabajo periódico la compara contra un umbral configurable por canal, expresado en horas hábiles según la zona horaria del negocio, y abre una condición en `webhook_alerts` cuando se supera"
+    "texto": "- [x] Un trabajo periódico la compara contra un umbral configurable por canal, expresado en horas hábiles según la zona horaria del negocio, y abre una condición en `webhook_alerts` cuando se supera"
   },
   {
     "seccion": "F39: Detección de silencio del canal",
@@ -1329,7 +1329,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F39: Detección de silencio del canal"
     ],
-    "texto": "- [ ] La alerta de silencio del canal se envía por correo vía F23"
+    "texto": "- [x] La alerta de silencio del canal se envía por correo vía F23"
   },
   {
     "seccion": "F39: Detección de silencio del canal",
@@ -1338,7 +1338,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F39: Detección de silencio del canal"
     ],
-    "texto": "- [ ] El mismo trabajo escribe su propia marca de última ejecución, visible en la interfaz. Esa marca es el control positivo del chequeo: **sin ella, F39 no se puede dar por verde**"
+    "texto": "- [x] El mismo trabajo escribe su propia marca de última ejecución, visible en la interfaz. Esa marca es el control positivo del chequeo: **sin ella, F39 no se puede dar por verde**"
   },
   {
     "seccion": "F39: Detección de silencio del canal",
@@ -1347,7 +1347,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F39: Detección de silencio del canal"
     ],
-    "texto": "- [ ] Con el canal activo y el receptor detenido a propósito, la condición se abre"
+    "texto": "- [x] Con el canal activo y el receptor detenido a propósito, la condición se abre"
   },
   {
     "seccion": "F39: Detección de silencio del canal",
@@ -1356,7 +1356,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F39: Detección de silencio del canal"
     ],
-    "texto": "- [ ] Con el trabajo periódico detenido a propósito, la marca de última ejecución envejece y se ve en pantalla"
+    "texto": "- [x] Con el trabajo periódico detenido a propósito, la marca de última ejecución envejece y se ve en pantalla"
   },
   {
     "seccion": "F39: Detección de silencio del canal",
@@ -1365,7 +1365,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F39: Detección de silencio del canal"
     ],
-    "texto": "- [ ] **El mismo trabajo consulta la lista de eventos registrada en el proveedor y la compara contra la constante esperada** (`WEBHOOK_EVENTS` de `lib/zernio-webhook.ts`). Si difieren, abre una condición en `webhook_alerts` **nombrando qué evento falta**, no un aviso genérico"
+    "texto": "- [x] **El mismo trabajo consulta la lista de eventos registrada en el proveedor y la compara contra la constante esperada** (`WEBHOOK_EVENTS` de `lib/zernio-webhook.ts`). Si difieren, abre una condición en `webhook_alerts` **nombrando qué evento falta**, no un aviso genérico"
   },
   {
     "seccion": "F39: Detección de silencio del canal",
@@ -1374,7 +1374,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F39: Detección de silencio del canal"
     ],
-    "texto": "- [ ] Con un evento sacado a propósito de la suscripción, la condición se abre aunque el canal esté recibiendo mensajes con normalidad"
+    "texto": "- [x] Con un evento sacado a propósito de la suscripción, la condición se abre aunque el canal esté recibiendo mensajes con normalidad"
   },
   {
     "seccion": "F28: Adjuntos",

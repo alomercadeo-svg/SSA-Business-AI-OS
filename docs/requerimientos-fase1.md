@@ -670,7 +670,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** que las conversaciones con los leads vivan en la base del negocio y no en un proveedor.
 
-**Estado: construida, no completa** (8 de octubre de 2026, tramo 1 de la sesión 2 del Bloque 3). Migración 00032; los dos receptores guardan antes del acuse (`lib/mensajes-guardado.ts`, `lib/zernio-aviso.ts`, `lib/evolution-guardado.ts`); la bandeja guarda lo que envía y lee de la base (`fcca3be`); la importación del historial trajo 568 conversaciones y 3.571 mensajes. 13 de 14 criterios tildados. **Falta el #6, tipos soportados**: un aviso firmado por tipo y el recuento por tipo de los adjuntos de Instagram, en el tramo 2. El detalle está en `docs/estado-fase1.md`. Antes decía: no construido (verificado el 22 de septiembre de 2026: `messages` tiene 0 filas después de 9 entregas de webhook, y nada en el código inserta entrantes).
+**Estado: completa** (9 de octubre de 2026, tramo 3 de la sesión 2 del Bloque 3): 14 de 14 criterios. El #6, tipos soportados, se tildó ese día: Instagram con datos reales, incluida la respuesta a otro mensaje desde `8fa052d`, y WhatsApp con aviso firmado. La llegada real de WhatsApp se comprueba en la puesta en marcha del número. Antes decía: construida, no completa (8 de octubre de 2026, tramo 1 de la sesión 2 del Bloque 3). Migración 00032; los dos receptores guardan antes del acuse (`lib/mensajes-guardado.ts`, `lib/zernio-aviso.ts`, `lib/evolution-guardado.ts`); la bandeja guarda lo que envía y lee de la base (`fcca3be`); la importación del historial trajo 568 conversaciones y 3.571 mensajes. 13 de 14 criterios tildados. **Falta el #6, tipos soportados**: un aviso firmado por tipo y el recuento por tipo de los adjuntos de Instagram, en el tramo 2. El detalle está en `docs/estado-fase1.md`. Antes decía: no construido (verificado el 22 de septiembre de 2026: `messages` tiene 0 filas después de 9 entregas de webhook, y nada en el código inserta entrantes).
 
 **Criterios de aceptación:**
 
@@ -679,7 +679,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [x] La fecha del proveedor viene en segundos y se convierte al guardar
 - [x] Se contemplan las dos formas del aviso: el de mensaje individual trae un objeto, el de sincronización trae una lista
 - [x] Se guarda la referencia al mensaje citado, para poder reconstruir hilos, aunque ese mensaje todavía no exista de nuestro lado
-- [ ] Tipos soportados: texto, imagen, audio, documento, video, sticker, ubicación y respuesta a otro mensaje
+- [x] Tipos soportados: texto, imagen, audio, documento, video, sticker, ubicación y respuesta a otro mensaje
 - [x] La base pasa a ser la fuente de verdad de la bandeja. Después de esta funcionalidad, la bandeja no consulta más al proveedor para mostrar mensajes
 - [x] El camino de entrada es el mismo para Instagram y WhatsApp, sin condicionales por plataforma más allá del adaptador
 - [x] **Importación del historial de Instagram que ya existe.** Ver abajo: sin esto, el criterio anterior hace que la bandeja pierda las conversaciones viejas el día que se migre
@@ -809,18 +809,18 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** que un canal que dejó de recibir mensajes se note, en lugar de parecer un día tranquilo. Va numerada aparte de F27 y no adentro: F27 guarda lo que llega, F39 avisa cuando deja de llegar, y son dos mecanismos con dos formas distintas de fallar.
 
-**Estado: no completa** (8 de octubre de 2026): 1 de 8 criterios, la marca del último entrante por canal, construida con F27 (`channels.last_inbound_at`, 00032) y probada con datos reales en el tramo 2 de la sesión 2. El trabajo periódico, la suscripción, el correo y las pruebas van en el tramo 3. Antes decía: no construido (verificado el 22 de septiembre de 2026: se especificó el 21 de septiembre de 2026 y no se empezó).
+**Estado: completa** (9 de octubre de 2026, tramo 3 de la sesión 2 del Bloque 3): 8 de 8 criterios. Migración 00033; el trabajo es `POST /api/cron/tareas`, llamado cada 10 minutos por el servicio «vigilancia-cron» de Railway; la marca de última ejecución vive en `tareas_estado`; las pantallas son General (zona y horario) y Vigilancia de canales. Probado con datos reales salvo dos partes que solo se pueden producir dañando la suscripción real, que es una sola para las dos cuentas: el evento que falta y el evento sacado, probados con la respuesta simulada (el segundo, tildado como excepción). El detalle está en `docs/estado-fase1.md`. Antes decía: no completa (8 de octubre de 2026): 1 de 8 criterios, la marca del último entrante por canal, construida con F27 (`channels.last_inbound_at`, 00032) y probada con datos reales en el tramo 2 de la sesión 2. El trabajo periódico, la suscripción, el correo y las pruebas van en el tramo 3. Antes decía: no construido (verificado el 22 de septiembre de 2026: se especificó el 21 de septiembre de 2026 y no se empezó).
 
 **Criterios de aceptación:**
 
 - [x] Cada canal guarda la marca de tiempo del último evento entrante recibido, actualizada por el receptor
-- [ ] Un trabajo periódico la compara contra un umbral configurable por canal, expresado en horas hábiles según la zona horaria del negocio, y abre una condición en `webhook_alerts` cuando se supera
-- [ ] La alerta de silencio del canal se envía por correo vía F23
-- [ ] El mismo trabajo escribe su propia marca de última ejecución, visible en la interfaz. Esa marca es el control positivo del chequeo: **sin ella, F39 no se puede dar por verde**
-- [ ] Con el canal activo y el receptor detenido a propósito, la condición se abre
-- [ ] Con el trabajo periódico detenido a propósito, la marca de última ejecución envejece y se ve en pantalla
-- [ ] **El mismo trabajo consulta la lista de eventos registrada en el proveedor y la compara contra la constante esperada** (`WEBHOOK_EVENTS` de `lib/zernio-webhook.ts`). Si difieren, abre una condición en `webhook_alerts` **nombrando qué evento falta**, no un aviso genérico
-- [ ] Con un evento sacado a propósito de la suscripción, la condición se abre aunque el canal esté recibiendo mensajes con normalidad
+- [x] Un trabajo periódico la compara contra un umbral configurable por canal, expresado en horas hábiles según la zona horaria del negocio, y abre una condición en `webhook_alerts` cuando se supera
+- [x] La alerta de silencio del canal se envía por correo vía F23
+- [x] El mismo trabajo escribe su propia marca de última ejecución, visible en la interfaz. Esa marca es el control positivo del chequeo: **sin ella, F39 no se puede dar por verde**
+- [x] Con el canal activo y el receptor detenido a propósito, la condición se abre
+- [x] Con el trabajo periódico detenido a propósito, la marca de última ejecución envejece y se ve en pantalla
+- [x] **El mismo trabajo consulta la lista de eventos registrada en el proveedor y la compara contra la constante esperada** (`WEBHOOK_EVENTS` de `lib/zernio-webhook.ts`). Si difieren, abre una condición en `webhook_alerts` **nombrando qué evento falta**, no un aviso genérico
+- [x] Con un evento sacado a propósito de la suscripción, la condición se abre aunque el canal esté recibiendo mensajes con normalidad
 
 > **Por qué la verificación de la suscripción va acá y no es una funcionalidad aparte: F39, sin esto, no detectaría la falla que ella misma vuelve posible.**
 >
@@ -2198,6 +2198,8 @@ No se deciden leyendo documentación. Se instrumentan y se miran.
   - No se construye ni se decide todavía.
 - **Dueño escrito del criterio de detección de F24 (anotado el 08/10/2026):** el cableado de las claves de IA de la Fase 2 (las de OpenAI, Anthropic y Google de la pantalla de integraciones) registra sus fallos de credenciales en `integration_configs`, igual que `registrarFalloDeZernio` y `registrarFalloDeResend` (`lib/integraciones-estado.ts`). Es lo que falta para tildar ese criterio. El nodo `ai-response` del fork usa el AI Gateway con otra clave y no cuenta.
 - **Anotado el 07/10/2026: las «horas hábiles» de F39 no tenían de dónde salir.** F39 expresa el umbral de silencio en horas hábiles según la zona horaria del negocio, pero ningún lado del plano decía cuál es el horario del negocio. Desde el 07/10/2026 sale del «Horario de atención del negocio», en la pestaña General de Configuración (§11). Es otra cosa que la franja horaria de F33, que es del canal de WhatsApp y se aplica en la zona horaria del contacto. Se escribió como descripción de pantalla y no como criterio de F39, porque F39 es de la línea de base del Bloque 3.
+- **Anotado el 09/10/2026, sin dueño: los `share` de Instagram no se ven en la bandeja.** Al 09/10 hay 30 entrantes (y 14 salientes) con adjunto de tipo `share`, sin texto y con un enlace; la bandeja los muestra como «Adjunto» y nada más (`MessageBubble`, `components/inbox/message-thread.tsx:56`, «Adjunto» en `:86-90`). Ningún criterio los cubre: F28 trata de archivos que se descargan y se guardan, y un `share` es un enlace a una publicación; F35 no dice cómo se muestra un mensaje. Lo mismo con `template` (19 entrantes) y `ephemeral` (1), que además no se sabe qué son: no aparecen en ningún tipo de `@zernio/node` 0.2.519. Se anota sin escribir criterio; quién lo toma lo decide Marcos.
+- **Anotado el 09/10/2026, sin dueño: la pestaña «Alertas» de Configuración.** Esta sección la reparte entre F22 y F39, pero ningún criterio de las dos la pide: F22 está completa con el aviso de Canales, y F39 no la nombra. No se construyó con F39. Se anota para que tenga dueño.
 - **Pendiente de decisión, no es una decisión (anotado el 07/10/2026): los estados de la conversación.** El prototipo aprobado muestra en la bandeja la pestaña «Pospuestas» y el botón «Cerrar» / «Reabrir» de la conversación, y el plano no los especifica. El fork ya trae tres estados (verificado el 07/10/2026):
   - `conversations.status` admite `'open'`, `'closed'` y `'snoozed'` (`supabase/migrations/00001_initial_schema.sql:176`; `ConversationStatus` en `lib/types/database.ts:34`).
   - La lista tiene las pestañas por estado (`components/inbox/conversation-list.tsx:140`).
