@@ -140,7 +140,7 @@ export async function importarMensajes({
               text: m.text,
               attachments: (m.attachments as AdjuntoCrudo[] | null) ?? null,
               messageType: tipoPorAdjuntos(m.attachments as AdjuntoCrudo[] | null),
-              quotedMessageId: null,
+              quotedMessageId: m.quoted_message_id,
               remoteJid: remitente.get(conv.contact_id) ?? null,
               createdAt: m.created_at,
             })),

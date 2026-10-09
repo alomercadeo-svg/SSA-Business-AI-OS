@@ -72,6 +72,10 @@ function titulo(condicion: WebhookAlertCondition): string {
       return "Están llegando mensajes de una conexión que no reconocemos";
     case "zernio_sync_cero_cuentas":
       return "Zernio devolvió cero cuentas al sincronizar";
+    case "canal_silencioso":
+      return "Un canal pasó su límite de horas sin recibir mensajes";
+    case "suscripcion_incompleta":
+      return "A la suscripción de avisos de Instagram le falta un evento";
     default:
       return "El receptor de mensajes reportó un problema";
   }
@@ -92,6 +96,11 @@ function titulo(condicion: WebhookAlertCondition): string {
  * directamente falso: todavía no se perdió ninguno.
  */
 function recuento(alerta: Alerta): string {
+  // Las de F39 las registra la revisión periódica en cada corrida: el número
+  // cuenta revisiones que la encontraron, no mensajes.
+  if (alerta.alert_condition === "canal_silencioso" || alerta.alert_condition === "suscripcion_incompleta") {
+    return alerta.occurrences === 1 ? "Vista en 1 revisión" : `Vista en ${alerta.occurrences} revisiones`;
+  }
   // Acá el número cuenta sincronizaciones, no mensajes: ninguna desactivó nada.
   if (alerta.alert_condition === "zernio_sync_cero_cuentas") {
     return alerta.occurrences === 1
@@ -186,6 +195,25 @@ export async function WebhookAlertsBanner({
                 <p className="font-medium">
                   Todavía no se perdió ningún mensaje: se están reintentando durante unos 20
                   minutos. Corregí el nombre antes de que se agoten.
+                </p>
+              </div>
+            ) : alerta.alert_condition === "canal_silencioso" ? (
+              <div className="mt-1 space-y-1 text-sm text-red-800 dark:text-red-200">
+                {/* El detalle lo arma la revisión de F39 con los nombres de los canales. */}
+                {alerta.detail && <p className="break-words font-medium">{alerta.detail}</p>}
+                <p>
+                  Puede ser un período tranquilo, o puede ser que los mensajes no estén llegando al
+                  sistema. Comprobá que la cuenta siga recibiendo mensajes y que el canal siga
+                  conectado. La alerta se cierra sola cuando todos los canales vigilados vuelven a
+                  estar dentro de su límite.
+                </p>
+              </div>
+            ) : alerta.alert_condition === "suscripcion_incompleta" ? (
+              <div className="mt-1 space-y-1 text-sm text-red-800 dark:text-red-200">
+                {alerta.detail && <p className="break-words font-medium">{alerta.detail}</p>}
+                <p>
+                  Lo que llega por ese aviso no entra a la bandeja, aunque los demás mensajes sigan
+                  llegando. La alerta se cierra sola cuando la suscripción vuelve a estar completa.
                 </p>
               </div>
             ) : alerta.alert_condition === "zernio_sync_cero_cuentas" ? (

@@ -25,11 +25,11 @@
 
 /** Columnas de `workspaces` que pueden viajar al cliente. Sin los tres secretos. */
 export const WORKSPACE_PUBLIC_COLUMNS =
-  "id, name, slug, ai_provider, global_keywords, unassigned_leads_visible_to_members, created_at, updated_at";
+  "id, name, slug, ai_provider, global_keywords, unassigned_leads_visible_to_members, zona_horaria, horario_atencion, created_at, updated_at";
 
 /** Columnas de `channels` que pueden viajar al cliente. Sin `webhook_secret`. */
 export const CHANNEL_PUBLIC_COLUMNS =
-  "id, workspace_id, platform, provider, instance_name, late_account_id, platform_account_id, username, display_name, profile_picture, webhook_id, is_active, excede_plan_zernio, last_inbound_at, last_comment_cursor, comment_rules, created_at, updated_at";
+  "id, workspace_id, platform, provider, instance_name, late_account_id, platform_account_id, username, display_name, profile_picture, webhook_id, is_active, excede_plan_zernio, last_inbound_at, umbral_silencio_horas, last_comment_cursor, comment_rules, created_at, updated_at";
 
 /**
  * Columnas de secretos por tabla: PROHIBIDAS fuera del allowlist.

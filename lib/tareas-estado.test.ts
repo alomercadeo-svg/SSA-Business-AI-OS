@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { marcaVisible, marcaVencida, MINUTOS_PARA_VENCER } from "./tareas-estado";
+import { marcaVisible, marcaVencida, MINUTOS_PARA_VENCER, haceCuanto } from "./tareas-estado";
 
 /**
  * La «Última revisión» de Vigilancia de canales (F39) y la regla de los 30
@@ -35,5 +35,18 @@ describe("marca visible de una tarea", () => {
     const limite = new Date(AHORA.getTime() - 30 * 60_000).toISOString();
     expect(marcaVencida({ ultimo_ok_at: limite }, AHORA)).toBe(false);
     expect(marcaVencida({ ultimo_ok_at: new Date(AHORA.getTime() - 30 * 60_000 - 1).toISOString() }, AHORA)).toBe(true);
+  });
+});
+
+describe("hace cuánto (F39, para la pantalla)", () => {
+  const ahora = new Date("2026-10-09T19:00:00.000Z");
+  it("en minutos, en horas y en días", () => {
+    expect(haceCuanto("2026-10-09T18:59:40.000Z", ahora)).toBe("hace menos de 1 min");
+    expect(haceCuanto("2026-10-09T18:48:00.000Z", ahora)).toBe("hace 12 min");
+    expect(haceCuanto("2026-10-09T16:00:00.000Z", ahora)).toBe("hace 3 h");
+    expect(haceCuanto("2026-10-06T19:00:00.000Z", ahora)).toBe("hace 3 días");
+  });
+  it("una marca en el futuro no dice «hace» un número negativo", () => {
+    expect(haceCuanto("2026-10-09T19:05:00.000Z", ahora)).toBe("hace menos de 1 min");
   });
 });

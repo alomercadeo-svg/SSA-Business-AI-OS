@@ -36,7 +36,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, IntegrationEstado } from "@/lib/types/database";
 import { getWorkspaceSecret } from "@/lib/vault";
 import { createZernioClient } from "@/lib/zernio-client";
-import { definicionDe, resumenWebhook } from "@/lib/integraciones";
+import { definicionDe, resumenWebhook, type EstadoWebhook } from "@/lib/integraciones";
 
 export interface Deteccion {
   estado: IntegrationEstado;
@@ -219,14 +219,29 @@ export function estadoResend(status: number, cuerpo: unknown): Deteccion {
  * Si no se puede leer, el estado de Zernio no cambia: queda dicho en el
  * registro del webhook.
  */
-async function leerWebhook(zernio: ReturnType<typeof createZernioClient>) {
+export async function leerWebhook(zernio: ReturnType<typeof createZernioClient>): Promise<EstadoWebhook> {
   const verificado_el = new Date().toISOString();
   try {
     const res = (await conTiempo(zernio.webhooks.getWebhookSettings())) as { data?: unknown };
     return { ...resumenWebhook(res?.data ?? res), verificado_el, error: null };
-  } catch {
-    return { registrado: false, url: null, activo: null, eventos: [], secreto: null, otros: 0, verificado_el, error: "No se pudo leer el registro del webhook en Zernio." };
+  } catch (e) {
+    return { registrado: false, url: null, activo: null, eventos: [], secreto: null, otros: 0, verificado_el, error: motivoDeFallo(e) };
   }
+}
+
+/**
+ * El motivo real de una lectura fallida, para mostrar (F39: «No se pudo leer la
+ * suscripción: …»). Sale del código HTTP o del tipo de falla, nunca del texto
+ * crudo del error. El SDK tira un `ZernioApiError` con `statusCode` ante una
+ * respuesta HTTP de error (`@zernio/node` 0.2.519, `dist/index.js:3642-3645` y
+ * `:4853`, verificado el 09/10/2026).
+ */
+function motivoDeFallo(e: unknown): string {
+  const conocido = estadoPorFallo(e)?.error;
+  if (conocido) return conocido;
+  const status = (e as { statusCode?: unknown })?.statusCode;
+  if (typeof status === "number") return `Zernio respondió HTTP ${status}.`;
+  return "Zernio respondió algo que no se pudo interpretar.";
 }
 
 type Cliente = SupabaseClient<Database>;

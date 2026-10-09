@@ -29,8 +29,14 @@
  *   mensajes (`id`), medido el 21/09/2026: es lo que hace que el aviso y la
  *   importación no dupliquen.
  * - `sentAt` es la fecha del proveedor, en ISO.
- * - No trae referencia a un mensaje citado. Si Zernio la manda en algún caso,
- *   no está verificado: `quotedMessageId` queda nulo.
+ * - **El mensaje citado viene en `metadata.quotedMessageId`**: el
+ *   `platformMessageId` del mensaje al que responde (`reply_to.mid` de Meta en
+ *   Instagram). Verificado en los tipos de `@zernio/node` 0.2.519
+ *   (`dist/index.d.ts:7587-7595`) el 09/10/2026, no con un aviso real; según
+ *   esos tipos, en un echo de `message.sent` es el único campo de `metadata`
+ *   que llega. Hasta ese día este comentario decía que no venía y se guardaba
+ *   nulo. La respuesta a una historia es otro campo (`metadata.storyReply`) y
+ *   no se guarda.
  */
 import { tipoPorAdjuntos, type AdjuntoCrudo, type MensajeParaGuardar } from "./mensajes-guardado";
 
@@ -61,6 +67,7 @@ export interface AvisoDeMensajeZernio {
     quickReplyPayload?: string;
     callbackData?: string;
     postbackPayload?: string;
+    quotedMessageId?: string;
   };
 }
 
@@ -119,7 +126,7 @@ export function mensajeDelAviso(
     text: texto,
     attachments: adjuntos,
     messageType: tipoPorAdjuntos(adjuntos),
-    quotedMessageId: null,
+    quotedMessageId: aviso.metadata?.quotedMessageId || null,
     remoteJid,
     createdAt: aviso.message.sentAt || new Date().toISOString(),
   };

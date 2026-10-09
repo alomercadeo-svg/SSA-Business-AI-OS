@@ -342,6 +342,23 @@ describe("notificarAlerta", () => {
     expect(llamadas).toHaveLength(2);
   });
 
+  it("el silencio de un canal (F39) tiene su propio asunto y nombra los canales del detalle", async () => {
+    h.alertas.push({ id: "al-sil", workspace_id: "ws-1", source: "vigilancia", alert_condition: "canal_silencioso", detail: "Instagram @cuenta: 9 de 8 horas hábiles", occurrences: 1, resolved_at: null });
+    const r = await notificarAlerta("al-sil", { esperar: sinEsperar });
+    expect(r?.estado).toBe("enviado");
+    const cuerpo = llamadas[0].cuerpo;
+    expect(cuerpo.subject).toBe("Un canal pasó su límite de horas sin recibir mensajes");
+    expect(String(cuerpo.html)).toContain("Instagram @cuenta: 9 de 8 horas hábiles");
+  });
+
+  it("la suscripción incompleta (F39) tiene su propio asunto y nombra el evento que falta", async () => {
+    h.alertas.push({ id: "al-sus", workspace_id: "ws-1", source: "zernio", alert_condition: "suscripcion_incompleta", detail: "Falta: message.sent", occurrences: 1, resolved_at: null });
+    const r = await notificarAlerta("al-sus", { esperar: sinEsperar });
+    expect(r?.estado).toBe("enviado");
+    expect(llamadas[0].cuerpo.subject).toBe("A la suscripción de avisos de Instagram le falta un evento");
+    expect(String(llamadas[0].cuerpo.html)).toContain("Falta: message.sent");
+  });
+
   it("una alerta sin workspace no manda correo ni reserva nada", async () => {
     h.alertas.push({ id: "al-sis", workspace_id: null, source: "evolution", alert_condition: "webhook_unknown_instance", occurrences: 1, resolved_at: null });
     const r = await notificarAlerta("al-sis", { esperar: sinEsperar });

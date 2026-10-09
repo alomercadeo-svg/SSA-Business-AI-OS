@@ -99,6 +99,17 @@ describe("importación de mensajes (F27)", () => {
     expect([...mensajes.values()][0]).toMatchObject({ remote_jid: "ig-ct-a", direction: "inbound" });
   });
 
+  it("guarda la referencia al mensaje citado que trae el listado (metadata.quotedMessageId, F27)", async () => {
+    const convs = [conv("q")];
+    const { supabase, mensajes } = baseFalsa(convs);
+    const citado = { ...msg("m2"), metadata: { quotedMessageId: "m1" } };
+    const { zernio } = zernioCon({ "z-q": [{ messages: [citado, msg("m1")], hasMore: false }] });
+    await importarMensajes({ supabase: supabase as never, zernio, channels: [canal] });
+    const porId = new Map([...mensajes.values()].map((f) => [f.platform_message_id, f]));
+    expect(porId.get("m2")).toMatchObject({ quoted_message_id: "m1" });
+    expect(porId.get("m1")).toMatchObject({ quoted_message_id: null });
+  });
+
   it("un corte a la mitad deja la conversación pendiente; la siguiente corrida la retoma sin duplicar", async () => {
     const convs = [conv("a"), conv("b")];
     const { supabase, mensajes } = baseFalsa(convs);

@@ -650,6 +650,8 @@ Corrieron los dos caminos: el receptor, que guardó el mensaje, y el relleno, qu
 - **C, `02cdbc1`** (cierre del tramo 1, docs). Salida 0: el build pasó de `HbTjJT0eMqBkKo-ZIMIlL` a `OM87L_1AFbkaUhg4O6D2k`, de 17:48:14 a 17:49:50, con `/login` en 200.
 - **D, `8192c8e`** (los criterios tildados, docs). Salida 0: el build pasó de `OM87L_1AFbkaUhg4O6D2k` a `jBAmISwOjEmFwPoRN2WnR`, de 17:54:51 a 17:56:26, con `/login` en 200.
 - C y D no podían figurar en sí mismos: se anotaron al abrir el tramo 2, con las salidas que capturó la sesión anterior.
+- **E, `4b93823`** (cierre del tramo 2, docs). Salida 0: el build pasó de `jBAmISwOjEmFwPoRN2WnR` a `Wb3RUjlMRDe0nzMggZdAp`, de 19:49:23 a 19:51:40, con `/login` en 200 y sin importación corriendo. No podía figurar en sí mismo: se anotó al abrir el tramo 3, con la salida que capturó la sesión anterior.
+- **Railway, mirado por Marcos el 09/10/2026 a las 12:02.** ACTIVE: «docs: cierre del tramo 2 de la sesión 2 del Bloque 3 (F27, F25 y F39) ...», hace 16 horas, vía GitHub, en «Deployment successful». En HISTORY, debajo: REMOVED «docs: tildar los criterios cumplidos de F27, F25 y F26 al cerrar el tram...», hace 18 horas. La pantalla de Deployments no muestra hashes: los dos se **identificaron por título** contra `git log` (`4b93823` y `8192c8e`), no por un hash visto en Railway.
 - Railway no lo miró nadie durante el tramo: el script no dice qué commit quedó activo. **Después, dicho por Marcos con captura el 08/10 a las 18:09:** la tarjeta ACTIVE es «docs: tildar los criterios cumplidos de F27, F25 y F26 al cerrar el tram…» (`8192c8e`), en «Deployment successful», subida 13 minutos antes. **El HISTORY no se miró:** no se sabe si alguno de `b4470a3`, `fcca3be` o `02cdbc1` falló en Railway; el script solo dice que el build servido cambió cada vez.
 
 **`scripts/verify-guardado-whatsapp.mjs` contra el receptor de producción**, en un espacio fantasma, con un canal descartable y un secreto generado por el propio script:
@@ -681,7 +683,7 @@ Corrieron los dos caminos: el receptor, que guardó el mensaje, y el relleno, qu
 - **Sin tildar:** en F25, `last_click`. En F26, las tres vías de reconciliación, la propuesta de fusión, la fusión con notas (F30) y la identidad del canal.
 - **El avance no cambia:** sigue en 9 de 26. F27 cierra con el #6 en el tramo 2; F25 y F26 siguen sin completar.
 
-**Pendientes para el tramo 2, además de F39 y F28:**
+**Pendientes para el tramo 2, además de F39 y F28** (atendidos en el tramo 2, ver «Tramo 2» abajo; la lista queda como estaba):
 - **F27 #6, tipos soportados:**
   - un aviso firmado por cada tipo en `scripts/verify-guardado-whatsapp.mjs`: texto, imagen, audio, documento, video, sticker, ubicación y respuesta;
   - un recuento sin contenido de los 478 adjuntos importados de Instagram, por `message_type`.
@@ -730,6 +732,20 @@ Corrieron los dos caminos: el receptor, que guardó el mensaje, y el relleno, qu
 - **F27 #6 en Instagram.** Verificar en los tipos de `@zernio/node` (archivo y línea, sin leer datos) qué son `template`, `share` y `ephemeral`, y si Instagram trae el mensaje citado (la respuesta). Los tipos que Instagram no produce (documento, sticker, ubicación) no son un hueco. **Si `share` o `template` son mensajes del lead (hay 27 y 19 entrantes), hoy su contenido no se ve en la bandeja.**
 - **El diseño de las tareas programadas, aprobado el 08/10/2026, sin construir.** Un servicio de Railway, «vigilancia-cron», desde la imagen `curlimages/curl` con versión fija y Cron Schedule cada 10 minutos (Railway lo interpreta en UTC, con un mínimo de 5 minutos). Su comando, con `sh -c`, hace un POST con `--fail` y `--max-time` a `https://app.alomercadeo.com/api/cron/tareas` con `Authorization: Bearer $CRON_SECRET`, y termina. La ruta nueva acepta el secreto solo en el encabezado, lo compara en tiempo constante y corre la lista de tareas del código. Las rutas del fork (`/api/cron/jobs` y `/api/cron/sequences`) no se tocan ni se llaman.
 - **Retrabajo de F25, el toque de Instagram. Se mide como un tramo nuevo de la sesión 1, no de la 2 (decidido por Marcos el 08/10/2026).** Verificado en los tipos de `@zernio/node` 0.2.519 (`node_modules/@zernio/node/dist/index.d.ts`), no con datos reales: `message.received` (`WebhookPayloadMessage`, `:7455`) trae `metadata.referral` (`:7757-7808`), con `ad_id` (`:7776`), `ref` (`:7782`), `source` (`:7788`), `type` (`:7794`) y `ads_context_data` (`:7800-7807`); el comentario de `:7744-7755` dice que viene tal cual lo manda Meta y solo en el primer entrante después del clic. `getInboxConversation` (`:462`; respuesta en `:16593`) trae `metadata.meta_ad_*` (`:16669-16709`), con otros nombres a propósito, y sin campaña ni conjunto de anuncios. El camino: el receptor de Instagram arma el toque con `toqueDe` y lo aplica con `aplicarToque` (`lib/atribucion.ts`), que ya existen. Unos 45 minutos con tests. **Para el fixture hace falta un aviso real con `metadata.referral`; cómo conseguirlo lo decide Marcos otro día.** No se construyó nada.
+
+### Tramo 3: pendiente corto de F27 y el resto de F39
+
+**Apertura: 09/10/2026 12:09:06 de Costa Rica**, leída con `TZ=America/Costa_Rica date`. `node scripts/commits-sin-subir.mjs`: «Sin commits sin subir contra origin/bloque-1-foundation»; último commit `4b93823`. Se completó el registro de `4b93823` (despliegue E, arriba) y lo que Marcos vio en Railway.
+
+**Migración 00033 (`vigilancia_canales`), aplicada el 09/10/2026 a las 12:52:11 con `supabase db push`, salida 0, con la aprobación de Marcos.** Agrega `workspaces.zona_horaria` (por defecto `America/Costa_Rica`), `workspaces.horario_atencion` (por defecto el del prototipo, lunes a viernes de 8:00 a 18:00 y sábado de 9:00 a 12:00, **no confirmado por Alejandra**) y `channels.umbral_silencio_horas` (por defecto 8, nulo = sin vigilar).
+- **Antes:** `tareas_estado` sin ninguna fila ocupada, leída a las 12:23:34 y otra vez a las 12:52:04, inmediatamente antes del push. `--dry-run`: solo la 00033. Recuento a las 12:24.
+- **Después, diferencias contra el recuento de las 12:24:** migraciones registradas, de 32 (última 00032) a 33 (última 00033); `messages`, de 3595 a 3597 (los 2 en @alomercadeo: salientes de 1947 a 1949, con adjunto de 481 a 483). Las 29 tablas y el resto de las cantidades, iguales.
+- **Las 2 filas de más son tráfico real, no efecto de la migración.** La prueba es la hora de creación: `b2a3c7b1` a las 12:30:07 y `4706fc28` a las 12:30:12, 22 minutos antes del push. Son dos salientes de @alomercadeo, con adjunto `share`, no enviados desde la bandeja (leídos sin contenido). Además, la 00033 no inserta filas.
+- **Releído después, sin contenido:** los 3 canales (`8f30b551` @alomercadeo, `e6ad79a8` @poderosascomunidad, `f81fd726` alomercadeo-ventas) con `umbral_silencio_horas` 8; los 2 espacios (`e8f4f678` «Ale Admin's Workspace», `1a3db984` «Pruebas de correo») con `America/Costa_Rica` y el horario por defecto.
+
+**Pendientes anotados en este tramo, sin investigar:**
+- **`audit_log` sin espacio: el recuento del 09/10 muestra 23 filas; el arranque registraba 11 huérfanas.** No se sabe si la diferencia son filas legítimas sin espacio (por ejemplo, las de los espacios fantasma de los verificadores) o más huérfanas.
+- **Los mensajes con adjunto ya no son 478.** Hoy son 483 en @alomercadeo, y suben con el uso. F28 los recuenta en el momento, antes de pedir el OK de las descargas.
 
 ---
 

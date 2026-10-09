@@ -320,19 +320,46 @@ export function aHtml(parrafos: string[]): string {
 
 /**
  * Qué dice el correo de cada condición. Explica qué pasó y qué hacer, como pide
- * §11 para la pestaña de Alertas. No incluye `detail`: el de la instancia
- * desconocida lo elige quien manda el aviso, y los demás no le suman nada a
- * quien lee el correo.
+ * §11 para la pestaña de Alertas. El `detail` entra SOLO en las dos condiciones
+ * de F39 (`canal_silencioso` y `suscripcion_incompleta`), cuyo detalle lo arma
+ * nuestro código (`lib/vigilancia-canales.ts` y `lib/vigilancia-suscripcion.ts`)
+ * y nombra los canales o el evento que falta. En las demás no: el de la
+ * instancia desconocida lo elige quien manda el aviso.
  *
  * `webhook_unknown_instance` no está, a propósito: no tiene workspace y no se
  * avisa por correo hasta que se decida a quién (§15, 07/10/2026).
  */
 export function contenidoDeAlerta(
   condicion: WebhookAlertCondition | string,
-  ocurrencias: number
+  ocurrencias: number,
+  detalle: string | null = null
 ): { asunto: string; parrafos: string[] } {
   const canales = `${urlApp()}/dashboard/channels`;
+  const vigilancia = `${urlApp()}/dashboard/settings/vigilancia`;
   switch (condicion) {
+    case "canal_silencioso":
+      return {
+        asunto: "Un canal pasó su límite de horas sin recibir mensajes",
+        parrafos: [
+          "Uno o más canales pasaron más horas hábiles sin recibir mensajes que el límite que tienen configurado.",
+          ...(detalle ? [detalle] : []),
+          "Puede ser un período tranquilo, o puede ser que los mensajes no estén llegando al sistema. Conviene comprobar que la cuenta siga recibiendo mensajes y que el canal siga conectado.",
+          "La alerta se cierra sola cuando todos los canales vigilados vuelven a estar dentro de su límite.",
+          `El límite de cada canal se cambia en Configuración, Vigilancia de canales: ${vigilancia}`,
+          `Revisalo en Canales: ${canales}`,
+        ],
+      };
+    case "suscripcion_incompleta":
+      return {
+        asunto: "A la suscripción de avisos de Instagram le falta un evento",
+        parrafos: [
+          "La suscripción registrada en Zernio no incluye todos los avisos que el sistema necesita.",
+          ...(detalle ? [detalle] : []),
+          "Mientras falte, lo que llega por ese aviso no entra a la bandeja, aunque los demás mensajes sigan llegando.",
+          "La alerta se cierra sola cuando la suscripción vuelve a estar completa.",
+          `Revisalo en Configuración, Vigilancia de canales: ${vigilancia}`,
+        ],
+      };
     case "webhook_auth_failed":
       return {
         asunto: "WhatsApp está rechazando mensajes entrantes",
@@ -378,7 +405,7 @@ export async function notificarAlerta(alertaId: string, opciones: OpcionesEnvio 
     const servicio = opciones.servicio ?? (await createServiceClient());
     const { data: alerta } = await servicio
       .from("webhook_alerts")
-      .select("id, workspace_id, source, alert_condition, occurrences, resolved_at")
+      .select("id, workspace_id, source, alert_condition, detail, occurrences, resolved_at")
       .eq("id", alertaId)
       .maybeSingle();
     if (!alerta || alerta.resolved_at) return null;
@@ -387,7 +414,7 @@ export async function notificarAlerta(alertaId: string, opciones: OpcionesEnvio 
     // decir: queda sin correo hasta que se decida (§15, 07/10/2026).
     if (!alerta.workspace_id) return null;
 
-    const { asunto, parrafos } = contenidoDeAlerta(alerta.alert_condition, alerta.occurrences);
+    const { asunto, parrafos } = contenidoDeAlerta(alerta.alert_condition, alerta.occurrences, alerta.detail);
     const para = (await destinatariosManagers(servicio, alerta.workspace_id)).filter((p) => !esDireccionDePrueba(p));
     const claveTecho = `${alerta.source}:${alerta.alert_condition}`;
 

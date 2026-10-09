@@ -22,7 +22,11 @@ export function EstadoWebhook({ webhook }: { webhook: Estado | null }) {
     <div className="space-y-1 rounded-md border border-border px-3 py-2 text-xs">
       <p className="font-medium">Webhook de Zernio</p>
       {webhook.error ? (
-        <p className="text-red-600 dark:text-red-400">{webhook.error}</p>
+        <p className="text-red-600 dark:text-red-400">
+          {/* Desde el 09/10/2026 `error` es el motivo real (F39). Lo guardado
+              antes trae el texto fijo viejo, que ya empieza así. */}
+          {webhook.error.startsWith("No se pudo leer") ? webhook.error : `No se pudo leer el registro: ${webhook.error}`}
+        </p>
       ) : webhook.registrado ? (
         <>
           <p>

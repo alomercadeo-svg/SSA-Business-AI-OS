@@ -51,6 +51,8 @@ export interface MensajeDeBandeja {
   postback_payload: string | null;
   callback_data: string | null;
   platform_message_id: string | null;
+  /** El `platformMessageId` del mensaje citado, si el listado lo trae (F27). */
+  quoted_message_id: string | null;
   sent_by_flow_id: string | null;
   sent_by_node_id: string | null;
   sent_by_user_id: string | null;
@@ -74,6 +76,8 @@ interface MensajeDeZernio {
   createdAt?: string | null;
   sentAt?: string | null;
   attachments?: AdjuntoDeZernio[] | null;
+  /** Libre según el SDK; de acá solo se lee `quotedMessageId` (`dist/index.d.ts:16877-16884`). */
+  metadata?: { quotedMessageId?: unknown } | null;
 }
 
 /**
@@ -242,6 +246,8 @@ export function mapearMensajesDeZernio(
     callback_data: null,
     // `id` ES el id de la plataforma. No existe `platformMessageId` acá.
     platform_message_id: m.id ?? null,
+    quoted_message_id:
+      typeof m.metadata?.quotedMessageId === "string" && m.metadata.quotedMessageId ? m.metadata.quotedMessageId : null,
     sent_by_flow_id: null,
     sent_by_node_id: null,
     sent_by_user_id: null,

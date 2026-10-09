@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { guardarGeneral } from "@/lib/actions/configuracion";
+import type { Horario } from "@/lib/horas-habiles";
+import { HorarioNegocio } from "./horario-negocio";
 
 interface WorkspaceSettings {
   id: string;
@@ -28,6 +30,9 @@ interface WorkspaceSettings {
   hasApiKey: boolean;
   hasAiKey: boolean;
   globalKeywords: string[];
+  /** F39 (00033). */
+  zonaHoraria: string;
+  horario: Horario;
 }
 
 interface TestResult {
@@ -38,10 +43,15 @@ interface TestResult {
 
 export function SettingsView({
   workspace,
+  zonas,
 }: {
   workspace: WorkspaceSettings;
+  /** Las zonas IANA, armadas en el servidor. */
+  zonas: string[];
 }) {
   const [name, setName] = useState(workspace.name);
+  const [zonaHoraria, setZonaHoraria] = useState(workspace.zonaHoraria);
+  const [horario, setHorario] = useState<Horario>(workspace.horario);
   const [apiKey, setApiKey] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
   const [aiKey, setAiKey] = useState("");
@@ -127,6 +137,8 @@ export function SettingsView({
         palabrasClave: keywords,
         claveZernio: apiKey,
         claveIa: aiKey,
+        zonaHoraria,
+        horario,
       });
       if (!r.ok) throw new Error(r.error);
 
@@ -170,6 +182,40 @@ export function SettingsView({
                 onChange={(e) => setName(e.target.value)}
                 className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
+            </div>
+          </section>
+
+          <hr className="border-border" />
+
+          {/* F39: zona horaria y horario de atención (§11, General). */}
+          <section className="space-y-5">
+            <div>
+              <label htmlFor="zona-horaria" className="text-xs font-medium text-muted-foreground">
+                Zona horaria
+              </label>
+              <select
+                id="zona-horaria"
+                value={zonaHoraria}
+                onChange={(e) => setZonaHoraria(e.target.value)}
+                className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {zonas.map((z) => (
+                  <option key={z} value={z}>
+                    {z}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Define qué es «hoy» para los seguimientos y las horas hábiles.
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">Horario de atención del negocio</p>
+              <p className="mt-1 mb-3 text-xs text-muted-foreground">
+                En la zona horaria del negocio. Con este horario se cuentan las horas hábiles del límite de silencio
+                de cada canal.
+              </p>
+              <HorarioNegocio valor={horario} onChange={setHorario} />
             </div>
           </section>
 
@@ -426,12 +472,12 @@ export function SettingsView({
               {saving ? (
                 <>
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                  Saving...
+                  Guardando…
                 </>
               ) : (
                 <>
                   <Save className="h-4 w-4" />
-                  Save Changes
+                  Guardar
                 </>
               )}
             </button>
@@ -439,7 +485,7 @@ export function SettingsView({
             {saved && (
               <span className="flex items-center gap-1 text-sm text-green-600">
                 <Check className="h-4 w-4" />
-                Settings saved
+                Guardado
               </span>
             )}
 

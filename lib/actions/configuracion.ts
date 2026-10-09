@@ -7,13 +7,16 @@
  * cliente de Supabase del usuario. Pasó a acción de servidor por F31: desde el
  * navegador no hay forma de registrar en el historial quién cambió qué con un
  * autor confiable, y además el fork pone las mutaciones de la interfaz en
- * acciones de servidor. Lo que guarda no cambió: el nombre, las palabras clave
- * globales y, si se escriben, las claves de Zernio y de IA, que van a Vault.
+ * acciones de servidor. Guarda el nombre, las palabras clave globales, la zona
+ * horaria y el horario de atención (F39, desde el 09/10/2026) y, si se
+ * escriben, las claves de Zernio y de IA, que van a Vault.
  */
 import { revalidatePath } from "next/cache";
 import { getWorkspaceOrNull, esManager } from "@/lib/workspace";
 import { SECRET_NAMES, setWorkspaceSecret } from "@/lib/vault";
 import { actorDe, registrarAuditoria, type Cambios, type EventoAuditoria } from "@/lib/auditoria";
+import { validarHorario, zonaValida } from "@/lib/horas-habiles";
+import type { Json } from "@/lib/types/database";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -25,6 +28,9 @@ export async function guardarGeneral(entrada: {
   palabrasClave: string[];
   claveZernio?: string;
   claveIa?: string;
+  /** F39: la zona IANA del negocio y su horario de atención (00033). */
+  zonaHoraria?: string;
+  horario?: unknown;
 }): Promise<Resultado> {
   const contexto = await getWorkspaceOrNull();
   if (!contexto) return { ok: false, error: "Tu sesión venció. Volvé a entrar." };
@@ -35,15 +41,29 @@ export async function guardarGeneral(entrada: {
   if (!nombre) return { ok: false, error: "El nombre del espacio de trabajo no puede quedar vacío." };
   const palabras = (entrada.palabrasClave ?? []).map((k) => String(k).trim()).filter(Boolean);
 
+  // F39: se validan en el servidor, no solo en el formulario. La base solo
+  // exige que el horario sea un objeto (00033).
+  const zona = entrada.zonaHoraria === undefined ? undefined : entrada.zonaHoraria.trim();
+  if (zona !== undefined && !zonaValida(zona)) return { ok: false, error: "La zona horaria no es válida." };
+  const horario = entrada.horario === undefined ? undefined : validarHorario(entrada.horario);
+  if (horario === null) {
+    return { ok: false, error: "El horario de atención no es válido: cada franja tiene que terminar después de empezar." };
+  }
+
   const { data: antes } = await supabase
     .from("workspaces")
-    .select("name, global_keywords")
+    .select("name, global_keywords, zona_horaria, horario_atencion")
     .eq("id", workspace.id)
     .single();
 
   const { error: updateError } = await supabase
     .from("workspaces")
-    .update({ name: nombre, global_keywords: palabras })
+    .update({
+      name: nombre,
+      global_keywords: palabras,
+      ...(zona !== undefined ? { zona_horaria: zona } : {}),
+      ...(horario ? { horario_atencion: horario as unknown as Json } : {}),
+    })
     .eq("id", workspace.id)
     .select("id")
     .single();
@@ -55,6 +75,10 @@ export async function guardarGeneral(entrada: {
   if (antes && antes.name !== nombre) cambios.name = { antes: antes.name, despues: nombre };
   const palabrasAntes = ((antes?.global_keywords as string[] | null) ?? []).map(String);
   if (!mismaLista(palabrasAntes, palabras)) cambios.global_keywords = { antes: palabrasAntes, despues: palabras };
+  if (zona !== undefined && antes && antes.zona_horaria !== zona) cambios.zona_horaria = { antes: antes.zona_horaria, despues: zona };
+  if (horario && antes && JSON.stringify(validarHorario(antes.horario_atencion)) !== JSON.stringify(horario)) {
+    cambios.horario_atencion = { antes: antes.horario_atencion, despues: horario };
+  }
   if (Object.keys(cambios).length) {
     eventos.push({
       workspaceId: workspace.id,

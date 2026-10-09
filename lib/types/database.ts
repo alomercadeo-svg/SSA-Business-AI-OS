@@ -16,12 +16,16 @@ export type { Platform };
  */
 export type ChannelProvider = "zernio" | "evolution";
 
-/** Condiciones que registra el receptor de webhooks. Migración 00022. */
+/** Condiciones de `webhook_alerts`. Las del receptor, de la 00022; las de F39, de la vigilancia. */
 export type WebhookAlertCondition =
   | "webhook_auth_failed"
   | "webhook_unknown_instance"
   /** La sincronización con Zernio recibió cero cuentas y no desactivó nada (§15, 06/10/2026). */
-  | "zernio_sync_cero_cuentas";
+  | "zernio_sync_cero_cuentas"
+  /** F39: uno o más canales pasaron su límite de horas hábiles sin entrantes. Fuente `vigilancia`. Migración 00033. */
+  | "canal_silencioso"
+  /** F39: a la suscripción del webhook de Zernio le falta un evento de `WEBHOOK_EVENTS`. Fuente `zernio`. */
+  | "suscripcion_incompleta";
 
 /**
  * Estado de una integración (F24, migración 00024). `sin_verificar` es "no se
@@ -141,6 +145,10 @@ export interface Database {
           ai_provider: string;
           global_keywords: Json | null;
           unassigned_leads_visible_to_members: boolean;
+          /** Zona IANA del negocio (F39, 00033). */
+          zona_horaria: string;
+          /** Horario de atención por día, franjas en hora local (F39, 00033). Ver `lib/horas-habiles.ts`. */
+          horario_atencion: Json;
           created_at: string;
           updated_at: string;
         };
@@ -151,6 +159,8 @@ export interface Database {
           ai_provider?: string;
           global_keywords?: Json | null;
           unassigned_leads_visible_to_members?: boolean;
+          zona_horaria?: string;
+          horario_atencion?: Json;
           created_at?: string;
           updated_at?: string;
         };
@@ -161,6 +171,8 @@ export interface Database {
           ai_provider?: string;
           global_keywords?: Json | null;
           unassigned_leads_visible_to_members?: boolean;
+          zona_horaria?: string;
+          horario_atencion?: Json;
           updated_at?: string;
         };
         Relationships: [];
@@ -224,6 +236,8 @@ export interface Database {
           excede_plan_zernio: boolean;
           /** Último mensaje entrante recibido por el receptor (F27, 00032). Lo vigila F39. */
           last_inbound_at: string | null;
+          /** Límite de silencio en horas hábiles; nulo = sin vigilar (F39, 00033). */
+          umbral_silencio_horas: number | null;
           last_comment_cursor: string | null;
           comment_rules: Json | null;
           created_at: string;
@@ -245,6 +259,7 @@ export interface Database {
           is_active?: boolean;
           excede_plan_zernio?: boolean;
           last_inbound_at?: string | null;
+          umbral_silencio_horas?: number | null;
           last_comment_cursor?: string | null;
           comment_rules?: Json | null;
           created_at?: string;
@@ -264,6 +279,7 @@ export interface Database {
           is_active?: boolean;
           excede_plan_zernio?: boolean;
           last_inbound_at?: string | null;
+          umbral_silencio_horas?: number | null;
           last_comment_cursor?: string | null;
           comment_rules?: Json | null;
           updated_at?: string;

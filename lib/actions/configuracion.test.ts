@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const h = vi.hoisted(() => ({
   rol: "owner",
-  antes: { name: "Viejo", global_keywords: ["stop"] },
+  antes: { name: "Viejo", global_keywords: ["stop"], zona_horaria: "America/Costa_Rica", horario_atencion: null as unknown },
   updates: [] as Record<string, unknown>[],
   secretos: [] as [string, string][],
   auditoria: [] as Record<string, unknown>[][],
@@ -56,9 +56,11 @@ vi.mock("@/lib/auditoria", async (original) => ({
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
 const { guardarGeneral } = await import("./configuracion");
+const { HORARIO_POR_DEFECTO } = await import("@/lib/horas-habiles");
 
 beforeEach(() => {
   h.rol = "owner";
+  h.antes.horario_atencion = HORARIO_POR_DEFECTO;
   h.updates.length = 0;
   h.secretos.length = 0;
   h.auditoria.length = 0;
@@ -108,5 +110,28 @@ describe("guardar la pestaña General", () => {
     const r = await guardarGeneral({ nombre: "  ", palabrasClave: [] });
     expect(r.ok).toBe(false);
     expect(h.updates).toHaveLength(0);
+  });
+
+  it("F39: guarda la zona y el horario, y registra el antes y el después", async () => {
+    const todoElDia = Object.fromEntries(["lun", "mar", "mie", "jue", "vie", "sab", "dom"].map((d) => [d, [["00:00", "24:00"]]]));
+    const r = await guardarGeneral({ nombre: "Viejo", palabrasClave: ["stop"], zonaHoraria: "America/New_York", horario: todoElDia });
+    expect(r.ok).toBe(true);
+    expect(h.updates).toEqual([{ name: "Viejo", global_keywords: ["stop"], zona_horaria: "America/New_York", horario_atencion: todoElDia }]);
+    expect(eventos()).toMatchObject([
+      {
+        cambios: {
+          zona_horaria: { antes: "America/Costa_Rica", despues: "America/New_York" },
+          horario_atencion: { antes: HORARIO_POR_DEFECTO, despues: todoElDia },
+        },
+      },
+    ]);
+  });
+
+  it("F39: una zona o un horario inválidos se rechazan en el servidor, sin escribir", async () => {
+    expect((await guardarGeneral({ nombre: "Viejo", palabrasClave: [], zonaHoraria: "Marte/Olympus" })).ok).toBe(false);
+    const alReves = { ...HORARIO_POR_DEFECTO, lun: [["18:00", "08:00"]] };
+    expect((await guardarGeneral({ nombre: "Viejo", palabrasClave: [], horario: alReves })).ok).toBe(false);
+    expect(h.updates).toEqual([]);
+    expect(eventos()).toEqual([]);
   });
 });

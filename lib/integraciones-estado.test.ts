@@ -32,7 +32,7 @@ vi.mock("@/lib/vault", async (original) => ({
   getWorkspaceSecret: async (_s: unknown, _ws: string, nombre: string) => h.secretos[nombre] ?? null,
 }));
 
-const { estadoPorHttp, estadoPorFallo, consultarProveedor, verificarTodas, registrarFalloDeZernio, estadoResend } = await import(
+const { estadoPorHttp, estadoPorFallo, consultarProveedor, verificarTodas, registrarFalloDeZernio, estadoResend, leerWebhook } = await import(
   "./integraciones-estado"
 );
 
@@ -347,5 +347,18 @@ describe("el registro del webhook de Zernio, al abrir la pantalla", () => {
     const r = await consultarProveedor("zernio", "zk");
     expect(r.estado).toBe("conectado");
     expect(r.extra?.webhook).toMatchObject({ error: expect.any(String) });
+  });
+
+  it("leerWebhook devuelve el motivo real del fallo, no un texto fijo (F39)", async () => {
+    const zernio = { webhooks: { getWebhookSettings: vi.fn() } };
+    zernio.webhooks.getWebhookSettings.mockRejectedValueOnce(Object.assign(new Error("Unauthorized"), { statusCode: 401 }));
+    expect((await leerWebhook(zernio as never)).error).toBe("El proveedor rechazó la clave (HTTP 401).");
+    zernio.webhooks.getWebhookSettings.mockRejectedValueOnce(Object.assign(new Error("Not found"), { statusCode: 404 }));
+    expect((await leerWebhook(zernio as never)).error).toBe("Zernio respondió HTTP 404.");
+    zernio.webhooks.getWebhookSettings.mockRejectedValueOnce(new TypeError("fetch failed"));
+    expect((await leerWebhook(zernio as never)).error).toBe("No se pudo llegar al proveedor (falla de red).");
+    // Control positivo: con una lectura buena no hay error.
+    zernio.webhooks.getWebhookSettings.mockResolvedValueOnce({ data: { webhooks: [] } });
+    expect((await leerWebhook(zernio as never)).error).toBeNull();
   });
 });

@@ -503,6 +503,32 @@ describe("F27: el receptor guarda los mensajes", () => {
     expect(matchTrigger).toHaveBeenCalledTimes(1);
   });
 
+  it("un entrante que cita a otro mensaje guarda la referencia (metadata.quotedMessageId, F27)", async () => {
+    // El SDK 0.2.519 lo declara para Instagram: `reply_to.mid` de Meta
+    // (`node_modules/@zernio/node/dist/index.d.ts:7587-7595`).
+    const body = avisoReal(recibidoReal, (p) => {
+      p.metadata = { ...(p.metadata ?? {}), quotedMessageId: "mid-citado-1" };
+    });
+    await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    expect(guardadosEnMessages()).toEqual([expect.objectContaining({ quoted_message_id: "mid-citado-1" })]);
+  });
+
+  it("un echo de la app (message.sent) que cita guarda la referencia; sin cita queda nula", async () => {
+    const conCita = avisoReal(enviadoReal, (p) => {
+      p.metadata = { quotedMessageId: "mid-citado-2" };
+    });
+    await POST(pedido(conCita, { "x-late-signature": firmar(conCita) }));
+    expect(guardadosEnMessages()).toEqual([expect.objectContaining({ quoted_message_id: "mid-citado-2" })]);
+  });
+
+  it("sin metadata, la referencia queda nula", async () => {
+    const body = avisoReal(recibidoReal, (p) => {
+      delete p.metadata;
+    });
+    await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    expect(guardadosEnMessages()).toEqual([expect.objectContaining({ quoted_message_id: null })]);
+  });
+
   it("un entrante actualiza la marca del último entrante del canal (F39)", async () => {
     const body = avisoReal(recibidoReal);
     await POST(pedido(body, { "x-late-signature": firmar(body) }));

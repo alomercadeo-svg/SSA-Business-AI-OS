@@ -25,3 +25,13 @@ export function marcaVencida(fila: FilaDeTarea | null | undefined, ahora: Date =
   if (!marca) return true;
   return ahora.getTime() - new Date(marca).getTime() > MINUTOS_PARA_VENCER * 60_000;
 }
+
+/** «hace 12 min», «hace 3 h», «hace 3 días». Una marca futura cuenta como recién. */
+export function haceCuanto(iso: string, ahora: Date = new Date()): string {
+  const minutos = Math.floor((ahora.getTime() - new Date(iso).getTime()) / 60_000);
+  if (minutos < 1) return "hace menos de 1 min";
+  if (minutos < 60) return `hace ${minutos} min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 48) return `hace ${horas} h`;
+  return `hace ${Math.floor(horas / 24)} días`;
+}
