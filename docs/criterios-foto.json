@@ -1311,7 +1311,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F39: Detección de silencio del canal"
     ],
-    "texto": "- [ ] Cada canal guarda la marca de tiempo del último evento entrante recibido, actualizada por el receptor"
+    "texto": "- [x] Cada canal guarda la marca de tiempo del último evento entrante recibido, actualizada por el receptor"
   },
   {
     "seccion": "F39: Detección de silencio del canal",

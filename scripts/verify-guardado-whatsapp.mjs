@@ -57,12 +57,12 @@ async function firmar() {
 }
 
 /** `prepareMessage` (4652-4704). */
-function mensaje({ id, remoteJid = `${TEL}@s.whatsapp.net`, fromMe = false, remoteJidAlt, addressingMode = "pn", texto = "hola, prueba", contextInfo = null, ts = ahoraSeg() }) {
+function mensaje({ id, remoteJid = `${TEL}@s.whatsapp.net`, fromMe = false, remoteJidAlt, addressingMode = "pn", texto = "hola, prueba", contextInfo = null, ts = ahoraSeg(), message = null, messageType = "conversation" }) {
   return {
     key: { remoteJid, fromMe, id, ...(remoteJidAlt ? { remoteJidAlt } : {}), addressingMode },
     pushName: fromMe ? "Você" : "Lead de prueba",
-    message: { conversation: texto },
-    messageType: "conversation",
+    message: message ?? { conversation: texto },
+    messageType,
     messageTimestamp: ts,
     contextInfo,
     source: "android",
@@ -79,7 +79,7 @@ async function entregar(evento, data) {
 }
 
 const mensajesCon = async (id) =>
-  (await admin(`messages?select=id,direction,remote_jid,created_at,conversation_id&platform_message_id=eq.${encodeURIComponent(id)}`)).data ?? [];
+  (await admin(`messages?select=id,direction,remote_jid,created_at,conversation_id,message_type,quoted_message_id,attachments&platform_message_id=eq.${encodeURIComponent(id)}`)).data ?? [];
 
 async function esperarMensaje(id, cuantos = 1) {
   for (let i = 0; i < 20; i++) {
@@ -203,6 +203,29 @@ await correr(async () => {
       check(a.first_click?.ad_id === `AD-${sufijo}` && a.last_click?.ctwa_clid === `CLID-${sufijo}`, "first_click y last_click con el anuncio", JSON.stringify(a));
     } else check(false, "el mensaje del anuncio está guardado");
 
+    // ── 7b. Segundo toque, de OTRO anuncio, sobre el mismo contacto ──────────
+    // Anuncio distinto (sourceId y ctwaClid distintos): si fueran iguales, no
+    // se podría atribuir el resultado al segundo aviso.
+    titulo("Un segundo entrante, de otro anuncio, mueve last_click y deja first_click (F25)");
+    await entregar(
+      "messages.upsert",
+      mensaje({
+        id: `AD2-${sufijo}`,
+        remoteJid: `${TEL3}@s.whatsapp.net`,
+        contextInfo: { externalAdReply: { sourceId: `AD2-${sufijo}`, ctwaClid: `CLID2-${sufijo}`, sourceType: "ad", sourceUrl: "https://fb.me/prueba2?utm_source=meta&utm_campaign=b3-segundo" } },
+      }),
+    );
+    const [m7b] = await esperarMensaje(`AD2-${sufijo}`);
+    if (m7 && m7b) {
+      check(m7b.conversation_id === m7.conversation_id, "el segundo aviso cae en la misma conversación");
+      const { data: conv } = await admin(`conversations?select=contact_id&id=eq.${m7b.conversation_id}`);
+      const { data: ct } = await admin(`contacts?select=attribution&id=eq.${conv?.[0]?.contact_id}`);
+      const a = ct?.[0]?.attribution ?? {};
+      check(a.last_click?.ad_id === `AD2-${sufijo}` && a.last_click?.ctwa_clid === `CLID2-${sufijo}`, "last_click trae el anuncio del segundo aviso", JSON.stringify(a.last_click));
+      check(a.first_click?.ad_id === `AD-${sufijo}` && a.first_click?.ctwa_clid === `CLID-${sufijo}`, "first_click sigue con el anuncio del primero", JSON.stringify(a.first_click));
+    } else if (!m7) noConcluyente("last_click y first_click del segundo toque", "el primer toque no se guardó");
+    else check(false, "el segundo mensaje del anuncio está guardado");
+
     // ── 8. La restricción, por PostgREST ────────────────────────────────────
     titulo("La restricción única de messages, por PostgREST (on_conflict con las tres columnas)");
     if (m1) {
@@ -223,6 +246,47 @@ await correr(async () => {
       });
       check(nulos.status < 300 && (nulos.data ?? []).length === 2, "dos envíos fallidos sin identificador entran los dos (los nulos no chocan)", `HTTP ${nulos.status}`);
     } else noConcluyente("la restricción", "no hay conversación del paso 1 para probarla");
+
+    // ── 9. Tipos soportados (F27 #6) ────────────────────────────────────────
+    // La envoltura es la de `prepareMessage` (whatsapp.baileys.service.ts de
+    // Evolution 2.3.7, 4652-4704): `messageType` sale de `getContentType`
+    // (4653, 4666), `contextInfo` va en la raíz (4665), y un
+    // `extendedTextMessage` llega como `conversation` (4678-4682). La forma
+    // interna de cada mensaje es la del proto de Baileys 7.0.0-rc.9 (la que
+    // fija el package.json de Evolution 2.3.7, línea 80), WAProto/WAProto.proto:
+    // Message 2066-2088, ImageMessage 2631, AudioMessage 2202, VideoMessage
+    // 3608, DocumentMessage 2387, StickerMessage 3481, LocationMessage 2897,
+    // ContextInfo 1264 (stanzaId 1265, quotedMessage 1267). Son avisos
+    // firmados: la llegada real se comprueba en la puesta en marcha del número.
+    titulo("Cada tipo se guarda con su message_type, en la fila de su propio aviso (F27 #6)");
+    const STANZA = `ORIG-${sufijo}`;
+    const TIPOS = [
+      { clave: "texto", messageType: "conversation", message: { conversation: "texto de prueba" }, esperado: "texto" },
+      { clave: "imagen", messageType: "imageMessage", message: { imageMessage: { url: "https://mmg.whatsapp.net/prueba-img", mimetype: "image/jpeg", caption: "foto", fileLength: 1000 } }, esperado: "imagen" },
+      { clave: "audio", messageType: "audioMessage", message: { audioMessage: { url: "https://mmg.whatsapp.net/prueba-aud", mimetype: "audio/ogg; codecs=opus", seconds: 3, ptt: true, fileLength: 900 } }, esperado: "audio" },
+      { clave: "documento", messageType: "documentMessage", message: { documentMessage: { url: "https://mmg.whatsapp.net/prueba-doc", mimetype: "application/pdf", fileName: "prueba.pdf", fileLength: 2000 } }, esperado: "documento" },
+      { clave: "video", messageType: "videoMessage", message: { videoMessage: { url: "https://mmg.whatsapp.net/prueba-vid", mimetype: "video/mp4", seconds: 4, caption: "video", fileLength: 5000 } }, esperado: "video" },
+      { clave: "sticker", messageType: "stickerMessage", message: { stickerMessage: { url: "https://mmg.whatsapp.net/prueba-stk", mimetype: "image/webp", isAnimated: false, fileLength: 300 } }, esperado: "sticker" },
+      { clave: "ubicacion", messageType: "locationMessage", message: { locationMessage: { degreesLatitude: 9.9281, degreesLongitude: -84.0907 } }, esperado: "ubicacion" },
+      // La respuesta: un extendedTextMessage con contextInfo, que Evolution
+      // entrega como `conversation` con el contextInfo en la raíz.
+      { clave: "respuesta", messageType: "conversation", message: { conversation: "respondo a eso" }, contextInfo: { stanzaId: STANZA, participant: `${TEL}@s.whatsapp.net`, quotedMessage: { conversation: "mensaje original" } }, esperado: "texto", cita: STANZA },
+    ];
+    for (const t of TIPOS) {
+      const id = `TIPO-${t.clave}-${sufijo}`;
+      const r = await entregar("messages.upsert", mensaje({ id, messageType: t.messageType, message: t.message, contextInfo: t.contextInfo ?? null }));
+      const filas = await esperarMensaje(id);
+      if (r.status !== 200 || filas.length !== 1) {
+        check(false, `${t.clave}: una sola fila guardada para su aviso`, `HTTP ${r.status}, ${filas.length} filas`);
+        continue;
+      }
+      const f = filas[0];
+      check(f.message_type === t.esperado, `${t.clave}: message_type ${t.esperado}`, f.message_type);
+      if (["imagen", "audio", "documento", "video", "sticker"].includes(t.esperado)) {
+        check(Array.isArray(f.attachments) && f.attachments[0]?.type === t.messageType, `${t.clave}: adjunto con su tipo original`, JSON.stringify(f.attachments));
+      }
+      if (t.cita) check(f.quoted_message_id === t.cita, `${t.clave}: quoted_message_id igual al stanzaId`, f.quoted_message_id);
+    }
   } finally {
     const borrar = await rpcAdmin("delete_secret", { secret_name: "evolution_webhook_secret", workspace_id: espacio });
     check(borrar.status < 300, "se borró el secreto de prueba", `HTTP ${borrar.status}`);

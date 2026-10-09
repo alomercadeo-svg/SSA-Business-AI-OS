@@ -558,5 +558,12 @@
     "nuevo": "- [x] Instrumentación obligatoria: contador de cuántos mensajes entrantes llegan sin teléfono resuelto, visible para el Owner. Es el dato que decide si esto es marginal o si hay que invertir más",
     "motivo": "Tildado el 08/10/2026, tramo 1 de la sesión 2 del Bloque 3, decidido por Marcos. F26. Con aviso firmado: `contar_mensajes_sin_telefono` contó el `@lid` (paso 5). La línea de Canales, solo para el Owner, está construida desde la sesión 1; en el espacio real da «0 de 0» porque no entra WhatsApp real. Llegada real de WhatsApp: se comprueba en la puesta en marcha del número (Bloque 4).",
     "fecha": "2026-10-08"
+  },
+  {
+    "texto": "- [ ] Cada canal guarda la marca de tiempo del último evento entrante recibido, actualizada por el receptor",
+    "destino": "reescrito",
+    "nuevo": "- [x] Cada canal guarda la marca de tiempo del último evento entrante recibido, actualizada por el receptor",
+    "motivo": "Tildado el 08/10/2026, tramo 2 de la sesión 2 del Bloque 3, decidido por Marcos. F39. Construido en F27: `channels.last_inbound_at` (00032), escrita por `app/api/webhooks/late/route.ts:354-356` (Instagram, solo si no es saliente) y `lib/evolution-guardado.ts:305` y `:308-310` (WhatsApp, solo entrantes que no son historial). Instagram, con datos reales: `last_inbound_at` de @poderosascomunidad (`e6ad79a8`) leído a las 18:35:51 y a las 18:40:34, los dos en 17:12:18.599; Marcos mandó «Test F39» desde @marcospittimusic a las 18:42; leído a las 18:43:16, en 18:43:00.435 (hora de recepción). Mensaje atribuido: entre 18:41:00 y 18:43:30 hubo un solo entrante del canal, `aab45b41`, en la conversación `c6628c4e` con @marcospittimusic, a las 18:42:57.503 (hora del proveedor). WhatsApp, con aviso firmado: paso 1 de `scripts/verify-guardado-whatsapp.mjs` («el canal registró su último entrante»), corrida de 18:37:03 a 18:37:33 en 43 de 43, salida 0. Llegada real de WhatsApp: se comprueba en la puesta en marcha del número.",
+    "fecha": "2026-10-08"
   }
 ]
