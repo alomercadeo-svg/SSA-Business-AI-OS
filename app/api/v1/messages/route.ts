@@ -5,9 +5,13 @@ import { getZernioApiKey } from "@/lib/vault";
 import { messagePreview } from "@/lib/message-preview";
 import { registrarFalloDeZernio } from "@/lib/integraciones-estado";
 import { guardarEnvioDeLaBandeja } from "@/lib/mensajes-guardado";
+import { BUCKET_DE_ADJUNTOS } from "@/lib/adjuntos";
 
 /** Cuántos mensajes trae el hilo de una vez: los más recientes. */
 export const MENSAJES_POR_HILO = 200;
+
+/** Vida de la dirección firmada de un adjunto (F28): alcanza para escuchar un audio o ver un video. */
+export const SEGUNDOS_DE_FIRMA = 600;
 
 /**
  * GET /api/v1/messages?conversationId=...
@@ -23,8 +27,13 @@ export const MENSAJES_POR_HILO = 200;
  * sin aviso, porque le pedía los mensajes a Zernio.
  *
  * Los adjuntos viajan SIN la dirección del proveedor: solo el tipo y su estado.
- * La URL de Meta vence y no tiene por qué llegar al navegador; el archivo se
- * muestra desde Storage cuando F28 lo baje.
+ * La URL de Meta vence y no tiene por qué llegar al navegador.
+ *
+ * F28: el archivo bajado viaja como `archivo: { url, mime }`, con una dirección
+ * firmada de `SEGUNDOS_DE_FIRMA`. Se firma con la clave de servicio, pero solo
+ * para las filas que devolvió la lectura con el cliente del usuario, que es la
+ * que aplica el alcance de leads: si la RLS no devuelve la conversación o el
+ * mensaje, no se firma nada. `media_path` no viaja.
  */
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -62,7 +71,7 @@ export async function GET(request: NextRequest) {
   const { data: filas, error } = await supabase
     .from("messages")
     .select(
-      "id, conversation_id, direction, text, attachments, quick_reply_payload, postback_payload, callback_data, platform_message_id, remote_jid, message_type, quoted_message_id, media_path, media_status, sent_by_flow_id, sent_by_node_id, sent_by_user_id, status, created_at"
+      "id, conversation_id, direction, text, attachments, quick_reply_payload, postback_payload, callback_data, platform_message_id, remote_jid, message_type, quoted_message_id, media_path, media_status, media_mime, sent_by_flow_id, sent_by_node_id, sent_by_user_id, status, created_at"
     )
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: false })
@@ -74,15 +83,41 @@ export async function GET(request: NextRequest) {
   }
 
   const recientes = (filas ?? []).slice(0, MENSAJES_POR_HILO).reverse();
+  const firmadas = await firmarDescargados(recientes);
   const canal = conversation.channels as { is_active?: boolean } | null;
   return NextResponse.json({
-    messages: recientes.map((m) => ({ ...m, attachments: adjuntosSinDireccion(m.attachments) })),
+    messages: recientes.map(({ media_path, ...m }) => ({
+      ...m,
+      attachments: adjuntosSinDireccion(m.attachments),
+      archivo: media_path && firmadas.has(media_path) ? { url: firmadas.get(media_path)!, mime: m.media_mime ?? null } : null,
+    })),
     hayAnteriores: (filas ?? []).length > MENSAJES_POR_HILO,
     historial: {
       estado: conversation.historial_estado,
       canalActivo: canal?.is_active !== false,
     },
   });
+}
+
+/**
+ * Firma en lote, con la clave de servicio, las rutas de los mensajes
+ * `descargado` que ya volvieron de la lectura con RLS. Si Storage falla, el
+ * hilo se ve igual, sin los archivos.
+ */
+async function firmarDescargados(
+  filas: ReadonlyArray<{ media_status?: string | null; media_path?: string | null }>,
+): Promise<Map<string, string>> {
+  const rutas = filas.filter((m) => m.media_status === "descargado" && m.media_path).map((m) => m.media_path as string);
+  const firmadas = new Map<string, string>();
+  if (rutas.length === 0) return firmadas;
+  const servicio = await createServiceClient();
+  const { data, error } = await servicio.storage.from(BUCKET_DE_ADJUNTOS).createSignedUrls(rutas, SEGUNDOS_DE_FIRMA);
+  if (error) {
+    console.error("[messages] no se pudieron firmar los adjuntos:", error.message);
+    return firmadas;
+  }
+  for (const f of data ?? []) if (f.path && f.signedUrl && !f.error) firmadas.set(f.path, f.signedUrl);
+  return firmadas;
 }
 
 /** Solo el tipo de cada adjunto: la dirección del proveedor no sale del servidor. */

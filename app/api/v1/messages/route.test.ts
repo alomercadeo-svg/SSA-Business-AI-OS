@@ -19,10 +19,22 @@ const h = vi.hoisted(() => ({
   limite: 0,
   upserts: [] as Array<{ tabla: string; valores: Record<string, unknown>; opciones: Record<string, unknown> }>,
   sendInboxMessage: vi.fn(),
+  /** F28: la RLS no devuelve la conversación (un Member sin ese lead). */
+  fueraDeAlcance: false,
+  firmas: [] as Array<{ bucket: string; rutas: string[]; segundos: number }>,
 }));
 
-function supabaseFalso() {
+function supabaseFalso(rol: "usuario" | "servicio" = "usuario") {
   return {
+    storage: {
+      from: (bucket: string) => ({
+        createSignedUrls: async (rutas: string[], segundos: number) => {
+          if (rol !== "servicio") throw new Error("firma con el cliente del usuario");
+          h.firmas.push({ bucket, rutas, segundos });
+          return { data: rutas.map((r) => ({ path: r, signedUrl: `https://storage.ejemplo.invalid/firmada/${r}?token=t`, error: null })), error: null };
+        },
+      }),
+    },
     auth: { getUser: async () => ({ data: { user: { id: "u-1" } } }) },
     from(tabla: string) {
       const cadena = {
@@ -35,7 +47,9 @@ function supabaseFalso() {
           return Promise.resolve({ data: h.filasDeMensajes.slice(0, n), error: null });
         },
         maybeSingle: async () =>
-          tabla === "conversations"
+          tabla === "conversations" && rol === "usuario" && h.fueraDeAlcance
+            ? { data: null }
+            : tabla === "conversations"
             ? {
                 data: {
                   id: "conv-1",
@@ -60,8 +74,8 @@ function supabaseFalso() {
 }
 
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: async () => supabaseFalso(),
-  createServiceClient: async () => supabaseFalso(),
+  createClient: async () => supabaseFalso("usuario"),
+  createServiceClient: async () => supabaseFalso("servicio"),
 }));
 vi.mock("@/lib/vault", () => ({ getZernioApiKey: async () => "zk" }));
 vi.mock("@/lib/zernio-client", () => ({
@@ -127,6 +141,8 @@ describe("GET /api/v1/messages lee de la base (F27)", () => {
     h.filasDeMensajes = [];
     h.historialEstado = "completo";
     h.canalActivo = true;
+    h.fueraDeAlcance = false;
+    h.firmas.length = 0;
   });
 
   it("devuelve los mensajes de la base en orden cronológico, sin llamar a Zernio", async () => {
@@ -161,3 +177,67 @@ describe("GET /api/v1/messages lee de la base (F27)", () => {
   });
 });
 
+/**
+ * F28, 5f: la dirección firmada. La ruta lee con el cliente del usuario (la RLS
+ * aplica el alcance de leads) y firma con el de servicio SOLO las filas que
+ * volvieron y están `descargado`. `media_path` no viaja al navegador.
+ */
+describe("GET /api/v1/messages: las direcciones firmadas de los adjuntos (F28)", () => {
+  const leer = () => GET(new NextRequestReal("http://localhost/api/v1/messages?conversationId=conv-1"));
+  const RUTA = "ws-1/conv-1/m1/archivo.jpg";
+  const descargado = (id: string, ruta: string, extra: Record<string, unknown> = {}) => ({
+    id, conversation_id: "conv-1", direction: "inbound", text: null, created_at: "2026-10-09T10:00:00Z",
+    attachments: [{ type: "image", url: "https://lookaside.fbsbx.com/secreto" }],
+    message_type: "imagen", media_status: "descargado", media_path: ruta, media_mime: "image/jpeg", ...extra,
+  });
+
+  beforeEach(() => {
+    h.filasDeMensajes = [];
+    h.historialEstado = "completo";
+    h.canalActivo = true;
+    h.fueraDeAlcance = false;
+    h.firmas.length = 0;
+  });
+
+  it("un Member sin ese lead no recibe ninguna dirección, y no se firma nada", async () => {
+    h.fueraDeAlcance = true;
+    h.filasDeMensajes = [descargado("m1", RUTA)];
+    const res = await leer();
+    expect(res.status).toBe(403);
+    const texto = JSON.stringify(await res.json());
+    expect(texto).not.toContain("firmada");
+    expect(texto).not.toContain(RUTA);
+    expect(h.firmas).toHaveLength(0);
+  });
+
+  it("un Owner recibe la dirección firmada de 10 minutos (control positivo)", async () => {
+    h.filasDeMensajes = [descargado("m1", RUTA)];
+    const cuerpo = await (await leer()).json();
+    expect(h.firmas).toEqual([{ bucket: "message-media", rutas: [RUTA], segundos: 600 }]);
+    expect(cuerpo.messages[0].archivo).toEqual({ url: `https://storage.ejemplo.invalid/firmada/${RUTA}?token=t`, mime: "image/jpeg" });
+  });
+
+  it("solo firma los descargados; media_path y la dirección del proveedor no viajan", async () => {
+    h.filasDeMensajes = [
+      descargado("m3", "ws-1/conv-1/m3/archivo.mp4", { media_mime: "video/mp4", message_type: "audio" }),
+      descargado("m2", "ws-1/conv-1/m2/archivo.jpg", { media_status: "fallido" }),
+      descargado("m1", null as unknown as string, { media_status: "pendiente", media_path: null }),
+    ];
+    const cuerpo = await (await leer()).json();
+    expect(h.firmas).toEqual([{ bucket: "message-media", rutas: ["ws-1/conv-1/m3/archivo.mp4"], segundos: 600 }]);
+    const porId = Object.fromEntries(cuerpo.messages.map((m: { id: string }) => [m.id, m]));
+    expect(porId.m3.archivo).toMatchObject({ mime: "video/mp4" });
+    expect(porId.m2.archivo).toBeNull();
+    expect(porId.m1.archivo).toBeNull();
+    expect(porId.m2.media_status).toBe("fallido");
+    for (const m of cuerpo.messages) expect(m).not.toHaveProperty("media_path");
+    expect(JSON.stringify(cuerpo)).not.toContain("lookaside");
+  });
+
+  it("sin adjuntos descargados no llama a Storage", async () => {
+    h.filasDeMensajes = [{ id: "m1", conversation_id: "conv-1", direction: "inbound", text: "hola", attachments: null, created_at: "2026-10-09T10:00:00Z" }];
+    const cuerpo = await (await leer()).json();
+    expect(h.firmas).toHaveLength(0);
+    expect(cuerpo.messages[0].archivo).toBeNull();
+  });
+});

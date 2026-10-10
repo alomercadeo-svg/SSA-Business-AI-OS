@@ -843,7 +843,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** que las fotos, audios y documentos que mandan los leads queden guardados.
 
-**Estado: construida en parte** (9 de octubre de 2026, parte A). Instagram: el receptor de Zernio baja el archivo de los entrantes nuevos después del acuse y lo guarda en el bucket privado `message-media` (migración 00034), con el tipo detectado por el contenido, un tamaño máximo configurable y un reintento con techo de 5 intentos en las tareas programadas (`lib/adjuntos.ts`). Falta: las direcciones firmadas y la bandeja, WhatsApp, y los adjuntos históricos, que no se tocan (parte B). Antes decía: no construido (verificado el 22 de septiembre de 2026: depende de F27).
+**Estado: construida en parte** (9 de octubre de 2026, parte A). Instagram: el receptor de Zernio baja el archivo de los entrantes nuevos después del acuse y lo guarda en el bucket privado `message-media` (migración 00034), con el tipo detectado por el contenido, un tamaño máximo configurable y un reintento con techo de 5 intentos en las tareas programadas (`lib/adjuntos.ts`). La bandeja muestra la imagen, el audio o el video con una dirección firmada de 10 minutos, que `GET /api/v1/messages` da solo para las filas que devolvió la lectura con el alcance de leads. Falta: WhatsApp y los adjuntos históricos, que no se tocan (parte B). Antes decía: no construido (verificado el 22 de septiembre de 2026: depende de F27).
 
 **Criterios de aceptación:**
 

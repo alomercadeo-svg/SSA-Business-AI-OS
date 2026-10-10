@@ -9,7 +9,13 @@ import { cn } from "@/lib/utils";
 import { PlatformIcon } from "@/components/platform-icon";
 import type { Database, ConversationStatus } from "@/lib/types/database";
 
-type Message = Database["public"]["Tables"]["messages"]["Row"];
+/**
+ * La fila que devuelve `GET /api/v1/messages`. F28: `archivo` trae la
+ * dirección firmada del adjunto bajado (nulo si no hay); `media_path` no viaja.
+ */
+type Message = Database["public"]["Tables"]["messages"]["Row"] & {
+  archivo?: { url: string; mime: string | null } | null;
+};
 type Conversation = Database["public"]["Tables"]["conversations"]["Row"] & {
   contacts: Database["public"]["Tables"]["contacts"]["Row"] | null;
 };
@@ -53,6 +59,47 @@ function shouldShowDateSeparator(
  */
 export const TEXTO_SIN_CONTENIDO = "El contenido de este mensaje no está disponible.";
 
+export const TEXTO_ADJUNTO_FALLIDO = "Todavía no pudimos traer este archivo. Se vuelve a intentar solo.";
+export const TEXTO_ADJUNTO_NO_DISPONIBLE = "Este archivo no está disponible.";
+
+/**
+ * El archivo bajado (F28). El reproductor se elige por `message_type` y no por
+ * `media_mime`: la nota de voz de Instagram se detecta como `video/mp4`, porque
+ * su cabecera no la distingue de un video (prueba real del 09/10/2026).
+ */
+function ArchivoDelMensaje({ message }: { message: Message }) {
+  const archivo = message.archivo;
+  if (archivo) {
+    const tipo = message.message_type;
+    if (tipo === "audio") return <audio controls preload="metadata" src={archivo.url} className="mt-1 max-w-full" />;
+    if (tipo === "video") return <video controls preload="metadata" src={archivo.url} className="mt-1 max-h-80 max-w-full rounded-lg" />;
+    if (tipo === "imagen" || tipo === "sticker" || archivo.mime?.startsWith("image/")) {
+      // eslint-disable-next-line @next/next/no-img-element -- dirección firmada de Storage, de vida corta
+      return <img src={archivo.url} alt="Imagen recibida" loading="lazy" className="mt-1 max-h-80 max-w-full rounded-lg" />;
+    }
+    return (
+      <a href={archivo.url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs underline">
+        <Paperclip className="inline h-3 w-3" />
+        Abrir el archivo
+      </a>
+    );
+  }
+  if (message.media_status === "fallido" || message.media_status === "no_disponible") {
+    return (
+      <p className="mt-1 text-xs italic opacity-70">
+        <Paperclip className="mr-1 inline h-3 w-3" />
+        {message.media_status === "fallido" ? TEXTO_ADJUNTO_FALLIDO : TEXTO_ADJUNTO_NO_DISPONIBLE}
+      </p>
+    );
+  }
+  return (
+    <div className="mt-1">
+      <Paperclip className="inline h-3 w-3" />
+      <span className="ml-1 text-xs opacity-70">Adjunto</span>
+    </div>
+  );
+}
+
 export function MessageBubble({ message }: { message: Message }) {
   const isInbound = message.direction === "inbound";
   const isBot = message.sent_by_flow_id !== null;
@@ -83,12 +130,7 @@ export function MessageBubble({ message }: { message: Message }) {
           {!message.text && !message.attachments && (
             <p className="italic opacity-70">{TEXTO_SIN_CONTENIDO}</p>
           )}
-          {message.attachments && (
-            <div className="mt-1">
-              <Paperclip className="inline h-3 w-3" />
-              <span className="ml-1 text-xs opacity-70">Adjunto</span>
-            </div>
-          )}
+          {message.attachments && <ArchivoDelMensaje message={message} />}
         </div>
         <div
           className={cn(
