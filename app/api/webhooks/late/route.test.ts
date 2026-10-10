@@ -71,6 +71,17 @@ vi.mock("@/lib/relleno-perfil", () => ({
   rellenarPerfilSiFalta: (...args: unknown[]) => rellenarPerfilSiFalta(...(args as [])),
 }));
 
+// F28: la descarga se intercepta; `seDescarga` es la real.
+const descargarAdjunto = vi.fn(async (..._a: unknown[]) => "descargado");
+vi.mock("@/lib/adjuntos", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/adjuntos")>();
+  return {
+    ...real,
+    almacenDeSupabase: () => ({}),
+    descargarAdjunto: (...args: unknown[]) => descargarAdjunto(...args),
+  };
+});
+
 const processComment = vi.fn();
 vi.mock("@/lib/comment-processor", () => ({
   processComment: (...args: unknown[]) => processComment(...args),
@@ -134,6 +145,9 @@ function crearSupabaseFalso() {
     }
     if (tabla === "conversations") {
       return { data: { id: "conv-1", is_automation_paused: false }, error: null };
+    }
+    if (tabla === "messages" && terminador === "maybeSingle") {
+      return { data: { id: "msg-local-1" }, error: null };
     }
     if (tabla === "tareas_estado") {
       return { data: estado.importacionOk ? { ultimo_ok_at: estado.importacionOk } : null, error: null };
@@ -258,6 +272,7 @@ beforeEach(() => {
   estado.falloAlGuardar = false;
   estado.importacionOk = null;
   upsertContactForSender.mockReset();
+  descargarAdjunto.mockClear();
   upsertContactForSender.mockResolvedValue({ contactId: "contact-1", existed: false });
   matchTrigger.mockReset();
   matchTrigger.mockResolvedValue(null);
@@ -590,5 +605,76 @@ describe("F27: el receptor guarda los mensajes", () => {
     const body = avisoReal(recibidoReal);
     await POST(pedido(body, { "x-late-signature": firmar(body) }));
     expect(estado.escrituras.some((e) => e.tabla === "conversations" && e.tipo === "update")).toBe(false);
+  });
+});
+
+/**
+ * F28: el archivo del adjunto se baja DESPUÉS del acuse. Con el aviso real del
+ * 08/10/2026, al que se le pone un adjunto INVENTADO con la forma del SDK
+ * (`@zernio/node` 0.2.519, `dist/index.d.ts:7480-7505`): no hay un aviso real
+ * con adjunto guardado.
+ */
+describe("F28: la descarga del adjunto", () => {
+  const conAdjunto = (tipo: string) =>
+    avisoReal(recibidoReal, (p) => {
+      p.message.attachments = [{ type: tipo, url: "https://cdn.ejemplo.invalid/archivo" }];
+    });
+
+  it("el entrante se guarda marcado (intentos 0) y la descarga NO corre antes del acuse", async () => {
+    const body = conAdjunto("image");
+    const res = await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    expect(res.status).toBe(200);
+    expect(guardadosEnMessages()).toEqual([expect.objectContaining({ message_type: "imagen", media_status: "pendiente", media_intentos: 0 })]);
+    expect(descargarAdjunto).not.toHaveBeenCalled();
+    await correrPendientes();
+    expect(descargarAdjunto).toHaveBeenCalledTimes(1);
+    expect(descargarAdjunto.mock.calls[0][0]).toBe("msg-local-1");
+  });
+
+  it("una descarga colgada no demora el acuse", async () => {
+    descargarAdjunto.mockImplementationOnce(() => new Promise(() => {}));
+    const body = conAdjunto("audio");
+    const res = await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ok: true });
+    void correrPendientes();
+  });
+
+  it("si el after() no llega a correr (redespliegue), el mensaje quedó guardado y marcado para el reintento", async () => {
+    const body = conAdjunto("video");
+    await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    pendientes.length = 0; // el proceso se cortó: nada de lo pendiente corre
+    expect(descargarAdjunto).not.toHaveBeenCalled();
+    expect(guardadosEnMessages()).toEqual([expect.objectContaining({ media_status: "pendiente", media_intentos: 0, direction: "inbound" })]);
+  });
+
+  it("entre cuentas propias también se baja (aunque no corran flujos)", async () => {
+    estado.senderChannel = { id: "ch-otro" };
+    const body = conAdjunto("image");
+    await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    await correrPendientes();
+    expect(descargarAdjunto).toHaveBeenCalledTimes(1);
+  });
+
+  it("un share entrante (tipo otro) no se marca ni se baja", async () => {
+    const body = conAdjunto("share");
+    await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    await correrPendientes();
+    const [fila] = guardadosEnMessages();
+    expect(fila).toMatchObject({ message_type: "otro", media_status: "pendiente" });
+    expect(fila).not.toHaveProperty("media_intentos");
+    expect(descargarAdjunto).not.toHaveBeenCalled();
+  });
+
+  it("un saliente con adjunto (echo de la app) no se marca ni se baja", async () => {
+    const body = avisoReal(enviadoReal, (p) => {
+      p.message.attachments = [{ type: "image", url: "https://cdn.ejemplo.invalid/archivo" }];
+    });
+    await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    await correrPendientes();
+    const [fila] = guardadosEnMessages();
+    expect(fila).toMatchObject({ direction: "outbound", message_type: "imagen" });
+    expect(fila).not.toHaveProperty("media_intentos");
+    expect(descargarAdjunto).not.toHaveBeenCalled();
   });
 });

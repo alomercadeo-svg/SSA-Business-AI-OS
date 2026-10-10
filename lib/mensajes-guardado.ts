@@ -17,6 +17,7 @@
  * base, con tablas temporales (ver la cabecera de la 00032).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { seDescarga } from "./adjuntos";
 
 export const CONFLICTO_DE_MENSAJE = "conversation_id,platform_message_id,direction";
 
@@ -66,9 +67,15 @@ export function tipoPorAdjuntos(adjuntos: readonly AdjuntoCrudo[] | null | undef
   return "otro";
 }
 
-function fila(m: MensajeParaGuardar) {
+/**
+ * `marcarDescarga` lo pasa SOLO el receptor (F28): pone `media_intentos` en 0
+ * en los entrantes con archivo, que es lo que el reintento busca. La
+ * importación no lo pasa, así que lo que trae queda en nulo y no se baja.
+ */
+function fila(m: MensajeParaGuardar, opciones: { marcarDescarga?: boolean } = {}) {
   const conAdjunto = (m.attachments?.length ?? 0) > 0;
   return {
+    ...(opciones.marcarDescarga && seDescarga(m) ? { media_intentos: 0 } : {}),
     conversation_id: m.conversationId,
     direction: m.direction,
     platform_message_id: m.platformMessageId,
@@ -92,11 +99,12 @@ function fila(m: MensajeParaGuardar) {
 export async function guardarMensajes(
   supabase: SupabaseClient,
   mensajes: readonly MensajeParaGuardar[],
+  opciones: { marcarDescarga?: boolean } = {},
 ): Promise<{ error: { message: string; code?: string } | null }> {
   if (mensajes.length === 0) return { error: null };
   const { error } = await supabase
     .from("messages")
-    .upsert(mensajes.map(fila), { onConflict: CONFLICTO_DE_MENSAJE, ignoreDuplicates: true });
+    .upsert(mensajes.map((m) => fila(m, opciones)), { onConflict: CONFLICTO_DE_MENSAJE, ignoreDuplicates: true });
   return { error: error ? { message: error.message, code: error.code } : null };
 }
 

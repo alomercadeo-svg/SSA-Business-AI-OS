@@ -892,6 +892,11 @@ export interface Database {
           /** F28: ruta en Storage y estado del adjunto. Nulo = sin adjunto. */
           media_path: string | null;
           media_status: MediaStatus | null;
+          media_intentos: number | null;
+          media_reclamado_at: string | null;
+          media_mime: string | null;
+          media_bytes: number | null;
+          media_error: string | null;
           sent_by_flow_id: string | null;
           sent_by_node_id: string | null;
           sent_by_user_id: string | null;
@@ -913,6 +918,11 @@ export interface Database {
           quoted_message_id?: string | null;
           media_path?: string | null;
           media_status?: MediaStatus | null;
+          media_intentos?: number | null;
+          media_reclamado_at?: string | null;
+          media_mime?: string | null;
+          media_bytes?: number | null;
+          media_error?: string | null;
           sent_by_flow_id?: string | null;
           sent_by_node_id?: string | null;
           sent_by_user_id?: string | null;
@@ -925,6 +935,11 @@ export interface Database {
           sent_by_user_id?: string | null;
           media_path?: string | null;
           media_status?: MediaStatus | null;
+          media_intentos?: number | null;
+          media_reclamado_at?: string | null;
+          media_mime?: string | null;
+          media_bytes?: number | null;
+          media_error?: string | null;
         };
         Relationships: [
           {

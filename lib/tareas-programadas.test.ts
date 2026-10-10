@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { correrTareas, claveDeVigilancia } from "./tareas-programadas";
+import { correrTareas, claveDeVigilancia, CLAVE_DE_REINTENTO_DE_ADJUNTOS } from "./tareas-programadas";
 import { marcaVisible, marcaVencida } from "./tareas-estado";
 import { HORARIO_POR_DEFECTO } from "./horas-habiles";
 
@@ -124,5 +124,64 @@ describe("la tarea de vigilancia y su marca (F39)", () => {
     expect(r.fallidas).toBe(0);
     expect(marcaVisible(fila)).not.toBeNull();
     expect(fila.resultado).toMatchObject({ suscripcion: { error: "El proveedor no respondió a tiempo.", alerta: "sin_leer" } });
+  });
+});
+
+describe("el reintento de adjuntos de F28 en la misma corrida", () => {
+  it("un fallo del reintento no frena la marca de la vigilancia y queda en su propia fila", async () => {
+    const { servicio, tareas } = baseFalsa([ESPACIO]);
+    const orden: string[] = [];
+    const r = await correrTareas({
+      servicio: servicio as never,
+      ahora: new Date(),
+      deps: {
+        ...deps,
+        reintentarAdjuntos: async () => {
+          orden.push("adjuntos");
+          throw new Error("se cayó Storage");
+        },
+      },
+    });
+    const vigilancia = tareas.get(claveDeVigilancia("ws-1"))!;
+    expect(r.fallidas).toBe(0);
+    expect(r.adjuntos).toBe("fallo");
+    expect(marcaVisible(vigilancia)).not.toBeNull();
+    expect(vigilancia.ultimo_error).toBeNull();
+    const fila = tareas.get(CLAVE_DE_REINTENTO_DE_ADJUNTOS)!;
+    expect(fila.ultimo_error).toBe("se cayó Storage");
+    expect(fila.ultimo_ok_at ?? null).toBeNull();
+    expect(fila.ocupada_hasta).toBeNull();
+    expect(orden).toEqual(["adjuntos"]);
+  });
+
+  it("una corrida buena del reintento escribe su marca (control positivo)", async () => {
+    const { servicio, tareas } = baseFalsa([ESPACIO]);
+    const r = await correrTareas({
+      servicio: servicio as never,
+      ahora: new Date(),
+      deps: { ...deps, reintentarAdjuntos: async () => ({ revisados: 1, descargados: 1, fallidos: 0, noDisponibles: 0, errores: 0 }) },
+    });
+    expect(r.adjuntos).toBe("ok");
+    const fila = tareas.get(CLAVE_DE_REINTENTO_DE_ADJUNTOS)!;
+    expect(marcaVisible(fila)).not.toBeNull();
+    expect(fila.workspace_id ?? null).toBeNull();
+    expect(fila.resultado).toMatchObject({ revisados: 1, descargados: 1 });
+  });
+
+  it("corre después de vigilar todos los espacios", async () => {
+    const { servicio, tareas } = baseFalsa([ESPACIO, { ...ESPACIO, id: "ws-2" }]);
+    let vigiladosAlReintentar = 0;
+    await correrTareas({
+      servicio: servicio as never,
+      ahora: new Date(),
+      deps: {
+        ...deps,
+        reintentarAdjuntos: async () => {
+          vigiladosAlReintentar = [...tareas.values()].filter((f) => f.clave.startsWith("vigilancia_canales:") && f.ultimo_ok_at).length;
+          return { revisados: 0, descargados: 0, fallidos: 0, noDisponibles: 0, errores: 0 };
+        },
+      },
+    });
+    expect(vigiladosAlReintentar).toBe(2);
   });
 });

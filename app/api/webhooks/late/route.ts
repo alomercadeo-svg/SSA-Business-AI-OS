@@ -12,6 +12,7 @@ import { guardarMensajes } from "@/lib/mensajes-guardado";
 import { contactoDelAviso, esSaliente, mensajeDelAviso, type AvisoDeMensajeZernio } from "@/lib/zernio-aviso";
 import { rellenarPerfilSiFalta } from "@/lib/relleno-perfil";
 import { claveDeImportacion } from "@/lib/importacion-historial";
+import { almacenDeSupabase, descargarAdjunto, seDescarga } from "@/lib/adjuntos";
 
 // ── Zernio API webhook payload ───────────────────────────────────────────────
 
@@ -237,6 +238,30 @@ async function handleWebhook(request: NextRequest) {
     return NextResponse.json({ error: "No se pudo guardar el mensaje" }, { status: 500 });
   }
 
+  // F28: el archivo del adjunto se baja DESPUÉS del acuse, en su propio
+  // `after()`, separado del de flujos (corre también entre cuentas propias).
+  // Si un redespliegue lo corta, el mensaje ya está guardado con
+  // `media_intentos` en 0 y lo toma el reintento de las tareas programadas.
+  if (guardado.descargarAdjunto) {
+    const { conversationId } = guardado;
+    const platformMessageId = payload.message.platformMessageId;
+    after(async () => {
+      try {
+        const { data } = await supabase
+          .from("messages")
+          .select("id")
+          .eq("conversation_id", conversationId)
+          .eq("platform_message_id", platformMessageId)
+          .eq("direction", "inbound")
+          .maybeSingle();
+        const id = (data as { id?: string } | null)?.id;
+        if (id) await descargarAdjunto(id, { almacen: almacenDeSupabase(supabase) });
+      } catch (err) {
+        console.error("[webhooks/late] adjunto:", err instanceof Error ? err.message : "error");
+      }
+    });
+  }
+
   // Después del acuse, lo que sí llama afuera: el relleno del perfil (Zernio)
   // y los flujos (que mandan mensajes). Zernio corta las entregas a los 5
   // segundos, según el comentario que trae el fork (`53cb513`); no verificado.
@@ -271,6 +296,8 @@ interface Guardado {
   isAutomationPaused: boolean;
   /** El identificador del lead en el canal (`contact_channels.platform_sender_id`). */
   senderId: string;
+  /** F28: un entrante con archivo, marcado para bajar. */
+  descargarAdjunto: boolean;
 }
 
 /**
@@ -346,9 +373,8 @@ async function guardarAviso(
     }
   }
 
-  const { error } = await guardarMensajes(supabase, [
-    mensajeDelAviso(aviso, conversation.id, lead.senderId),
-  ]);
+  const mensaje = mensajeDelAviso(aviso, conversation.id, lead.senderId);
+  const { error } = await guardarMensajes(supabase, [mensaje], { marcarDescarga: true });
   if (error) throw new Error(`messages: ${error.message}`);
 
   if (!saliente) {
@@ -361,6 +387,7 @@ async function guardarAviso(
     conversationId: conversation.id,
     isAutomationPaused: Boolean(conversation.is_automation_paused),
     senderId: lead.senderId,
+    descargarAdjunto: seDescarga(mensaje) && Boolean(mensaje.platformMessageId),
   };
 }
 
