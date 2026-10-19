@@ -692,7 +692,7 @@ Corrieron los dos caminos: el receptor, que guardó el mensaje, y el relleno, qu
 - El origen de los 7 contactos sin `contact_channels` (276 contra 269 antes de la importación; ya estaban el 07/10), contado sin leer contenido.
 - La verificación de las tareas programadas en Railway, antes de F39.
 
-**Pendiente de F35 (S7): cargar los mensajes anteriores de una conversación.** Desde el despliegue B, `GET` de `app/api/v1/messages/route.ts` trae los últimos `MENSAJES_POR_HILO` (200) mensajes de la base y devuelve `hayAnteriores`; el hilo (`components/inbox/message-thread.tsx`, `MessageThread`) muestra «Hay mensajes anteriores que no se muestran acá» y no tiene forma de traerlos. Es lo mismo que hacía la ruta anterior con Zernio (la última página, con aviso), así que no deja de verse nada que antes se viera. Al 08/10/2026 hay al menos una conversación de @alomercadeo con 253 mensajes: los 53 más viejos están en la base y no se ven desde la bandeja.
+**Pendiente de F35 (S7): cargar los mensajes anteriores de una conversación. Desde el 19/10/2026 es un criterio de F35:** «El hilo de una conversación deja cargar los mensajes anteriores a los últimos 200, hasta el primero guardado». Desde el despliegue B, `GET` de `app/api/v1/messages/route.ts` trae los últimos `MENSAJES_POR_HILO` (200) mensajes de la base y devuelve `hayAnteriores`; el hilo (`components/inbox/message-thread.tsx`, `MessageThread`) muestra «Hay mensajes anteriores que no se muestran acá» y no tiene forma de traerlos. Es lo mismo que hacía la ruta anterior con Zernio (la última página, con aviso), así que no deja de verse nada que antes se viera. Al 08/10/2026 hay al menos una conversación de @alomercadeo con 253 mensajes: los 53 más viejos están en la base y no se ven desde la bandeja.
 
 
 ### Tramo 2: pendientes cortos de F27, F25 y F39
@@ -1017,7 +1017,7 @@ Tests:
 - **Los 5 bajados no se pueden ver en la bandeja, por un límite que no es de F28.** Dicho por Marcos con captura el 19/10/2026 hacia las 15:21: la lista llega hasta las conversaciones de las 15:24 de hoy y no tiene cómo ver más.
   - La bandeja carga **50 conversaciones** (`app/(dashboard)/dashboard/inbox/page.tsx:12`, `.limit(50)`, del fork), y el buscador filtra **solo entre esas 50**, en el navegador (`components/inbox/conversation-list.tsx:105-108`).
   - Además, `d6754c32` (la foto de 2021) tiene 200 mensajes posteriores en su conversación, y el hilo muestra los últimos 200 (`MENSAJES_POR_HILO`, `app/api/v1/messages/route.ts:11`).
-  - **Anotado sin criterio y sin construir**, junto con «Ver mensajes anteriores»: llegar desde la bandeja a una conversación vieja no lo pide F28. Quién lo toma lo decide Marcos.
+  - **Anotado sin criterio y sin construir**, junto con «Ver mensajes anteriores»: llegar desde la bandeja a una conversación vieja no lo pide F28. Quién lo toma lo decide Marcos. **Decidido el 19/10/2026: es de F35**, con los criterios agregados ese día (la lista por páginas y la búsqueda en el servidor, y el hilo que deja cargar los mensajes anteriores a los últimos 200, hasta el primero guardado).
   - La confirmación de los 5 se pasa al panel de Storage, como el 09/10.
 - **Confirmado por Marcos el 19/10/2026, en el panel de Storage de Supabase (bucket `message-media`):** se ven las tres fotos (`bc4a7309`, `9a064b31` y `d6754c32`) y se escuchan las dos notas de voz (`13b44e2c` y `acf93c5f`). Sin describir el contenido. Es la prueba de que lo guardado es un archivo de verdad del tipo esperado.
   - Para `d6754c32`, Storage dice «added on 10/19/2026»: es la fecha de subida (hoy, 14:50:14), no la del mensaje. La del mensaje, 17/06/2021, es la que dio Instagram y vive en `messages.created_at`.
@@ -1075,6 +1075,22 @@ Tests:
 **`DATABASE_SAVE_DATA_NEW_MESSAGE` en nuestro Evolution: `true`**, dicho por Marcos el 19/10/2026 desde las variables del servicio «evolution» en Railway (sin cambiar nada). Queda para el registro: con ese valor, un reintento con solo la `key` también encontraría el mensaje en la base de Evolution. La recomendación de guardar el mensaje en `whatsapp_adjuntos_por_bajar` no depende de este valor, porque `docs/despliegue-evolution.md` deja abierta la decisión de apagar ese guardado.
 
 **Fin del tramo 5: 19/10/2026 16:39:42**, leída antes de commitear el cierre. Suma: 230 min (3 h 50 min), de 12:48:47 a 16:39:42, sin cortes. Suma de la sesión 2: 803 min (13 h 23 min). La línea de base no cambió: no se agregó ningún criterio a F28.
+
+---
+
+## Sesión del 19 de octubre de 2026, tarde: Bloque 3, sesión 3 (F29, F30 y F41)
+
+### Tramo 1: F41
+
+**Inicio del tramo 1: 19/10/2026 17:01:56 de Costa Rica**, leída con `TZ=America/Costa_Rica date` antes de explorar para el plan. `node scripts/commits-sin-subir.mjs`: «Sin commits sin subir contra origin/bloque-1-foundation»; último commit `f3230a0`, comprobado con `git log`.
+
+**El plan de la sesión, aprobado por Marcos el 19/10/2026:** F41 en este tramo; después F30 (antes que F29, porque la unión de F29 necesita que `fusionar_contactos` conozca `contact_notes`, y su búsqueda tiene que ignorar los contactos eliminados, que no existen hasta F30); F29 al final. El panel de la bandeja no lleva setter ni vendedor: §11 no lo pide (solo lo muestra el prototipo), corregido por Marcos al aprobar.
+
+**Corte del tramo: la apertura (ítem 0), fuera de la medición.** Empezó a las 17:15:57.
+
+- **Despliegue M, `f3230a0`** (el cierre del tramo 5, que no podía figurar en sí mismo). `node scripts/verificar-despliegue.mjs`, **salida 0, leída directo**: el build pasó de `QJjOVEKD_tV6Z5_OUUBv7` a `5XHPgg5DB0wUHvoayREdD`, de 16:40:15 a 16:44:04, con `/login` en 200.
+- **Railway, dicho por Marcos con captura el 19/10/2026 a las 16:45:** ACTIVE «docs: cierre del tramo 5 de la sesión 2 del Bloque 3 (F28, part…», «4 minutes ago via GitHub», «Deployment successful». **Identificado por título** (`f3230a0`).
+- **Criterios nuevos de F35, decididos por Marcos el 19/10/2026**, adelantando una de las decisiones de antes de S7: la lista de la bandeja por páginas desde el servidor con el total, la búsqueda y los filtros en el servidor sobre todo el alcance de quien mira, «Ver mensajes anteriores» hasta el primero guardado, y su control positivo con el token de un Member y de un Owner. **F35 es del Bloque 4: no toca la línea de base del Bloque 3.** No se construyen en esta sesión. La nota de F35 del 22/09/2026 ahora dice que se decidió; la nota de §15 del 19/10 («sin dueño: la bandeja no llega a las conversaciones viejas») se corrigió: no estaba sin dueño ni era nueva, remite a la nota de F35 y a los criterios nuevos, y la lista de contactos (tope de 100) queda como está, porque no es de la bandeja. Las dos líneas de este archivo que dejaban «Ver mensajes anteriores» como pendiente remiten al criterio nuevo.
 
 ---
 

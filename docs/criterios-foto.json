@@ -2088,6 +2088,42 @@
     "texto": "- [ ] Control positivo: fijar «En 3 días» desde la bandeja hace que la conversación aparezca en el filtro «Rango de fechas» de ese día sin recargar; «Quitar» la saca de todas las opciones del filtro."
   },
   {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] La lista de conversaciones de la bandeja carga por páginas desde el servidor, ordenada por último mensaje, y deja seguir cargando hasta la más vieja. Muestra cuántas conversaciones hay en total, no solo las cargadas (agregado el 19/10/2026, decidido por Marcos; medido el 22/09/2026 en la nota de abajo)"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] La búsqueda y los filtros de la lista corren en el servidor, sobre todas las conversaciones del alcance de quien mira, no sobre las ya cargadas en el navegador (agregado el 19/10/2026)"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] El hilo de una conversación deja cargar los mensajes anteriores a los últimos 200, hasta el primero guardado (agregado el 19/10/2026; era el pendiente de F35 anotado el 08/10/2026 en MessageThread)"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] Control positivo: una conversación que está más abajo de las primeras 50 aparece al buscar por el nombre o el usuario del contacto y se abre, y en una conversación de más de 200 mensajes se llega al primero. Con el token de un Member, la búsqueda no devuelve conversaciones fuera de su alcance, y con el de un Owner sí (agregado el 19/10/2026)"
+  },
+  {
     "seccion": "F36: Respuestas rápidas",
     "ruta": [
       "5. Funcionalidades y criterios de aceptación",
