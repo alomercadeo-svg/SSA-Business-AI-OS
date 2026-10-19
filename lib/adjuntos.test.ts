@@ -432,3 +432,144 @@ describe("almacenDeSupabase arma las condiciones de las escrituras", () => {
     expect(llamadas).toContainEqual(["or", "media_reclamado_at.is.null,media_reclamado_at.lt.2026-10-09T19:58:00.000Z"]);
   });
 });
+
+/**
+ * WhatsApp (F28, parte B): el archivo se le pide a nuestro Evolution con el
+ * mensaje entero (`POST /chat/getBase64FromMediaMessage/{instancia}`), y lo
+ * común —tomar, techo, tipo por los bytes, tamaño, ruta, subida y cierre— es
+ * el mismo camino que Instagram. Evolution está SIMULADO, con la forma de
+ * respuesta de 2.3.7 (`whatsapp.baileys.service.ts`, 3962-3970: `mediaType`,
+ * `fileName`, `mimetype`, `base64` sin prefijo; 201 en `chat.router.ts:121`).
+ * La descarga exitosa real se comprueba en la puesta en marcha del número.
+ */
+describe("WhatsApp: el archivo se le pide a Evolution", () => {
+  const EVO = "https://evo.ejemplo.invalid";
+  const TOKEN = "token-de-instancia-de-prueba";
+  const MENSAJE = {
+    key: { remoteJid: "50670001111@s.whatsapp.net", fromMe: false, id: "3EB0IMG" },
+    message: { imageMessage: { mimetype: "image/jpeg", mediaKey: { 0: 1, 1: 2 }, directPath: "/v/t62/x", fileLength: 19 } },
+  };
+
+  function escenario(p: { conMensaje?: boolean; conToken?: boolean } = {}) {
+    const base = almacenEnMemoria([
+      fila({
+        attachments: [{ type: "imageMessage", mimetype: "image/jpeg", fileName: null }],
+        canal: { id: "ch-wa", provider: "evolution", instance_name: "ssa-wa" },
+      }),
+    ]);
+    const olvidados: string[] = [];
+    const pedidosDeClave: Array<[string, string]> = [];
+    const almacen: Almacen = {
+      ...base.almacen,
+      async mensajeDeWhatsapp(id) {
+        return p.conMensaje === false ? null : id === "m1" ? MENSAJE : null;
+      },
+      async claveDeInstancia(ws, canal) {
+        pedidosDeClave.push([ws, canal]);
+        return p.conToken === false ? null : TOKEN;
+      },
+      async olvidar(id) {
+        olvidados.push(id);
+      },
+    };
+    return { ...base, almacen, olvidados, pedidosDeClave };
+  }
+
+  function evolution(status: number, cuerpo: unknown) {
+    const pedidos: Array<{ url: string; init: RequestInit }> = [];
+    const bajar = (async (url: string, init: RequestInit) => {
+      pedidos.push({ url, init });
+      return new Response(JSON.stringify(cuerpo), { status, headers: { "content-type": "application/json" } });
+    }) as unknown as typeof fetch;
+    return { bajar, pedidos };
+  }
+
+  const base64 = (b: Uint8Array) => Buffer.from(b).toString("base64");
+
+  it("pide el archivo con el mensaje entero y el token de la instancia, y lo guarda con el tipo de los bytes", async () => {
+    const e = escenario();
+    // Evolution dice image/jpeg; los bytes son PNG: manda el contenido.
+    const evo = evolution(201, { mediaType: "imageMessage", fileName: "3EB0IMG.jpeg", mimetype: "image/jpeg", base64: base64(PNG) });
+    expect(await descargarAdjunto("m1", { almacen: e.almacen, bajar: evo.bajar, evolutionUrl: EVO })).toBe("descargado");
+
+    expect(evo.pedidos).toHaveLength(1);
+    expect(evo.pedidos[0].url).toBe(`${EVO}/chat/getBase64FromMediaMessage/ssa-wa`);
+    expect(evo.pedidos[0].init.method).toBe("POST");
+    expect((evo.pedidos[0].init.headers as Record<string, string>).apikey).toBe(TOKEN);
+    expect(JSON.parse(String(evo.pedidos[0].init.body))).toEqual({ message: MENSAJE, convertToMp4: false });
+    expect(e.pedidosDeClave).toEqual([["w1", "ch-wa"]]);
+
+    expect(e.subidas).toEqual([{ ruta: "w1/c1/m1/archivo.png", mime: "image/png", bytes: PNG.byteLength }]);
+    expect(e.porId.get("m1")).toMatchObject({ media_status: "descargado", media_path: "w1/c1/m1/archivo.png", media_mime: "image/png", media_intentos: 1 });
+    expect(e.olvidados).toEqual(["m1"]);
+  });
+
+  it("si Evolution responde un error queda fallido y se reintenta; en el quinto, no_disponible, y recién ahí se borra el mensaje guardado", async () => {
+    const e = escenario();
+    const evo = evolution(404, { status: 404, error: "Not Found", response: { message: ['The "ssa-wa" instance does not exist'] } });
+    for (let i = 1; i < TECHO_DE_INTENTOS; i++) {
+      expect(await descargarAdjunto("m1", { almacen: e.almacen, bajar: evo.bajar, evolutionUrl: EVO })).toBe("fallido");
+      expect(e.porId.get("m1")).toMatchObject({ media_status: "fallido", media_error: "http_404", media_intentos: i });
+      expect(e.olvidados).toEqual([]);
+    }
+    expect(await descargarAdjunto("m1", { almacen: e.almacen, bajar: evo.bajar, evolutionUrl: EVO })).toBe("no_disponible");
+    expect(e.porId.get("m1")).toMatchObject({ media_status: "no_disponible", media_error: "http_404" });
+    expect(e.olvidados).toEqual(["m1"]);
+    expect(e.subidas).toHaveLength(0);
+  });
+
+  it("sin el token de la instancia queda fallido con sin_clave, sin llamar a Evolution", async () => {
+    const e = escenario({ conToken: false });
+    const evo = evolution(201, {});
+    expect(await descargarAdjunto("m1", { almacen: e.almacen, bajar: evo.bajar, evolutionUrl: EVO })).toBe("fallido");
+    expect(e.porId.get("m1")!.media_error).toBe("sin_clave");
+    expect(evo.pedidos).toHaveLength(0);
+  });
+
+  it("sin el mensaje guardado queda no_disponible con sin_mensaje, sin llamar a Evolution", async () => {
+    const e = escenario({ conMensaje: false });
+    const evo = evolution(201, {});
+    expect(await descargarAdjunto("m1", { almacen: e.almacen, bajar: evo.bajar, evolutionUrl: EVO })).toBe("no_disponible");
+    expect(e.porId.get("m1")!.media_error).toBe("sin_mensaje");
+    expect(evo.pedidos).toHaveLength(0);
+    expect(e.olvidados).toEqual(["m1"]);
+  });
+
+  it("un archivo pasado del tamaño máximo queda no_disponible y no se sube", async () => {
+    const e = escenario();
+    const grande = new Uint8Array(4096);
+    grande.set(PNG);
+    const evo = evolution(201, { mediaType: "imageMessage", mimetype: "image/png", base64: base64(grande) });
+    expect(await descargarAdjunto("m1", { almacen: e.almacen, bajar: evo.bajar, evolutionUrl: EVO, tamanoMaximo: 1024 })).toBe("no_disponible");
+    expect(e.porId.get("m1")!.media_error).toBe("excede_tamano");
+    expect(e.subidas).toHaveLength(0);
+  });
+
+  it("un tipo rechazado lleva el diagnóstico con el tipo que declaró Evolution; el token no aparece en ningún error", async () => {
+    const e = escenario();
+    const evo = evolution(201, { mediaType: "imageMessage", mimetype: "image/jpeg", base64: base64(HTML) });
+    expect(await descargarAdjunto("m1", { almacen: e.almacen, bajar: evo.bajar, evolutionUrl: EVO })).toBe("no_disponible");
+    expect(e.porId.get("m1")!.media_error).toBe(`tipo_no_permitido|image/jpeg|evo.ejemplo.invalid|${hex(HTML.subarray(0, 16))}`);
+    expect(e.porId.get("m1")!.media_error).not.toContain(TOKEN);
+  });
+
+  it("sin EVOLUTION_API_URL queda fallido con sin_configurar, sin llamar a nada", async () => {
+    const e = escenario();
+    const evo = evolution(201, {});
+    expect(await descargarAdjunto("m1", { almacen: e.almacen, bajar: evo.bajar, evolutionUrl: "" })).toBe("fallido");
+    expect(e.porId.get("m1")!.media_error).toBe("sin_configurar");
+    expect(evo.pedidos).toHaveLength(0);
+  });
+
+  it("el intento cortado de WhatsApp también borra el mensaje guardado", async () => {
+    const e = escenario();
+    const AHORA = new Date("2026-10-09T20:00:00.000Z");
+    Object.assign(e.porId.get("m1")!, {
+      media_intentos: TECHO_DE_INTENTOS,
+      media_reclamado_at: new Date(AHORA.getTime() - ESPERA_DEL_REINTENTO_MS - 60_000).toISOString(),
+    });
+    const r = await reintentarAdjuntos({ almacen: e.almacen, bajar: evolution(201, {}).bajar, ahoraFijo: AHORA, evolutionUrl: EVO });
+    expect(r.cortados).toBe(1);
+    expect(e.olvidados).toEqual(["m1"]);
+  });
+});

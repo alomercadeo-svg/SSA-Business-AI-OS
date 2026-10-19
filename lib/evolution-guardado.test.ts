@@ -45,6 +45,10 @@ function supabaseFalso() {
             return { data: id ? { contact_id: id } : null, error: null };
           }
           if (tabla === "contacts") return { data: { attribution: {} }, error: null };
+          if (tabla === "messages") {
+            const pid = op.filtros.find(([c]) => c === "platform_message_id")?.[1];
+            return { data: { id: `msg-${pid}` }, error: null };
+          }
           return { data: null, error: null };
         },
         then: (ok: (r: { error: null }) => unknown) => Promise.resolve({ error: null }).then(ok),
@@ -217,6 +221,52 @@ describe("guardado de WhatsApp (F27)", () => {
       aviso({ key: { remoteJid: "120363000000000000@g.us" } }),
       aviso({ key: { remoteJid: "status@broadcast" } }),
     ]);
-    expect(r).toEqual({ guardados: 0, salteados: 2 });
+    expect(r).toEqual({ guardados: 0, salteados: 2, porBajar: [] });
+  });
+});
+
+/**
+ * F28, parte B: el receptor de Evolution marca los adjuntos para bajar, igual
+ * que el de Zernio, y SOLO los entrantes con archivo de `messages.upsert`. La
+ * clave de descifrado va a `whatsapp_adjuntos_por_bajar` (00035), nunca a
+ * `messages`. Forma del mensaje: `prepareMessage` (4652-4704) con el
+ * `imageMessage` del proto de Baileys 7.0.0-rc.9 (ImageMessage, 2631); el
+ * `mediaKey` llega como objeto indexado porque es un Uint8Array serializado
+ * (`deserializeMessageBuffers`, 4659).
+ */
+describe("los adjuntos de WhatsApp (F28)", () => {
+  const imagen = (cambios: Record<string, any> = {}) =>
+    aviso({
+      messageType: "imageMessage",
+      message: { imageMessage: { url: "https://mmg.whatsapp.net/prueba", mimetype: "image/jpeg", mediaKey: { 0: 7, 1: 8, 2: 9 }, directPath: "/v/t62/x", fileLength: 1000 } },
+      ...cambios,
+    });
+  const porBajar = () => h.ops.filter((o) => o.tabla === "whatsapp_adjuntos_por_bajar");
+
+  it("un entrante con archivo queda marcado en 0, y su key y message[tipo] van aparte, no a messages", async () => {
+    const r = await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "messages.upsert", [imagen()]);
+    expect(mensajesGuardados()).toEqual([expect.objectContaining({ message_type: "imagen", media_intentos: 0, media_status: "pendiente" })]);
+    expect(JSON.stringify(mensajesGuardados())).not.toContain("mediaKey");
+    expect(porBajar()).toHaveLength(1);
+    expect(porBajar()[0].valores).toEqual({
+      message_id: "msg-3EB0AAAA",
+      mensaje: {
+        key: expect.objectContaining({ id: "3EB0AAAA", remoteJid: `${TEL}@s.whatsapp.net`, fromMe: false }),
+        message: { imageMessage: expect.objectContaining({ mediaKey: { 0: 7, 1: 8, 2: 9 } }) },
+      },
+    });
+    expect(JSON.stringify(porBajar()[0].valores)).not.toContain("Lead de Prueba");
+    expect(r.porBajar).toEqual(["msg-3EB0AAAA"]);
+  });
+
+  it("no se marca: lo propio desde el teléfono, el historial (messages.set), send.message ni un texto", async () => {
+    const supa = supabaseFalso() as never;
+    const r1 = await guardarMensajesDeEvolution(supa, CANAL, "messages.upsert", [imagen({ key: { fromMe: true, id: "PROPIO" } })]);
+    const r2 = await guardarMensajesDeEvolution(supa, CANAL, "messages.set", [imagen({ key: { id: "HIST" } })]);
+    const r3 = await guardarMensajesDeEvolution(supa, CANAL, "send.message", [imagen({ key: { fromMe: true, id: "ENVIO" } })]);
+    const r4 = await guardarMensajesDeEvolution(supa, CANAL, "messages.upsert", [aviso({ key: { id: "TEXTO" } })]);
+    for (const m of mensajesGuardados()) expect(m).not.toHaveProperty("media_intentos");
+    expect(porBajar()).toHaveLength(0);
+    expect([r1, r2, r3, r4].flatMap((r) => r.porBajar)).toEqual([]);
   });
 });

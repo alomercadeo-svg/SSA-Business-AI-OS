@@ -81,6 +81,12 @@ vi.mock("@/lib/evolution-processor", () => ({
   guardarEventoEvolution: (...args: unknown[]) => guardarEventoEvolution(...args),
 }));
 
+const descargarAdjunto = vi.fn(async (..._args: unknown[]) => "descargado");
+vi.mock("@/lib/adjuntos", () => ({
+  descargarAdjunto: (...args: unknown[]) => descargarAdjunto(...args),
+  almacenDeSupabase: () => ({}),
+}));
+
 /**
  * Supabase de mentira. Solo enruta lo que el handler consulta: el canal por
  * nombre de instancia, el ledger de idempotencia, y las dos RPC de alertas, que
@@ -235,6 +241,7 @@ beforeEach(() => {
   estado.liberados = [];
   guardarEventoEvolution.mockReset();
   guardarEventoEvolution.mockResolvedValue(undefined);
+  descargarAdjunto.mockClear();
 });
 
 // ── 1. Autenticación ────────────────────────────────────────────────────────
@@ -652,6 +659,41 @@ describe("F27: guardar antes del acuse", () => {
     const res = await POST(pedido(cuerpo(), await firmar()));
     expect(res.status).toBe(200);
     expect(guardarEventoEvolution).toHaveBeenCalledTimes(2);
+  });
+});
+
+/**
+ * F28, parte B: el archivo de WhatsApp se le pide a Evolution DESPUÉS del
+ * acuse, en su propio `after()`, igual que en el receptor de Zernio. Pedirlo
+ * antes demoraría el 200 con una llamada de red y el bucle de reintentos de
+ * Evolution (timeout de 30 s) lo vería como una entrega fallida.
+ */
+describe("F28: la descarga de WhatsApp no bloquea el acuse", () => {
+  it("responde 200 sin haber pedido el archivo, y lo pide al correr el after()", async () => {
+    guardarEventoEvolution.mockResolvedValue({ guardados: 1, salteados: 0, porBajar: ["msg-1"] } as never);
+    const res = await POST(pedido(cuerpo(), await firmar()));
+    expect(res.status).toBe(200);
+    expect(descargarAdjunto).not.toHaveBeenCalled();
+    await correrPendientes();
+    expect(descargarAdjunto).toHaveBeenCalledTimes(1);
+    expect(descargarAdjunto.mock.calls[0][0]).toBe("msg-1");
+  });
+
+  it("un fallo de la descarga no rompe el resto del after()", async () => {
+    guardarEventoEvolution.mockResolvedValue({ guardados: 2, salteados: 0, porBajar: ["msg-1", "msg-2"] } as never);
+    descargarAdjunto.mockRejectedValueOnce(new Error("falla simulada"));
+    const res = await POST(pedido(cuerpo(), await firmar()));
+    expect(res.status).toBe(200);
+    await correrPendientes();
+    expect(descargarAdjunto).toHaveBeenCalledTimes(2);
+    expect(procesarEventoEvolution).toHaveBeenCalledTimes(1);
+  });
+
+  it("sin nada para bajar no se pide ningún archivo (control)", async () => {
+    guardarEventoEvolution.mockResolvedValue({ guardados: 1, salteados: 0, porBajar: [] } as never);
+    await POST(pedido(cuerpo(), await firmar()));
+    await correrPendientes();
+    expect(descargarAdjunto).not.toHaveBeenCalled();
   });
 });
 

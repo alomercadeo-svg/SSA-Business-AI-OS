@@ -29,6 +29,19 @@
  * Sale de los primeros bytes (`lib/adjuntos-formatos.ts`), no de la extensión
  * ni de lo que diga el proveedor. Lo que no está en la lista no se guarda.
  *
+ * ── DE DÓNDE SALEN LOS BYTES, POR CANAL ─────────────────────────────────────
+ *
+ * Lo único que cambia entre canales es cómo se consiguen los bytes; todo lo
+ * demás (tomar, techo, tipo, tamaño, ruta, subida, cierre) es este archivo.
+ *   - Instagram (Zernio): `attachments[0].url`, bajada con `fetch`.
+ *   - WhatsApp (Evolution): no hay dirección. Se le pide el archivo a nuestro
+ *     Evolution con `POST /chat/getBase64FromMediaMessage/{instancia}` y el
+ *     mensaje entero (`key` y `message[tipo]`, con la clave de descifrado),
+ *     que el receptor guarda en `whatsapp_adjuntos_por_bajar` (00035) y se
+ *     borra al cerrar en `descargado` o `no_disponible`. Con el mensaje entero
+ *     Evolution no consulta su base (`whatsapp.baileys.service.ts` de 2.3.7,
+ *     3841). Se autentica con el token de la instancia, no con la clave global.
+ *
  * Nunca se registra el contenido del mensaje ni la dirección del proveedor:
  * los errores van como un código corto en `media_error`.
  *
@@ -52,6 +65,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { detectarFormato, BYTES_PARA_DETECTAR } from "./adjuntos-formatos";
+import { evolutionInstanceTokenName, getWorkspaceSecret } from "./vault";
 
 export const BUCKET_DE_ADJUNTOS = "message-media";
 export const TECHO_DE_INTENTOS = 5;
@@ -83,6 +97,8 @@ export interface FilaDeAdjunto {
   attachments: unknown;
   media_status: string | null;
   media_intentos: number | null;
+  /** El canal de la conversación. Sin canal, se baja por dirección (Instagram). */
+  canal?: { id: string; provider: string; instance_name: string | null } | null;
 }
 
 export type Cierre =
@@ -101,6 +117,12 @@ export interface Almacen {
   porReintentar(ahora: Date, limite: number): Promise<string[]>;
   /** Abiertos con los intentos en el techo y sin reclamo reciente: un intento del techo cortado. */
   trabadas(ahora: Date, limite: number): Promise<Array<{ id: string; media_intentos: number }>>;
+  /** WhatsApp: el mensaje guardado por el receptor (`key` y `message[tipo]`), o null. */
+  mensajeDeWhatsapp?(id: string): Promise<unknown | null>;
+  /** WhatsApp: el token de la instancia del canal, de Vault, o null. */
+  claveDeInstancia?(workspaceId: string, channelId: string): Promise<string | null>;
+  /** WhatsApp: borra el mensaje guardado, con su clave de descifrado. */
+  olvidar?(id: string): Promise<void>;
 }
 
 export function almacenDeSupabase(servicio: SupabaseClient): Almacen {
@@ -109,14 +131,18 @@ export function almacenDeSupabase(servicio: SupabaseClient): Almacen {
     async leer(id) {
       const { data, error } = await servicio
         .from("messages")
-        .select("id, conversation_id, direction, attachments, media_status, media_intentos, conversations(workspace_id)")
+        .select(
+          "id, conversation_id, direction, attachments, media_status, media_intentos, conversations(workspace_id, channels(id, provider, instance_name))",
+        )
         .eq("id", id)
         .maybeSingle();
       if (error) throw new Error(`messages: ${error.message}`);
       if (!data) return null;
-      const d = data as unknown as Omit<FilaDeAdjunto, "workspace_id"> & { conversations: { workspace_id: string } | null };
-      if (!d.conversations?.workspace_id) return null;
-      return { ...d, workspace_id: d.conversations.workspace_id };
+      const { conversations: conv, ...d } = data as unknown as Omit<FilaDeAdjunto, "workspace_id" | "canal"> & {
+        conversations: { workspace_id: string; channels: FilaDeAdjunto["canal"] } | null;
+      };
+      if (!conv?.workspace_id) return null;
+      return { ...d, workspace_id: conv.workspace_id, canal: conv.channels ?? null };
     },
     async tomar(id, desde, ahora) {
       const { data, error } = await servicio
@@ -174,6 +200,18 @@ export function almacenDeSupabase(servicio: SupabaseClient): Almacen {
       if (error) throw new Error(`messages: ${error.message}`);
       return (data ?? []) as Array<{ id: string; media_intentos: number }>;
     },
+    async mensajeDeWhatsapp(id) {
+      const { data, error } = await servicio.from("whatsapp_adjuntos_por_bajar").select("mensaje").eq("message_id", id).maybeSingle();
+      if (error) throw new Error(`whatsapp_adjuntos_por_bajar: ${error.message}`);
+      return (data as { mensaje?: unknown } | null)?.mensaje ?? null;
+    },
+    async claveDeInstancia(workspaceId, channelId) {
+      return getWorkspaceSecret(servicio, workspaceId, evolutionInstanceTokenName(channelId));
+    },
+    async olvidar(id) {
+      const { error } = await servicio.from("whatsapp_adjuntos_por_bajar").delete().eq("message_id", id);
+      if (error) throw new Error(`whatsapp_adjuntos_por_bajar: ${error.message}`);
+    },
   };
 }
 
@@ -185,6 +223,8 @@ export interface OpcionesDeDescarga {
   ahora?: () => Date;
   tamanoMaximo?: number;
   tiempoMaximoMs?: number;
+  /** `EVOLUTION_API_URL` si falta. */
+  evolutionUrl?: string;
 }
 
 export type ResultadoDeDescarga = "descargado" | "fallido" | "no_disponible" | "omitido" | "tomado_por_otro" | "pisado";
@@ -200,18 +240,108 @@ function direccionDelAdjunto(attachments: unknown): string | null {
   return typeof primero?.url === "string" && /^https?:\/\//.test(primero.url) ? primero.url : null;
 }
 
-/** `tipo_no_permitido|<tipo declarado>|<host final>|<16 bytes en hex>`. Nunca la ruta ni los parámetros. */
-function diagnosticoDeRechazo(res: Response, datos: Uint8Array): string {
-  const declarado = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
-  const tipo = /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/.test(declarado) ? declarado : "-";
-  let host = "-";
+/** Solo el nombre del host: nunca la ruta ni los parámetros, que son los que llevan el token. */
+function soloHost(direccion: string | null | undefined): string | null {
+  if (!direccion) return null;
   try {
-    if (res.url) host = new URL(res.url).hostname || "-";
+    return new URL(direccion).hostname || null;
   } catch {
-    host = "-";
+    return null;
   }
+}
+
+/** `tipo_no_permitido|<tipo declarado>|<host final>|<16 bytes en hex>`. Lo que falta, con un guion. */
+function diagnosticoDeRechazo(declaradoCrudo: string | null, host: string | null, datos: Uint8Array): string {
+  const declarado = (declaradoCrudo ?? "").split(";")[0].trim().toLowerCase();
+  const tipo = /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/.test(declarado) ? declarado : "-";
   const bytes = [...datos.subarray(0, BYTES_PARA_DETECTAR)].map((b) => b.toString(16).padStart(2, "0")).join("");
-  return `tipo_no_permitido|${tipo}|${host}|${bytes || "-"}`;
+  return `tipo_no_permitido|${tipo}|${host ?? "-"}|${bytes || "-"}`;
+}
+
+interface Obtenido {
+  datos: Uint8Array;
+  /** El tipo que dijo el proveedor, solo para el diagnóstico. Nunca decide. */
+  declarado: string | null;
+  host: string | null;
+}
+
+interface Limites {
+  bajar: typeof fetch;
+  maximo: number;
+  tiempo: number;
+}
+
+/** Instagram: la dirección del adjunto, con `fetch`. */
+async function bytesDeDireccion(fila: FilaDeAdjunto, l: Limites): Promise<Obtenido> {
+  const url = direccionDelAdjunto(fila.attachments);
+  if (!url) throw new FalloDeDescarga("sin_direccion", true);
+
+  let res: Response;
+  try {
+    res = await l.bajar(url, { signal: AbortSignal.timeout(l.tiempo), redirect: "follow" });
+  } catch (err) {
+    throw falloDeRed(err);
+  }
+  if (!res.ok) throw new FalloDeDescarga(`http_${res.status}`, false);
+  return { datos: await leerCuerpo(res, l.maximo), declarado: res.headers.get("content-type"), host: soloHost(res.url) };
+}
+
+/**
+ * WhatsApp: se le pide el archivo a nuestro Evolution. `sin_clave` y
+ * `sin_configurar` se reintentan (son configuración que se puede corregir
+ * antes del quinto intento); `sin_mensaje` no, porque sin el mensaje no hay
+ * con qué pedirlo.
+ */
+async function bytesDeEvolution(fila: FilaDeAdjunto, l: Limites, almacen: Almacen, base: string): Promise<Obtenido> {
+  const instancia = fila.canal?.instance_name;
+  if (!instancia) throw new FalloDeDescarga("sin_instancia", true);
+  const mensaje = almacen.mensajeDeWhatsapp ? await almacen.mensajeDeWhatsapp(fila.id) : null;
+  if (!mensaje) throw new FalloDeDescarga("sin_mensaje", true);
+  if (!base) throw new FalloDeDescarga("sin_configurar", false);
+  const clave = almacen.claveDeInstancia && fila.canal ? await almacen.claveDeInstancia(fila.workspace_id, fila.canal.id) : null;
+  if (!clave) throw new FalloDeDescarga("sin_clave", false);
+
+  const raiz = base.replace(/\/$/, "");
+  let res: Response;
+  try {
+    res = await l.bajar(`${raiz}/chat/getBase64FromMediaMessage/${encodeURIComponent(instancia)}`, {
+      method: "POST",
+      headers: { apikey: clave, "Content-Type": "application/json" },
+      body: JSON.stringify({ message: mensaje, convertToMp4: false }),
+      signal: AbortSignal.timeout(l.tiempo),
+    });
+  } catch (err) {
+    throw falloDeRed(err);
+  }
+  if (!res.ok) throw new FalloDeDescarga(`http_${res.status}`, false);
+
+  // El archivo viene en base64 dentro de un JSON: 4/3 del tamaño, más el resto
+  // de los campos. La respuesta nunca se registra.
+  const crudo = await leerCuerpo(res, Math.ceil((l.maximo * 4) / 3) + 64 * 1024);
+  let cuerpo: { base64?: unknown; mimetype?: unknown };
+  try {
+    cuerpo = JSON.parse(new TextDecoder().decode(crudo));
+  } catch {
+    throw new FalloDeDescarga("respuesta_invalida", false);
+  }
+  if (typeof cuerpo?.base64 !== "string" || !cuerpo.base64) throw new FalloDeDescarga("respuesta_invalida", false);
+  const datos = new Uint8Array(Buffer.from(cuerpo.base64, "base64"));
+  if (datos.byteLength > l.maximo) throw new FalloDeDescarga("excede_tamano", true);
+  return { datos, declarado: typeof cuerpo.mimetype === "string" ? cuerpo.mimetype : null, host: soloHost(raiz) };
+}
+
+function falloDeRed(err: unknown): FalloDeDescarga {
+  const nombre = (err as { name?: string })?.name;
+  return new FalloDeDescarga(nombre === "TimeoutError" || nombre === "AbortError" ? "tiempo_agotado" : "red", false);
+}
+
+async function leerCuerpo(res: Response, maximo: number): Promise<Uint8Array> {
+  try {
+    return await leerConTecho(res, maximo);
+  } catch (err) {
+    if (err instanceof FalloDeDescarga) throw err;
+    throw new FalloDeDescarga("tiempo_agotado", false);
+  }
 }
 
 /** Baja el cuerpo cortando apenas pasa el máximo: no confía solo en `Content-Length`. */
@@ -263,29 +393,24 @@ export async function descargarAdjunto(id: string, o: OpcionesDeDescarga): Promi
   if (!(await almacen.tomar(id, desde, ahora()))) return "tomado_por_otro";
   const tomado = desde + 1;
 
+  const esWhatsapp = fila.canal?.provider === "evolution";
+  const olvidar = async () => {
+    if (!esWhatsapp || !almacen.olvidar) return;
+    try {
+      await almacen.olvidar(id);
+    } catch (err) {
+      console.error("[adjuntos] no se pudo borrar el mensaje guardado:", err instanceof Error ? err.message : "error");
+    }
+  };
+
   try {
-    const url = direccionDelAdjunto(fila.attachments);
-    if (!url) throw new FalloDeDescarga("sin_direccion", true);
-
-    let res: Response;
-    try {
-      res = await bajar(url, { signal: AbortSignal.timeout(tiempo), redirect: "follow" });
-    } catch (err) {
-      const nombre = (err as { name?: string })?.name;
-      throw new FalloDeDescarga(nombre === "TimeoutError" || nombre === "AbortError" ? "tiempo_agotado" : "red", false);
-    }
-    if (!res.ok) throw new FalloDeDescarga(`http_${res.status}`, false);
-
-    let datos: Uint8Array;
-    try {
-      datos = await leerConTecho(res, maximo);
-    } catch (err) {
-      if (err instanceof FalloDeDescarga) throw err;
-      throw new FalloDeDescarga("tiempo_agotado", false);
-    }
+    const limites = { bajar, maximo, tiempo };
+    const { datos, declarado, host } = esWhatsapp
+      ? await bytesDeEvolution(fila, limites, almacen, o.evolutionUrl ?? process.env.EVOLUTION_API_URL ?? "")
+      : await bytesDeDireccion(fila, limites);
 
     const formato = detectarFormato(datos.subarray(0, BYTES_PARA_DETECTAR));
-    if (!formato) throw new FalloDeDescarga(diagnosticoDeRechazo(res, datos), true);
+    if (!formato) throw new FalloDeDescarga(diagnosticoDeRechazo(declarado, host, datos), true);
 
     const ruta = `${fila.workspace_id}/${fila.conversation_id}/${fila.id}/archivo.${formato.ext}`;
     const subida = await almacen.subir(ruta, datos, formato.mime);
@@ -298,11 +423,13 @@ export async function descargarAdjunto(id: string, o: OpcionesDeDescarga): Promi
       media_bytes: datos.byteLength,
       media_error: null,
     });
+    if (escrito) await olvidar();
     return escrito ? "descargado" : "pisado";
   } catch (err) {
     const fallo = err instanceof FalloDeDescarga ? err : new FalloDeDescarga("error", false);
     const estado = fallo.definitivo || tomado >= TECHO_DE_INTENTOS ? "no_disponible" : "fallido";
     const escrito = await almacen.cerrar(id, tomado, { media_status: estado, media_error: fallo.codigo });
+    if (escrito && estado === "no_disponible") await olvidar();
     return escrito ? estado : "pisado";
   }
 }
@@ -329,7 +456,11 @@ export async function reintentarAdjuntos(o: OpcionesDeDescarga & { ahoraFijo: Da
   for (const t of await o.almacen.trabadas(o.ahoraFijo, ADJUNTOS_POR_CORRIDA)) {
     try {
       const cerrado = await o.almacen.cerrar(t.id, t.media_intentos, { media_status: "no_disponible", media_error: "intento_cortado" });
-      if (cerrado) r.cortados += 1;
+      if (cerrado) {
+        r.cortados += 1;
+        // Si es de WhatsApp, su mensaje guardado ya no sirve; si no, no borra nada.
+        await o.almacen.olvidar?.(t.id);
+      }
     } catch (err) {
       r.errores += 1;
       console.error("[adjuntos] intento cortado:", err instanceof Error ? err.message : "error");

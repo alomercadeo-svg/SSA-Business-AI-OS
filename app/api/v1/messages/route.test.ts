@@ -234,6 +234,25 @@ describe("GET /api/v1/messages: las direcciones firmadas de los adjuntos (F28)",
     expect(JSON.stringify(cuerpo)).not.toContain("lookaside");
   });
 
+  /**
+   * F28, parte B: la clave de descifrado de WhatsApp (`mediaKey`) vive solo en
+   * `whatsapp_adjuntos_por_bajar`, que esta ruta no lee. Aunque una fila de
+   * `messages` llegara a traerla dentro del adjunto (un cambio futuro en el
+   * receptor), la respuesta no la deja salir: de cada adjunto viaja solo `type`.
+   */
+  it("la clave de descifrado de WhatsApp no viaja nunca, aunque el adjunto la trajera", async () => {
+    h.filasDeMensajes = [
+      descargado("w1", "ws-1/conv-1/w1/archivo.jpg", {
+        attachments: [{ type: "imageMessage", mimetype: "image/jpeg", fileName: null, mediaKey: { 0: 7, 1: 8 }, directPath: "/v/t62/secreto" }],
+      }),
+    ];
+    const cuerpo = await (await leer()).json();
+    const texto = JSON.stringify(cuerpo);
+    expect(cuerpo.messages[0].archivo).toMatchObject({ mime: "image/jpeg" });
+    expect(cuerpo.messages[0].attachments).toEqual([{ type: "imageMessage" }]);
+    for (const pedazo of ["mediaKey", "directPath", "/v/t62/secreto"]) expect(texto).not.toContain(pedazo);
+  });
+
   it("sin adjuntos descargados no llama a Storage", async () => {
     h.filasDeMensajes = [{ id: "m1", conversation_id: "conv-1", direction: "inbound", text: "hola", attachments: null, created_at: "2026-10-09T10:00:00Z" }];
     const cuerpo = await (await leer()).json();

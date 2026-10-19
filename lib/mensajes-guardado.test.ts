@@ -2,12 +2,11 @@ import { describe, it, expect } from "vitest";
 import { guardarMensajes, type MensajeParaGuardar } from "./mensajes-guardado";
 
 /**
- * F28: solo el receptor de Zernio marca un adjunto para bajar
- * (`marcarDescarga`). La importación del historial y el receptor de Evolution
- * llaman sin la opción, y lo que guardan queda con `media_intentos` sin
- * escribir (nulo en la base): el reintento no lo toma. En WhatsApp la bajada
- * todavía no existe (parte B): marcarlo haría que el reintento lo dejara
- * «no_disponible» por no tener dirección.
+ * F28: los dos receptores marcan un adjunto para bajar (`marcarDescarga`): el
+ * de Zernio desde la parte A, y el de Evolution desde la parte B (19/10/2026),
+ * solo en los entrantes de `messages.upsert` (ver `lib/evolution-guardado.test.ts`).
+ * La importación del historial llama sin la opción, y lo que guarda queda con
+ * `media_intentos` sin escribir (nulo en la base): el reintento no lo toma.
  */
 function capturar() {
   const filas: Record<string, unknown>[] = [];
@@ -35,14 +34,14 @@ const base: MensajeParaGuardar = {
 };
 
 describe("guardarMensajes y la marca de descarga de F28", () => {
-  it("sin la opción (importación, Evolution) no escribe media_intentos", async () => {
+  it("sin la opción (la importación) no escribe media_intentos", async () => {
     const { supabase, filas } = capturar();
     await guardarMensajes(supabase as never, [base]);
     expect(filas[0]).toMatchObject({ media_status: "pendiente" });
     expect(filas[0]).not.toHaveProperty("media_intentos");
   });
 
-  it("con la opción (receptor de Zernio) marca en 0 solo los entrantes con archivo", async () => {
+  it("con la opción (los receptores) marca en 0 solo los entrantes con archivo", async () => {
     const { supabase, filas } = capturar();
     await guardarMensajes(
       supabase as never,

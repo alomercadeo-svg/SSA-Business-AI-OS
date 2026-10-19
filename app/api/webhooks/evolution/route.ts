@@ -15,6 +15,7 @@ import { guardarEventoEvolution, procesarEventoEvolution } from "@/lib/evolution
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { notificarAlerta } from "@/lib/correo";
 import { auditarAlertaSiEsNueva } from "@/lib/auditoria";
+import { almacenDeSupabase, descargarAdjunto } from "@/lib/adjuntos";
 import type { Database } from "@/lib/types/database";
 
 /**
@@ -260,8 +261,9 @@ async function manejarWebhook(request: NextRequest) {
   // `docs/investigacion-evolution-api.md:240`), y un aviso reclamado y no
   // guardado ya no se pierde en silencio (deuda de §15, 07/10/2026).
   const evento = { supabase, canal, evento: payload.event ?? "", instancia, mensajes: paraProcesar };
+  let porBajar: string[] = [];
   try {
-    await guardarEventoEvolution(evento);
+    porBajar = (await guardarEventoEvolution(evento))?.porBajar ?? [];
   } catch (err) {
     console.error("[evolution] no se pudo guardar:", err instanceof Error ? err.message : "error");
     if (nuevas.length > 0) await supabase.from("webhook_events").delete().in("event_id", nuevas);
@@ -275,6 +277,26 @@ async function manejarWebhook(request: NextRequest) {
       console.error("[evolution] error procesando el evento:", err);
     }
   });
+
+  // ── 5c. Los archivos de WhatsApp (F28), DESPUÉS del acuse ────────────────
+  //
+  // Pedirle el archivo a Evolution es una llamada de red: antes del 200
+  // demoraría el acuse. Si un redespliegue corta este `after()`, el mensaje
+  // ya quedó marcado y lo toma el reintento de las tareas programadas. Ni el
+  // error ni el cuerpo del aviso van al log: el aviso trae la API key de la
+  // instancia y el mensaje trae la clave de descifrado.
+  if (porBajar.length > 0) {
+    after(async () => {
+      const almacen = almacenDeSupabase(supabase as unknown as SupabaseClient);
+      for (const id of porBajar) {
+        try {
+          await descargarAdjunto(id, { almacen });
+        } catch (err) {
+          console.error("[evolution] adjunto:", err instanceof Error ? err.message : "error");
+        }
+      }
+    });
+  }
 
   return NextResponse.json({ ok: true, queued: true });
 }

@@ -31,7 +31,11 @@
  *     (`emitOwnEvents: false`, 658): vuelve como `send.message`, con el mismo
  *     `key.id` que la respuesta del envío (2545, 2557).
  *   - Los adjuntos no traen el archivo: `base64: false` en la instancia
- *     (`scripts/setup-evolution-channel.mjs:446`). Se bajan en F28.
+ *     (`scripts/setup-evolution-channel.mjs:446`). Se bajan en F28 (parte B,
+ *     19/10/2026): el entrante de `messages.upsert` con archivo se marca para
+ *     bajar, y su `key` y `message[tipo]` —con `mediaKey`, la clave de
+ *     descifrado— van a `whatsapp_adjuntos_por_bajar` (00035), que solo lee la
+ *     clave de servicio. Nunca a `messages`, que se lee por fila (00019).
  *
  * ── LAS VÍAS AUTOMÁTICAS DE RECONCILIACIÓN, EN LA FORMA QUE EXISTE ───────────
  *
@@ -51,6 +55,7 @@ import { upsertContactForSender } from "./inbox-sync";
 import { messagePreview } from "./message-preview";
 import { aplicarToque, toqueDe } from "./atribucion";
 import { guardarMensajes, type MensajeParaGuardar, type TipoDeMensaje } from "./mensajes-guardado";
+import { seDescarga } from "./adjuntos";
 
 export interface MensajeEvolution {
   key?: ClaveEvolution & { id?: string | null; fromMe?: boolean | null };
@@ -196,10 +201,12 @@ export async function guardarMensajesDeEvolution(
   canal: CanalEvolutionParaGuardar,
   evento: string,
   mensajes: readonly MensajeEvolution[],
-): Promise<{ guardados: number; salteados: number }> {
+): Promise<{ guardados: number; salteados: number; porBajar: string[] }> {
   const historial = normalizarEvento(evento) === "messages.set";
+  const enVivo = normalizarEvento(evento) === "messages.upsert";
   let guardados = 0;
   let salteados = 0;
+  const porBajar: string[] = [];
   let ultimoEntrante: string | null = null;
 
   for (const m of mensajes) {
@@ -276,10 +283,34 @@ export async function guardarMensajesDeEvolution(
       await supabase.rpc("increment_unread", { conv_id: conversationId, preview });
     }
 
-    const { tipoOriginal: _t, ...mensaje } = fila;
-    const { error } = await guardarMensajes(supabase, [{ ...mensaje, conversationId }]);
+    const { tipoOriginal, ...mensaje } = fila;
+    // F28: solo lo que entra en vivo. El historial no se marca, igual que la
+    // importación de Instagram; lo propio y `send.message` son salientes.
+    const marcar = enVivo && seDescarga(mensaje);
+    const { error } = await guardarMensajes(supabase, [{ ...mensaje, conversationId }], { marcarDescarga: marcar });
     if (error) throw new Error(`messages: ${error.message}`);
     guardados++;
+
+    if (marcar) {
+      const { data: guardado, error: errId } = await supabase
+        .from("messages")
+        .select("id")
+        .eq("conversation_id", conversationId)
+        .eq("platform_message_id", m.key.id)
+        .eq("direction", "inbound")
+        .maybeSingle();
+      const messageId = (guardado as { id?: string } | null)?.id;
+      if (errId || !messageId) throw new Error(`messages: ${errId?.message ?? "no se encontró el mensaje guardado"}`);
+      const crudo = (m.message ?? {}) as Record<string, unknown>;
+      const { error: errPend } = await supabase
+        .from("whatsapp_adjuntos_por_bajar")
+        .upsert(
+          { message_id: messageId, mensaje: { key: m.key, message: { [tipoOriginal]: crudo[tipoOriginal] } } },
+          { onConflict: "message_id", ignoreDuplicates: true },
+        );
+      if (errPend) throw new Error(`whatsapp_adjuntos_por_bajar: ${errPend.message}`);
+      porBajar.push(messageId);
+    }
 
     // F25: el toque de un anuncio de click-to-WhatsApp. `first_click` no se
     // pisa nunca (lo frena además un trigger de la 00029).
@@ -308,7 +339,7 @@ export async function guardarMensajesDeEvolution(
   if (ultimoEntrante) {
     await supabase.from("channels").update({ last_inbound_at: ultimoEntrante }).eq("id", canal.id);
   }
-  return { guardados, salteados };
+  return { guardados, salteados, porBajar };
 }
 
 /** Avisos de contacto (`contacts.upsert` y `contacts.update`): solo la vía 2. */

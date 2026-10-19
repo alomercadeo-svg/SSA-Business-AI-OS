@@ -910,11 +910,95 @@ Corrieron los dos caminos: el receptor, que guardó el mensaje, y el relleno, qu
 | `0dfb24cd` | `273fa884` | 13/10/2026 13:03:17 | 13:03:23 | 1 |
 | `9b1d964a` | `87255fa7` | 13/10/2026 23:04:03 | 23:04:10 | 1 |
 | `fcdb330c` | `953cd423` | 16/10/2026 14:09:41 | 14:09:49 | 1 |
-| `27758899` | `273fa884` | 17/10/2026 09:51:17 | 09:51:29 (hora del último reclamo) | 2 |
+| `27758899` | `273fa884` | 17/10/2026 09:51:17 | 09:51:29 (hora del último reclamo; el primer error no se conoce, ver abajo) | 2 |
 | `a7459395` | `273fa884` | 18/10/2026 12:44:43 | 12:44:48 | 1 |
 | `36fe1f57` | `97ab6fcf` | 18/10/2026 17:36:25 | 17:36:34 | 1 |
 
 «Cierre» es `media_reclamado_at`, la hora en que se tomó el último intento; la escritura del cierre no tiene hora propia. **Hipótesis, sin verificar: son reels compartidos, y la dirección devuelve una página en vez de un archivo.** Que 3 de los 6 vengan de la misma conversación encaja, pero no lo prueba. **Decidido por Marcos el 19/10/2026: los 6 no se tocan** hasta tener el diagnóstico. Si resulta ser un formato que falta, reabrirlos es una escritura en producción aparte, con las filas mostradas antes y su OK. Sumar un formato es una migración, porque `allowed_mime_types` del bucket tiene que coincidir con `FORMATOS_PERMITIDOS`, y se propone con su motivo antes de hacerla.
+
+**El arreglo del quinto intento y el diagnóstico del rechazo (`a02fa82`).** Hay dos cambios en `lib/adjuntos.ts`:
+- `Almacen.trabadas` toma las filas abiertas con intentos en el techo y sin reclamo en la espera, y `reintentarAdjuntos` las cierra en `no_disponible` con `intento_cortado`, con la condición de intentos de `cerrar`.
+- El rechazo por tipo deja en `media_error` `tipo_no_permitido|<Content-Type sin parámetros>|<host final>|<16 bytes en hex>`.
+
+Antes de cambiar el formato, `git grep` de `media_error` y `tipo_no_permitido`: la única comparación por igualdad era `lib/adjuntos.test.ts:144`, que pasó a comparar el prefijo. La bandeja no lee `media_error` (`GET /api/v1/messages` no lo selecciona, `route.ts:74`), y ningún recuento lo nombra.
+
+Tests:
+- **Seis tests en rojo antes del arreglo:** el diagnóstico (2), el prefijo (1), el quinto intento cortado (2) y la consulta de `trabadas` (1).
+- **El control «la dirección no aparece en `media_error`»** pasaba antes del cambio, que es lo esperable de un control. Se vio en rojo con una rotura a propósito: guardar `res.url` entero en lugar del host.
+- **El cierre de las trabadas** se vio en rojo con otra: el reintento sin la pasada de trabadas.
+- Suite 725 de 725, `typecheck` en cero, `npm run build` bien.
+
+**Migración 00035 (`adjuntos_whatsapp`), aplicada el 19/10/2026 a las 15:03:12 con `npx supabase db push`, con la aprobación de Marcos** (por la conexión del CLI, avisada antes). Crea la tabla `whatsapp_adjuntos_por_bajar`.
+- **Antes:** sin importación corriendo (leído a las 15:03:08). `--dry-run`: solo la 00035. Recuento a las 14:54:43: 29 tablas, 34 migraciones (última 00034), `messages` 4002, `audit_log` 414 (23 sin espacio).
+- **Salida del push:** «Applying migration 00035_adjuntos_whatsapp.sql… Finished supabase db push.». El código de salida no se capturó: el comando iba por un `tail`, que es el que devolvió 0. Lo prueba el recuento.
+- **Después (15:03:22):** 30 tablas, 35 migraciones (última 00035), y las cantidades de todas las tablas iguales. `pg_policies` de la tabla: **0**. `relrowsecurity` true. **Ningún permiso** para `anon` ni `authenticated` en `information_schema.role_table_grants`. 0 filas. No está en la publicación de Realtime.
+
+**Despliegue J, `a02fa82`.** Push `01511a5..a02fa82`, `node scripts/verificar-despliegue.mjs`, salida 0: el build pasó de `KPbo3Qx8MHA76xlsORB8q` a `96QfJA7-DZg9527NP2Zml`, de 13:45:17 a 13:49:28, con `/login` en 200. Sin importación corriendo (leído a las 13:45:10).
+
+**El reel compartido, con el diagnóstico nuevo (19/10/2026).** Marcos compartió un reel desde @marcospittimusic a @poderosascomunidad. Línea de base: 13:49:43. Fila leída a las 14:40:27, sin contenido:
+- **`15d2ce4c`**, en la conversación `c6628c4e`. Entrante, `message_type` `video`, adjunto `video` según Zernio, **con dirección**. Llegó a las 14:39:51.
+- Se intentó una vez (reclamo a las 14:39:58) y quedó **`no_disponible`** con `tipo_no_permitido|text/html|www.instagram.com|3c21444f43545950452068746d6c3e3c`.
+- **Lectura:** los 16 bytes son `<!DOCTYPE html><`. La dirección de un reel compartido devuelve una página de `www.instagram.com`, no un archivo, y Zernio lo manda con el mismo tipo `video` que un video de verdad. **El detector hizo lo correcto: no es un formato que falte.**
+- **Para los 6 rechazos del 13 al 18/10:** que sean reels compartidos pasa a ser la explicación más probable, porque llegaron con el mismo tipo y la misma clase de rechazo. **No está probado para esas 6 filas**: se rechazaron antes del diagnóstico, y su `media_error` dice solo `tipo_no_permitido`. Siguen sin tocarse.
+- **Consecuencia visible, sin criterio y sin construir:** la bandeja muestra un reel compartido como «Este archivo no está disponible.», que es cierto pero no dice que es un reel. Es la misma familia que los `share` (§15 del plano, «los `share` de Instagram no se ven en la bandeja»), candidata para F35. No es de F28.
+
+**Segunda tanda: un video grabado con la cámara del teléfono**, mandado por Marcos desde la galería a @poderosascomunidad. Fila leída a las 14:41:17, sin contenido:
+- **`5017f220`**, en la conversación `c6628c4e`. Entrante, adjunto `video` según Zernio, con dirección. Llegó a las 14:40:42.
+- **`descargado` en el primer intento** (reclamo 14:40:48): `video/mp4`, 593.738 bytes.
+- **Es el control positivo del reel:** el mismo tipo según Zernio, el mismo canal y la misma hora, pero con un archivo de verdad detrás, se baja. Lo que separa los dos casos es lo que hay detrás de la dirección, no el tipo que manda Zernio.
+
+**Los 13 históricos de @alomercadeo, puestos en marcha con la aprobación de Marcos.**
+- **La escritura (19/10/2026 14:44:13):** `media_intentos` de nulo a 0, con la clave de servicio, en los 13 ids aprobados y con la condición `media_intentos is null`, sin tolerancia. Antes de escribir, el script comprobó que la lista del momento era exactamente la aprobada. PATCH 200, 13 filas escritas. Al releer, las 13 tenían intentos en 0 y estaban `pendiente`.
+- **Recuento posterior (14:44:30):** 24 filas con intentos no nulos (9 + 13 + las 2 de la prueba de hoy), 0 trabadas, 4 objetos.
+- **Las tomó la corrida de `vigilancia-cron` de las 14:50 y se cerraron las 13 en el primer intento.** Las horas son las de cada reclamo; la vigilancia de esta sesión las leyó cada minuto, sin contenido:
+
+| id | tipo | resultado | `media_error` | intento 1 |
+|---|---|---|---|---|
+| `d6754c32` | image (17/06/2021) | `descargado`, `image/jpeg`, 103.259 bytes | — | 14:50:14 |
+| `bc4a7309` | image | `descargado`, `image/jpeg`, 281.737 bytes | — | 14:50:15 |
+| `9a064b31` | image | `descargado`, `image/jpeg`, 267.273 bytes | — | 14:50:17 |
+| `a4c7136a` | video | `no_disponible` | `tipo_no_permitido\|text/html\|www.instagram.com\|3c21444f43545950452068746d6c3e3c` | 14:50:19 |
+| `dbf27a0d` | video | `no_disponible` | ídem | 14:50:20 |
+| `edf82bd9` | video | `no_disponible` | ídem | 14:50:21 |
+| `ce22addc` | video | `no_disponible` | ídem | 14:50:22 |
+| `b24d7cba` | video | `no_disponible` | ídem | 14:50:23 |
+| `13b44e2c` | audio | `descargado`, `video/mp4`, 35.457 bytes | — | 14:50:25 |
+| `90b96045` | video | `no_disponible` | ídem | 14:50:25 |
+| `88f8ff46` | video | `no_disponible` | ídem | 14:50:27 |
+| `7db24765` | video | `no_disponible` | ídem | 14:50:28 |
+| `acf93c5f` | audio | `descargado`, `video/mp4`, 377.190 bytes | — | 14:50:29 |
+
+- **Ninguna foto ni audio volvió con `text/html`.** Los 8 videos devolvieron una página de **`www.instagram.com`**, el mismo host y los mismos 16 bytes que el reel compartido de la prueba (`<!DOCTYPE html><`). Por la regla de Marcos, no se clasifica como reel solo por `text/html`, también por el host. **Que sean reels compartidos es inferencia fuerte, no está verificado:** no se leyó el contenido de esos mensajes.
+- **Ninguna dirección vencida:** las 5 que traían un archivo se bajaron en el primer intento, incluida la foto de 2021. **Ningún histórico pasó por `fallido`**: los rechazos son definitivos y cierran en el primer intento. Esta corrida no suma un dato del reintento.
+- **Corregido el 19/10/2026, a pedido de Marcos: Instagram sí tiene un segundo intento real, `27758899`** (la fila de los 6 rechazos). Se lo había anotado como dato del reintento a las 13:06 y después se dijo que Instagram no tenía ninguno: eso se contradecía.
+  - Llegó el 17/10/2026 a las 09:51:17 (hora del proveedor). `media_intentos` 2. `media_reclamado_at`, el reclamo del último intento, 09:51:29. Quedó `no_disponible` con `tipo_no_permitido`.
+  - **El primer intento falló sin cierre definitivo**, porque si no no habría habido un segundo. **Su error no se conoce:** `media_error` guarda solo el último.
+  - **Lo que no encaja, leído el 19/10 sin contenido:** entre las 09:50 y las 09:55 de ese día hay un solo evento en `webhook_events`, recibido a las 09:51:28. El último reclamo es 1 segundo posterior. El reintento programado corre en los minutos :x0 y espera 2 minutos desde el último reclamo (`ESPERA_DEL_REINTENTO_MS`), así que **con esas horas el segundo intento no pudo ser del reintento programado**. Es una inferencia sobre el código y las horas.
+  - **Quién hizo cada intento no se sabe.** Es un segundo intento real después de una falla abierta, pero no prueba que el reintento programado funcione.
+- **Objetos en `message-media` después:** 9 (los 4 de las pruebas y los 5 históricos).
+
+**WhatsApp, el diseño reverificado contra el código (4a), 19/10/2026.** Es lectura de código público, sin ninguna llamada a Evolution. Clon de la etiqueta `2.3.7` con `--depth 1 --filter=blob:none`, fuera del repo: commit `cd800f2976e1e5b682fbf86a01ee4d85ae61f370`, y `git ls-tree` da el blob `60e857fcc1206776575921c9060d05efdd7ff432`, el mismo de antes. `B` es `whatsapp.baileys.service.ts`.
+- **Se confirma todo lo del diseño:**
+  - la ruta (`index.router.ts:220`, `chat.router.ts:113`, 201 en `:121`);
+  - el cuerpo `{ message, convertToMp4? }` (`chat.dto.ts:20-23`);
+  - con el mensaje entero no consulta su base, y sin él responde «Message not found» (`B:3837-3845`);
+  - la descarga con el pedido de volver a subir y su respaldo (`B:3899-3929`);
+  - la respuesta con `base64` **sin prefijo** (`buffer.toString('base64')`, `B:3962-3970`);
+  - cualquier error del servicio sale como `BadRequestException`, un 400.
+- **Lo que el diseño no citaba:**
+  - **El orden de los guards es `[instanceExistsGuard, instanceLoggedGuard, authGuard]`** (`index.router.ts:41`). Una instancia que no existe responde **404** («The "X" instance does not exist», `instance.guard.ts:36`) **antes de mirar la clave y antes de leer el cuerpo**.
+  - El guard de la clave acepta la global (`auth.guard.ts:19-21`) o el token de esa instancia (`:28-34`).
+  - El `mediaKey` del aviso llega como objeto indexado, porque `prepareMessage` lo deja como `Uint8Array` (`deserializeMessageBuffers`), y `getBase64FromMediaMessage` lo vuelve a convertir si es objeto (`typeof mediaKey === 'object'`). O sea que **devolverle el mensaje tal como vino en el aviso es la forma que el endpoint espera**.
+  - `documentWithCaptionMessage` ya llega como `documentMessage` (`prepareMessage`, `B:4685-4689`).
+- **Ningún motivo para otro camino.**
+- **Anotado:** Evolution imprime el `messageRaw` entero en su propio log, con el `mediaKey` (`B:1481`, `console.log(messageRaw)`). Es el log del servicio de Evolution en Railway, no el nuestro.
+- **Sin verificar, queda para la puesta en marcha:** que el pedido de volver a subir funcione con la `key` que Evolution reescribió (`remoteJid` pasado de `@lid` al teléfono, `B:1478-1479`).
+
+**El token de la instancia, en la puesta en marcha (corrección 3 de Marcos).** Verificado en el código, no en producción y sin leer ningún secreto:
+- `scripts/setup-evolution-channel.mjs` guarda el token que devuelve Evolution como `evolution_instance_token:<canal>` en el espacio del canal (paso 4, `:584-593`). Si ese paso falla, corta antes de activar el canal (`FalloDePaso`). Con `--borrar-instancia` lo borra (`:543-546`).
+- No hay otra acción que dé de alta un canal de Evolution: ni la pantalla de Canales ni `lib/actions` crean instancias.
+- Por eso, un canal creado con ese script termina con su token en Vault. El canal real `alomercadeo-ventas` existe y está activo (recuento de las 14:54). **Que su token esté en Vault no se verificó**: hacerlo pediría leer el nombre del secreto en Vault, y no se hizo.
+- **`sin_clave` se reintenta, no es definitivo.** Es una falla de configuración que se corrige volviendo a guardar el token, y el archivo sigue disponible en los servidores de WhatsApp; si fuera definitivo, un token faltante perdería para siempre todos los archivos de esa ventana. Lo mismo vale para `sin_configurar` (falta `EVOLUTION_API_URL`). `sin_mensaje` sí es definitivo, porque sin el mensaje no hay con qué pedirlo.
 
 ---
 

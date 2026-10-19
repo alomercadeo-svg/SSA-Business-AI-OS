@@ -57,14 +57,16 @@ export function traeMensajes(evento: string): boolean {
  * Guarda los mensajes de un evento ya autenticado y sin duplicados. Corre
  * ANTES del acuse; tira si no pudo guardar.
  */
-export async function guardarEventoEvolution(evento: EventoEvolution): Promise<void> {
-  if (!traeMensajes(evento.evento)) return;
-  await guardarMensajesDeEvolution(
+export async function guardarEventoEvolution(evento: EventoEvolution): Promise<{ porBajar: string[] }> {
+  if (!traeMensajes(evento.evento)) return { porBajar: [] };
+  const { porBajar } = await guardarMensajesDeEvolution(
     evento.supabase,
     evento.canal,
     evento.evento,
     evento.mensajes as MensajeEvolution[],
   );
+  // F28: los ids de los entrantes con archivo, para bajarlos después del acuse.
+  return { porBajar };
 }
 
 /**

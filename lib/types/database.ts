@@ -1274,6 +1274,38 @@ export interface Database {
         ];
       };
       /** Historial de auditoría (F31, 00028). Solo inserta el servidor; nunca se edita ni se borra. */
+      /**
+       * El mensaje de WhatsApp para el reintento de F28 (00035): `key` y
+       * `message[tipo]`, con la clave de descifrado. RLS sin políticas y sin
+       * permisos para `anon` ni `authenticated`: solo servicio. Nunca viaja al
+       * navegador.
+       */
+      whatsapp_adjuntos_por_bajar: {
+        Row: {
+          message_id: string;
+          mensaje: Json;
+          created_at: string;
+        };
+        Insert: {
+          message_id: string;
+          mensaje: Json;
+          created_at?: string;
+        };
+        Update: {
+          message_id?: string;
+          mensaje?: Json;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_adjuntos_por_bajar_message_id_fkey";
+            columns: ["message_id"];
+            isOneToOne: true;
+            referencedRelation: "messages";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       /** Una fila por tarea del servidor (F27, 00032). RLS sin políticas: solo servicio. */
       tareas_estado: {
         Row: {
