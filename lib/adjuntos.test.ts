@@ -91,6 +91,20 @@ function almacenEnMemoria(filas: Fila[]) {
         .slice(0, limite)
         .map((f) => f.id);
     },
+    async trabadas(ahora, limite) {
+      const antesDe = ahora.getTime() - ESPERA_DEL_REINTENTO_MS;
+      return [...porId.values()]
+        .filter(
+          (f) =>
+            f.media_intentos !== null &&
+            f.media_intentos >= TECHO_DE_INTENTOS &&
+            abierto(f) &&
+            f.direction === "inbound" &&
+            (!f.media_reclamado_at || new Date(f.media_reclamado_at).getTime() < antesDe),
+        )
+        .slice(0, limite)
+        .map((f) => ({ id: f.id, media_intentos: f.media_intentos as number }));
+    },
   };
   return { almacen, porId, subidas };
 }
@@ -98,6 +112,17 @@ function almacenEnMemoria(filas: Fila[]) {
 function responde(cuerpo: Uint8Array, init: ResponseInit = {}): typeof fetch {
   return (async () => new Response(cuerpo as unknown as BodyInit, init)) as typeof fetch;
 }
+
+/** Como `responde`, con la dirección final que deja `fetch` después de las redirecciones. */
+function respondeDesde(direccionFinal: string, cuerpo: Uint8Array, init: ResponseInit = {}): typeof fetch {
+  return (async () => {
+    const res = new Response(cuerpo as unknown as BodyInit, init);
+    Object.defineProperty(res, "url", { value: direccionFinal });
+    return res;
+  }) as typeof fetch;
+}
+
+const hex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
 
 describe("qué marca el receptor para bajar", () => {
   it("solo entrantes con archivo; share, template y ephemeral (tipo otro) y salientes no", () => {
@@ -141,7 +166,46 @@ describe("la descarga", () => {
     const { almacen, porId, subidas } = almacenEnMemoria([fila()]);
     expect(await descargarAdjunto("m1", { almacen, bajar: responde(HTML) })).toBe("no_disponible");
     expect(subidas).toHaveLength(0);
-    expect(porId.get("m1")).toMatchObject({ media_status: "no_disponible", media_error: "tipo_no_permitido" });
+    expect(porId.get("m1")!.media_status).toBe("no_disponible");
+    expect(porId.get("m1")!.media_error).toMatch(/^tipo_no_permitido\|/);
+  });
+
+  it("el rechazo deja el diagnóstico: tipo declarado, host final sin ruta y los primeros 16 bytes", async () => {
+    const { almacen, porId } = almacenEnMemoria([fila()]);
+    const bajar = respondeDesde("https://lookaside.ejemplo.invalid/ruta/secreta?token=abc123", HTML, {
+      headers: { "content-type": "text/html; charset=utf-8" },
+    });
+    expect(await descargarAdjunto("m1", { almacen, bajar })).toBe("no_disponible");
+    expect(porId.get("m1")!.media_error).toBe(`tipo_no_permitido|text/html|lookaside.ejemplo.invalid|${hex(HTML.subarray(0, 16))}`);
+  });
+
+  it("el diagnóstico sin Content-Type ni dirección final lleva guiones, y con menos de 16 bytes, los que haya", async () => {
+    const { almacen, porId } = almacenEnMemoria([fila()]);
+    const corto = Uint8Array.from([0x00, 0x00, 0x00, 0x18, 0x73, 0x74, 0x79, 0x70]);
+    const bajar = (async () => {
+      const res = new Response(corto as unknown as BodyInit);
+      res.headers.delete("content-type");
+      return res;
+    }) as typeof fetch;
+    expect(await descargarAdjunto("m1", { almacen, bajar })).toBe("no_disponible");
+    expect(porId.get("m1")!.media_error).toBe(`tipo_no_permitido|-|-|${hex(corto)}`);
+  });
+
+  it("la dirección del proveedor no aparece en media_error en ningún caso", async () => {
+    const direccion = "https://lookaside.ejemplo.invalid/ruta/secreta?token=abc123";
+    const casos: Array<[string, typeof fetch]> = [
+      ["tipo", respondeDesde(direccion, HTML, { headers: { "content-type": "text/html" } })],
+      ["http", respondeDesde(direccion, new Uint8Array(0), { status: 403 })],
+      ["tamaño", respondeDesde(direccion, new Uint8Array(4096), { headers: { "content-length": "4096" } })],
+      ["red", (async () => { throw new TypeError(`fetch failed: ${direccion}`); }) as typeof fetch],
+    ];
+    for (const [nombre, bajar] of casos) {
+      const { almacen, porId } = almacenEnMemoria([fila({ attachments: [{ type: "image", url: direccion }] })]);
+      await descargarAdjunto("m1", { almacen, bajar, tamanoMaximo: 1024 });
+      const error = porId.get("m1")!.media_error ?? "";
+      expect(error, nombre).not.toBe("");
+      for (const pedazo of [direccion, "/ruta", "secreta", "token", "abc123"]) expect(error, nombre).not.toContain(pedazo);
+    }
   });
 
   it("pasado el tamaño máximo corta y queda no_disponible, aunque no declare Content-Length", async () => {
@@ -259,6 +323,42 @@ describe("el reintento", () => {
     expect(subidas).toHaveLength(0);
   });
 
+  it("cierra en no_disponible un quinto intento cortado por un redespliegue, sin volver a bajarlo", async () => {
+    const espera = ESPERA_DEL_REINTENTO_MS + 60_000;
+    const { almacen, porId, subidas } = almacenEnMemoria([
+      fila({ id: "p5", media_intentos: TECHO_DE_INTENTOS, media_status: "pendiente", media_reclamado_at: hace(espera) }),
+      fila({ id: "f5", media_intentos: TECHO_DE_INTENTOS, media_status: "fallido", media_error: "http_500", media_reclamado_at: hace(espera) }),
+      // Control: un quinto intento que todavía puede estar corriendo no se toca.
+      fila({ id: "en_curso", media_intentos: TECHO_DE_INTENTOS, media_status: "pendiente", media_reclamado_at: hace(30_000) }),
+      // Control: el techo con el archivo ya bajado no se toca.
+      fila({ id: "bajado", media_intentos: TECHO_DE_INTENTOS, media_status: "descargado", media_reclamado_at: hace(espera) }),
+    ]);
+    const r = await reintentarAdjuntos({ almacen, bajar: responde(PNG), ahoraFijo: AHORA });
+    expect(r.cortados).toBe(2);
+    expect(subidas).toHaveLength(0);
+    expect(porId.get("p5")).toMatchObject({ media_status: "no_disponible", media_error: "intento_cortado", media_intentos: TECHO_DE_INTENTOS });
+    expect(porId.get("f5")).toMatchObject({ media_status: "no_disponible", media_error: "intento_cortado", media_intentos: TECHO_DE_INTENTOS });
+    expect(porId.get("en_curso")!.media_status).toBe("pendiente");
+    expect(porId.get("en_curso")!.media_error ?? null).toBeNull();
+    expect(porId.get("bajado")!.media_status).toBe("descargado");
+  });
+
+  it("el cierre del intento cortado no pisa a un intento que escribió primero", async () => {
+    const { almacen, porId } = almacenEnMemoria([
+      fila({ id: "p5", media_intentos: TECHO_DE_INTENTOS, media_reclamado_at: hace(ESPERA_DEL_REINTENTO_MS + 60_000) }),
+    ]);
+    const original = almacen.trabadas;
+    almacen.trabadas = async (ahora, limite) => {
+      const lista = await original(ahora, limite);
+      // Entre la lectura y el cierre, el intento lento terminó bien.
+      Object.assign(porId.get("p5")!, { media_status: "descargado", media_error: null });
+      return lista;
+    };
+    const r = await reintentarAdjuntos({ almacen, bajar: responde(PNG), ahoraFijo: AHORA });
+    expect(r.cortados).toBe(0);
+    expect(porId.get("p5")!.media_status).toBe("descargado");
+  });
+
   it("un error en un adjunto no corta a los demás", async () => {
     const { almacen, porId } = almacenEnMemoria([
       fila({ id: "a", created_at: "2026-10-09T01:00:00.000Z" }),
@@ -319,5 +419,16 @@ describe("almacenDeSupabase arma las condiciones de las escrituras", () => {
     expect(llamadas).toContainEqual(["eq", "direction", "inbound"]);
     expect(llamadas).toContainEqual(["or", "media_reclamado_at.is.null,media_reclamado_at.lt.2026-10-09T19:58:00.000Z"]);
     expect(llamadas.some((l) => JSON.stringify(l).includes("created_at") && l[0] !== "order")).toBe(false);
+  });
+
+  it("trabadas: intentos en el techo o más, estado abierto, entrantes, y la espera desde media_reclamado_at", async () => {
+    const { almacenDeSupabase } = await import("./adjuntos");
+    const { servicio, llamadas } = grabador({ data: [{ id: "x", media_intentos: 5 }], error: null });
+    const filas = await almacenDeSupabase(servicio as never).trabadas(new Date("2026-10-09T20:00:00.000Z"), 20);
+    expect(filas).toEqual([{ id: "x", media_intentos: 5 }]);
+    expect(llamadas).toContainEqual(["gte", "media_intentos", TECHO_DE_INTENTOS]);
+    expect(llamadas).toContainEqual(["in", "media_status", ["pendiente", "fallido"]]);
+    expect(llamadas).toContainEqual(["eq", "direction", "inbound"]);
+    expect(llamadas).toContainEqual(["or", "media_reclamado_at.is.null,media_reclamado_at.lt.2026-10-09T19:58:00.000Z"]);
   });
 });

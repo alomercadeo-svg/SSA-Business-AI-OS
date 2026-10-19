@@ -159,7 +159,7 @@ describe("el reintento de adjuntos de F28 en la misma corrida", () => {
     const r = await correrTareas({
       servicio: servicio as never,
       ahora: new Date(),
-      deps: { ...deps, reintentarAdjuntos: async () => ({ revisados: 1, descargados: 1, fallidos: 0, noDisponibles: 0, errores: 0 }) },
+      deps: { ...deps, reintentarAdjuntos: async () => ({ revisados: 1, descargados: 1, fallidos: 0, noDisponibles: 0, cortados: 0, errores: 0 }) },
     });
     expect(r.adjuntos).toBe("ok");
     const fila = tareas.get(CLAVE_DE_REINTENTO_DE_ADJUNTOS)!;
@@ -178,7 +178,7 @@ describe("el reintento de adjuntos de F28 en la misma corrida", () => {
         ...deps,
         reintentarAdjuntos: async () => {
           vigiladosAlReintentar = [...tareas.values()].filter((f) => f.clave.startsWith("vigilancia_canales:") && f.ultimo_ok_at).length;
-          return { revisados: 0, descargados: 0, fallidos: 0, noDisponibles: 0, errores: 0 };
+          return { revisados: 0, descargados: 0, fallidos: 0, noDisponibles: 0, cortados: 0, errores: 0 };
         },
       },
     });

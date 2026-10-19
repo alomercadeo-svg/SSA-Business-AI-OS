@@ -837,7 +837,7 @@ Corrieron los dos caminos: el receptor, que guardó el mensaje, y el relleno, qu
 - **Los tests de alcance de 5f están en `app/api/v1/messages/route.test.ts`**, en el bloque «GET /api/v1/messages: las direcciones firmadas de los adjuntos (F28)» (`:185`): el del Member sin el lead en `:202` y el del Owner en `:213`. El del Owner se vio en rojo contra la ruta anterior. El del Member **pasaba antes**, porque la ruta anterior no firmaba nada (un verde vacío); se vio en rojo después, contra la rotura a propósito.
 - **5f:** `GET /api/v1/messages` lee con el cliente del usuario (la RLS aplica el alcance de leads) y firma en lote, con la clave de servicio y 600 segundos, solo las rutas de los mensajes `descargado` que volvieron. `media_path` no viaja; viaja `archivo: { url, mime }`. Tests: un Member sin el lead recibe 403 y no se firma nada; un Owner recibe la dirección (control positivo, visto en rojo contra la ruta anterior). El del Member se vio fallar contra una rotura a propósito (firmar con la clave de servicio antes del control de alcance). **La prueba con el token real de un Member en un espacio fantasma no se hizo**: queda con tests simulados.
 - **5g:** `MessageBubble` muestra `<img>`, `<audio controls>` o `<video controls>`, elegido por `message_type` y no por `media_mime` (la rotura a propósito de elegirlo por `media_mime` puso en rojo el test de la nota de voz). «Todavía no pudimos traer este archivo. Se vuelve a intentar solo.» para `fallido`, «Este archivo no está disponible.» para `no_disponible`. Los históricos y los `ephemeral`, «Adjunto» como antes.
-- **La bandeja, vista por Marcos hacia las 18:44 recargando «Ale Admin's Workspace»** (con capturas): se ven la foto, el video y el audio. El audio (`media_mime` `video/mp4`) aparece con reproductor de audio (0:03). Los cuatro `ephemeral` (18:20, 18:20, 18:21, 18:22) dicen «Adjunto». Que un MP4 de solo audio se reproduzca en `<audio>` era inferencia; queda observado en el navegador de Marcos.
+- **La bandeja, vista por Marcos hacia las 18:44 recargando «Ale Admin's Workspace»** (con capturas; **la hora la sacó la sesión anterior de esas capturas, y Marcos no la confirmó**: no las guardó, dicho el 19/10/2026): se ven la foto, el video y el audio. El audio (`media_mime` `video/mp4`) aparece con reproductor de audio (0:03). Los cuatro `ephemeral` (18:20, 18:20, 18:21, 18:22) dicen «Adjunto». Que un MP4 de solo audio se reproduzca en `<audio>` era inferencia; queda observado en el navegador de Marcos.
 - **Candidato para F35, sin criterio y sin construir:** la foto se ve solo dentro de la burbuja; para verla grande hay que abrirla en otra pestaña (observación de Marcos). Ampliarla al hacer clic no lo pide ningún criterio de F28.
 - **Anotado, sin arreglar:** cada vez que entra un mensaje, el hilo se recarga entero (`message-thread.tsx`, la suscripción a `conversations`) y las direcciones se vuelven a firmar; un audio o video que se esté reproduciendo en ese momento se reinicia.
 
@@ -887,6 +887,35 @@ Corrieron los dos caminos: el receptor, que guardó el mensaje, y el relleno, qu
 
 **Fin del tramo 4: 09/10/2026 18:49:15**, leída antes de commitear el cierre. Suma: 63 min, de 17:45:40 a 18:49:15, sin cortes. Suma de la sesión 2: 573 min (9 h 33 min). La línea de base no cambió. La parte B de F28 va en otra sesión.
 
+### Tramo 5: F28, parte B (los históricos de Instagram y la bajada de WhatsApp)
+
+**Apertura: 19/10/2026 12:48:47 de Costa Rica**, leída con `TZ=America/Costa_Rica date`. `node scripts/commits-sin-subir.mjs`: «Sin commits sin subir contra origin/bloque-1-foundation»; último commit `01511a5`, comprobado con `git log`. Entre el 09/10 y hoy no hubo commits ni despliegues: producción corrió diez días el código de la parte A.
+
+- **Despliegue I, `01511a5`** (cierre del tramo 4, docs). `node scripts/verificar-despliegue.mjs`, salida 0: el build pasó de `gK-wyVS_fF8YDgwvYiiY_` a `KPbo3Qx8MHA76xlsORB8q`, de 18:49:33 a 18:51:07 del 09/10/2026, con `/login` en 200. No podía figurar en sí mismo: se anota al abrir el tramo 5.
+- **Railway, dicho por Marcos con captura el 19/10/2026 a las 12:35:** ACTIVE «docs: cierre del tramo 4 de la sesión 2 del Bloque 3 (F28, part…», «9 days ago via GitHub», en «Deployment successful». **Identificado por título** (`01511a5`).
+- **HISTORY, dicho por Marcos con captura el 19/10/2026 a las 12:45:** debajo del ACTIVE, en REMOVED y «9 days ago via GitHub»: «feat(F28): la bandeja muestra los adjuntos bajados con direcci…» (`19e965a`), «feat(F28): bajar los adjuntos de Instagram al recibirlos (parte …» (`cd91a56`), «docs: cierre del tramo 3 de la sesión 2 del Bloque 3 (F27 y F3…» (`ea79140`) y «feat(F39, F27): vigilancia de canales y el mensaje citado de In…» (`8fa052d`). Identificados por título. **Ninguno figura como fallido: queda cerrada la duda de si `cd91a56` falló en Railway** (despliegue H, arriba).
+- **La hora en que Marcos vio la bandeja el 09/10 («hacia las 18:44»)** no se puede confirmar: Marcos no guardó las capturas. Se deja como está, con la nota al lado.
+
+**Recuento de los diez días, 19/10/2026 13:06:52, solo lectura y sin contenido** (script fuera del repo, con la clave de servicio; `storage.objects` por el CLI):
+- **Filas con `media_intentos` no nulo: 9.** 3 son las de la prueba del 09/10 en @poderosascomunidad (`descargado`). **Las otras 6 son entrantes reales de leads de @alomercadeo, y las 6 terminaron `no_disponible` con `tipo_no_permitido`** (detalle abajo).
+- **Trabadas** (intentos en 5 o más, sin `descargado` ni `no_disponible`): **0**.
+- **Objetos en `message-media`: 3**, los de la prueba del 09/10.
+- **`tareas_estado`:** `reintento_adjuntos`, última corrida buena 19/10 13:01:04, con 0 revisados; `vigilancia_canales` de los dos espacios, buena a las 13:01. Que el reintento corrió en estos días lo prueba `27758899`, que se reintentó el 17/10. `importacion_historial`, última el 08/10: no hay importación corriendo.
+- **Los históricos de @alomercadeo con archivo y dirección: 13**, los mismos del 09/10 (3 fotos, 8 videos, 2 audios).
+
+**Los 6 rechazos reales, del 13/10 al 18/10. Son el primer dato real del criterio 5 y, a la vez, un posible defecto abierto. No es una tilde.** Los 6 son entrantes de tipo `video` según Zernio, con dirección. El detector no reconoció lo que bajó, y el código de entonces no guardaba nada que diga qué era. Por eso hoy se suma el diagnóstico al despliegue del arreglo del quinto intento (ver abajo).
+
+| id | conversación | llegó | cierre | intentos |
+|---|---|---|---|---|
+| `0dfb24cd` | `273fa884` | 13/10/2026 13:03:17 | 13:03:23 | 1 |
+| `9b1d964a` | `87255fa7` | 13/10/2026 23:04:03 | 23:04:10 | 1 |
+| `fcdb330c` | `953cd423` | 16/10/2026 14:09:41 | 14:09:49 | 1 |
+| `27758899` | `273fa884` | 17/10/2026 09:51:17 | 09:51:29 (hora del último reclamo) | 2 |
+| `a7459395` | `273fa884` | 18/10/2026 12:44:43 | 12:44:48 | 1 |
+| `36fe1f57` | `97ab6fcf` | 18/10/2026 17:36:25 | 17:36:34 | 1 |
+
+«Cierre» es `media_reclamado_at`, la hora en que se tomó el último intento; la escritura del cierre no tiene hora propia. **Hipótesis, sin verificar: son reels compartidos, y la dirección devuelve una página en vez de un archivo.** Que 3 de los 6 vengan de la misma conversación encaja, pero no lo prueba. **Decidido por Marcos el 19/10/2026: los 6 no se tocan** hasta tener el diagnóstico. Si resulta ser un formato que falta, reabrirlos es una escritura en producción aparte, con las filas mostradas antes y su OK. Sumar un formato es una migración, porque `allowed_mime_types` del bucket tiene que coincidir con `FORMATOS_PERMITIDOS`, y se propone con su motivo antes de hacerla.
+
 ---
 
 ## Siguiente paso
@@ -933,7 +962,7 @@ Después, el Bloque 3: modelo de contacto extendido (F25), identidad de canal y 
 | Sesión | Funcionalidades | Por qué juntas | Días reales | Anotado el |
 |---|---|---|---|---|
 | 1 | F31, F25, F26 | El modelo de contacto y la identidad de canal. **F31 primero:** F26 escribe en la auditoría, y la tabla no existe hasta F31 | Tramo 1: 07/10/2026 17:37 a 07/10/2026 18:35. Tramo 2, retrabajo de F31: 08/10/2026 13:16 a 08/10/2026 13:26. Hora de Costa Rica. Suma: 68 min (1 h 8 min) | 07/10/2026 y 08/10/2026 |
-| 2 | F27, F28, F39 | El camino de entrada. F28 y F39 cuelgan de F27 | Tramo 1, F27: 08/10/2026 14:20 a 08/10/2026 17:48, con un corte de 16:15 a 16:32 por el cierre forzado de la sesión, que no se cuenta. Hora de Costa Rica. Suma del tramo 1: 191 min (3 h 11 min). Tramo 2, pendientes cortos de F27, F25 y F39: 08/10/2026 18:25 a 08/10/2026 19:48, con un corte de 18:43 a 19:13 por el cierre de la app, que no se cuenta. Suma del tramo 2: 53 min. Tramo 3, pendiente corto de F27 y el resto de F39: 09/10/2026 12:09 a 09/10/2026 16:35, sin cortes. Suma del tramo 3: 266 min (4 h 26 min). Suma de la sesión hasta acá: 510 min (8 h 30 min). Tramo 4, parte A de F28: 09/10/2026 17:45 a 09/10/2026 18:49, sin cortes. Suma del tramo 4: 63 min. Suma de la sesión hasta acá: 573 min (9 h 33 min). La parte B de F28 va en otra sesión | 08/10/2026 |
+| 2 | F27, F28, F39 | El camino de entrada. F28 y F39 cuelgan de F27 | Tramo 1, F27: 08/10/2026 14:20 a 08/10/2026 17:48, con un corte de 16:15 a 16:32 por el cierre forzado de la sesión, que no se cuenta. Hora de Costa Rica. Suma del tramo 1: 191 min (3 h 11 min). Tramo 2, pendientes cortos de F27, F25 y F39: 08/10/2026 18:25 a 08/10/2026 19:48, con un corte de 18:43 a 19:13 por el cierre de la app, que no se cuenta. Suma del tramo 2: 53 min. Tramo 3, pendiente corto de F27 y el resto de F39: 09/10/2026 12:09 a 09/10/2026 16:35, sin cortes. Suma del tramo 3: 266 min (4 h 26 min). Suma de la sesión hasta acá: 510 min (8 h 30 min). Tramo 4, parte A de F28: 09/10/2026 17:45 a 09/10/2026 18:49, sin cortes. Suma del tramo 4: 63 min. Suma de la sesión hasta acá: 573 min (9 h 33 min). La parte B de F28 va en otra sesión. Tramo 5, parte B de F28: 19/10/2026 12:48 a (en curso) | 08/10/2026 |
 | 3 | F29, F30, F41 | El lado de CRM, que no toca la ingesta. F41 va con F30 porque la asignación se ve y se edita en la ficha | | |
 | **Bloque** | | | **Planificado: 2 días** | |
 

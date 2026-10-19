@@ -31,6 +31,24 @@
  *
  * Nunca se registra el contenido del mensaje ni la dirección del proveedor:
  * los errores van como un código corto en `media_error`.
+ *
+ * ── EL DIAGNÓSTICO DEL RECHAZO ───────────────────────────────────────────────
+ *
+ * Cuando el detector no reconoce el archivo, `media_error` lleva, además del
+ * código, con qué se encontró: `tipo_no_permitido|<tipo declarado>|<host
+ * final>|<primeros 16 bytes en hex>`. El tipo declarado es el `Content-Type`
+ * de la respuesta sin sus parámetros; el host es solo el nombre, después de
+ * las redirecciones, sin ruta ni parámetros (que son los que llevan el token);
+ * los 16 bytes alcanzan para ver la marca de un MP4 (bytes 9 a 12) y no para
+ * reconstruir nada. Lo que falta va con un guion. Agregado el 19/10/2026: 6
+ * videos reales de leads se rechazaron sin dejar rastro de qué eran.
+ *
+ * ── EL QUINTO INTENTO CORTADO ────────────────────────────────────────────────
+ *
+ * Si un redespliegue corta el intento del techo después de tomarlo, la fila
+ * queda abierta con los intentos en el techo y el reintento normal ya no la
+ * toma. El reintento la cierra en `no_disponible` con `intento_cortado`,
+ * pasada la misma espera, con la misma condición de intentos que `cerrar`.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { detectarFormato, BYTES_PARA_DETECTAR } from "./adjuntos-formatos";
@@ -81,6 +99,8 @@ export interface Almacen {
   subir(ruta: string, datos: Uint8Array, mime: string): Promise<{ error: string | null }>;
   /** Los que el reintento puede tomar. */
   porReintentar(ahora: Date, limite: number): Promise<string[]>;
+  /** Abiertos con los intentos en el techo y sin reclamo reciente: un intento del techo cortado. */
+  trabadas(ahora: Date, limite: number): Promise<Array<{ id: string; media_intentos: number }>>;
 }
 
 export function almacenDeSupabase(servicio: SupabaseClient): Almacen {
@@ -141,6 +161,19 @@ export function almacenDeSupabase(servicio: SupabaseClient): Almacen {
       if (error) throw new Error(`messages: ${error.message}`);
       return ((data ?? []) as Array<{ id: string }>).map((f) => f.id);
     },
+    async trabadas(ahora, limite) {
+      const antesDe = new Date(ahora.getTime() - ESPERA_DEL_REINTENTO_MS).toISOString();
+      const { data, error } = await servicio
+        .from("messages")
+        .select("id, media_intentos")
+        .gte("media_intentos", TECHO_DE_INTENTOS)
+        .in("media_status", ESTADOS_ABIERTOS)
+        .eq("direction", "inbound")
+        .or(`media_reclamado_at.is.null,media_reclamado_at.lt.${antesDe}`)
+        .limit(limite);
+      if (error) throw new Error(`messages: ${error.message}`);
+      return (data ?? []) as Array<{ id: string; media_intentos: number }>;
+    },
   };
 }
 
@@ -165,6 +198,20 @@ class FalloDeDescarga extends Error {
 function direccionDelAdjunto(attachments: unknown): string | null {
   const primero = Array.isArray(attachments) ? (attachments[0] as { url?: unknown } | undefined) : undefined;
   return typeof primero?.url === "string" && /^https?:\/\//.test(primero.url) ? primero.url : null;
+}
+
+/** `tipo_no_permitido|<tipo declarado>|<host final>|<16 bytes en hex>`. Nunca la ruta ni los parámetros. */
+function diagnosticoDeRechazo(res: Response, datos: Uint8Array): string {
+  const declarado = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+  const tipo = /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/.test(declarado) ? declarado : "-";
+  let host = "-";
+  try {
+    if (res.url) host = new URL(res.url).hostname || "-";
+  } catch {
+    host = "-";
+  }
+  const bytes = [...datos.subarray(0, BYTES_PARA_DETECTAR)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `tipo_no_permitido|${tipo}|${host}|${bytes || "-"}`;
 }
 
 /** Baja el cuerpo cortando apenas pasa el máximo: no confía solo en `Content-Length`. */
@@ -238,7 +285,7 @@ export async function descargarAdjunto(id: string, o: OpcionesDeDescarga): Promi
     }
 
     const formato = detectarFormato(datos.subarray(0, BYTES_PARA_DETECTAR));
-    if (!formato) throw new FalloDeDescarga("tipo_no_permitido", true);
+    if (!formato) throw new FalloDeDescarga(diagnosticoDeRechazo(res, datos), true);
 
     const ruta = `${fila.workspace_id}/${fila.conversation_id}/${fila.id}/archivo.${formato.ext}`;
     const subida = await almacen.subir(ruta, datos, formato.mime);
@@ -267,6 +314,8 @@ export interface ResumenDeReintento {
   descargados: number;
   fallidos: number;
   noDisponibles: number;
+  /** Quintos intentos cortados, cerrados en `no_disponible`. */
+  cortados: number;
   errores: number;
 }
 
@@ -276,8 +325,18 @@ export interface ResumenDeReintento {
  * uno no corta a los demás.
  */
 export async function reintentarAdjuntos(o: OpcionesDeDescarga & { ahoraFijo: Date }): Promise<ResumenDeReintento> {
+  const r: ResumenDeReintento = { revisados: 0, descargados: 0, fallidos: 0, noDisponibles: 0, cortados: 0, errores: 0 };
+  for (const t of await o.almacen.trabadas(o.ahoraFijo, ADJUNTOS_POR_CORRIDA)) {
+    try {
+      const cerrado = await o.almacen.cerrar(t.id, t.media_intentos, { media_status: "no_disponible", media_error: "intento_cortado" });
+      if (cerrado) r.cortados += 1;
+    } catch (err) {
+      r.errores += 1;
+      console.error("[adjuntos] intento cortado:", err instanceof Error ? err.message : "error");
+    }
+  }
   const ids = await o.almacen.porReintentar(o.ahoraFijo, ADJUNTOS_POR_CORRIDA);
-  const r: ResumenDeReintento = { revisados: ids.length, descargados: 0, fallidos: 0, noDisponibles: 0, errores: 0 };
+  r.revisados = ids.length;
   for (const id of ids) {
     try {
       const res = await descargarAdjunto(id, o);
