@@ -3,8 +3,8 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { hasWorkspaceSecret, SECRET_NAMES } from "@/lib/vault";
 import { SettingsTabs } from "@/components/settings/settings-tabs";
 import { etiquetaDeCanal } from "@/lib/auditoria";
-import { haceCuanto, marcaVencida, marcaVisible } from "@/lib/tareas-estado";
-import { claveDeVigilancia } from "@/lib/tareas-programadas";
+import { haceCuanto, marcaVencida, marcaVisible, textoDelReintento } from "@/lib/tareas-estado";
+import { CLAVE_DE_REINTENTO_DE_ADJUNTOS, claveDeVigilancia } from "@/lib/tareas-programadas";
 import { textoDeSuscripcion, type ResultadoSuscripcion } from "@/lib/vigilancia-suscripcion";
 import { cn } from "@/lib/utils";
 import { UmbralCanal } from "./umbral-canal";
@@ -20,6 +20,9 @@ import { UmbralCanal } from "./umbral-canal";
  * - La marca que se muestra es `ultimo_ok_at` (`marcaVisible`), en rojo a los
  *   30 minutos (`marcaVencida`). `ultima_ejecucion_at` no se muestra: se mueve
  *   también cuando la corrida falla.
+ * - F28: la marca del reintento de adjuntos (`reintento_adjuntos`, sin espacio:
+ *   es una sola tarea para toda la base), con la misma regla de rojo. Agregada
+ *   el 19/10/2026 sin criterio nuevo: la pide la regla de §14.
  */
 export const dynamic = "force-dynamic";
 
@@ -31,7 +34,7 @@ export default async function VigilanciaPage() {
   const { workspace, supabase } = await getWorkspaceAsManager();
   const servicio = await createServiceClient();
 
-  const [{ data: canales, error }, { data: tarea }, tieneZernio] = await Promise.all([
+  const [{ data: canales, error }, { data: tarea }, tieneZernio, { data: reintento }] = await Promise.all([
     supabase
       .from("channels")
       .select("id, platform, username, display_name, instance_name, is_active, last_inbound_at, umbral_silencio_horas")
@@ -43,6 +46,11 @@ export default async function VigilanciaPage() {
       .eq("clave", claveDeVigilancia(workspace.id))
       .maybeSingle(),
     hasWorkspaceSecret(supabase, workspace.id, SECRET_NAMES.zernio),
+    servicio
+      .from("tareas_estado")
+      .select("ultima_ejecucion_at, ultimo_ok_at, ultimo_error")
+      .eq("clave", CLAVE_DE_REINTENTO_DE_ADJUNTOS)
+      .maybeSingle(),
   ]);
 
   if (error) {
@@ -57,6 +65,7 @@ export default async function VigilanciaPage() {
   const suscripcion = resultado.suscripcion ?? (tieneZernio ? null : "sin_clave");
   const textoSuscripcion = textoDeSuscripcion(suscripcion);
   const leida = suscripcion && suscripcion !== "sin_clave" && !suscripcion.error ? suscripcion : null;
+  const adjuntos = textoDelReintento(reintento, ahora);
 
   return (
     <div className="flex h-full flex-col">
@@ -147,6 +156,21 @@ export default async function VigilanciaPage() {
             <p className={textoSuscripcion.tono === "error" ? "" : "text-muted-foreground"}>
               Si falta alguno, se abre una alerta que dice cuál.
             </p>
+          </div>
+
+          <div
+            className={cn(
+              "space-y-1 rounded-lg border px-4 py-3 text-sm",
+              adjuntos.vencida
+                ? "border-red-300 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100"
+                : "border-border bg-muted/30",
+            )}
+          >
+            <p className="font-medium">{adjuntos.titulo}</p>
+            <p className={adjuntos.vencida ? "" : "text-muted-foreground"}>
+              Si esta hora deja de avanzar, las fotos, audios y videos que no se pudieron bajar no se vuelven a intentar.
+            </p>
+            {adjuntos.error && <p className="text-xs">La última corrida falló: {adjuntos.error}</p>}
           </div>
         </div>
       </div>

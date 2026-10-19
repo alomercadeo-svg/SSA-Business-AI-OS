@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { marcaVisible, marcaVencida, MINUTOS_PARA_VENCER, haceCuanto } from "./tareas-estado";
+import { marcaVisible, marcaVencida, MINUTOS_PARA_VENCER, haceCuanto, textoDelReintento } from "./tareas-estado";
 
 /**
  * La «Última revisión» de Vigilancia de canales (F39) y la regla de los 30
@@ -48,5 +48,36 @@ describe("hace cuánto (F39, para la pantalla)", () => {
   });
   it("una marca en el futuro no dice «hace» un número negativo", () => {
     expect(haceCuanto("2026-10-09T19:05:00.000Z", ahora)).toBe("hace menos de 1 min");
+  });
+});
+
+/**
+ * La marca visible del reintento de adjuntos de F28 (§14, «Vigilancia por
+ * ausencia»; §15, anotado el 09/10/2026). Misma fila de `tareas_estado`
+ * (`reintento_adjuntos`) y misma regla de rojo que la vigilancia de F39.
+ */
+describe("la marca del reintento de adjuntos", () => {
+  const AHORA = new Date("2026-10-19T21:40:00.000Z");
+  const hace = (min: number) => new Date(AHORA.getTime() - min * 60_000).toISOString();
+
+  it("con una corrida buena reciente: la hora, sin rojo", () => {
+    const t = textoDelReintento({ ultimo_ok_at: hace(4), ultima_ejecucion_at: hace(4) }, AHORA);
+    expect(t).toMatchObject({ vencida: false, titulo: "Último reintento de archivos adjuntos: hace 4 min" });
+    expect(t.error).toBeNull();
+  });
+
+  it("pasados 30 minutos sin una corrida buena: en rojo, con el error de la última", () => {
+    const t = textoDelReintento({ ultimo_ok_at: hace(45), ultima_ejecucion_at: hace(2), ultimo_error: "messages: se cayó" }, AHORA);
+    expect(t.vencida).toBe(true);
+    expect(t.titulo).toBe("Último reintento de archivos adjuntos: hace 45 min");
+    expect(t.error).toBe("messages: se cayó");
+  });
+
+  it("si nunca corrió: en rojo, y lo dice", () => {
+    expect(textoDelReintento(null, AHORA)).toMatchObject({ vencida: true, titulo: "El reintento de archivos adjuntos todavía no corrió nunca.", error: null });
+  });
+
+  it("una corrida que empezó y falló no cuenta como viva: manda ultimo_ok_at, no ultima_ejecucion_at", () => {
+    expect(textoDelReintento({ ultimo_ok_at: hace(40), ultima_ejecucion_at: hace(1) }, AHORA).vencida).toBe(true);
   });
 });

@@ -933,6 +933,34 @@ Tests:
 - **Salida del push:** «Applying migration 00035_adjuntos_whatsapp.sql… Finished supabase db push.». El código de salida no se capturó: el comando iba por un `tail`, que es el que devolvió 0. Lo prueba el recuento.
 - **Después (15:03:22):** 30 tablas, 35 migraciones (última 00035), y las cantidades de todas las tablas iguales. `pg_policies` de la tabla: **0**. `relrowsecurity` true. **Ningún permiso** para `anon` ni `authenticated` en `information_schema.role_table_grants`. 0 filas. No está en la publicación de Realtime.
 
+**5a, la dirección firmada con sesiones reales de un Owner y de un Member** (`scripts/verify-alcance-firmada.mjs`, nuevo), contra `GET /api/v1/messages` de producción, 19/10/2026 de 15:32:10 a 15:32:23. **11 comprobaciones pasaron y 0 fallaron**, salida 0.
+- **El escenario:** un espacio fantasma, creado y borrado en la misma corrida. Un Owner y un Member, usuarios de Auth `@ssa-test.local` con contraseña al azar que solo vivió en memoria. La sesión va en la cookie como la arma `@supabase/ssr` 0.8.0 (`sb-<ref>-auth-token`, `base64-`, partes de 3180 caracteres). Dos leads con un PNG chico cada uno en `message-media`: el A asignado al Owner (setter y conversación) y el B al Member.
+- **Owner, lead A (control positivo):** 200 con la dirección firmada del bucket privado, y la dirección sirve el archivo. `media_path` no viaja como campo.
+- **Member, lead B (control positivo del rol):** 200 con la dirección de su propio lead. Su sesión funciona, así que el 403 que sigue no es una cookie mal armada.
+- **Member, lead A:** **403**, y la respuesta no trae la dirección, la ruta ni el id del mensaje.
+- **Limpieza:** los 2 archivos de Storage (0 objetos del espacio al recontar), los contactos con sus conversaciones y mensajes, el canal, los 2 usuarios y los 2 espacios. Recuento posterior: 0 usuarios `b3-firma-*` en `auth.users`, 9 objetos en el bucket (los mismos de antes), y las filas de `audit_log` sin espacio siguen en 23 (esta prueba no registró ninguna). El único espacio fantasma vivo es el de la 4h.
+- **Límite:** este script no se corrió contra una versión rota de la ruta, porque no se rompe producción. Su comprobación negativa (el 403) se apoya en los dos controles positivos, y la rotura a propósito de la ruta ya se hizo el 09/10 en el test simulado (`app/api/v1/messages/route.test.ts`).
+
+**5b, la marca visible del reintento de adjuntos (§15, «Vigilancia por ausencia»), sin criterio nuevo.** En Configuración › Vigilancia de canales (`app/(dashboard)/dashboard/settings/vigilancia/page.tsx`), debajo de la marca de F39, una tarjeta muestra la fila `reintento_adjuntos` de `tareas_estado`.
+- La lee con el cliente de servicio, después del control de rol, igual que la de F39.
+- La regla es la misma: manda `ultimo_ok_at`, y se pone en rojo a los 30 minutos (`marcaVencida`), con el error de la última corrida. El texto es «Último reintento de archivos adjuntos: hace N min» o «El reintento de archivos adjuntos todavía no corrió nunca.».
+- El texto sale de `textoDelReintento` (`lib/tareas-estado.ts`), con 4 tests vistos en rojo antes de escribirla. La tarjeta de F39 no se tocó.
+- **No se vio en el navegador:** desde localhost habría que iniciar sesión contra producción. La ve Marcos después del despliegue.
+- Se sube **después de la 4h**, para que un redespliegue no corte su quinto intento.
+
+**Despliegue K, `f4469cc` (la bajada de WhatsApp), sin confirmar.** Push `a02fa82..f4469cc` a las 15:05. Antes: suite 739 de 739, `typecheck` en cero, `npm run build` bien, y la 00035 ya aplicada. `node scripts/verificar-despliegue.mjs` **salió sin verde**: «Lo subido no está desplegado: en 5 minutos el build siguió en `96QfJA7-DZg9527NP2Zml`», de 15:05:01 a 15:10:03. Releído a las 15:10:11: el mismo build, `/login` en 200. Se le pidió a Marcos que mire el historial de Railway.
+- **Railway, dicho por Marcos con captura el 19/10/2026 hacia las 15:17:** ACTIVE «feat(F28): bajar los adjuntos de WhatsApp desde Evolution (p…», «12 minutes ago via GitHub», en «Deployment successful». **Identificado por título** (`f4469cc`).
+- **Releído a las 15:17:54:** producción sirve el build `EEyYAmFlO5sm89vpt88Z_`, con `/login` en 200. **El despliegue tardó más de los 5 minutos que espera el script**: el script no se equivocó, el build todavía no había cambiado cuando dejó de esperar. La hora exacta del cambio no se midió. Queda desplegado por título en Railway y por el cambio de build, no por la salida del script.
+
+**La prueba 4h: un aviso firmado de WhatsApp con una foto, contra el receptor de producción** (`scripts/verify-adjuntos-whatsapp.mjs`, aprobada por Marcos el 19/10/2026). Espacio fantasma `f405e19e`, usuario de Auth `c658a7eb` (`@ssa-test.local`), canal `05ea1ada` con la instancia inventada `b3-adjuntos-e65e670d` y `umbral_silencio_horas` en nulo. El secreto del webhook y el token de la instancia los generó el script, que no leyó ninguna clave existente.
+- **«preparar», 15:18:07, salida 0:**
+  - El receptor acusó **200 en 3.886 ms**; el acuse terminó a las 15:18:14.137.
+  - El mensaje `f31a7314` quedó guardado y marcado. **El primer intento se tomó a las 15:18:14.288**, 151 ms después de que llegó la respuesta: es el `after()`. Quedó **`fallido` con `http_404`**.
+  - **Control de la clave de descifrado:** con la clave de servicio, la fila de `whatsapp_adjuntos_por_bajar` está (control positivo). Con el token del Owner del espacio fantasma, la tabla responde **HTTP 403 y 0 filas**. `messages` no tiene `mediaKey`.
+- **Cómo se anota esta falla:** es **«instancia inexistente»** (404, `instance.guard.ts:36`), no «sin número vinculado». Ese 404 sale **antes de que Evolution mire la clave y lea el cuerpo** (orden de guards, `index.router.ts:41`). **La prueba no demuestra que Evolution acepte la forma de nuestro pedido** (ruta, cuerpo, `apikey`): eso queda verificado solo contra el código de 2.3.7 y con el test simulado, y se comprueba en la puesta en marcha del número.
+- **Intentos de la 4h, leídos cada minuto sin contenido:** 1 a las 15:18:14 (el `after()` del receptor), 2 a las 15:20:32 y 3 a las 15:31:29, **los dos últimos del reintento programado**. Los tres terminaron `fallido` con `http_404`, y el mensaje guardado sigue en su lugar. Es el primer reintento programado real de WhatsApp.
+- **`audit_log`:** el receptor registró `f6eba706` («contacto.creado», 15:18:12) en el espacio fantasma. Esa tabla no se borra (F31). Cuando «borrar» elimine el espacio, **las filas sin espacio del recuento van a pasar de 23 a 24 por esta prueba.**
+
 **Despliegue J, `a02fa82`.** Push `01511a5..a02fa82`, `node scripts/verificar-despliegue.mjs`, salida 0: el build pasó de `KPbo3Qx8MHA76xlsORB8q` a `96QfJA7-DZg9527NP2Zml`, de 13:45:17 a 13:49:28, con `/login` en 200. Sin importación corriendo (leído a las 13:45:10).
 
 **El reel compartido, con el diagnóstico nuevo (19/10/2026).** Marcos compartió un reel desde @marcospittimusic a @poderosascomunidad. Línea de base: 13:49:43. Fila leída a las 14:40:27, sin contenido:
@@ -976,6 +1004,14 @@ Tests:
   - **Lo que no encaja, leído el 19/10 sin contenido:** entre las 09:50 y las 09:55 de ese día hay un solo evento en `webhook_events`, recibido a las 09:51:28. El último reclamo es 1 segundo posterior. El reintento programado corre en los minutos :x0 y espera 2 minutos desde el último reclamo (`ESPERA_DEL_REINTENTO_MS`), así que **con esas horas el segundo intento no pudo ser del reintento programado**. Es una inferencia sobre el código y las horas.
   - **Quién hizo cada intento no se sabe.** Es un segundo intento real después de una falla abierta, pero no prueba que el reintento programado funcione.
 - **Objetos en `message-media` después:** 9 (los 4 de las pruebas y los 5 históricos).
+- **Los 5 bajados no se pueden ver en la bandeja, por un límite que no es de F28.** Dicho por Marcos con captura el 19/10/2026 hacia las 15:21: la lista llega hasta las conversaciones de las 15:24 de hoy y no tiene cómo ver más.
+  - La bandeja carga **50 conversaciones** (`app/(dashboard)/dashboard/inbox/page.tsx:12`, `.limit(50)`, del fork), y el buscador filtra **solo entre esas 50**, en el navegador (`components/inbox/conversation-list.tsx:105-108`).
+  - Además, `d6754c32` (la foto de 2021) tiene 200 mensajes posteriores en su conversación, y el hilo muestra los últimos 200 (`MENSAJES_POR_HILO`, `app/api/v1/messages/route.ts:11`).
+  - **Anotado sin criterio y sin construir**, junto con «Ver mensajes anteriores»: llegar desde la bandeja a una conversación vieja no lo pide F28. Quién lo toma lo decide Marcos.
+  - La confirmación de los 5 se pasa al panel de Storage, como el 09/10.
+- **Confirmado por Marcos el 19/10/2026, en el panel de Storage de Supabase (bucket `message-media`):** se ven las tres fotos (`bc4a7309`, `9a064b31` y `d6754c32`) y se escuchan las dos notas de voz (`13b44e2c` y `acf93c5f`). Sin describir el contenido. Es la prueba de que lo guardado es un archivo de verdad del tipo esperado.
+  - Para `d6754c32`, Storage dice «added on 10/19/2026»: es la fecha de subida (hoy, 14:50:14), no la del mensaje. La del mensaje, 17/06/2021, es la que dio Instagram y vive en `messages.created_at`.
+  - Que la bandeja muestra un archivo bajado ya quedó visto el 09/10 con el mismo código. Para estos 5, en la bandeja no se vio, por el límite de 50 conversaciones.
 
 **WhatsApp, el diseño reverificado contra el código (4a), 19/10/2026.** Es lectura de código público, sin ninguna llamada a Evolution. Clon de la etiqueta `2.3.7` con `--depth 1 --filter=blob:none`, fuera del repo: commit `cd800f2976e1e5b682fbf86a01ee4d85ae61f370`, y `git ls-tree` da el blob `60e857fcc1206776575921c9060d05efdd7ff432`, el mismo de antes. `B` es `whatsapp.baileys.service.ts`.
 - **Se confirma todo lo del diseño:**

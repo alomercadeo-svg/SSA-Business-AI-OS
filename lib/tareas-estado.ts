@@ -35,3 +35,25 @@ export function haceCuanto(iso: string, ahora: Date = new Date()): string {
   if (horas < 48) return `hace ${horas} h`;
   return `hace ${Math.floor(horas / 24)} días`;
 }
+
+/**
+ * La marca visible del reintento de adjuntos de F28 (fila `reintento_adjuntos`,
+ * sin espacio), con la misma regla que la vigilancia: manda `ultimo_ok_at`, y
+ * en rojo a los `MINUTOS_PARA_VENCER`. Si el reintento deja de correr, los
+ * adjuntos fallidos quedan `fallido` y nadie se entera: esto es lo que lo hace
+ * visible (§14, «Vigilancia por ausencia»).
+ */
+export function textoDelReintento(
+  fila: (FilaDeTarea & { ultimo_error?: string | null }) | null | undefined,
+  ahora: Date = new Date(),
+): { titulo: string; vencida: boolean; error: string | null } {
+  const marca = marcaVisible(fila);
+  const vencida = marcaVencida(fila, ahora);
+  return {
+    titulo: marca
+      ? `Último reintento de archivos adjuntos: ${haceCuanto(marca, ahora)}`
+      : "El reintento de archivos adjuntos todavía no corrió nunca.",
+    vencida,
+    error: vencida ? (fila?.ultimo_error ?? null) : null,
+  };
+}
