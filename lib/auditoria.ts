@@ -27,6 +27,7 @@ export const ACCIONES_AUDITORIA = [
   "contacto.editado",
   "contacto.reconciliado",
   "contacto.fusionado",
+  "contacto.asignado",
   "canal.conectado",
   "canal.desconectado",
   "canal.error",
@@ -232,6 +233,20 @@ function cambiosEnTexto(changes: unknown): string {
   return partes.join(" · ");
 }
 
+/**
+ * F41. Los cambios guardan los ids (`setter_id`, `vendedor_id`); los nombres de
+ * ese momento van en `detail.nombres`, para que el historial se lea aunque la
+ * persona después se vaya del equipo.
+ */
+function asignacionEnTexto(nombres: unknown): string {
+  if (!nombres || typeof nombres !== "object") return "";
+  const PAPEL: Record<string, string> = { setter_id: "setter", vendedor_id: "vendedor" };
+  const partes = Object.entries(nombres as Record<string, { antes?: unknown; despues?: unknown }>).map(
+    ([campo, c]) => `${PAPEL[campo] ?? campo}: ${c?.antes ? String(c.antes) : "sin asignar"} → ${c?.despues ? String(c.despues) : "sin asignar"}`,
+  );
+  return partes.length ? ` · ${partes.join(" · ")}` : "";
+}
+
 const VIA: Record<string, string> = {
   manual: "cargado a mano",
   mensaje: "por un mensaje posterior",
@@ -253,6 +268,8 @@ export function textoDeEvento(fila: FilaAuditoria): string {
       return con(`Teléfono resuelto de ${quien}${d.via ? `, ${VIA[String(d.via)] ?? String(d.via)}` : ""}`);
     case "contacto.fusionado":
       return `Contactos unidos: ${d.absorbido_nombre ? `${String(d.absorbido_nombre)} pasó a ` : ""}${quien}`;
+    case "contacto.asignado":
+      return `Asignación cambiada: ${quien}${asignacionEnTexto(d.nombres)}`;
     case "canal.conectado":
       return `Canal conectado: ${quien}`;
     case "canal.desconectado":

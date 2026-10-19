@@ -144,7 +144,8 @@ export async function crearUsuario(nombre) {
   });
   const j = await res.json();
   if (!j.access_token) throw new Error(`no se pudo autenticar a ${nombre}`);
-  return { id: data.id, email, espacio, token: j.access_token };
+  // `sesion` es la respuesta entera, para armar la cookie de `@supabase/ssr`.
+  return { id: data.id, email, espacio, token: j.access_token, sesion: j };
 }
 
 /** Suma un usuario a un espacio con un rol. */
@@ -188,14 +189,25 @@ export async function limpiarTodo() {
   );
 }
 
-/** Corre el escenario, limpia siempre, y sale con el código que corresponde. */
-export async function correr(main) {
+/**
+ * Corre el escenario, limpia siempre, y sale con el código que corresponde.
+ * `despues`, si viene, corre después de la limpieza: es el recuento de lo que
+ * tendría que haber quedado en cero.
+ */
+export async function correr(main, despues) {
   try {
     await main();
   } catch (err) {
     check(false, "el script se cortó con una excepción", err instanceof Error ? err.stack : String(err));
   } finally {
     await limpiarTodo();
+  }
+  if (despues) {
+    try {
+      await despues();
+    } catch (err) {
+      check(false, "el recuento posterior se cortó con una excepción", err instanceof Error ? err.stack : String(err));
+    }
   }
   console.log(
     `\n${estado.pasados} comprobaciones pasaron, ${estado.fallos} fallaron` +

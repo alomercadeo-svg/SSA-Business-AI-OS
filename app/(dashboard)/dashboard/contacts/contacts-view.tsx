@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import type { Miembro } from "@/lib/miembros";
 import {
   Search,
   Users,
@@ -43,13 +45,53 @@ function formatDate(dateStr: string | null): string {
 
 export function ContactsView({
   contacts,
+  total,
   tags,
   workspaceId,
+  miembros,
+  filtroSetter,
+  filtroVendedor,
 }: {
   contacts: ContactWithTags[];
+  /** Cuántos hay en la base con los filtros de asignación, no solo los cargados. */
+  total: number;
   tags: Tag[];
   workspaceId: string;
+  miembros: Miembro[];
+  /** «todos», «sin» o el id de un miembro (F41). */
+  filtroSetter: string;
+  filtroVendedor: string;
 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const nombreDe = (id: string | null) =>
+    id ? (miembros.find((m) => m.id === id)?.etiqueta ?? "Ya no está en el equipo") : "Sin asignar";
+
+  // F41: el filtro de asignación va en la dirección y lo aplica el servidor.
+  function filtrarPor(param: "setter" | "vendedor", valor: string) {
+    const p = new URLSearchParams(searchParams.toString());
+    if (valor === "todos") p.delete(param);
+    else p.set(param, valor);
+    const q = p.toString();
+    router.push(q ? `/dashboard/contacts?${q}` : "/dashboard/contacts");
+  }
+
+  const desplegableDeAsignacion = (param: "setter" | "vendedor", titulo: string, actual: string) => (
+    <select
+      aria-label={titulo}
+      value={actual}
+      onChange={(e) => filtrarPor(param, e.target.value)}
+      className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+    >
+      <option value="todos">{titulo}: todos</option>
+      {miembros.map((m) => (
+        <option key={m.id} value={m.id}>
+          {m.etiqueta}
+        </option>
+      ))}
+      <option value="sin">Sin asignar</option>
+    </select>
+  );
   const [search, setSearch] = useState("");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [showSegmentBuilder, setShowSegmentBuilder] = useState(false);
@@ -83,7 +125,9 @@ export function ContactsView({
           <div>
             <h1 className="text-2xl font-bold">Contacts</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {contacts.length} contact{contacts.length !== 1 ? "s" : ""} in your workspace
+              {contacts.length < total
+                ? `Se muestran ${contacts.length} de ${total} contactos, los de interacción más reciente. Los filtros de setter y vendedor buscan en todos.`
+                : `${total} contacto${total !== 1 ? "s" : ""}`}
             </p>
           </div>
         </div>
@@ -100,6 +144,8 @@ export function ContactsView({
               className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
+          {desplegableDeAsignacion("setter", "Setter", filtroSetter)}
+          {desplegableDeAsignacion("vendedor", "Vendedor", filtroVendedor)}
           <button
             onClick={() => setShowSegmentBuilder(!showSegmentBuilder)}
             className={cn(
@@ -203,6 +249,9 @@ export function ContactsView({
                 </th>
                 <th className="px-4 py-3 text-xs font-medium uppercase text-muted-foreground">
                   Subscribed
+                </th>
+                <th className="px-4 py-3 text-xs font-medium uppercase text-muted-foreground">
+                  Setter
                 </th>
               </tr>
             </thead>
@@ -308,6 +357,7 @@ export function ContactsView({
                         </span>
                       )}
                     </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{nombreDe(contact.setter_id)}</td>
                   </tr>
                 );
               })}

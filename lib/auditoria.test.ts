@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -60,8 +60,17 @@ function clienteFalso(opts: { errorAlInsertar?: string; filas?: Record<string, u
 }
 
 describe("la lista de acciones", () => {
-  it("es la misma que el check de la migración 00028", () => {
-    const sql = readFileSync(join(__dirname, "..", "supabase", "migrations", "00028_audit_log.sql"), "utf8");
+  it("es la misma que el check de la migración más nueva que lo redefine", () => {
+    // La 00028 lo creó y cada evento nuevo lo reemplaza en otra migración
+    // (la 00036 suma «contacto.asignado», de F41). Vale el último.
+    const dir = join(__dirname, "..", "supabase", "migrations");
+    const conCheck = readdirSync(dir)
+      .filter((f) => /^\d+_.*\.sql$/.test(f))
+      .sort()
+      .map((f) => readFileSync(join(dir, f), "utf8"))
+      .filter((sql) => /audit_log_action_check check \(action in \(/.test(sql));
+    expect(conCheck.length).toBeGreaterThan(0);
+    const sql = conCheck[conCheck.length - 1];
     const bloque = sql.match(/audit_log_action_check check \(action in \(([\s\S]*?)\)\);/)![1];
     const enLaBase = [...bloque.matchAll(/'([^']+)'/g)].map((m) => m[1]);
     expect(enLaBase).toEqual([...ACCIONES_AUDITORIA]);

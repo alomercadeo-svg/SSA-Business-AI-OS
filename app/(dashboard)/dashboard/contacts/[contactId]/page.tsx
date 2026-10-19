@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { PlatformIcon } from "@/components/platform-icon";
 import { TelefonoSinResolver } from "@/components/contacts/telefono-sin-resolver";
+import { AsignacionContacto } from "@/components/contacts/asignacion-contacto";
+import { miembrosDelEspacio } from "@/lib/miembros";
 
 export default async function ContactDetailPage({
   params,
@@ -24,7 +26,7 @@ export default async function ContactDetailPage({
   const { unidos } = await searchParams;
   const { workspace, supabase } = await getWorkspace();
 
-  const [contactRes, channelsRes, conversationsRes, customFieldsRes] =
+  const [contactRes, channelsRes, conversationsRes, customFieldsRes, miembros] =
     await Promise.all([
       supabase
         .from("contacts")
@@ -46,6 +48,8 @@ export default async function ContactDetailPage({
         .from("contact_custom_fields")
         .select("value, custom_field_definitions(name, slug, field_type)")
         .eq("contact_id", contactId),
+      // F41: los desplegables de setter y vendedor.
+      miembrosDelEspacio(workspace.id),
     ]);
 
   if (!contactRes.data) notFound();
@@ -141,6 +145,14 @@ export default async function ContactDetailPage({
         )}
 
         {!contact.phone_resolved && <TelefonoSinResolver contactoId={contact.id} />}
+
+        {/* F41. F30 la reubica al rehacer la ficha; ver el componente. */}
+        <AsignacionContacto
+          contactoId={contact.id}
+          setterId={contact.setter_id}
+          vendedorId={contact.vendedor_id}
+          miembros={miembros}
+        />
 
         {/* Tags */}
         {tags.length > 0 && (
