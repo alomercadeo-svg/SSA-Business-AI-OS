@@ -621,5 +621,26 @@
     "nuevo": "- [x] Tipos soportados: texto, imagen, audio, documento, video, sticker, ubicación y respuesta a otro mensaje",
     "motivo": "Tildado el 09/10/2026, tramo 3 de la sesión 2 del Bloque 3, decidido por Marcos. F27 #6. Instagram con datos reales: texto, imagen, audio y video, del recuento del tramo 2; la respuesta, con la fila `fe4c6077` (14:52 del 09/10), cuyo `quoted_message_id` es el de un mensaje ya guardado en la conversación `c6628c4e` (desde `8fa052d` se lee `metadata.quotedMessageId`). Instagram no produce documento, sticker ni ubicación, y eso no es un hueco (decidido el 08/10). WhatsApp, los ocho tipos con aviso firmado (tramo 2). `share`, `template` y `ephemeral` no están en la lista del criterio; quedaron como candidatos para F35, a decidir antes de S7.",
     "fecha": "2026-10-09"
+  },
+  {
+    "texto": "- [ ] Bucket privado, con direcciones firmadas de vida corta para mostrar en la bandeja",
+    "destino": "reescrito",
+    "nuevo": "- [x] Bucket privado, con direcciones firmadas de vida corta para mostrar en la bandeja",
+    "motivo": "Tildado el 19/10/2026, tramo 5 de la sesión 2 del Bloque 3, decidido por Marcos. F28 #2. Instagram con datos reales: bucket `message-media` con `public` false y 0 políticas en el esquema `storage` (09/10); la bandeja de Marcos muestra los archivos con la dirección firmada de 600 segundos (09/10 y 19/10, el video `5017f220`); y `scripts/verify-alcance-firmada.mjs` contra `GET /api/v1/messages` de producción con sesiones reales (19/10, 11 de 11): el Owner recibe la dirección y sirve el archivo, el Member la de su lead, y 403 sin dirección para el lead ajeno. WhatsApp: la misma corrida, sobre conversaciones de un canal de WhatsApp con la firma real; el archivo de WhatsApp lo subió el script, no la bajada, y lo probado es quién lo ve. Tests: `app/api/v1/messages/route.test.ts`, con rotura a propósito (09/10).",
+    "fecha": "2026-10-19"
+  },
+  {
+    "texto": "- [ ] Si la descarga falla, el mensaje se guarda igual con marca de \"adjunto no disponible\" y se reintenta",
+    "destino": "reescrito",
+    "nuevo": "- [x] Si la descarga falla, el mensaje se guarda igual con marca de \"adjunto no disponible\" y se reintenta",
+    "motivo": "Tildado el 19/10/2026, tramo 5 de la sesión 2 del Bloque 3, decidido por Marcos. F28 #5. WhatsApp con un aviso firmado contra el receptor de producción (`scripts/verify-adjuntos-whatsapp.mjs`, mensaje `f31a7314`): falla real de Evolution, que es «instancia inexistente» (404 antes de que Evolution lea el pedido, `instance.guard.ts:36` y el orden de guards en `index.router.ts:41` de 2.3.7); el mensaje quedó guardado, `fallido` con `http_404`, y el reintento programado lo tomó a las 15:20:32, 15:31:29, 15:40:36 y 15:50:49, donde quedó `no_disponible` y se borró el mensaje guardado. El reintento programado se vio en producción con WhatsApp y es código común (`reintentarAdjuntos`, `lib/adjuntos.ts`). Instagram: las fallas reales son definitivas (`tipo_no_permitido`, 6 videos de leads del 13 al 18/10, 8 históricos y el reel de prueba, con el diagnóstico de página de `www.instagram.com` desde `a02fa82`) y quedaron guardadas con la marca; el segundo intento de `27758899` (17/10) no se sabe quién lo hizo. Marcos vio «Este archivo no está disponible.» en la bandeja sobre el reel `15d2ce4c`. Tests: `lib/adjuntos.test.ts`, en rojo antes del arreglo, incluido el quinto intento cortado.",
+    "fecha": "2026-10-19"
+  },
+  {
+    "texto": "- [ ] La descarga no bloquea el acuse del aviso",
+    "destino": "reescrito",
+    "nuevo": "- [x] La descarga no bloquea el acuse del aviso",
+    "motivo": "Tildado el 19/10/2026, tramo 5 de la sesión 2 del Bloque 3, decidido por Marcos. F28 #6. Los dos tests con rotura a propósito: Instagram en `app/api/webhooks/late/route.test.ts` (09/10, con la descarga antes del acuse, tres tests en rojo) y WhatsApp en `app/api/webhooks/evolution/route.test.ts` (19/10, con la descarga antes del acuse, el test en rojo). Aviso firmado de WhatsApp contra producción: el primer reclamo (15:18:14.288) fue 151 ms después de que llegó la respuesta del acuse (15:18:14.137), es decir, en el `after()`.",
+    "fecha": "2026-10-19"
   }
 ]

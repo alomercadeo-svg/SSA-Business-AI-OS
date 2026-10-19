@@ -1392,7 +1392,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F28: Adjuntos"
     ],
-    "texto": "- [ ] Bucket privado, con direcciones firmadas de vida corta para mostrar en la bandeja"
+    "texto": "- [x] Bucket privado, con direcciones firmadas de vida corta para mostrar en la bandeja"
   },
   {
     "seccion": "F28: Adjuntos",
@@ -1419,7 +1419,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F28: Adjuntos"
     ],
-    "texto": "- [ ] Si la descarga falla, el mensaje se guarda igual con marca de \"adjunto no disponible\" y se reintenta"
+    "texto": "- [x] Si la descarga falla, el mensaje se guarda igual con marca de \"adjunto no disponible\" y se reintenta"
   },
   {
     "seccion": "F28: Adjuntos",
@@ -1428,7 +1428,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F28: Adjuntos"
     ],
-    "texto": "- [ ] La descarga no bloquea el acuse del aviso"
+    "texto": "- [x] La descarga no bloquea el acuse del aviso"
   },
   {
     "seccion": "F29: Detección de contacto entre canales",
