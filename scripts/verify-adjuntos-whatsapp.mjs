@@ -194,11 +194,11 @@ async function leer() {
   do {
     const f = await fila(estado);
     if (!f) {
-      console.log(`${hora()} no hay fila`);
+      console.log(`${hora(new Date().toISOString())} no hay fila`);
       return;
     }
     const l = linea(f, await pendienteDe(f.id));
-    if (l !== ultimo) console.log(`${hora()} ${l}`);
+    if (l !== ultimo) console.log(`${hora(new Date().toISOString())} ${l}`);
     ultimo = l;
     if (["descargado", "no_disponible"].includes(f.media_status)) return;
     if (SEGUIR) await new Promise((r) => setTimeout(r, 60_000));
