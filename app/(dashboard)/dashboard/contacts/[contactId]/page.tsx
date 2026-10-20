@@ -59,7 +59,7 @@ export default async function ContactDetailPage({
       .eq("workspace_id", workspace.id),
     supabase
       .from("contact_custom_fields")
-      .select("value, custom_field_definitions(name, slug, field_type)")
+      .select("value, custom_field_definitions(name, slug, type)")
       .eq("contact_id", contactId),
     supabase
       .from("contact_notes")

@@ -141,8 +141,11 @@ await correr(async () => {
 
     const tag = (await admin("tags", { method: "POST", body: JSON.stringify({ workspace_id: espacio, name: TAG }) })).data?.[0]?.id;
     await admin("contact_tags", { method: "POST", body: JSON.stringify({ contact_id: F, tag_id: tag }) });
-    const def = (await admin("custom_field_definitions", { method: "POST", body: JSON.stringify({ workspace_id: espacio, name: CAMPO, slug: `b3_campo_${sufijo}`, field_type: "text" }) })).data?.[0]?.id;
-    await admin("contact_custom_fields", { method: "POST", body: JSON.stringify({ contact_id: F, field_id: def, value: `valor-${sufijo}` }) });
+    // La columna es `type` (no `field_type`): con el nombre equivocado, el alta
+    // fallaba sin que el script lo notara (visto el 20/10/2026).
+    const def = (await admin("custom_field_definitions", { method: "POST", body: JSON.stringify({ workspace_id: espacio, name: CAMPO, slug: `b3_campo_${sufijo}`, type: "text" }) })).data?.[0]?.id;
+    const valor = await admin("contact_custom_fields", { method: "POST", body: JSON.stringify({ contact_id: F, field_id: def, value: `valor-${sufijo}` }) });
+    if (!def || valor.status >= 300) throw new Error(`no se pudo crear el campo propio: ${JSON.stringify(valor.data).slice(0, 200)}`);
     await admin("contact_channels", { method: "POST", body: JSON.stringify({ contact_id: F, channel_id: canalIg, platform_sender_id: `ig-${sufijo}`, raw_jid: `ig-${sufijo}`, platform_username: IG_USUARIO }) });
     await admin("contact_channels", { method: "POST", body: JSON.stringify({ contact_id: F, channel_id: canalWa, platform_sender_id: "50670009999@s.whatsapp.net", raw_jid: "50670009999@s.whatsapp.net" }) });
     const conv = async (contacto, canal, platform, cuando) =>
