@@ -324,6 +324,8 @@ async function guardarAviso(
     // F30: el lead eliminado se restaura si él escribe o si le escribe el
     // negocio desde la app (el echo); decisiones del 19 y el 20/10/2026.
     restaurarEliminado: saliente ? "mensaje_saliente" : "mensaje_entrante",
+    // F29: el lead nuevo que coincide por usuario con otro canal, se sugiere.
+    buscarEnOtrosCanales: !saliente,
   });
   if (!contact) throw new Error("no se pudo crear el contacto");
 

@@ -21,7 +21,7 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/server";
 
-/** La lista cerrada, igual al último `check` de las migraciones (hoy, la 00038). Sumar una es una migración. */
+/** La lista cerrada, igual al último `check` de las migraciones (hoy, la 00039). Sumar una es una migración. */
 export const ACCIONES_AUDITORIA = [
   "contacto.creado",
   "contacto.editado",
@@ -30,6 +30,7 @@ export const ACCIONES_AUDITORIA = [
   "contacto.asignado",
   "contacto.eliminado",
   "contacto.restaurado",
+  "contacto.vinculado",
   "canal.conectado",
   "canal.desconectado",
   "canal.error",
@@ -282,6 +283,8 @@ export function textoDeEvento(fila: FilaAuditoria): string {
       return `Contacto eliminado: ${quien}`;
     case "contacto.restaurado":
       return `Contacto restaurado: ${quien}${d.via === "mensaje_entrante" ? " · volvió a escribir" : d.via === "mensaje_saliente" ? " · el negocio le volvió a escribir" : ""}`;
+    case "contacto.vinculado":
+      return `Canal vinculado: ${quien}${d.plataforma ? ` · ahora también escribe por ${nombreDePlataforma(String(d.plataforma))}` : ""}${d.por === "correo" ? " (mismo correo)" : d.por === "telefono" ? " (mismo teléfono)" : ""}`;
     case "canal.conectado":
       return `Canal conectado: ${quien}`;
     case "canal.desconectado":

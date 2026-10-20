@@ -12,6 +12,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { PlatformIcon } from "@/components/platform-icon";
+import { SugerenciaUnion } from "@/components/inbox/sugerencia-union";
 import type { Database, Platform } from "@/lib/types/database";
 
 type Contact = Database["public"]["Tables"]["contacts"]["Row"];
@@ -132,6 +133,8 @@ export function ContactPanel({
         </div>
       ) : details ? (
         <div className="flex-1 overflow-y-auto">
+          {/* F29: «¿Es la misma persona?», si hay una sugerencia pendiente. */}
+          <SugerenciaUnion contactoId={details.contact.id} />
           {/* Profile section */}
           <div className="flex flex-col items-center border-b border-border p-6">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted text-xl font-semibold">

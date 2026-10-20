@@ -134,3 +134,57 @@ export async function fusionarContactos(
   revalidatePath(`/dashboard/contacts/${conservarId}`);
   return { ok: true, conservado: conservarId };
 }
+
+// ── F29: «¿Es la misma persona?» ──────────────────────────────────────────
+
+export interface SugerenciaDeUnion {
+  id: string;
+  motivo: "usuario" | "telefono";
+  /** El usuario o el teléfono que coincide. */
+  dato: string | null;
+  /** El contacto que llegó (se absorbe si se unen) y el que ya estaba (queda). */
+  nuevo: ResumenContacto;
+  existente: ResumenContacto;
+  puedeUnir: boolean;
+}
+
+/**
+ * Las sugerencias pendientes de un contacto, en cualquiera de los dos lados.
+ * La seguridad por filas de `sugerencias_union` (00039) solo devuelve las que
+ * tienen los dos contactos a la vista de quien mira.
+ */
+export async function sugerenciasDe(contactoId: string): Promise<SugerenciaDeUnion[]> {
+  const contexto = await getWorkspaceOrNull();
+  if (!contexto) return [];
+  const { data, error } = await contexto.supabase
+    .from("sugerencias_union")
+    .select("id, contacto_id, otro_id, motivo, detalle")
+    .eq("estado", "pendiente")
+    .or(`contacto_id.eq.${contactoId},otro_id.eq.${contactoId}`);
+  if (error) {
+    console.error("[contactos] sugerencias:", error.message);
+    return [];
+  }
+  const puedeUnir = esManager(contexto.role);
+  const salida: SugerenciaDeUnion[] = [];
+  for (const s of data ?? []) {
+    const [nuevo, existente] = await Promise.all([resumen(contexto.supabase, s.contacto_id), resumen(contexto.supabase, s.otro_id)]);
+    if (!nuevo || !existente) continue;
+    const d = (s.detalle ?? {}) as { usuario?: string; telefono?: string };
+    salida.push({ id: s.id, motivo: s.motivo, dato: d.usuario ?? d.telefono ?? null, nuevo, existente, puedeUnir });
+  }
+  return salida;
+}
+
+/** «No es la misma»: no se vuelve a sugerir. Quien ve los dos contactos. */
+export async function descartarSugerencia(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const contexto = await getWorkspaceOrNull();
+  if (!contexto) return { ok: false, error: "Tu sesión venció. Volvé a entrar." };
+  const { error } = await contexto.supabase.rpc("descartar_sugerencia", { p_sugerencia: id });
+  if (error) {
+    console.error("[contactos] descartar_sugerencia:", error.message);
+    if (error.code === "P0002") return { ok: false, error: "Esa sugerencia ya no está. Recargá la pantalla." };
+    return { ok: false, error: SIN_CONEXION };
+  }
+  return { ok: true };
+}

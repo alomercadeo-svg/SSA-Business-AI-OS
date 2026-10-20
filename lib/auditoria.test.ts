@@ -226,6 +226,12 @@ describe("lo que muestra la pestaña", () => {
     ).toBe("Contacto restaurado: Valeria · el negocio le volvió a escribir");
   });
 
+  it("F29: la vinculación automática dice por qué canal y por qué dato", () => {
+    expect(
+      textoDeEvento({ action: "contacto.vinculado", entity_label: "Valeria", changes: {}, detail: { plataforma: "whatsapp", por: "telefono" } })
+    ).toBe("Canal vinculado: Valeria · ahora también escribe por WhatsApp (mismo teléfono)");
+  });
+
   it("etiquetaDeCanal", () => {
     expect(etiquetaDeCanal({ platform: "instagram", username: "@alomercadeo" })).toBe("Instagram @alomercadeo");
     expect(etiquetaDeCanal({ platform: "whatsapp", instance_name: "ssa" })).toBe("WhatsApp (instancia ssa)");

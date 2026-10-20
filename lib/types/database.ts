@@ -649,6 +649,32 @@ export interface Database {
           },
         ];
       };
+      /** F29 (00039). «¿Es la misma persona?»: las escribe el receptor; se descartan con `descartar_sugerencia`. */
+      sugerencias_union: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          contacto_id: string;
+          otro_id: string;
+          motivo: "usuario" | "telefono";
+          detalle: Json;
+          estado: "pendiente" | "descartada";
+          created_at: string;
+          resuelta_por: string | null;
+          resuelta_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          contacto_id: string;
+          otro_id: string;
+          motivo: "usuario" | "telefono";
+          detalle?: Json;
+          estado?: "pendiente" | "descartada";
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       flow_versions: {
         Row: {
           id: string;
@@ -1633,6 +1659,16 @@ export interface Database {
       fusionar_contactos: {
         Args: { p_conservar: string; p_absorber: string };
         Returns: Json;
+      };
+      /** F29 (00039). Solo el servidor. Un contacto vivo por teléfono o correo exactos (vincula) o por usuario (sugiere). */
+      buscar_contacto_entre_canales: {
+        Args: { p_workspace: string; p_telefono?: string | null; p_correo?: string | null; p_usuario?: string | null; p_canal?: string | null; p_excluir?: string | null };
+        Returns: Json;
+      };
+      /** F29 (00039). «No es la misma»: quien ve los dos contactos. */
+      descartar_sugerencia: {
+        Args: { p_sugerencia: string };
+        Returns: undefined;
       };
       /** F30 (00038). Solo Owner y Admin. Marca el contacto y sus conversaciones. */
       eliminar_contacto: {

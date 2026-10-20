@@ -9,6 +9,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { restaurarSiEliminado, type ViaDeRestauracion } from "./borrado";
+import { buscarEntreCanales, sugerirUnion } from "./entre-canales";
 import type { Zernio } from "./zernio-client";
 import { messagePreview } from "@/lib/message-preview";
 import { registrarAuditoria, type Actor } from "@/lib/auditoria";
@@ -99,6 +100,7 @@ export async function upsertContactForSender({
   stampExisting = true,
   actor = null,
   restaurarEliminado = false,
+  buscarEnOtrosCanales = false,
 }: {
   supabase: SupabaseClient;
   channel: { id: string; workspace_id: string; platform?: string };
@@ -117,6 +119,12 @@ export async function upsertContactForSender({
    * app). Solo el webhook, con el cliente de servicio; la importación no lo pasa.
    */
   restaurarEliminado?: ViaDeRestauracion | false;
+  /**
+   * F29: un remitente nuevo cuyo usuario coincide con el de otro canal del
+   * espacio deja la sugerencia «¿Es la misma persona?». Solo el webhook, con el
+   * cliente de servicio; la importación no lo pasa.
+   */
+  buscarEnOtrosCanales?: boolean;
 }): Promise<{ contactId: string; existed: boolean } | null> {
   const { data: existingContactChannel } = await supabase
     .from("contact_channels")
@@ -176,6 +184,27 @@ export async function upsertContactForSender({
     entidad: { tipo: "contacto", id: newContact.id, etiqueta: senderName },
     detalle: { plataforma: channel.platform ?? null, canal_id: channel.id },
   });
+
+  // F29: Instagram trae el usuario, no un teléfono ni un correo. Si el usuario
+  // coincide con el de otro canal, se sugiere; nunca se une solo.
+  const usuario = handleDelProveedor(senderUsername);
+  if (buscarEnOtrosCanales && usuario) {
+    const hallazgo = await buscarEntreCanales(supabase, {
+      workspaceId: channel.workspace_id,
+      usuario,
+      canalId: channel.id,
+      excluir: newContact.id,
+    });
+    if (hallazgo?.tipo === "sugerencia") {
+      await sugerirUnion(supabase, {
+        workspaceId: channel.workspace_id,
+        contactoId: newContact.id,
+        otroId: hallazgo.contact_id,
+        motivo: "usuario",
+        detalle: { usuario, canal_id: channel.id },
+      });
+    }
+  }
 
   return { contactId: newContact.id, existed: false };
 }

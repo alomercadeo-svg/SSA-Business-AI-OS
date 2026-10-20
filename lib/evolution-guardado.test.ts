@@ -14,6 +14,8 @@ const h = vi.hoisted(() => ({
   porSender: new Map<string, string>(), // platform_sender_id → contact_id
   porRawJid: new Map<string, string>(), // raw_jid → contact_id
   eliminados: new Set<string>(), // contact_id con deleted_at (F30)
+  hallazgo: null as null | Record<string, string>, // lo que devuelve buscar_contacto_entre_canales (F29)
+  reconciliacion: { resultado: "resuelto" } as Record<string, unknown>,
   ops: [] as Array<{ tabla: string; op: string; valores?: any; filtros: Array<[string, unknown]> }>,
   rpcs: [] as Array<{ fn: string; args: any }>,
   upsertContactForSender: vi.fn(),
@@ -29,6 +31,9 @@ function supabaseFalso() {
         select: () => cadena,
         eq: (c: string, v: unknown) => (op.filtros.push([c, v]), cadena),
         update: (v: any) => ((op.op = "update"), (op.valores = v), h.ops.push(op), cadena),
+        insert: (v: any) => ((op.op = "insert"), (op.valores = v), h.ops.push(op), Promise.resolve({ error: null })),
+        or: () => cadena,
+        limit: async () => ({ data: [], error: null }),
         upsert: (v: any, o: any) => {
           op.op = "upsert";
           op.valores = v;
@@ -61,7 +66,9 @@ function supabaseFalso() {
     },
     rpc: async (fn: string, args: any) => {
       h.rpcs.push({ fn, args });
-      return { data: fn === "reconciliar_telefono" ? { resultado: "resuelto" } : null, error: null };
+      if (fn === "reconciliar_telefono") return { data: h.reconciliacion, error: null };
+      if (fn === "buscar_contacto_entre_canales") return { data: h.hallazgo, error: null };
+      return { data: null, error: null };
     },
   };
 }
@@ -92,6 +99,8 @@ beforeEach(() => {
   h.porSender.clear();
   h.porRawJid.clear();
   h.eliminados.clear();
+  h.hallazgo = null;
+  h.reconciliacion = { resultado: "resuelto" };
   h.ops.length = 0;
   h.rpcs.length = 0;
   h.upsertContactForSender.mockReset();
@@ -257,6 +266,63 @@ describe("guardado de WhatsApp (F27)", () => {
       ]);
       expect(h.rpcs).toEqual([]);
       expect(n).toBe(0);
+    });
+  });
+
+  describe("F29: el contacto entre canales", () => {
+    it("un remitente nuevo cuyo teléfono es, exacto y único, de otro contacto: se vincula a ese, sin crear otro", async () => {
+      h.hallazgo = { tipo: "exacto", por: "telefono", contact_id: "ct-instagram" };
+      await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "messages.upsert", [aviso()]);
+      expect(h.rpcs).toContainEqual({ fn: "buscar_contacto_entre_canales", args: expect.objectContaining({ p_workspace: "ws-1", p_telefono: `+${TEL}` }) });
+      expect(h.upsertContactForSender).not.toHaveBeenCalled();
+      expect(h.ops).toContainEqual(expect.objectContaining({
+        tabla: "contact_channels", op: "insert",
+        valores: expect.objectContaining({ contact_id: "ct-instagram", channel_id: "ch-wa", platform_sender_id: `${TEL}@s.whatsapp.net`, raw_jid: `${TEL}@s.whatsapp.net`, addressing_mode: "pn" }),
+      }));
+      // Su conversación es la de este canal: una por canal y contacto, los hilos no se mezclan.
+      expect(h.ops).toContainEqual(expect.objectContaining({ tabla: "conversations", op: "upsert", valores: expect.objectContaining({ channel_id: "ch-wa", contact_id: "ct-instagram" }) }));
+      // No se le pisa el teléfono a un contacto que ya existía.
+      expect(h.ops.some((o) => o.tabla === "contacts" && o.op === "update" && o.valores?.phone)).toBe(false);
+    });
+
+    it("si el que coincide está eliminado (dentro de los 30 días), se restaura y se vincula (respuesta de Marcos del 20/10/2026)", async () => {
+      h.hallazgo = { tipo: "exacto", por: "telefono", contact_id: "ct-eliminado", eliminado: true } as never;
+      h.eliminados.add("ct-eliminado");
+      await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "messages.upsert", [aviso()]);
+      expect(h.rpcs.filter((x) => x.fn === "restaurar_contacto")).toEqual([
+        { fn: "restaurar_contacto", args: { p_contacto: "ct-eliminado", p_via: "mensaje_entrante", p_canal: "ch-wa" } },
+      ]);
+      expect(h.ops).toContainEqual(expect.objectContaining({ tabla: "contact_channels", op: "insert", valores: expect.objectContaining({ contact_id: "ct-eliminado" }) }));
+      expect(h.upsertContactForSender).not.toHaveBeenCalled();
+    });
+
+    it("la sincronización de historial no busca entre canales ni restaura: no es nadie escribiendo ahora", async () => {
+      h.hallazgo = { tipo: "exacto", por: "telefono", contact_id: "ct-eliminado", eliminado: true } as never;
+      await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "messages.set", [aviso()]);
+      expect(h.rpcs.some((x) => x.fn === "buscar_contacto_entre_canales" || x.fn === "restaurar_contacto")).toBe(false);
+    });
+
+    it("sin coincidencia, entra como contacto nuevo como siempre (control)", async () => {
+      await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "messages.upsert", [aviso()]);
+      expect(h.upsertContactForSender).toHaveBeenCalledTimes(1);
+      expect(h.ops.some((o) => o.tabla === "contact_channels" && o.op === "insert")).toBe(false);
+    });
+
+    it("un @lid sin teléfono no busca: no hay con qué", async () => {
+      await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "messages.upsert", [aviso({ key: { remoteJid: LID, addressingMode: "lid" } })]);
+      expect(h.rpcs.some((x) => x.fn === "buscar_contacto_entre_canales")).toBe(false);
+    });
+
+    it("si reconciliar_telefono devuelve conflicto, queda la sugerencia «teléfono» para el operador", async () => {
+      h.porRawJid.set(LID, "ct-lid");
+      h.reconciliacion = { resultado: "conflicto", visible: true, otro_id: "ct-otro" };
+      await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "messages.upsert", [
+        aviso({ key: { remoteJid: `${TEL}@s.whatsapp.net`, remoteJidAlt: LID } }),
+      ]);
+      expect(h.ops).toContainEqual(expect.objectContaining({
+        tabla: "sugerencias_union", op: "insert",
+        valores: expect.objectContaining({ workspace_id: "ws-1", contacto_id: "ct-lid", otro_id: "ct-otro", motivo: "telefono" }),
+      }));
     });
   });
 

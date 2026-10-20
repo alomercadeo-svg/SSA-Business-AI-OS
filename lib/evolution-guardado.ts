@@ -53,6 +53,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { identidadDeClave, telefonoDeJid, type ClaveEvolution } from "./identidad-whatsapp";
 import { upsertContactForSender } from "./inbox-sync";
 import { restaurarSiEliminado, type ViaDeRestauracion } from "./borrado";
+import { buscarEntreCanales, sugerirUnion, vincularCanal } from "./entre-canales";
 import { messagePreview } from "./message-preview";
 import { aplicarToque, toqueDe } from "./atribucion";
 import { guardarMensajes, type MensajeParaGuardar, type TipoDeMensaje } from "./mensajes-guardado";
@@ -203,7 +204,19 @@ export async function reconciliarDesdeClave(
     p_via: via,
   });
   if (error) throw new Error(`reconciliar_telefono: ${error.message}`);
-  return { contactId, resultado: String((data as { resultado?: string } | null)?.resultado ?? "") };
+  const r = (data ?? {}) as { resultado?: string; otro_id?: string | null };
+  // F29: el teléfono ya es de otro contacto. No se une solo: queda la
+  // sugerencia para el operador, en el panel del contacto de la bandeja.
+  if (r.resultado === "conflicto" && r.otro_id) {
+    await sugerirUnion(supabase, {
+      workspaceId: canal.workspace_id,
+      contactoId: contactId,
+      otroId: r.otro_id,
+      motivo: "telefono",
+      detalle: { telefono, canal_id: canal.id },
+    });
+  }
+  return { contactId, resultado: String(r.resultado ?? "") };
 }
 
 /**
@@ -247,6 +260,28 @@ export async function guardarMensajesDeEvolution(
       contactId = reconciliado?.contactId ?? null;
     }
     let existia = Boolean(contactId);
+    // F29: un remitente que este canal no conoce, con teléfono: si ese teléfono
+    // es, exacto y único, de un contacto del espacio (el de Instagram, por
+    // ejemplo), se vincula a ese contacto en vez de crear otro.
+    // La sincronización de historial no busca: no es nadie escribiendo ahora.
+    if (!contactId && identidad.telefono && via) {
+      const hallazgo = await buscarEntreCanales(supabase, { workspaceId: canal.workspace_id, telefono: identidad.telefono });
+      if (hallazgo?.tipo === "exacto") {
+        // Un lead eliminado que escribe por otro canal se restaura (respuesta de
+        // Marcos del 20/10/2026), igual que si escribiera por el suyo.
+        if (hallazgo.eliminado) await restaurarSiEliminado(supabase, hallazgo.contact_id, canal.id, via);
+        await vincularCanal(supabase, {
+          contactId: hallazgo.contact_id,
+          canal,
+          senderId: identidad.rawJid,
+          rawJid: identidad.rawJid,
+          addressingMode: identidad.addressingMode,
+          por: hallazgo.por,
+        });
+        contactId = hallazgo.contact_id;
+        existia = true;
+      }
+    }
     if (!contactId) {
       const nombre = !m.key.fromMe && m.pushName?.trim() ? m.pushName.trim() : identidad.telefono ?? identidad.rawJid;
       const creado = await upsertContactForSender({
