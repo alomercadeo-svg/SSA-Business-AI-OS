@@ -11,6 +11,10 @@
  *     del 20/10/2026): un Member, con su token y pidiéndolo directo, no puede
  *     ni por PATCH de `deleted_at` ni por las funciones; el Admin sí. Y el
  *     Member sigue editando los otros datos de su lead.
+ *   - «Eliminar marca la fecha, no borra», también para Owner y Admin: un
+ *     DELETE directo con el token del Admin no borra ni un contacto ni una
+ *     conversación (la 00038 saca las políticas de borrar de la 00019); el
+ *     mismo Admin sí elimina por `eliminar_contacto`.
  *   - «Eliminados»: el Member ve su lead y no el ajeno; el Owner ve los dos.
  *   - El historial: «contacto.eliminado» y «contacto.restaurado».
  *   - La restauración automática (decisiones de Marcos del 19/10/2026, el lead
@@ -215,6 +219,22 @@ await correr(async () => {
   const ed = await comoUsuario(member.token, `contacts?id=eq.${L}`, { method: "PATCH", body: JSON.stringify({ country: "CR" }) });
   check(ed.status === 200 && ed.data?.length === 1, "el Member cambia el país de L", `HTTP ${ed.status}`);
   check((await deServicio(`contacts?select=country&id=eq.${L}`))[0]?.country === "CR", "y quedó escrito (releído con la clave de servicio)");
+
+  titulo("Ni el Admin borra de verdad: un DELETE directo con su token no borra nada");
+  const B = (await crearContacto(espacio, { display_name: `b3-borrado-B-${sufijo}` })).id;
+  const convB = (await admin("conversations", { method: "POST", body: JSON.stringify({ workspace_id: espacio, channel_id: canalWa, contact_id: B, platform: "whatsapp", historial_estado: "completo" }) })).data?.[0]?.id;
+  const leeB = check((await comoUsuario(adminU.token, `contacts?select=id&id=eq.${B}`)).data?.length === 1, "el Admin lee el contacto B y su conversación (control de su sesión)")
+    && (await comoUsuario(adminU.token, `conversations?select=id&id=eq.${convB}`)).data?.length === 1;
+  const dConv = await comoUsuario(adminU.token, `conversations?id=eq.${convB}`, { method: "DELETE" });
+  const dCont = await comoUsuario(adminU.token, `contacts?id=eq.${B}`, { method: "DELETE" });
+  if (!leeB) noConcluyente("el DELETE directo del Admin no borra", "falló el control de su sesión");
+  else {
+    check((await deServicio(`conversations?select=id&id=eq.${convB}`)).length === 1, "DELETE directo de la conversación: sigue en la base (releída con la clave de servicio)", `HTTP ${dConv.status}`);
+    check((await deServicio(`contacts?select=id&id=eq.${B}`)).length === 1, "DELETE directo del contacto: sigue en la base", `HTTP ${dCont.status}`);
+    check((await deServicio(`audit_log?select=id&entity_id=eq.${B}`)).length === 0, "y no quedó nada en el historial: no pasó nada");
+  }
+  const eB = await rpcComo(adminU.token, "eliminar_contacto", { p_contacto: B });
+  check(eB.status === 200 && Boolean(await fechaDe("contacts", B)) && (await deServicio(`contacts?select=id&id=eq.${B}`)).length === 1, "contraparte: el mismo Admin elimina B por eliminar_contacto (marca la fecha, la fila sigue)", `HTTP ${eB.status}`);
 
   titulo("El Admin elimina L por la función (contraparte)");
   const e1 = await rpcComo(adminU.token, "eliminar_contacto", { p_contacto: L });

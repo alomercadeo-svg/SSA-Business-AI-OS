@@ -21,8 +21,20 @@
 -- edición, nadie cambia `deleted_at` con un UPDATE directo: un Member que pone
 -- la fecha choca con el `with check`, y uno que intenta restaurar no ve la
 -- fila. Eliminar y restaurar pasan solo por `eliminar_contacto` y
--- `restaurar_contacto`, que exigen `is_workspace_manager`. La clave de
--- servicio no pasa por la seguridad por filas: el receptor restaura con
+-- `restaurar_contacto`, que exigen `is_workspace_manager`.
+--
+-- «ELIMINAR MARCA LA FECHA, NO BORRA», también para Owner y Admin (pedido de
+-- Marcos del 20/10/2026, el mismo principio llevado al DELETE): la 00019 les
+-- deja borrar de verdad contactos y conversaciones con su token
+-- («... borrar solo manager»), sin `deleted_at`, sin los 30 días y sin
+-- historial. Esta migración saca esas dos políticas y no pone otras: con la
+-- seguridad por filas activa y sin política de DELETE, la API no borra. Borra
+-- solo la clave de servicio (la purga de F30). `fusionar_contactos` no se
+-- afecta: es `security definer` y su dueño, `postgres`, es el dueño de las
+-- tablas, que no fuerzan la seguridad por filas (leído en el catálogo de
+-- producción el 20/10/2026).
+--
+-- La clave de servicio no pasa por la seguridad por filas: el receptor restaura con
 -- `restaurar_contacto` al lead eliminado que vuelve a escribir (decisión de
 -- Marcos del 19/10/2026), con el Sistema como autor.
 --
@@ -63,6 +75,11 @@ create policy "conversations: editar solo las del scope"
   on conversations for update to authenticated
   using (deleted_at is null and public.can_see_conversation(workspace_id, assigned_to, contact_id))
   with check (deleted_at is null and public.can_see_conversation(workspace_id, assigned_to, contact_id));
+
+-- Nadie borra de verdad desde la API: ni Owner ni Admin. Eliminar es
+-- `eliminar_contacto`; borrar definitivamente, solo la purga (clave de servicio).
+drop policy if exists "contacts: borrar solo manager" on contacts;
+drop policy if exists "conversations: borrar solo manager" on conversations;
 
 -- ── 3. El historial ──────────────────────────────────────────────────────
 alter table audit_log drop constraint if exists audit_log_action_check;

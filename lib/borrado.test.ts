@@ -163,3 +163,16 @@ describe("restaurar_contacto en la 00038 acepta las dos vías automáticas, solo
     expect(funcion).toMatch(/p_via in \('mensaje_entrante', 'mensaje_saliente'\) and not v_servidor/);
   });
 });
+
+describe("la 00038: eliminar marca la fecha, no borra, también para Owner y Admin", () => {
+  it("saca las políticas de DELETE de contacts y conversations de la 00019, y no crea otras", async () => {
+    const { readFileSync } = await import("node:fs");
+    const sql = readFileSync(new URL("../supabase/migrations/00038_borrado_suave.sql", import.meta.url), "utf8")
+      .split("\n")
+      .filter((l) => !l.trim().startsWith("--"))
+      .join("\n");
+    expect(sql).toMatch(/drop policy if exists "contacts: borrar solo manager" on contacts;/);
+    expect(sql).toMatch(/drop policy if exists "conversations: borrar solo manager" on conversations;/);
+    expect(sql).not.toMatch(/create policy[^;]*for delete/i);
+  });
+});
