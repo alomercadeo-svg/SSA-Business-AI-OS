@@ -1150,6 +1150,8 @@ Tests:
 **Después del cierre del tramo 1, fuera de la medición.**
 - **Despliegue P, `8fe55a5` y `10d7b6b`** (F41 completa y el cierre del tramo 1). `node scripts/verificar-despliegue.mjs`, **salida 0, leída directo**: el build pasó de `i34eejBGd3RGf46o5Z_Of` a `mNK2VZA3AgEzgYeTxw5zR`, de 18:15:15 a 18:18:23, con `/login` en 200.
 - **Tarea a, el recuento sin etiquetas: de 18:20:37 a 18:21:50.** `scripts/recuento-base.mjs` usa `scripts/recuento-auditoria.mjs` (la consulta y las líneas de «audit_log por acción»), que ya no pide `entity_label` ni la imprime. `scripts/recuento-auditoria.test.ts`: los dos tests se vieron en rojo con el código movido tal como estaba, y en verde después. El recuento real, corrido después (solo lectura, salida 0), imprime solo cantidades y la hora de la última.
+- **Tarea b, la línea del CLAUDE.md: de 18:21:55 a 18:22:02.** En «Apertura y cierre de sesión»: la pantalla de Deployments de Railway no muestra hashes de commits, ni en ACTIVE ni en HISTORY; Marcos pasa el título del despliegue, se compara con `git log` y se anota como «identificado por título».
+- **El despliegue de las dos tareas (`580f1ae` y el commit de la tarea b) se registra en la apertura del tramo 2:** no puede figurar en su propio commit.
 
 ---
 
