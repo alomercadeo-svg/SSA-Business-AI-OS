@@ -162,6 +162,12 @@ await correr(async () => {
     await admin(`conversations?id=eq.${convFWa}`, { method: "PATCH", body: JSON.stringify({ last_message_preview: "" }) });
     const NOTA = `nota-del-owner-${sufijo}`;
     await comoUsuario(owner.token, "contact_notes", { method: "POST", body: JSON.stringify({ workspace_id: espacio, contact_id: F, body: NOTA }) });
+    // Una segunda nota, más nueva, para ver el orden en la ficha (pedido de Marcos del 20/10/2026).
+    await new Promise((r) => setTimeout(r, 1200));
+    const NOTA2 = `nota-mas-nueva-${sufijo}`;
+    await comoUsuario(owner.token, "contact_notes", { method: "POST", body: JSON.stringify({ workspace_id: espacio, contact_id: F, body: NOTA2 }) });
+    const horas = await filas(`contact_notes?select=body,created_at&contact_id=eq.${F}&order=created_at`);
+    if (horas.length !== 2 || horas[0].created_at === horas[1].created_at) throw new Error("las dos notas no tienen horas distintas");
 
     // El relleno del Member, más reciente, y D, la más vieja: queda más abajo de las 50.
     const relleno = Array.from({ length: RELLENO }, (_, i) => ({ workspace_id: espacio, display_name: `b3-ficha-r${i}-${sufijo}`, setter_id: member.id }));
@@ -203,6 +209,10 @@ await correr(async () => {
     tiene(fo.html, "Pidió no ser contactado", "el bloque rojo");
     tiene(fo.html, MOTIVO, "con el motivo");
     tiene(fo.html, NOTA, "la nota");
+    // El orden: la ficha muestra la más nueva arriba (orden por fecha, descendente).
+    // INVERTIR_ORDEN=1 da vuelta la expectativa a propósito, para ver el chequeo en rojo.
+    const nuevaArriba = fo.html.indexOf(NOTA2) > -1 && fo.html.indexOf(NOTA2) < fo.html.indexOf(NOTA);
+    check(process.env.INVERTIR_ORDEN === "1" ? !nuevaArriba : nuevaArriba, `las dos notas, en orden por fecha (la más nueva arriba)${process.env.INVERTIR_ORDEN === "1" ? " [expectativa invertida a propósito]" : ""}`);
     tiene(fo.html, "Historial de cambios", "el historial");
     tiene(fo.html, "Editar datos", "el botón «Editar datos»");
     check(fo.html.includes(">Eliminar<"), "el botón «Eliminar» (el Owner es manager)");

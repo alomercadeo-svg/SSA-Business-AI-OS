@@ -35,6 +35,7 @@
  * Uso: node scripts/verify-entre-canales.mjs
  */
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { SignJWT } from "jose";
 import { admin, catalogo, check, comoUsuario, correr, crearContacto, crearUsuario, limpiar, noConcluyente, rpcAdmin, rpcComo, sufijo, sumarAlEspacio, URL_BASE } from "./lib-verificador.mjs";
 
@@ -90,20 +91,36 @@ async function avisoWa({ id, remoteJid, remoteJidAlt, addressingMode = "pn", tex
   return res.status;
 }
 
-/** `message.received` de Zernio (`AvisoDeMensajeZernio`), firmado como `lib/zernio-webhook.ts:190`. */
-async function avisoIg({ cuenta, senderId, usuario, texto }) {
+/**
+ * `message.received` de Zernio armado desde el fixture REAL anonimizado
+ * (`lib/fixtures/zernio-webhook-message-received.json`: una entrega del log de
+ * Zernio del 08/10/2026, con los valores reemplazados y las igualdades del
+ * original), firmado como `lib/zernio-webhook.ts:190`. Se cambia solo lo que
+ * hace falta para el espacio fantasma, y nada más:
+ *   - `id`: único por entrega (el receptor descarta un id repetido por
+ *     `webhook_events`, y la limpieza los busca por prefijo);
+ *   - `account.id`: el `late_account_id` del canal fantasma, para que el
+ *     receptor lo enrute ahí y no a un canal real;
+ *   - `message.sender.id` y `conversation.participantId`: el remitente nuevo del
+ *     espacio fantasma, los dos iguales, como en el original;
+ *   - `message.sender.username` y `conversation.participantUsername`: el usuario
+ *     que coincide con Q, los dos iguales, como en el original;
+ *   - `message.platformMessageId`: único, para que un segundo mensaje no se
+ *     tome por el mismo (clave única de `messages`).
+ */
+const FIXTURE_IG = JSON.parse(readFileSync(new URL("../lib/fixtures/zernio-webhook-message-received.json", import.meta.url), "utf8")).payload;
+async function avisoIg({ cuenta, senderId, usuario }) {
   const id = `b3-entre-evt-${randomUUID()}`;
   eventosZernio.push(id);
-  const cuerpo = JSON.stringify({
-    id,
-    event: "message.received",
-    message: {
-      id: `zm-${randomUUID()}`, conversationId: `zc-${senderId}`, platform: "instagram", platformMessageId: `mid-${randomUUID()}`,
-      direction: "incoming", text: texto, attachments: [], sender: { id: senderId, name: "Lead IG", username: usuario }, sentAt: new Date().toISOString(),
-    },
-    conversation: { id: `zc-${senderId}`, participantId: senderId },
-    account: { id: cuenta, platform: "instagram" },
-  });
+  const aviso = structuredClone(FIXTURE_IG);
+  aviso.id = id;
+  aviso.account.id = cuenta;
+  aviso.message.sender.id = senderId;
+  aviso.conversation.participantId = senderId;
+  aviso.message.sender.username = usuario;
+  aviso.conversation.participantUsername = usuario;
+  aviso.message.platformMessageId = `mid-${randomUUID()}`;
+  const cuerpo = JSON.stringify(aviso);
   const res = await fetch(`${APP_URL}/api/webhooks/late`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-late-signature": createHmac("sha256", SECRETO_IG).update(cuerpo).digest("hex") },
@@ -193,7 +210,7 @@ await correr(async () => {
 
     titulo("Instagram, solo el usuario: R se crea aparte y queda la sugerencia");
     const antes3 = await contactosDelEspacio();
-    const st3 = await avisoIg({ cuenta: CUENTA_2, senderId: `igR-${sufijo}`, usuario: USUARIO, texto: "hola por la otra cuenta" });
+    const st3 = await avisoIg({ cuenta: CUENTA_2, senderId: `igR-${sufijo}`, usuario: USUARIO });
     check(st3 === 200, "el receptor de Zernio acepta el aviso firmado", `HTTP ${st3}`);
     check((await contactosDelEspacio()) === antes3 + 1, "se creó R: por usuario no se une solo");
     const R = (await filas(`contact_channels?select=contact_id&channel_id=eq.${canalIg2}&platform_sender_id=eq.igR-${sufijo}`))[0]?.contact_id;
@@ -214,7 +231,7 @@ await correr(async () => {
     check(desMember.status >= 400 && (await filas(`sugerencias_union?select=estado&id=eq.${sugU[0]?.id}`))[0]?.estado === "pendiente", "el Member, que no ve los dos, no la descarta (releída: pendiente)", `HTTP ${desMember.status}`);
     const des = await rpcComo(owner.token, "descartar_sugerencia", { p_sugerencia: sugU[0]?.id });
     check(des.status < 300 && (await filas(`sugerencias_union?select=estado&id=eq.${sugU[0]?.id}`))[0]?.estado === "descartada", "el Owner la descarta", `HTTP ${des.status}`);
-    const st4 = await avisoIg({ cuenta: CUENTA_2, senderId: `igR-${sufijo}`, usuario: USUARIO, texto: "otro mensaje de R" });
+    const st4 = await avisoIg({ cuenta: CUENTA_2, senderId: `igR-${sufijo}`, usuario: USUARIO });
     check(st4 === 200 && (await filas(`sugerencias_union?select=id&or=(contacto_id.eq.${R},otro_id.eq.${R})`)).length === 1, "otro mensaje de R no la vuelve a crear");
 
     titulo("WhatsApp, conflicto de reconciliar_telefono: queda la sugerencia «teléfono»");
