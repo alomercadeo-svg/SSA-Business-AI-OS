@@ -605,6 +605,50 @@ export interface Database {
           },
         ];
       };
+      /** F30 (00037). Notas del contacto, con borrado suave. Eliminar es `eliminar_nota`. */
+      contact_notes: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          contact_id: string;
+          author_id: string | null;
+          author_label: string | null;
+          body: string;
+          created_at: string;
+          updated_at: string;
+          deleted_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          contact_id: string;
+          author_id?: string | null;
+          author_label?: string | null;
+          body: string;
+          created_at?: string;
+          updated_at?: string;
+          deleted_at?: string | null;
+        };
+        Update: {
+          body?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "contact_notes_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "contact_notes_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       flow_versions: {
         Row: {
           id: string;
@@ -1583,6 +1627,11 @@ export interface Database {
       fusionar_contactos: {
         Args: { p_conservar: string; p_absorber: string };
         Returns: Json;
+      };
+      /** F30 (00037). El autor, un Admin o el Owner marca la nota como eliminada. */
+      eliminar_nota: {
+        Args: { p_nota: string };
+        Returns: undefined;
       };
       /** F26 (00031). Entrantes de WhatsApp desde una fecha, y cuántos sin teléfono (`@lid`). */
       contar_mensajes_sin_telefono: {
