@@ -20,9 +20,9 @@
  *     cuelgan de él. Con `--desde`, cuántas conversaciones de cada canal se
  *     crearon después de esa hora: separa un lead real que escribió en el medio
  *     de un efecto de la prueba;
- *   - `audit_log` por espacio y por acción, con la hora y la etiqueta de la
- *     entidad de la última. La etiqueta es la del historial («Instagram
- *     @cuenta»), nunca el contenido de un mensaje ni datos de un contacto.
+ *   - `audit_log` por espacio y por acción, con la cantidad y la hora de la
+ *     última (`scripts/recuento-auditoria.mjs`). Sin la etiqueta de la entidad:
+ *     en «contacto.creado» es el nombre de un lead (corregido el 19/10/2026).
  *
  * Uso:
  *   node scripts/recuento-base.mjs                         tabla legible
@@ -39,6 +39,7 @@
  * de cada `supabase db push`. Sirve igual para F27.
  */
 import { execFileSync } from "node:child_process";
+import { lineasPorAccion, SQL_AUDIT_ACCIONES } from "./recuento-auditoria.mjs";
 
 // `--desde` entra en el SQL, así que se acepta solo una fecha ISO y nada más.
 const iDesde = process.argv.indexOf("--desde");
@@ -109,15 +110,6 @@ select json_agg(row_to_json(q) order by q.espacio, q.plataforma, q.usuario) as r
 ) q
 `;
 
-const SQL_AUDIT_ACCIONES = `
-select case when to_regclass('public.audit_log') is null then null
-  else (select json_agg(row_to_json(q) order by q.espacio, q.accion) from (
-    select coalesce(e.name, '(sin espacio o espacio borrado)') as espacio, a.action as accion, count(*)::int as n,
-      max(a.created_at) as ultima,
-      (array_agg(a.entity_label order by a.created_at desc))[1] as ultima_entidad
-    from public.audit_log a left join public.workspaces e on e.id = a.workspace_id group by 1, 2
-  ) q) end as r
-`;
 
 // F27: solo si ya está la 00032. Cantidades, nunca contenido.
 const SQL_HISTORIAL = `
@@ -212,9 +204,7 @@ for (const c of canales) {
 if (auditPorAccion) {
   console.log("");
   console.log("audit_log por acción:");
-  for (const a of auditPorAccion) {
-    console.log(`    ${a.espacio} · ${a.accion}: ${a.n} (última ${a.ultima}, ${a.ultima_entidad ?? "sin etiqueta"})`);
-  }
+  for (const linea of lineasPorAccion(auditPorAccion)) console.log(linea);
 }
 
 if (historial) {
