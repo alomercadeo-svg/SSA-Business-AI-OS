@@ -21,6 +21,12 @@ import { cambiosDeEdicion, leerPedidoDeEdicion } from "@/lib/edicion-contacto";
  * `reconciliar_telefono` (vía manual), que avisa si ya es de otro contacto y
  * deja su propia fila en el historial. Lo demás queda como «contacto editado»,
  * con el valor anterior y el nuevo.
+ *
+ * El correo no se bloquea si ya lo tiene otro contacto, pero se avisa
+ * (decisión de Marcos del 20/10/2026): la búsqueda entre canales de F29 vincula
+ * por correo solo si es único, y un correo repetido deja de vincular sin que
+ * nadie lo note. Se busca con el cliente del usuario: un Member solo se entera
+ * de los contactos que puede ver.
  */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ contactId: string }> }) {
   if (!origenPermitido(request.headers, process.env.NEXT_PUBLIC_APP_URL)) {
@@ -72,6 +78,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   type Reconciliacion = { resultado: string; visible?: boolean; otro_id?: string };
+  let aviso: string | undefined;
+  if (pedido.email && pedido.email !== (contacto.email ?? "").toLowerCase()) {
+    const patron = pedido.email.replace(/[\\%_]/g, "\\$&");
+    const { data: otros } = await supabase
+      .from("contacts")
+      .select("id, display_name")
+      .eq("workspace_id", contacto.workspace_id)
+      .ilike("email", patron)
+      .neq("id", contactId)
+      .is("deleted_at", null)
+      .limit(1);
+    const otro = (otros ?? [])[0] as { display_name?: string | null } | undefined;
+    if (otro) aviso = `Ojo: «${otro.display_name ?? "otro contacto"}» ya tiene ese correo. Se guardó igual; si son la misma persona, conviene unirlos.`;
+  }
+
   let telefono: Reconciliacion | null = null;
   if (pedido.phone && pedido.phone !== contacto.phone) {
     const { data, error } = await supabase.rpc("reconciliar_telefono", {
@@ -92,11 +113,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             : "Ese teléfono ya es de otro contacto que no está asignado a vos. Pedíselo a un Owner o un Admin.",
           guardado: Object.keys(cambios),
           conflicto: telefono.visible ? { otro_id: telefono.otro_id } : null,
+          aviso,
         },
         { status: 409 },
       );
     }
   }
 
-  return NextResponse.json({ guardado: [...Object.keys(cambios), ...(telefono ? ["phone"] : [])] });
+  return NextResponse.json({ guardado: [...Object.keys(cambios), ...(telefono ? ["phone"] : [])], ...(aviso ? { aviso } : {}) });
 }

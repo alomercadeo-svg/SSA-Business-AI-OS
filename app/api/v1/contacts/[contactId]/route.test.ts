@@ -17,7 +17,10 @@ const estado: {
   rpcs: Array<{ fn: string; args: Record<string, unknown> }>;
   respuestaRpc: Record<string, unknown>;
   tocoLaBase: boolean;
-} = { usuario: null, contacto: null, updates: [], rpcs: [], respuestaRpc: { resultado: "resuelto" }, tocoLaBase: false };
+  /** Otro contacto visible con el mismo correo (F30, aviso del 20/10/2026). */
+  mismoCorreo: Array<{ id: string; display_name: string }>;
+  consultasDeCorreo: Array<Array<[string, unknown]>>;
+} = { usuario: null, contacto: null, updates: [], rpcs: [], respuestaRpc: { resultado: "resuelto" }, tocoLaBase: false, mismoCorreo: [], consultasDeCorreo: [] };
 
 function supabaseFalso() {
   return {
@@ -28,7 +31,18 @@ function supabaseFalso() {
       },
     },
     from: () => ({
-      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: estado.contacto }) }) }),
+      select: () => {
+        const filtros: Array<[string, unknown]> = [];
+        const c: any = {
+          eq: (k: string, v: unknown) => (filtros.push(["eq", k, v] as never), c),
+          ilike: (k: string, v: unknown) => (filtros.push(["ilike", k, v] as never), c),
+          neq: (k: string, v: unknown) => (filtros.push(["neq", k, v] as never), c),
+          is: (k: string, v: unknown) => (filtros.push(["is", k, v] as never), c),
+          maybeSingle: async () => ({ data: estado.contacto }),
+          limit: async () => (estado.consultasDeCorreo.push(filtros), { data: estado.mismoCorreo, error: null }),
+        };
+        return c;
+      },
       update: (campos: Record<string, unknown>) => ({
         eq: () => ({
           select: () => ({
@@ -78,6 +92,8 @@ beforeEach(() => {
   estado.rpcs = [];
   estado.respuestaRpc = { resultado: "resuelto" };
   estado.tocoLaBase = false;
+  estado.mismoCorreo = [];
+  estado.consultasDeCorreo = [];
   auditar.mockClear();
 });
 
@@ -161,5 +177,28 @@ describe("PATCH /api/v1/contacts/[id]", () => {
     const r = await llamar({ country: "CR" });
     expect(r.status).toBe(404);
     expect(estado.updates).toEqual([]);
+  });
+
+  it("avisa si el correo ya lo tiene otro contacto, y guarda igual (decisión de Marcos del 20/10/2026)", async () => {
+    estado.mismoCorreo = [{ id: "otro", display_name: "Fiorella Mora" }];
+    const r = await llamar({ email: "Fio@Mail.com" });
+    expect(r.status).toBe(200);
+    expect((await r.json()).aviso).toBe("Ojo: «Fiorella Mora» ya tiene ese correo. Se guardó igual; si son la misma persona, conviene unirlos.");
+    expect(estado.updates).toEqual([{ email: "fio@mail.com" }]);
+    // Busca sin importar mayúsculas, sin contarse a sí mismo y solo entre los vivos.
+    expect(estado.consultasDeCorreo[0]).toEqual(
+      expect.arrayContaining([["ilike", "email", "fio@mail.com"], ["neq", "id", CONTACTO], ["is", "deleted_at", null]]),
+    );
+  });
+
+  it("sin otro contacto con ese correo, no hay aviso (control)", async () => {
+    const r = await llamar({ email: "fio@mail.com" });
+    expect((await r.json()).aviso).toBeUndefined();
+  });
+
+  it("si el correo no cambia, ni lo busca", async () => {
+    estado.contacto = { ...estado.contacto, email: "fio@mail.com" };
+    await llamar({ email: "fio@mail.com" });
+    expect(estado.consultasDeCorreo).toEqual([]);
   });
 });

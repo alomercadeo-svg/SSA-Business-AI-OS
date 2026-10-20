@@ -295,7 +295,9 @@ export default async function ContactDetailPage({
             <h2 className="mb-1 text-sm font-semibold uppercase text-muted-foreground">Historial de cambios</h2>
             <p className="mb-3 text-xs text-muted-foreground">No se borra nunca.{manager ? "" : " Ves los cambios que hiciste vos."}</p>
             {historial.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Todavía no hay cambios registrados.</p>
+              <p className="text-sm text-muted-foreground">
+                {manager ? "Todavía no hay cambios registrados." : "Todavía no hiciste cambios en este contacto. Los de otras personas los ven Owner y Admin."}
+              </p>
             ) : (
               <ol className="space-y-2">
                 {historial.map((h) => (

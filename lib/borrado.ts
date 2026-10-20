@@ -41,6 +41,10 @@ export async function restaurarSiEliminado(
     p_via: via,
     p_canal: canalId,
   });
+  // Otro aviso del mismo lead lo restauró un instante antes (el `for update`
+  // de la función lo hizo esperar, y al volver ya no estaba eliminado): no es
+  // un error, ya está restaurado.
+  if (errRpc?.code === "P0002") return false;
   if (errRpc) throw new Error(`restaurar_contacto: ${errRpc.message}`);
   return true;
 }

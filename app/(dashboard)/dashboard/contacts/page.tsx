@@ -19,7 +19,9 @@ export default async function ContactsPage({
   // quien mira (un Member ve solo sus leads); la lista de abajo ya no los
   // muestra, porque la seguridad por filas de la 00038 oculta lo eliminado.
   if (params.vista === "eliminados") {
-    const { data } = await supabase.rpc("contactos_eliminados", { p_workspace: workspace.id });
+    const { data, error } = await supabase.rpc("contactos_eliminados", { p_workspace: workspace.id });
+    // Un error no se muestra como «no hay eliminados»: la pantalla de error lo dice.
+    if (error) throw new Error("No se pudieron leer los contactos eliminados.");
     return <ContactosEliminados filas={data ?? []} puedeRestaurar={esManager(role)} />;
   }
 

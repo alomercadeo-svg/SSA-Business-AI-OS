@@ -235,6 +235,20 @@ describe("guardado de WhatsApp (F27)", () => {
       expect(h.rpcs.map((x) => x.fn).filter((f) => f !== "increment_unread")).toEqual(["restaurar_contacto", "reconciliar_telefono"]);
     });
 
+    it("la sincronización de historial (messages.set) no restaura: no es nadie escribiendo ahora (revisión del 20/10/2026)", async () => {
+      h.porSender.set(`${TEL}@s.whatsapp.net`, "ct-viejo");
+      h.eliminados.add("ct-viejo");
+      h.porRawJid.set(LID, "ct-lid");
+      h.eliminados.add("ct-lid");
+      await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "messages.set", [
+        aviso(),
+        aviso({ key: { id: "3EB0BBBB", remoteJid: `5067${"1".repeat(7)}@s.whatsapp.net`, remoteJidAlt: LID } }),
+      ]);
+      expect(restauraciones()).toEqual([]);
+      // Por el @lid eliminado, tampoco se reconcilia: reconciliar_telefono no toca un eliminado.
+      expect(h.rpcs.some((x) => x.fn === "reconciliar_telefono")).toBe(false);
+    });
+
     it("un aviso de contacto de Evolution (vía 2) no restaura ni reconcilia a un eliminado: no es el lead escribiendo", async () => {
       h.porRawJid.set(LID, "ct-lid");
       h.eliminados.add("ct-lid");

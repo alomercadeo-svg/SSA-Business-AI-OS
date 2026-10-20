@@ -238,9 +238,10 @@ export async function guardarMensajesDeEvolution(
     // trae al lado (vía 1); si no, nuevo.
     let contactId = await contactoPorIdentificador(supabase, canal.id, "platform_sender_id", identidad.rawJid);
     // F30: el lead eliminado se restaura solo si escribe él (19/10/2026) o si
-    // le escribe el negocio desde el teléfono (20/10/2026).
-    const via: ViaDeRestauracion = entrante ? "mensaje_entrante" : "mensaje_saliente";
-    if (contactId) await restaurarSiEliminado(supabase, contactId, canal.id, via);
+    // le escribe el negocio desde el teléfono (20/10/2026). La sincronización
+    // de historial (`messages.set`) no restaura: no es nadie escribiendo ahora.
+    const via: ViaDeRestauracion | false = historial ? false : entrante ? "mensaje_entrante" : "mensaje_saliente";
+    if (contactId && via) await restaurarSiEliminado(supabase, contactId, canal.id, via);
     if (!contactId) {
       const reconciliado = await reconciliarDesdeClave(supabase, canal, m.key, "mensaje", via);
       contactId = reconciliado?.contactId ?? null;

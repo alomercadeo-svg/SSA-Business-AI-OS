@@ -4552,6 +4552,64 @@ create policy "conversations: editar solo las del scope"
 drop policy if exists "contacts: borrar solo manager" on contacts;
 drop policy if exists "conversations: borrar solo manager" on conversations;
 
+-- Nadie crea algo ya eliminado (revisión del 20/10/2026): sin esto, un Member
+-- podía dar de alta un contacto suyo con `deleted_at` puesto, que aparecía en
+-- «Eliminados» sin fila de «eliminado» en el historial. Las mismas reglas de la
+-- 00019, más `deleted_at is null`.
+drop policy if exists "contacts: crear, un Member solo asignado a si mismo" on contacts;
+create policy "contacts: crear, un Member solo asignado a si mismo"
+  on contacts for insert to authenticated
+  with check (
+    deleted_at is null
+    and public.is_workspace_member(workspace_id)
+    and (
+      public.is_workspace_manager(workspace_id)
+      or setter_id = (select auth.uid())
+      or vendedor_id = (select auth.uid())
+    )
+  );
+
+drop policy if exists "conversations: crear solo manager" on conversations;
+create policy "conversations: crear solo manager"
+  on conversations for insert to authenticated
+  with check (deleted_at is null and public.is_workspace_manager(workspace_id));
+
+-- La fecha de edición de una nota (00037) la pone siempre el trigger
+-- (revisión del 20/10/2026): antes, el autor podía mandar un `updated_at`
+-- cualquiera sin tocar el texto. Es la función de la 00037 con esa línea.
+create or replace function public.contact_notes_antes()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if tg_op = 'INSERT' then
+    if current_user = 'authenticated' then
+      new.author_id := auth.uid();
+      new.author_label := coalesce(public.etiqueta_propia(), 'Usuario');
+    else
+      new.author_label := coalesce(new.author_label, 'Sistema');
+    end if;
+    new.created_at := now();
+    new.updated_at := now();
+    return new;
+  end if;
+
+  if current_user = 'authenticated' then
+    if new.contact_id is distinct from old.contact_id
+       or new.workspace_id is distinct from old.workspace_id
+       or new.author_id is distinct from old.author_id
+       or new.author_label is distinct from old.author_label
+       or new.created_at is distinct from old.created_at then
+      raise exception 'contact_notes: solo se edita el texto de la nota' using errcode = '42501';
+    end if;
+  end if;
+  new.updated_at := case when new.body is distinct from old.body then now() else old.updated_at end;
+  return new;
+end;
+$$;
+
 -- ── 3. El historial ──────────────────────────────────────────────────────
 alter table audit_log drop constraint if exists audit_log_action_check;
 alter table audit_log add constraint audit_log_action_check check (action in (

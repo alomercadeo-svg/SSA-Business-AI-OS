@@ -6,11 +6,21 @@
  * `PATCH /api/v1/contacts/[id]` (la misma que llama `scripts/verify-ficha.mjs`).
  * Setter y vendedor van en el mismo panel con su pieza de F41
  * (`asignacion-contacto.tsx`), reubicada sin reescribirla, que guarda al elegir.
+ *
+ * Revisión del 20/10/2026:
+ *   - Guardar compara contra los datos de CUANDO SE ABRIÓ el panel, no contra
+ *     los de ahora: si mientras tanto la página se recargó (por ejemplo, al
+ *     cambiar el setter) con un cambio de un compañero, no se lo pisa.
+ *   - Si el teléfono ya es de otro contacto, muestra la propuesta de unión con
+ *     los dos lados (F26), la misma de «Teléfono sin resolver».
+ *   - Si algo falló a mitad de camino, recarga: lo que sí se guardó se ve.
  */
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { TEMPERATURAS } from "@/lib/edicion-contacto";
 import { TEXTO_DE_TEMPERATURA } from "@/lib/ficha";
+import { cargarTelefono } from "@/lib/actions/contactos";
+import { PropuestaDeUnion, type Conflicto } from "@/components/contacts/telefono-sin-resolver";
 
 export interface DatosEditables {
   display_name: string | null;
@@ -44,6 +54,9 @@ export function EditarContacto({
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [valores, setValores] = useState<DatosEditables>(datos);
+  // Los datos tal como estaban al abrir el panel: contra eso se calcula qué cambió.
+  const [alAbrir, setAlAbrir] = useState<DatosEditables>(datos);
+  const [conflicto, setConflicto] = useState<Conflicto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [pendiente, empezar] = useTransition();
@@ -54,7 +67,7 @@ export function EditarContacto({
     const cambios: Record<string, string | null> = {};
     for (const k of Object.keys(valores) as Array<keyof DatosEditables>) {
       const nuevo = (valores[k] ?? "").trim();
-      const antes = (datos[k] ?? "").trim();
+      const antes = (alAbrir[k] ?? "").trim();
       if (nuevo !== antes) cambios[k] = nuevo === "" ? null : nuevo;
     }
     if (Object.keys(cambios).length === 0) {
@@ -68,12 +81,21 @@ export function EditarContacto({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(cambios),
         });
-        const cuerpo = (await r.json().catch(() => ({}))) as { error?: string };
+        const cuerpo = (await r.json().catch(() => ({}))) as { error?: string; aviso?: string; guardado?: string[] };
         if (!r.ok) {
-          if (r.status === 409) router.refresh();
+          // Lo que sí se guardó antes del error, que se vea.
+          if (r.status === 409 || r.status >= 500) router.refresh();
+          if (r.status === 409 && valores.phone) {
+            const c = await cargarTelefono(contactoId, valores.phone);
+            if (c.ok && c.resultado === "conflicto") {
+              setConflicto(c);
+              const otros = (cuerpo.guardado ?? []).length;
+              return setError(otros ? "El teléfono no se guardó: ya es de otro contacto. Lo demás quedó guardado." : null);
+            }
+          }
           return setError(cuerpo.error ?? "No se pudo guardar. Volvé a intentar.");
         }
-        setAviso("Datos guardados. Queda en el historial.");
+        setAviso(cuerpo.aviso ? `Datos guardados. ${cuerpo.aviso}` : "Datos guardados. Queda en el historial.");
         setAbierto(false);
         router.refresh();
       } catch {
@@ -89,6 +111,8 @@ export function EditarContacto({
           type="button"
           onClick={() => {
             setValores(datos);
+            setAlAbrir(datos);
+            setConflicto(null);
             setAbierto(true);
           }}
           className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
@@ -132,6 +156,17 @@ export function EditarContacto({
       </label>
       {asignacion}
       {error && <p className="text-sm text-red-700 dark:text-red-400">{error}</p>}
+      {conflicto && (
+        <PropuestaDeUnion
+          contactoId={contactoId}
+          conflicto={conflicto}
+          onCerrar={(texto) => {
+            setConflicto(null);
+            setValores((v) => ({ ...v, phone: alAbrir.phone }));
+            if (texto) setError(texto);
+          }}
+        />
+      )}
       <div className="flex gap-2">
         <button
           type="button"

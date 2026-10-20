@@ -43,7 +43,14 @@ export function ContactosEliminados({ filas, puedeRestaurar }: { filas: FilaElim
       try {
         const { error: e } = await createClient().rpc("restaurar_contacto", { p_contacto: id });
         if (e) {
-          setError(e.code === "42501" ? "Solo Owner y Admin pueden restaurar contactos." : "No se pudo restaurar. Volvé a intentar.");
+          setError(
+            e.code === "42501"
+              ? "Solo Owner y Admin pueden restaurar contactos."
+              : e.code === "P0002"
+                ? "Ese contacto ya no está en Eliminados: alguien lo restauró, o ya se borró definitivamente."
+                : "No se pudo restaurar. Volvé a intentar.",
+          );
+          if (e.code === "P0002") router.refresh();
         } else {
           setAviso("Contacto restaurado");
           router.refresh();

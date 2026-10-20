@@ -11,7 +11,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cargarTelefono, fusionarContactos, type ResultadoTelefono, type ResumenContacto } from "@/lib/actions/contactos";
 
-type Conflicto = Extract<ResultadoTelefono, { resultado: "conflicto" }>;
+export type Conflicto = Extract<ResultadoTelefono, { resultado: "conflicto" }>;
 
 function Lado({ titulo, c }: { titulo: string; c: ResumenContacto }) {
   return (
@@ -49,16 +49,6 @@ export function TelefonoSinResolver({ contactoId }: { contactoId: string }) {
     });
   }
 
-  function unir() {
-    if (!conflicto?.otro) return;
-    setError(null);
-    empezar(async () => {
-      const r = await fusionarContactos(conflicto.otro!.id, contactoId);
-      if (!r.ok) return setError(r.error);
-      router.push(`/dashboard/contacts/${r.conservado}?unidos=1`);
-    });
-  }
-
   return (
     <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4" role="region" aria-label="Teléfono sin resolver">
       <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Teléfono sin resolver</p>
@@ -90,56 +80,97 @@ export function TelefonoSinResolver({ contactoId }: { contactoId: string }) {
         </form>
       )}
 
-      {conflicto && !conflicto.visible && (
-        <div className="mt-3 text-sm">
-          <p>Ya existe otro contacto con el teléfono {conflicto.telefono}, a cargo de otra persona del equipo.</p>
-          <p className="mt-1 text-muted-foreground">No se guardó, para no duplicarlo. Pedile a un Owner o Admin que los una.</p>
-          <button type="button" onClick={() => setConflicto(null)} className="mt-2 text-sm underline">
-            Volver
-          </button>
-        </div>
+      {conflicto && (
+        <PropuestaDeUnion
+          contactoId={contactoId}
+          conflicto={conflicto}
+          onCerrar={(aviso) => {
+            setConflicto(null);
+            if (aviso) setAviso(aviso);
+          }}
+        />
       )}
-
-      {conflicto && conflicto.visible && conflicto.este && conflicto.otro && (
-        <div className="mt-3">
-          <p className="text-sm font-medium">¿Es la misma persona?</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Ya existe otro contacto con el teléfono {conflicto.telefono}. Si las unís, quedan juntas las conversaciones, notas,
-            etiquetas y el origen, y queda en el historial.
-          </p>
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-            <Lado titulo="Este contacto" c={conflicto.este} />
-            <Lado titulo="El que ya tiene ese teléfono (queda)" c={conflicto.otro} />
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setConflicto(null);
-                setAviso("Listo: no se guardó el teléfono.");
-              }}
-              className="rounded-lg border border-border px-3 py-1.5 text-sm"
-            >
-              No es la misma
-            </button>
-            {conflicto.puedeUnir ? (
-              <button
-                type="button"
-                onClick={unir}
-                disabled={pendiente}
-                className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-              >
-                {pendiente ? "Uniendo…" : "Unir contactos"}
-              </button>
-            ) : (
-              <p className="self-center text-sm text-muted-foreground">Pedile a un Owner o Admin que los una.</p>
-            )}
-          </div>
-        </div>
-      )}
-
       {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">{error}</p>}
       {aviso && <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-400" role="status">{aviso}</p>}
+    </div>
+  );
+}
+
+/**
+ * La propuesta de unión cuando el teléfono ya es de otro contacto (F26): los
+ * dos lados, «No es la misma» y «Unir contactos» (Owner y Admin). Queda el que
+ * ya tenía el teléfono. La usan «Teléfono sin resolver» y, desde la revisión
+ * del 20/10/2026, «Editar datos» (F30), que antes mandaba a un botón que no
+ * existía.
+ */
+export function PropuestaDeUnion({
+  contactoId,
+  conflicto,
+  onCerrar,
+}: {
+  contactoId: string;
+  conflicto: Conflicto;
+  onCerrar: (aviso?: string) => void;
+}) {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [pendiente, empezar] = useTransition();
+
+  function unir() {
+    if (!conflicto.otro) return;
+    setError(null);
+    empezar(async () => {
+      const r = await fusionarContactos(conflicto.otro!.id, contactoId);
+      if (!r.ok) return setError(r.error);
+      router.push(`/dashboard/contacts/${r.conservado}?unidos=1`);
+    });
+  }
+
+  if (!conflicto.visible || !conflicto.este || !conflicto.otro) {
+    return (
+      <div className="mt-3 text-sm">
+        <p>Ya existe otro contacto con el teléfono {conflicto.telefono}, a cargo de otra persona del equipo.</p>
+        <p className="mt-1 text-muted-foreground">No se guardó, para no duplicarlo. Pedile a un Owner o Admin que los una.</p>
+        <button type="button" onClick={() => onCerrar()} className="mt-2 text-sm underline">
+          Volver
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3">
+      <p className="text-sm font-medium">¿Es la misma persona?</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Ya existe otro contacto con el teléfono {conflicto.telefono}. Si las unís, quedan juntas las conversaciones, notas,
+        etiquetas y el origen, y queda en el historial.
+      </p>
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+        <Lado titulo="Este contacto" c={conflicto.este} />
+        <Lado titulo="El que ya tiene ese teléfono (queda)" c={conflicto.otro} />
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => onCerrar("Listo: no se guardó el teléfono.")}
+          className="rounded-lg border border-border px-3 py-1.5 text-sm"
+        >
+          No es la misma
+        </button>
+        {conflicto.puedeUnir ? (
+          <button
+            type="button"
+            onClick={unir}
+            disabled={pendiente}
+            className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            {pendiente ? "Uniendo…" : "Unir contactos"}
+          </button>
+        ) : (
+          <p className="self-center text-sm text-muted-foreground">Pedile a un Owner o Admin que los una.</p>
+        )}
+      </div>
+      {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">{error}</p>}
     </div>
   );
 }

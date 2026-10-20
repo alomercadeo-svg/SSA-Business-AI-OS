@@ -232,9 +232,18 @@ await correr(async () => {
     const f4 = (await filas(`contacts?select=display_name,display_name_source&id=eq.${F}`))[0];
     check(e4.status === 200 && f4?.display_name === `${NOMBRE} editado` && f4?.display_name_source === "manual", "el Owner cambia el nombre, que queda «manual»", `HTTP ${e4.status}`);
     const aud = await filas(`audit_log?select=actor_id,changes&entity_id=eq.${F}&action=eq.contacto.editado&order=created_at`);
-    check(aud.length === 2, "dos filas «contacto editado» (los rechazos no dejan fila)", `${aud.length}`);
+    check(aud.length === 2, "dos filas «contacto editado» hasta acá (los rechazos no dejan fila)", `${aud.length}`);
     check(aud[0]?.actor_id === member.id && aud[0]?.changes?.country?.antes === "Costa Rica" && aud[0]?.changes?.country?.despues === "Argentina", "la del Member, con el país antes y después");
     check(aud[1]?.actor_id === owner.id && aud[1]?.changes?.display_name?.despues === `${NOMBRE} editado`, "la del Owner, con el nombre");
+
+    titulo("«Editar datos» con un teléfono o un correo que ya tiene otro contacto (revisión del 20/10/2026)");
+    const Z = (await crearContacto(espacio, { display_name: `B3 Otro ${sufijo}`, phone: "+50670008888", phone_resolved: true, email: `otro-${sufijo}@ssa-test.local` })).id;
+    const e5 = await editar(owner, F, { phone: "+506 7000 8888" });
+    check(e5.status === 409 && e5.cuerpo?.conflicto?.otro_id === Z, "teléfono de otro contacto: 409 con el otro, para proponer la unión con los dos lados", `HTTP ${e5.status} ${JSON.stringify(e5.cuerpo)}`);
+    check((await filas(`contacts?select=phone&id=eq.${F}`))[0]?.phone === "+50670009999", "y el teléfono de F no cambió (releído)");
+    const e6 = await editar(owner, F, { email: `OTRO-${sufijo}@ssa-test.local` });
+    check(e6.status === 200 && typeof e6.cuerpo?.aviso === "string" && e6.cuerpo.aviso.includes(`B3 Otro ${sufijo}`), "correo de otro contacto: se guarda y avisa quién lo tiene", `HTTP ${e6.status} ${JSON.stringify(e6.cuerpo)}`);
+    check((await filas(`contacts?select=email&id=eq.${F}`))[0]?.email === `otro-${sufijo}@ssa-test.local`, "el correo quedó guardado, en minúsculas");
 
     titulo("El clic al hilo: una conversación que está más abajo de las primeras 50");
     const sinParam = await pagina(member, "/dashboard/inbox");

@@ -99,6 +99,13 @@ describe("restaurarSiEliminado", () => {
     expect(h.rpcs).toEqual([]);
   });
 
+  it("si otro aviso lo restauró un instante antes (P0002), no es un error: ya está restaurado", async () => {
+    h.eliminados.add("ct-1");
+    const base = baseFalsa() as unknown as { rpc: unknown };
+    base.rpc = async () => ({ data: null, error: { code: "P0002", message: "restaurar_contacto: no hay un contacto eliminado con ese id" } });
+    expect(await restaurarSiEliminado(base as never, "ct-1", "ch-ig")).toBe(false);
+  });
+
   it("si la base rechaza la restauración, tira: el receptor libera el reclamo y responde 500", async () => {
     h.eliminados.add("ct-1");
     const base = baseFalsa() as unknown as { rpc: unknown };
@@ -174,5 +181,25 @@ describe("la 00038: eliminar marca la fecha, no borra, también para Owner y Adm
     expect(sql).toMatch(/drop policy if exists "contacts: borrar solo manager" on contacts;/);
     expect(sql).toMatch(/drop policy if exists "conversations: borrar solo manager" on conversations;/);
     expect(sql).not.toMatch(/create policy[^;]*for delete/i);
+  });
+});
+
+describe("la 00038 cierra dos huecos más (revisión del 20/10/2026)", () => {
+  const sql = async () => {
+    const { readFileSync } = await import("node:fs");
+    return readFileSync(new URL("../supabase/migrations/00038_borrado_suave.sql", import.meta.url), "utf8")
+      .split("\n")
+      .filter((l) => !l.trim().startsWith("--"))
+      .join("\n");
+  };
+  it("nadie crea un contacto ni una conversación ya eliminados: las políticas de alta exigen deleted_at vacío", async () => {
+    const s = await sql();
+    expect(s).toMatch(/create policy "contacts: crear, un Member solo asignado a si mismo"[\s\S]*?with check \(\s*deleted_at is null\s+and/);
+    expect(s).toMatch(/create policy "conversations: crear solo manager"[\s\S]*?with check \(deleted_at is null and/);
+  });
+  it("la fecha de edición de una nota la pone siempre el trigger, no el cliente", async () => {
+    const s = await sql();
+    expect(s).toMatch(/create or replace function public\.contact_notes_antes\(\)/);
+    expect(s).toMatch(/new\.updated_at := case when new\.body is distinct from old\.body then now\(\) else old\.updated_at end;/);
   });
 });

@@ -30,6 +30,13 @@ export const HORAS_ENTRE_PURGAS = 24;
 /** Ids por pedido, para que la dirección de PostgREST no se haga demasiado larga. */
 const LOTE = 100;
 
+/**
+ * Filas por página al leer. PostgREST devuelve como máximo `max_rows` filas por
+ * pedido (1000 por defecto en Supabase; no se verificó el valor de este
+ * proyecto), así que se lee por páginas hasta que una venga incompleta.
+ */
+const PAGINA = 1000;
+
 export function claveDePurga(workspaceId: string): string {
   return `purga_eliminados:${workspaceId}`;
 }
@@ -72,10 +79,22 @@ function lotes<T>(xs: T[]): T[][] {
   return out;
 }
 
-async function ids(consulta: PromiseLike<{ data: unknown; error: { message: string } | null }>, que: string): Promise<string[]> {
-  const { data, error } = await consulta;
-  if (error) throw new Error(`${que}: ${error.message}`);
-  return ((data ?? []) as Array<{ id: string }>).map((f) => f.id);
+type Consulta = { range(a: number, b: number): PromiseLike<{ data: unknown; error: { message: string } | null }> };
+
+/** Todas las filas de una consulta ordenada, página por página. */
+async function todas<T>(armar: () => Consulta, que: string): Promise<T[]> {
+  const filas: T[] = [];
+  for (let desde = 0; ; desde += PAGINA) {
+    const { data, error } = await armar().range(desde, desde + PAGINA - 1);
+    if (error) throw new Error(`${que}: ${error.message}`);
+    const pagina = (data ?? []) as T[];
+    filas.push(...pagina);
+    if (pagina.length < PAGINA) return filas;
+  }
+}
+
+async function ids(armar: () => Consulta, que: string): Promise<string[]> {
+  return (await todas<{ id: string }>(armar, que)).map((f) => f.id);
 }
 
 export async function purgarEspacio({
@@ -92,15 +111,15 @@ export async function purgarEspacio({
   const corte = corteDePurga(ahora);
 
   const contactos = await ids(
-    servicio.from("contacts").select("id").eq("workspace_id", workspaceId).lt("deleted_at", corte),
+    () => servicio.from("contacts").select("id").eq("workspace_id", workspaceId).lt("deleted_at", corte).order("id"),
     "contacts",
   );
   const convDeContactos: string[] = [];
   for (const l of lotes(contactos)) {
-    convDeContactos.push(...(await ids(servicio.from("conversations").select("id").in("contact_id", l), "conversations")));
+    convDeContactos.push(...(await ids(() => servicio.from("conversations").select("id").in("contact_id", l).order("id"), "conversations")));
   }
   const convSueltas = await ids(
-    servicio.from("conversations").select("id").eq("workspace_id", workspaceId).lt("deleted_at", corte),
+    () => servicio.from("conversations").select("id").eq("workspace_id", workspaceId).lt("deleted_at", corte).order("id"),
     "conversations",
   );
   const conversaciones = [...new Set([...convDeContactos, ...convSueltas])];
@@ -108,24 +127,25 @@ export async function purgarEspacio({
   // 1. Los archivos.
   const rutas: string[] = [];
   for (const l of lotes(conversaciones)) {
-    const { data, error } = await servicio
-      .from("messages")
-      .select("media_path")
-      .in("conversation_id", l)
-      .not("media_path", "is", null);
-    if (error) throw new Error(`messages: ${error.message}`);
-    rutas.push(...((data ?? []) as Array<{ media_path: string }>).map((m) => m.media_path));
+    const filas = await todas<{ media_path: string }>(
+      () => servicio.from("messages").select("media_path").in("conversation_id", l).not("media_path", "is", null).order("id"),
+      "messages",
+    );
+    rutas.push(...filas.map((m) => m.media_path));
   }
   for (const l of lotes(rutas)) await almacen.borrar(l);
 
   // 2. Las filas. Las conversaciones primero (sus mensajes, en cascada), después
-  // los contactos (lo demás, en cascada) y las notas sueltas.
+  // los contactos (lo demás, en cascada) y las notas sueltas. El borrado repite
+  // la condición: un lead que escribió entre la lectura y acá ya se restauró
+  // (`deleted_at` vacío) y no se borra. Sus archivos sí se fueron en el paso 1:
+  // esa carrera queda abierta, anotada en docs/estado-fase1.md.
   for (const l of lotes(conversaciones)) {
-    const { error } = await servicio.from("conversations").delete().in("id", l);
+    const { error } = await servicio.from("conversations").delete().in("id", l).lt("deleted_at", corte);
     if (error) throw new Error(`conversations: ${error.message}`);
   }
   for (const l of lotes(contactos)) {
-    const { error } = await servicio.from("contacts").delete().in("id", l);
+    const { error } = await servicio.from("contacts").delete().in("id", l).lt("deleted_at", corte);
     if (error) throw new Error(`contacts: ${error.message}`);
   }
   const { data: notas, error: errNotas } = await servicio

@@ -16,7 +16,10 @@ function baseFalsa(datos: { contactos: string[]; convDeContactos: string[]; conv
   const servicio = {
     from(tabla: string) {
       const p: Pedido = { tabla, op: "select", filtros: [] };
+      let rango: [number, number] | null = null;
       const cadena: any = {
+        order: () => cadena,
+        range: (a: number, b: number) => ((rango = [a, b]), cadena),
         select: () => cadena,
         delete: () => ((p.op = "delete"), cadena),
         eq: (c: string, v: unknown) => (p.filtros.push(["eq", c, v]), cadena),
@@ -30,6 +33,8 @@ function baseFalsa(datos: { contactos: string[]; convDeContactos: string[]; conv
           if (p.op === "select" && tabla === "conversations")
             data = (p.filtros.some(([, c]) => c === "contact_id") ? datos.convDeContactos : datos.convSueltas).map((id) => ({ id }));
           if (p.op === "select" && tabla === "messages") data = datos.rutas.map((media_path) => ({ media_path }));
+          // Como PostgREST: nunca más de 1000 filas por pedido (max_rows), y el rango pedido.
+          if (Array.isArray(data)) data = rango ? data.slice(rango[0], rango[1] + 1).slice(0, 1000) : data.slice(0, 1000);
           return Promise.resolve({ data, error: null }).then(ok);
         },
       };
@@ -82,6 +87,23 @@ describe("la purga de F30", () => {
     expect(r).toEqual({ contactos: 0, conversaciones: 0, notas: 0, archivos: 0 });
     expect(llamadas).toBe(0);
     expect(pedidos.filter((p) => p.op === "delete").map((p) => p.tabla)).toEqual(["contact_notes"]);
+  });
+
+  it("con más de 1000 archivos, los borra todos: pagina en vez de quedarse con las primeras 1000 filas", async () => {
+    const rutas = Array.from({ length: 1500 }, (_, i) => `ws/v1/m${i}/archivo.jpg`);
+    const { servicio } = baseFalsa({ contactos: ["c1"], convDeContactos: ["v1"], convSueltas: [], rutas });
+    const borradas: string[] = [];
+    await purgarEspacio({ servicio: servicio as never, workspaceId: "ws", ahora: AHORA, almacen: { borrar: async (l) => void borradas.push(...l) } });
+    expect(new Set(borradas).size).toBe(1500);
+  });
+
+  it("el borrado repite la condición: solo lo que sigue eliminado hace más de 30 días (un lead que escribió en el medio se salva)", async () => {
+    const { servicio, pedidos } = baseFalsa({ contactos: ["c1"], convDeContactos: ["v1"], convSueltas: [], rutas: [] });
+    await purgarEspacio({ servicio: servicio as never, workspaceId: "ws", ahora: AHORA, almacen: { borrar: async () => {} } });
+    for (const tabla of ["conversations", "contacts"]) {
+      const d = pedidos.find((p) => p.op === "delete" && p.tabla === tabla)!;
+      expect(d.filtros).toContainEqual(["lt", "deleted_at", "2026-09-20T12:00:00.000Z"]);
+    }
   });
 
   it("toca purgar si nunca terminó bien, o si la última buena tiene 24 horas o más", () => {
