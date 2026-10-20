@@ -281,7 +281,7 @@ export function textoDeEvento(fila: FilaAuditoria): string {
     case "contacto.eliminado":
       return `Contacto eliminado: ${quien}`;
     case "contacto.restaurado":
-      return `Contacto restaurado: ${quien}${d.via === "mensaje_entrante" ? " · volvió a escribir" : ""}`;
+      return `Contacto restaurado: ${quien}${d.via === "mensaje_entrante" ? " · volvió a escribir" : d.via === "mensaje_saliente" ? " · el negocio le volvió a escribir" : ""}`;
     case "canal.conectado":
       return `Canal conectado: ${quien}`;
     case "canal.desconectado":

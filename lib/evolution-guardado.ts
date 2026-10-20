@@ -52,7 +52,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { identidadDeClave, telefonoDeJid, type ClaveEvolution } from "./identidad-whatsapp";
 import { upsertContactForSender } from "./inbox-sync";
-import { restaurarSiEliminado } from "./borrado";
+import { restaurarSiEliminado, type ViaDeRestauracion } from "./borrado";
 import { messagePreview } from "./message-preview";
 import { aplicarToque, toqueDe } from "./atribucion";
 import { guardarMensajes, type MensajeParaGuardar, type TipoDeMensaje } from "./mensajes-guardado";
@@ -183,18 +183,19 @@ export async function reconciliarDesdeClave(
   canal: CanalEvolutionParaGuardar,
   clave: ClaveEvolution,
   via: "mensaje" | "aviso_evolution",
-  restaurarEliminado = false,
+  restaurarEliminado: ViaDeRestauracion | false = false,
 ): Promise<{ contactId: string; resultado: string } | null> {
   const telefono = telefonoDeJid(clave.remoteJid) ?? telefonoDeJid(clave.remoteJidAlt);
   const lid = [clave.remoteJidAlt, clave.remoteJid].find((j) => typeof j === "string" && j.endsWith("@lid"));
   if (!telefono || !lid) return null;
   const contactId = await contactoPorIdentificador(supabase, canal.id, "raw_jid", lid);
   if (!contactId) return null;
-  // F30: `reconciliar_telefono` no toca un eliminado. Si escribe el lead, se
-  // restaura primero (decisión del 19/10/2026); si no, se deja como está.
+  // F30: `reconciliar_telefono` no toca un eliminado. Si es un mensaje (del
+  // lead o del negocio), se restaura primero (decisiones del 19 y el
+  // 20/10/2026); un aviso de contacto de Evolution lo deja como está.
   if (await estaEliminado(supabase, contactId)) {
     if (!restaurarEliminado) return { contactId, resultado: "eliminado" };
-    await restaurarSiEliminado(supabase, contactId, canal.id);
+    await restaurarSiEliminado(supabase, contactId, canal.id, restaurarEliminado);
   }
   const { data, error } = await supabase.rpc("reconciliar_telefono", {
     p_contacto: contactId,
@@ -236,11 +237,12 @@ export async function guardarMensajesDeEvolution(
     // El contacto: por su identificador en el canal; si no, por el `@lid` que
     // trae al lado (vía 1); si no, nuevo.
     let contactId = await contactoPorIdentificador(supabase, canal.id, "platform_sender_id", identidad.rawJid);
-    // F30: el lead eliminado que vuelve a escribir se restaura solo; lo que
-    // escribe el negocio no lo restaura.
-    if (contactId && entrante) await restaurarSiEliminado(supabase, contactId, canal.id);
+    // F30: el lead eliminado se restaura solo si escribe él (19/10/2026) o si
+    // le escribe el negocio desde el teléfono (20/10/2026).
+    const via: ViaDeRestauracion = entrante ? "mensaje_entrante" : "mensaje_saliente";
+    if (contactId) await restaurarSiEliminado(supabase, contactId, canal.id, via);
     if (!contactId) {
-      const reconciliado = await reconciliarDesdeClave(supabase, canal, m.key, "mensaje", entrante);
+      const reconciliado = await reconciliarDesdeClave(supabase, canal, m.key, "mensaje", via);
       contactId = reconciliado?.contactId ?? null;
     }
     let existia = Boolean(contactId);

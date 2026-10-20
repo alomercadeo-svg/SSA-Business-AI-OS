@@ -86,6 +86,14 @@ describe("restaurarSiEliminado", () => {
     ]);
   });
 
+  it("con un saliente del negocio, la vía es «mensaje_saliente»", async () => {
+    h.eliminados.add("ct-1");
+    expect(await restaurarSiEliminado(baseFalsa(), "ct-1", "ch-ig", "mensaje_saliente")).toBe(true);
+    expect(restauraciones()).toEqual([
+      { fn: "restaurar_contacto", args: { p_contacto: "ct-1", p_via: "mensaje_saliente", p_canal: "ch-ig" } },
+    ]);
+  });
+
   it("a uno vivo no lo toca (control)", async () => {
     expect(await restaurarSiEliminado(baseFalsa(), "ct-1", "ch-ig")).toBe(false);
     expect(h.rpcs).toEqual([]);
@@ -102,9 +110,17 @@ describe("restaurarSiEliminado", () => {
 describe("Instagram: el webhook restaura, la importación no", () => {
   it("el webhook (restaurarEliminado) restaura al lead eliminado y devuelve su mismo contacto", async () => {
     h.eliminados.add("ct-1");
-    const r = await upsertContactForSender({ supabase: baseFalsa(), channel: CANAL, ...remitente, restaurarEliminado: true });
+    const r = await upsertContactForSender({ supabase: baseFalsa(), channel: CANAL, ...remitente, restaurarEliminado: "mensaje_entrante" });
     expect(r).toEqual({ contactId: "ct-1", existed: true });
     expect(restauraciones()).toHaveLength(1);
+  });
+
+  it("el echo de lo que escribe el negocio desde la app también restaura, con la vía del saliente", async () => {
+    h.eliminados.add("ct-1");
+    await upsertContactForSender({ supabase: baseFalsa(), channel: CANAL, ...remitente, restaurarEliminado: "mensaje_saliente" });
+    expect(restauraciones()).toEqual([
+      { fn: "restaurar_contacto", args: { p_contacto: "ct-1", p_via: "mensaje_saliente", p_canal: "ch-ig" } },
+    ]);
   });
 
   it("la importación del historial (sin la marca) no restaura: no es el lead escribiendo ahora", async () => {
@@ -135,5 +151,15 @@ describe("diasParaLaPurga", () => {
     expect(diasParaLaPurga("2026-10-20T12:00:00Z", ahora)).toBe(30);
     expect(diasParaLaPurga("2026-10-01T12:00:00Z", ahora)).toBe(11);
     expect(diasParaLaPurga("2026-09-01T12:00:00Z", ahora)).toBe(0);
+  });
+});
+
+describe("restaurar_contacto en la 00038 acepta las dos vías automáticas, solo del servidor", () => {
+  it("«mensaje_entrante» y «mensaje_saliente» son vías válidas, y ninguna la llama un usuario", async () => {
+    const { readFileSync } = await import("node:fs");
+    const sql = readFileSync(new URL("../supabase/migrations/00038_borrado_suave.sql", import.meta.url), "utf8");
+    const funcion = sql.slice(sql.indexOf("create or replace function public.restaurar_contacto"), sql.indexOf("-- ── 6."));
+    expect(funcion).toMatch(/p_via not in \('manual', 'mensaje_entrante', 'mensaje_saliente'\)/);
+    expect(funcion).toMatch(/p_via in \('mensaje_entrante', 'mensaje_saliente'\) and not v_servidor/);
   });
 });

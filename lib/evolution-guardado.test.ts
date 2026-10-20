@@ -207,11 +207,22 @@ describe("guardado de WhatsApp (F27)", () => {
       expect(restauraciones()).toEqual([]);
     });
 
-    it("lo que escribe el negocio desde el teléfono (fromMe) no lo restaura", async () => {
+    it("lo que escribe el negocio desde el teléfono (fromMe) también lo restaura, con la vía del saliente (decisión del 20/10/2026)", async () => {
       h.porSender.set(`${TEL}@s.whatsapp.net`, "ct-viejo");
       h.eliminados.add("ct-viejo");
       await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "messages.upsert", [aviso({ key: { fromMe: true } })]);
-      expect(restauraciones()).toEqual([]);
+      expect(restauraciones()).toEqual([
+        { fn: "restaurar_contacto", args: { p_contacto: "ct-viejo", p_via: "mensaje_saliente", p_canal: "ch-wa" } },
+      ]);
+    });
+
+    it("un saliente por el `@lid` también se restaura antes de reconciliar", async () => {
+      h.porRawJid.set(LID, "ct-lid");
+      h.eliminados.add("ct-lid");
+      await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "messages.upsert", [
+        aviso({ key: { remoteJid: `${TEL}@s.whatsapp.net`, remoteJidAlt: LID, fromMe: true } }),
+      ]);
+      expect(h.rpcs.filter((x) => x.fn === "restaurar_contacto").map((x) => x.args.p_via)).toEqual(["mensaje_saliente"]);
     });
 
     it("por el `@lid` (vía 1): se restaura antes de reconciliar, porque `reconciliar_telefono` no toca un eliminado", async () => {

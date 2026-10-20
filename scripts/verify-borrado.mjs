@@ -13,7 +13,9 @@
  *     Member sigue editando los otros datos de su lead.
  *   - «Eliminados»: el Member ve su lead y no el ajeno; el Owner ve los dos.
  *   - El historial: «contacto.eliminado» y «contacto.restaurado».
- *   - La restauración automática (decisión de Marcos del 19/10/2026), con
+ *   - La restauración automática (decisiones de Marcos del 19/10/2026, el lead
+ *     escribe, y del 20/10/2026, el negocio le escribe desde la app o el
+ *     teléfono), con
  *     avisos firmados contra los receptores de producción: uno de Evolution
  *     2.3.7 (WhatsApp) y uno de Zernio (Instagram), firmado con el secreto del
  *     espacio fantasma. Sin ninguna llamada a Zernio ni a Evolution: el espacio
@@ -82,10 +84,10 @@ async function firmaEvolution() {
 }
 
 /** `prepareMessage` de Evolution 2.3.7 (whatsapp.baileys.service.ts:4652-4704), igual que `verify-guardado-whatsapp.mjs`. */
-async function avisoDeWhatsApp(id, texto) {
+async function avisoDeWhatsApp(id, texto, fromMe = false) {
   const data = {
-    key: { remoteJid: JID, fromMe: false, id, addressingMode: "pn" },
-    pushName: "Lead de prueba",
+    key: { remoteJid: JID, fromMe, id, addressingMode: "pn" },
+    pushName: fromMe ? "Você" : "Lead de prueba",
     message: { conversation: texto },
     messageType: "conversation",
     messageTimestamp: Math.floor(Date.now() / 1000),
@@ -101,21 +103,26 @@ async function avisoDeWhatsApp(id, texto) {
 }
 
 /** `message.received` de Zernio (`AvisoDeMensajeZernio`, lib/zernio-aviso.ts), con el HMAC-SHA256 hexadecimal del secreto del espacio (lib/zernio-webhook.ts:190). */
-async function avisoDeInstagram(texto) {
+/**
+ * Con `saliente`, el echo de lo que el negocio escribe desde la app: `message.sent`,
+ * dirección `outgoing`, el remitente es la cuenta del negocio y el lead va en
+ * `conversation.participantId` (`contactoDelAviso`, lib/zernio-aviso.ts:96-104).
+ */
+async function avisoDeInstagram(texto, saliente = false) {
   const id = `b3-borrado-evt-${randomUUID()}`;
   eventosZernio.push(id);
   const cuerpo = JSON.stringify({
     id,
-    event: "message.received",
+    event: saliente ? "message.sent" : "message.received",
     message: {
       id: `zm-${randomUUID()}`,
       conversationId: `zc-${sufijo}`,
       platform: "instagram",
       platformMessageId: `ig-mid-${randomUUID()}`,
-      direction: "incoming",
+      direction: saliente ? "outgoing" : "incoming",
       text: texto,
       attachments: [],
-      sender: { id: IG_SENDER, name: "Lead IG de prueba", username: `b3.ig.${sufijo}` },
+      sender: saliente ? { id: `cuenta-${sufijo}`, name: "La cuenta del negocio", username: `b3cuenta${sufijo}` } : { id: IG_SENDER, name: "Lead IG de prueba", username: `b3.ig.${sufijo}` },
       sentAt: new Date().toISOString(),
     },
     conversation: { id: `zc-${sufijo}`, platformConversationId: `pc-${sufijo}`, participantId: IG_SENDER },
@@ -286,11 +293,37 @@ await correr(async () => {
   const audIg = await deServicio(`audit_log?select=actor_label,detail&entity_id=eq.${I}&action=eq.contacto.restaurado`);
   check(audIg.length === 1 && audIg[0]?.actor_label === "Sistema" && audIg[0]?.detail?.canal_id === canalIg, "«contacto restaurado» del Sistema, por el canal de Instagram");
 
+  titulo("Un saliente del negocio también restaura (decisión de Marcos del 20/10/2026)");
+  await rpcComo(adminU.token, "eliminar_contacto", { p_contacto: L });
+  const eliminadoAntesSal = Boolean(await fechaDe("contacts", L));
+  check(eliminadoAntesSal, "L está eliminado inmediatamente antes del saliente");
+  const stSal = await avisoDeWhatsApp(`B3BORRADOSAL${sufijo}`, "te escribo desde el teléfono", true);
+  check(stSal === 200, "el receptor de Evolution acepta el saliente firmado (fromMe)", `HTTP ${stSal}`);
+  const restSal = await esperar(async () => (await fechaDe("contacts", L)) === null);
+  if (!eliminadoAntesSal) noConcluyente("el saliente restauró a L", "no estaba eliminado antes");
+  else check(restSal, "el saliente de WhatsApp restauró a L");
+  check((await deServicio(`messages?select=direction&conversation_id=eq.${C}&platform_message_id=eq.B3BORRADOSAL${sufijo}`))[0]?.direction === "outbound", "el saliente quedó en su conversación de siempre, como del negocio");
+  const audSal = await deServicio(`audit_log?select=actor_label,detail&entity_id=eq.${L}&action=eq.contacto.restaurado&order=created_at.desc&limit=1`);
+  check(audSal[0]?.actor_label === "Sistema" && audSal[0]?.detail?.via === "mensaje_saliente" && audSal[0]?.detail?.canal_id === canalWa, "«contacto restaurado» del Sistema, con la vía del saliente y el canal");
+
+  await rpcComo(owner.token, "eliminar_contacto", { p_contacto: I });
+  const eliminadoAntesEcho = Boolean(await fechaDe("contacts", I));
+  check(eliminadoAntesEcho, "I está eliminado inmediatamente antes del echo");
+  const stEcho = await avisoDeInstagram("te escribo desde la app", true);
+  check(stEcho === 200, "el receptor de Zernio acepta el echo firmado (message.sent)", `HTTP ${stEcho}`);
+  const restEcho = await esperar(async () => (await fechaDe("contacts", I)) === null);
+  if (!eliminadoAntesEcho) noConcluyente("el echo restauró a I", "no estaba eliminado antes");
+  else check(restEcho, "el echo de Instagram restauró a I");
+  check((await deServicio(`messages?select=direction&conversation_id=eq.${CI}&direction=eq.outbound`)).length === 1, "el echo quedó en su conversación de siempre, como del negocio");
+  const audEcho = await deServicio(`audit_log?select=actor_label,detail&entity_id=eq.${I}&action=eq.contacto.restaurado&order=created_at.desc&limit=1`);
+  check(audEcho[0]?.actor_label === "Sistema" && audEcho[0]?.detail?.via === "mensaje_saliente" && audEcho[0]?.detail?.canal_id === canalIg, "«contacto restaurado» del Sistema, con la vía del saliente y el canal de Instagram");
+
   titulo("El historial");
   const aud = await deServicio(`audit_log?select=action,actor_id,entity_id&workspace_id=eq.${espacio}&action=in.(contacto.eliminado,contacto.restaurado)&order=created_at`);
   const de = (accion, entidad) => aud.filter((f) => f.action === accion && f.entity_id === entidad);
-  check(de("contacto.eliminado", L).length === 2 && de("contacto.eliminado", L).every((f) => f.actor_id === adminU.id), "L: dos «eliminado», los dos del Admin");
-  check(de("contacto.restaurado", L).length === 2, "L: dos «restaurado» (el del Admin y el del Sistema)");
+  check(de("contacto.eliminado", L).length === 3 && de("contacto.eliminado", L).every((f) => f.actor_id === adminU.id), "L: tres «eliminado», todos del Admin");
+  check(de("contacto.restaurado", L).length === 3, "L: tres «restaurado» (el del Admin y dos del Sistema: entrante y saliente)");
+  check(de("contacto.eliminado", I).length === 2 && de("contacto.restaurado", I).length === 2, "I: dos «eliminado» y dos «restaurado» (entrante y echo)");
   check(de("contacto.restaurado", L).some((f) => f.actor_id === adminU.id), "uno con el Admin de autor");
   check(de("contacto.eliminado", J).length === 1 && de("contacto.eliminado", J)[0].actor_id === owner.id, "J: «eliminado», del Owner");
   check(!aud.some((f) => f.actor_id === member.id), "ninguna fila del Member: sus intentos no escribieron nada");

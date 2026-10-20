@@ -1641,7 +1641,7 @@ export interface Database {
       };
       /** F30 (00038). Owner y Admin (`manual`), o el servidor (`mensaje_entrante`). */
       restaurar_contacto: {
-        Args: { p_contacto: string; p_via?: "manual" | "mensaje_entrante"; p_canal?: string | null };
+        Args: { p_contacto: string; p_via?: "manual" | "mensaje_entrante" | "mensaje_saliente"; p_canal?: string | null };
         Returns: Json;
       };
       /** F30 (00038). Los eliminados del espacio que quien llama puede ver. */

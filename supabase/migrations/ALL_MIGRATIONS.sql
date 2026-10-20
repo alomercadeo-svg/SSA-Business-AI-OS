@@ -4602,9 +4602,11 @@ revoke all on function public.eliminar_contacto(uuid) from public, anon;
 grant execute on function public.eliminar_contacto(uuid) to authenticated, service_role;
 
 -- ── 5. Restaurar ─────────────────────────────────────────────────────────
--- `p_via`: `manual` (Owner o Admin, desde «Eliminados») o `mensaje_entrante`
--- (solo el servidor: el lead eliminado que vuelve a escribir, con el Sistema
--- de autor y el canal por donde escribió).
+-- `p_via`: `manual` (Owner o Admin, desde «Eliminados»), `mensaje_entrante`
+-- (el lead eliminado que vuelve a escribir) o `mensaje_saliente` (el negocio le
+-- escribe desde la app de Instagram o desde el teléfono; decisión de Marcos del
+-- 20/10/2026). Las dos automáticas son solo del servidor, con el Sistema de
+-- autor y el canal en el detalle.
 create or replace function public.restaurar_contacto(
   p_contacto uuid,
   p_via text default 'manual',
@@ -4621,10 +4623,10 @@ declare
   v_servidor boolean := coalesce(auth.role(), '') = 'service_role';
   v_convs int;
 begin
-  if p_via not in ('manual', 'mensaje_entrante') then
+  if p_via not in ('manual', 'mensaje_entrante', 'mensaje_saliente') then
     raise exception 'restaurar_contacto: vía desconocida %', p_via using errcode = '22023';
   end if;
-  if p_via = 'mensaje_entrante' and not v_servidor then
+  if p_via in ('mensaje_entrante', 'mensaje_saliente') and not v_servidor then
     raise exception 'restaurar_contacto: la vía automática es solo del servidor' using errcode = '42501';
   end if;
   select * into v_c from public.contacts where id = p_contacto and deleted_at is not null for update;

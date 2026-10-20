@@ -321,8 +321,9 @@ async function guardarAviso(
     ...lead,
     interactionAt: ahora,
     stampExisting: !saliente,
-    // F30: solo el lead que escribe restaura; lo que escribe el negocio, no.
-    restaurarEliminado: !saliente,
+    // F30: el lead eliminado se restaura si él escribe o si le escribe el
+    // negocio desde la app (el echo); decisiones del 19 y el 20/10/2026.
+    restaurarEliminado: saliente ? "mensaje_saliente" : "mensaje_entrante",
   });
   if (!contact) throw new Error("no se pudo crear el contacto");
 

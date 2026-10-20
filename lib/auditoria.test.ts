@@ -221,6 +221,9 @@ describe("lo que muestra la pestaña", () => {
     expect(
       textoDeEvento({ action: "contacto.restaurado", entity_label: "Valeria", changes: {}, detail: { via: "mensaje_entrante" } })
     ).toBe("Contacto restaurado: Valeria · volvió a escribir");
+    expect(
+      textoDeEvento({ action: "contacto.restaurado", entity_label: "Valeria", changes: {}, detail: { via: "mensaje_saliente" } })
+    ).toBe("Contacto restaurado: Valeria · el negocio le volvió a escribir");
   });
 
   it("etiquetaDeCanal", () => {
