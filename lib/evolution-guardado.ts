@@ -52,6 +52,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { identidadDeClave, telefonoDeJid, type ClaveEvolution } from "./identidad-whatsapp";
 import { upsertContactForSender } from "./inbox-sync";
+import { restaurarSiEliminado } from "./borrado";
 import { messagePreview } from "./message-preview";
 import { aplicarToque, toqueDe } from "./atribucion";
 import { guardarMensajes, type MensajeParaGuardar, type TipoDeMensaje } from "./mensajes-guardado";
@@ -155,6 +156,12 @@ export function traducirMensaje(m: MensajeEvolution): Omit<MensajeParaGuardar, "
 
 type Supa = SupabaseClient;
 
+async function estaEliminado(supabase: Supa, contactId: string): Promise<boolean> {
+  const { data, error } = await supabase.from("contacts").select("deleted_at").eq("id", contactId).maybeSingle();
+  if (error) throw new Error(`contacts: ${error.message}`);
+  return Boolean((data as { deleted_at?: string | null } | null)?.deleted_at);
+}
+
 async function contactoPorIdentificador(supabase: Supa, canalId: string, columna: "platform_sender_id" | "raw_jid", valor: string) {
   const { data } = await supabase
     .from("contact_channels")
@@ -176,12 +183,19 @@ export async function reconciliarDesdeClave(
   canal: CanalEvolutionParaGuardar,
   clave: ClaveEvolution,
   via: "mensaje" | "aviso_evolution",
+  restaurarEliminado = false,
 ): Promise<{ contactId: string; resultado: string } | null> {
   const telefono = telefonoDeJid(clave.remoteJid) ?? telefonoDeJid(clave.remoteJidAlt);
   const lid = [clave.remoteJidAlt, clave.remoteJid].find((j) => typeof j === "string" && j.endsWith("@lid"));
   if (!telefono || !lid) return null;
   const contactId = await contactoPorIdentificador(supabase, canal.id, "raw_jid", lid);
   if (!contactId) return null;
+  // F30: `reconciliar_telefono` no toca un eliminado. Si escribe el lead, se
+  // restaura primero (decisión del 19/10/2026); si no, se deja como está.
+  if (await estaEliminado(supabase, contactId)) {
+    if (!restaurarEliminado) return { contactId, resultado: "eliminado" };
+    await restaurarSiEliminado(supabase, contactId, canal.id);
+  }
   const { data, error } = await supabase.rpc("reconciliar_telefono", {
     p_contacto: contactId,
     p_telefono: telefono,
@@ -222,8 +236,11 @@ export async function guardarMensajesDeEvolution(
     // El contacto: por su identificador en el canal; si no, por el `@lid` que
     // trae al lado (vía 1); si no, nuevo.
     let contactId = await contactoPorIdentificador(supabase, canal.id, "platform_sender_id", identidad.rawJid);
+    // F30: el lead eliminado que vuelve a escribir se restaura solo; lo que
+    // escribe el negocio no lo restaura.
+    if (contactId && entrante) await restaurarSiEliminado(supabase, contactId, canal.id);
     if (!contactId) {
-      const reconciliado = await reconciliarDesdeClave(supabase, canal, m.key, "mensaje");
+      const reconciliado = await reconciliarDesdeClave(supabase, canal, m.key, "mensaje", entrante);
       contactId = reconciliado?.contactId ?? null;
     }
     let existia = Boolean(contactId);

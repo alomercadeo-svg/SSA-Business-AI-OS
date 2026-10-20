@@ -210,6 +210,19 @@ describe("lo que muestra la pestaña", () => {
     ).toBe("Contacto creado: Valeria Monge (Instagram)");
   });
 
+  it("F30: eliminado y restaurado no muestran las fechas crudas, y la restauración automática dice por qué", () => {
+    const fechas = { deleted_at: { antes: null, despues: "2026-10-20T18:00:00Z" } };
+    expect(textoDeEvento({ action: "contacto.eliminado", entity_label: "Valeria", changes: fechas, detail: {} })).toBe(
+      "Contacto eliminado: Valeria"
+    );
+    expect(textoDeEvento({ action: "contacto.restaurado", entity_label: "Valeria", changes: {}, detail: { via: "manual" } })).toBe(
+      "Contacto restaurado: Valeria"
+    );
+    expect(
+      textoDeEvento({ action: "contacto.restaurado", entity_label: "Valeria", changes: {}, detail: { via: "mensaje_entrante" } })
+    ).toBe("Contacto restaurado: Valeria · volvió a escribir");
+  });
+
   it("etiquetaDeCanal", () => {
     expect(etiquetaDeCanal({ platform: "instagram", username: "@alomercadeo" })).toBe("Instagram @alomercadeo");
     expect(etiquetaDeCanal({ platform: "whatsapp", instance_name: "ssa" })).toBe("WhatsApp (instancia ssa)");

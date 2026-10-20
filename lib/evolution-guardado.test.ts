@@ -13,6 +13,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const h = vi.hoisted(() => ({
   porSender: new Map<string, string>(), // platform_sender_id → contact_id
   porRawJid: new Map<string, string>(), // raw_jid → contact_id
+  eliminados: new Set<string>(), // contact_id con deleted_at (F30)
   ops: [] as Array<{ tabla: string; op: string; valores?: any; filtros: Array<[string, unknown]> }>,
   rpcs: [] as Array<{ fn: string; args: any }>,
   upsertContactForSender: vi.fn(),
@@ -44,7 +45,10 @@ function supabaseFalso() {
             const id = mapa.get(String(valor));
             return { data: id ? { contact_id: id } : null, error: null };
           }
-          if (tabla === "contacts") return { data: { attribution: {} }, error: null };
+          if (tabla === "contacts") {
+            const id = String(op.filtros.find(([c]) => c === "id")?.[1]);
+            return { data: { attribution: {}, deleted_at: h.eliminados.has(id) ? "2026-10-10T00:00:00Z" : null }, error: null };
+          }
           if (tabla === "messages") {
             const pid = op.filtros.find(([c]) => c === "platform_message_id")?.[1];
             return { data: { id: `msg-${pid}` }, error: null };
@@ -87,6 +91,7 @@ const mensajesGuardados = () => h.ops.filter((o) => o.tabla === "messages").flat
 beforeEach(() => {
   h.porSender.clear();
   h.porRawJid.clear();
+  h.eliminados.clear();
   h.ops.length = 0;
   h.rpcs.length = 0;
   h.upsertContactForSender.mockReset();
@@ -180,6 +185,54 @@ describe("guardado de WhatsApp (F27)", () => {
     });
     expect(n).toBe(0);
     expect(h.rpcs).toEqual([]);
+  });
+
+  describe("F30: el lead eliminado que vuelve a escribir se restaura solo (decisión del 19/10/2026)", () => {
+    const restauraciones = () => h.rpcs.filter((x) => x.fn === "restaurar_contacto");
+
+    it("un entrante de un contacto eliminado lo restaura, con la vía y el canal, y el mensaje va a su conversación", async () => {
+      h.porSender.set(`${TEL}@s.whatsapp.net`, "ct-viejo");
+      h.eliminados.add("ct-viejo");
+      await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "messages.upsert", [aviso()]);
+      expect(restauraciones()).toEqual([
+        { fn: "restaurar_contacto", args: { p_contacto: "ct-viejo", p_via: "mensaje_entrante", p_canal: "ch-wa" } },
+      ]);
+      expect(h.upsertContactForSender).not.toHaveBeenCalled();
+      expect(h.ops).toContainEqual(expect.objectContaining({ tabla: "conversations", op: "upsert", valores: expect.objectContaining({ contact_id: "ct-viejo" }) }));
+    });
+
+    it("un contacto vivo no se restaura (control: la consulta no inventa eliminados)", async () => {
+      h.porSender.set(`${TEL}@s.whatsapp.net`, "ct-vivo");
+      await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "messages.upsert", [aviso()]);
+      expect(restauraciones()).toEqual([]);
+    });
+
+    it("lo que escribe el negocio desde el teléfono (fromMe) no lo restaura", async () => {
+      h.porSender.set(`${TEL}@s.whatsapp.net`, "ct-viejo");
+      h.eliminados.add("ct-viejo");
+      await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "messages.upsert", [aviso({ key: { fromMe: true } })]);
+      expect(restauraciones()).toEqual([]);
+    });
+
+    it("por el `@lid` (vía 1): se restaura antes de reconciliar, porque `reconciliar_telefono` no toca un eliminado", async () => {
+      h.porRawJid.set(LID, "ct-lid");
+      h.eliminados.add("ct-lid");
+      await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "messages.upsert", [
+        aviso({ key: { remoteJid: `${TEL}@s.whatsapp.net`, remoteJidAlt: LID } }),
+      ]);
+      // El tercero es `increment_unread`, del contacto que ya existía.
+      expect(h.rpcs.map((x) => x.fn).filter((f) => f !== "increment_unread")).toEqual(["restaurar_contacto", "reconciliar_telefono"]);
+    });
+
+    it("un aviso de contacto de Evolution (vía 2) no restaura ni reconcilia a un eliminado: no es el lead escribiendo", async () => {
+      h.porRawJid.set(LID, "ct-lid");
+      h.eliminados.add("ct-lid");
+      const n = await procesarAvisoDeContacto(supabaseFalso() as never, CANAL, [
+        { remoteJid: `${TEL}@s.whatsapp.net`, remoteJidAlt: LID },
+      ]);
+      expect(h.rpcs).toEqual([]);
+      expect(n).toBe(0);
+    });
   });
 
   it("el mensaje citado (contextInfo.stanzaId, 4665) se guarda aunque no exista de nuestro lado", async () => {

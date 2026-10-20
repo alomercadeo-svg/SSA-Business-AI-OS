@@ -321,6 +321,8 @@ async function guardarAviso(
     ...lead,
     interactionAt: ahora,
     stampExisting: !saliente,
+    // F30: solo el lead que escribe restaura; lo que escribe el negocio, no.
+    restaurarEliminado: !saliente,
   });
   if (!contact) throw new Error("no se pudo crear el contacto");
 

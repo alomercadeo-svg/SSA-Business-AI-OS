@@ -51,6 +51,7 @@ export function ContactsView({
   miembros,
   filtroSetter,
   filtroVendedor,
+  recienEliminado = false,
 }: {
   contacts: ContactWithTags[];
   /** Cuántos hay en la base con los filtros de asignación, no solo los cargados. */
@@ -61,6 +62,8 @@ export function ContactsView({
   /** «todos», «sin» o el id de un miembro (F41). */
   filtroSetter: string;
   filtroVendedor: string;
+  /** F30: se vuelve de eliminar uno desde su ficha. */
+  recienEliminado?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -129,7 +132,18 @@ export function ContactsView({
                 ? `Se muestran ${contacts.length} de ${total} contactos, los de interacción más reciente. Los filtros de setter y vendedor buscan en todos.`
                 : `${total} contacto${total !== 1 ? "s" : ""}`}
             </p>
+            {recienEliminado && (
+              <p className="mt-2 text-sm text-green-700 dark:text-green-400">
+                Contacto eliminado. Podés restaurarlo durante 30 días.
+              </p>
+            )}
           </div>
+          <Link
+            href="/dashboard/contacts?vista=eliminados"
+            className="shrink-0 rounded-lg border border-input px-3 py-2 text-sm font-medium hover:bg-accent"
+          >
+            Eliminados
+          </Link>
         </div>
 
         {/* Search and filters */}

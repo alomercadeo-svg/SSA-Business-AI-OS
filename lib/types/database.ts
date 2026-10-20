@@ -862,6 +862,8 @@ export interface Database {
           historial_importado_at: string | null;
           created_at: string;
           updated_at: string;
+          /** F30 (00038). Eliminar marca la fecha; la seguridad por filas la oculta. */
+          deleted_at: string | null;
         };
         Insert: {
           id?: string;
@@ -880,6 +882,8 @@ export interface Database {
           historial_importado_at?: string | null;
           created_at?: string;
           updated_at?: string;
+          /** F30 (00038). Eliminar marca la fecha; la seguridad por filas la oculta. */
+          deleted_at?: string | null;
         };
         Update: {
           late_conversation_id?: string | null;
@@ -892,6 +896,8 @@ export interface Database {
           unread_count?: number;
           is_automation_paused?: boolean;
           updated_at?: string;
+          /** F30 (00038). Eliminar marca la fecha; la seguridad por filas la oculta. */
+          deleted_at?: string | null;
         };
         Relationships: [
           {
@@ -1627,6 +1633,21 @@ export interface Database {
       fusionar_contactos: {
         Args: { p_conservar: string; p_absorber: string };
         Returns: Json;
+      };
+      /** F30 (00038). Solo Owner y Admin. Marca el contacto y sus conversaciones. */
+      eliminar_contacto: {
+        Args: { p_contacto: string };
+        Returns: Json;
+      };
+      /** F30 (00038). Owner y Admin (`manual`), o el servidor (`mensaje_entrante`). */
+      restaurar_contacto: {
+        Args: { p_contacto: string; p_via?: "manual" | "mensaje_entrante"; p_canal?: string | null };
+        Returns: Json;
+      };
+      /** F30 (00038). Los eliminados del espacio que quien llama puede ver. */
+      contactos_eliminados: {
+        Args: { p_workspace: string };
+        Returns: { id: string; display_name: string | null; deleted_at: string }[];
       };
       /** F30 (00037). El autor, un Admin o el Owner marca la nota como eliminada. */
       eliminar_nota: {

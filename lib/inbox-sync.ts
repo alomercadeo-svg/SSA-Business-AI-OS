@@ -8,6 +8,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { restaurarSiEliminado } from "./borrado";
 import type { Zernio } from "./zernio-client";
 import { messagePreview } from "@/lib/message-preview";
 import { registrarAuditoria, type Actor } from "@/lib/auditoria";
@@ -97,6 +98,7 @@ export async function upsertContactForSender({
   interactionAt,
   stampExisting = true,
   actor = null,
+  restaurarEliminado = false,
 }: {
   supabase: SupabaseClient;
   channel: { id: string; workspace_id: string; platform?: string };
@@ -108,6 +110,12 @@ export async function upsertContactForSender({
   stampExisting?: boolean;
   /** Quien disparó la importación. Nulo en el webhook: el Sistema. */
   actor?: Actor | null;
+  /**
+   * F30: el lead eliminado que vuelve a escribir se restaura solo (decisión de
+   * Marcos del 19/10/2026). Solo los entrantes del webhook, con el cliente de
+   * servicio; la importación no lo pasa.
+   */
+  restaurarEliminado?: boolean;
 }): Promise<{ contactId: string; existed: boolean } | null> {
   const { data: existingContactChannel } = await supabase
     .from("contact_channels")
@@ -117,6 +125,7 @@ export async function upsertContactForSender({
     .single();
 
   if (existingContactChannel) {
+    if (restaurarEliminado) await restaurarSiEliminado(supabase, existingContactChannel.contact_id, channel.id);
     const handle = handleDelProveedor(senderUsername);
     if (handle && handle !== existingContactChannel.platform_username) {
       await actualizarHandle(supabase, channel.id, senderId, handle);

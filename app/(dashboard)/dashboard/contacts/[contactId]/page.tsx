@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getWorkspace } from "@/lib/workspace";
+import { esManager, getWorkspace } from "@/lib/workspace";
 import {
   ArrowLeft,
   Mail,
@@ -13,6 +13,7 @@ import {
 import { PlatformIcon } from "@/components/platform-icon";
 import { TelefonoSinResolver } from "@/components/contacts/telefono-sin-resolver";
 import { AsignacionContacto } from "@/components/contacts/asignacion-contacto";
+import { EliminarContacto } from "@/components/contacts/eliminar-contacto";
 import { miembrosDelEspacio } from "@/lib/miembros";
 
 export default async function ContactDetailPage({
@@ -24,7 +25,7 @@ export default async function ContactDetailPage({
 }) {
   const { contactId } = await params;
   const { unidos } = await searchParams;
-  const { workspace, supabase } = await getWorkspace();
+  const { workspace, supabase, role } = await getWorkspace();
 
   const [contactRes, channelsRes, conversationsRes, customFieldsRes, miembros] =
     await Promise.all([
@@ -153,6 +154,13 @@ export default async function ContactDetailPage({
           vendedorId={contact.vendedor_id}
           miembros={miembros}
         />
+
+        {/* F30: eliminar marca la fecha; solo Owner y Admin (la base lo exige igual). */}
+        {esManager(role) && (
+          <div className="mt-4">
+            <EliminarContacto contactoId={contact.id} nombre={contact.display_name ?? "Este contacto"} />
+          </div>
+        )}
 
         {/* Tags */}
         {tags.length > 0 && (

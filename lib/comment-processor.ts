@@ -3,6 +3,7 @@ import type { Database, Json } from "@/lib/types/database";
 import { executeFlow } from "@/lib/flow-engine/engine";
 import { createZernioClient } from "@/lib/zernio-client";
 import { getZernioApiKey } from "@/lib/vault";
+import { restaurarSiEliminado } from "@/lib/borrado";
 import { registrarAuditoria } from "@/lib/auditoria";
 
 type Channel = Database["public"]["Tables"]["channels"]["Row"];
@@ -134,6 +135,8 @@ export async function processComment({
 
     if (existingContactChannel) {
       contactId = existingContactChannel.contact_id;
+      // F30: quien comenta es el lead; si estaba eliminado, se restaura solo.
+      await restaurarSiEliminado(supabase, contactId, channel.id);
       await supabase
         .from("contacts")
         .update({ last_interaction_at: new Date().toISOString() })
