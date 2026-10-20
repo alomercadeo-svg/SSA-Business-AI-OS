@@ -19,12 +19,19 @@ type Message = Database["public"]["Tables"]["messages"]["Row"];
 export function InboxView({
   conversations,
   workspaceId,
+  conversacionInicial = null,
 }: {
   conversations: Conversation[];
   workspaceId: string;
+  /**
+   * F30: la conversación que pidió la ficha (`?conversacion=`), ya leída por
+   * el servidor con la seguridad por filas. Abre su hilo aunque no esté entre
+   * las que carga la lista; la lista y su orden no cambian (paginarla es F35).
+   */
+  conversacionInicial?: Conversation | null;
 }) {
   const router = useRouter();
-  const [selected, setSelected] = useState<Conversation | null>(null);
+  const [selected, setSelected] = useState<Conversation | null>(conversacionInicial);
   const [messages, setMessages] = useState<Message[]>([]);
   const [hayAnteriores, setHayAnteriores] = useState(false);
   const [historial, setHistorial] = useState<EstadoDelHistorial | null>(null);
