@@ -20,11 +20,22 @@ export function marcaVisible(fila: FilaDeTarea | null | undefined): string | nul
   return fila?.ultimo_ok_at ?? null;
 }
 
-export function marcaVencida(fila: FilaDeTarea | null | undefined, ahora: Date = new Date()): boolean {
+export function marcaVencida(
+  fila: FilaDeTarea | null | undefined,
+  ahora: Date = new Date(),
+  minutosParaVencer: number = MINUTOS_PARA_VENCER,
+): boolean {
   const marca = marcaVisible(fila);
   if (!marca) return true;
-  return ahora.getTime() - new Date(marca).getTime() > MINUTOS_PARA_VENCER * 60_000;
+  return ahora.getTime() - new Date(marca).getTime() > minutosParaVencer * 60_000;
 }
+
+/**
+ * F30. La purga corre una vez por día, así que su marca no puede vencer a los
+ * 30 minutos: se pone en rojo a las 25 horas, una hora de margen sobre las 24
+ * entre corridas (`HORAS_ENTRE_PURGAS`, `lib/purga.ts`).
+ */
+export const HORAS_PARA_VENCER_LA_PURGA = 25;
 
 /** «hace 12 min», «hace 3 h», «hace 3 días». Una marca futura cuenta como recién. */
 export function haceCuanto(iso: string, ahora: Date = new Date()): string {
@@ -53,6 +64,26 @@ export function textoDelReintento(
     titulo: marca
       ? `Último reintento de archivos adjuntos: ${haceCuanto(marca, ahora)}`
       : "El reintento de archivos adjuntos todavía no corrió nunca.",
+    vencida,
+    error: vencida ? (fila?.ultimo_error ?? null) : null,
+  };
+}
+
+/**
+ * F30. La marca visible de la purga diaria (fila `purga_eliminados:<espacio>`).
+ * Si la purga deja de correr, lo eliminado no se borra nunca y los archivos se
+ * acumulan, sin que nadie lo vea: esto lo hace visible (§14).
+ */
+export function textoDeLaPurga(
+  fila: (FilaDeTarea & { ultimo_error?: string | null }) | null | undefined,
+  ahora: Date = new Date(),
+): { titulo: string; vencida: boolean; error: string | null } {
+  const marca = marcaVisible(fila);
+  const vencida = marcaVencida(fila, ahora, HORAS_PARA_VENCER_LA_PURGA * 60);
+  return {
+    titulo: marca
+      ? `Última purga de eliminados: ${haceCuanto(marca, ahora)}`
+      : "La purga de eliminados todavía no corrió nunca.",
     vencida,
     error: vencida ? (fila?.ultimo_error ?? null) : null,
   };

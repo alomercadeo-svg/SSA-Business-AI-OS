@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { correrTareas, claveDeVigilancia, CLAVE_DE_REINTENTO_DE_ADJUNTOS } from "./tareas-programadas";
-import { marcaVisible, marcaVencida } from "./tareas-estado";
+import { marcaVisible, marcaVencida, textoDeLaPurga } from "./tareas-estado";
+import { claveDePurga } from "./purga";
 import { HORARIO_POR_DEFECTO } from "./horas-habiles";
 
 /**
@@ -22,7 +23,7 @@ function baseFalsa(espacios: Array<Record<string, unknown>>) {
         select: () => cadena,
         eq: (c: string, v: unknown) => ((filtros[c] = v), cadena),
         update: (v: Record<string, unknown>) => ((cambio = v), cadena),
-        maybeSingle: async () => ({ data: null, error: null }),
+        maybeSingle: async () => ({ data: tabla === "tareas_estado" ? (tareas.get(String(filtros.clave)) ?? null) : null, error: null }),
         then: (ok: (r: unknown) => unknown) => {
           if (tabla === "workspaces") return Promise.resolve({ data: espacios, error: null }).then(ok);
           if (tabla === "channels") return Promise.resolve({ data: [], error: null }).then(ok);
@@ -183,5 +184,72 @@ describe("el reintento de adjuntos de F28 en la misma corrida", () => {
       },
     });
     expect(vigiladosAlReintentar).toBe(2);
+  });
+});
+
+describe("la purga de F30 en la misma corrida", () => {
+  const vacio = { contactos: 0, conversaciones: 0, notas: 0, archivos: 0 };
+
+  it("corre por espacio y escribe su marca con el resumen (control positivo)", async () => {
+    const { servicio, tareas } = baseFalsa([ESPACIO, { ...ESPACIO, id: "ws-2" }]);
+    const purgados: string[] = [];
+    const r = await correrTareas({
+      servicio: servicio as never,
+      ahora: new Date(),
+      deps: { ...deps, purgar: async (_s, ws) => (purgados.push(ws), { ...vacio, contactos: 1 }) },
+    });
+    expect(purgados).toEqual(["ws-1", "ws-2"]);
+    expect(r.purgas).toEqual({ ok: 2, fallo: 0 });
+    const fila = tareas.get(claveDePurga("ws-1"))!;
+    expect(marcaVisible(fila)).not.toBeNull();
+    expect(fila.workspace_id).toBe("ws-1");
+    expect(fila.resultado).toMatchObject({ contactos: 1 });
+    expect(fila.ocupada_hasta).toBeNull();
+  });
+
+  it("no vuelve a correr si la última buena tiene menos de 24 horas, y sí pasadas las 24", async () => {
+    const { servicio, tareas } = baseFalsa([ESPACIO]);
+    const ahora = new Date("2026-10-20T12:00:00Z");
+    tareas.set(claveDePurga("ws-1"), { clave: claveDePurga("ws-1"), workspace_id: "ws-1", ultimo_ok_at: "2026-10-19T13:00:00Z" });
+    let corridas = 0;
+    const purgar = async () => (corridas++, vacio);
+    await correrTareas({ servicio: servicio as never, ahora, deps: { ...deps, purgar } });
+    expect(corridas).toBe(0);
+    await correrTareas({ servicio: servicio as never, ahora: new Date("2026-10-20T13:00:00Z"), deps: { ...deps, purgar } });
+    expect(corridas).toBe(1);
+  });
+
+  it("un fallo de la purga queda en su fila, no frena la vigilancia ni los otros espacios, y no es un 500", async () => {
+    const { servicio, tareas } = baseFalsa([ESPACIO, { ...ESPACIO, id: "ws-2" }]);
+    const r = await correrTareas({
+      servicio: servicio as never,
+      ahora: new Date(),
+      deps: {
+        ...deps,
+        purgar: async (_s, ws) => {
+          if (ws === "ws-1") throw new Error("message-media: se cayó Storage");
+          return vacio;
+        },
+      },
+    });
+    expect(r.fallidas).toBe(0);
+    expect(r.purgas).toEqual({ ok: 1, fallo: 1 });
+    const fila = tareas.get(claveDePurga("ws-1"))!;
+    expect(fila.ultimo_error).toBe("message-media: se cayó Storage");
+    expect(fila.ultimo_ok_at ?? null).toBeNull();
+    expect(fila.ocupada_hasta).toBeNull();
+    expect(marcaVisible(tareas.get(claveDeVigilancia("ws-1")))).not.toBeNull();
+    expect(marcaVisible(tareas.get(claveDePurga("ws-2")))).not.toBeNull();
+  });
+
+  it("la marca visible se pone en rojo a las 25 horas, no a los 30 minutos", () => {
+    const ahora = new Date("2026-10-20T12:00:00Z");
+    const hace = (h: number) => ({ ultimo_ok_at: new Date(ahora.getTime() - h * 3_600_000).toISOString() });
+    expect(textoDeLaPurga(hace(1), ahora).vencida).toBe(false);
+    expect(textoDeLaPurga(hace(24.9), ahora).vencida).toBe(false);
+    expect(textoDeLaPurga(hace(25.1), ahora).vencida).toBe(true);
+    expect(textoDeLaPurga(hace(3), ahora).titulo).toBe("Última purga de eliminados: hace 3 h");
+    expect(textoDeLaPurga(null, ahora)).toEqual({ titulo: "La purga de eliminados todavía no corrió nunca.", vencida: true, error: null });
+    expect(textoDeLaPurga({ ultimo_ok_at: null, ultimo_error: "boom" }, ahora).error).toBe("boom");
   });
 });

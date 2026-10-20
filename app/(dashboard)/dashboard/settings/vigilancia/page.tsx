@@ -3,7 +3,8 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { hasWorkspaceSecret, SECRET_NAMES } from "@/lib/vault";
 import { SettingsTabs } from "@/components/settings/settings-tabs";
 import { etiquetaDeCanal } from "@/lib/auditoria";
-import { haceCuanto, marcaVencida, marcaVisible, textoDelReintento } from "@/lib/tareas-estado";
+import { haceCuanto, marcaVencida, marcaVisible, textoDeLaPurga, textoDelReintento } from "@/lib/tareas-estado";
+import { claveDePurga } from "@/lib/purga";
 import { CLAVE_DE_REINTENTO_DE_ADJUNTOS, claveDeVigilancia } from "@/lib/tareas-programadas";
 import { textoDeSuscripcion, type ResultadoSuscripcion } from "@/lib/vigilancia-suscripcion";
 import { cn } from "@/lib/utils";
@@ -34,7 +35,7 @@ export default async function VigilanciaPage() {
   const { workspace, supabase } = await getWorkspaceAsManager();
   const servicio = await createServiceClient();
 
-  const [{ data: canales, error }, { data: tarea }, tieneZernio, { data: reintento }] = await Promise.all([
+  const [{ data: canales, error }, { data: tarea }, tieneZernio, { data: reintento }, { data: purga }] = await Promise.all([
     supabase
       .from("channels")
       .select("id, platform, username, display_name, instance_name, is_active, last_inbound_at, umbral_silencio_horas")
@@ -51,6 +52,11 @@ export default async function VigilanciaPage() {
       .select("ultima_ejecucion_at, ultimo_ok_at, ultimo_error")
       .eq("clave", CLAVE_DE_REINTENTO_DE_ADJUNTOS)
       .maybeSingle(),
+    servicio
+      .from("tareas_estado")
+      .select("ultima_ejecucion_at, ultimo_ok_at, ultimo_error")
+      .eq("clave", claveDePurga(workspace.id))
+      .maybeSingle(),
   ]);
 
   if (error) {
@@ -66,6 +72,7 @@ export default async function VigilanciaPage() {
   const textoSuscripcion = textoDeSuscripcion(suscripcion);
   const leida = suscripcion && suscripcion !== "sin_clave" && !suscripcion.error ? suscripcion : null;
   const adjuntos = textoDelReintento(reintento, ahora);
+  const purgaTexto = textoDeLaPurga(purga, ahora);
 
   return (
     <div className="flex h-full flex-col">
@@ -171,6 +178,21 @@ export default async function VigilanciaPage() {
               Si esta hora deja de avanzar, las fotos, audios y videos que no se pudieron bajar no se vuelven a intentar.
             </p>
             {adjuntos.error && <p className="text-xs">La última corrida falló: {adjuntos.error}</p>}
+          </div>
+
+          <div
+            className={cn(
+              "space-y-1 rounded-lg border px-4 py-3 text-sm",
+              purgaTexto.vencida
+                ? "border-red-300 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100"
+                : "border-border bg-muted/30",
+            )}
+          >
+            <p className="font-medium">{purgaTexto.titulo}</p>
+            <p className={purgaTexto.vencida ? "" : "text-muted-foreground"}>
+              Corre una vez por día y borra definitivamente lo que lleva más de 30 días eliminado. Si esta hora deja de avanzar, lo eliminado no se borra nunca.
+            </p>
+            {purgaTexto.error && <p className="text-xs">La última corrida falló: {purgaTexto.error}</p>}
           </div>
         </div>
       </div>
