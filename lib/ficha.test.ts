@@ -35,3 +35,18 @@ describe("la ficha (F30)", () => {
     expect(enlaceAlHilo("abc")).toBe("/dashboard/inbox?conversacion=abc");
   });
 });
+
+describe("el resumen de una conversación en la ficha (lectura de Marcos del 20/10/2026)", () => {
+  it("sin texto en el resumen, muestra el tipo del último mensaje, no «Sin mensajes»", async () => {
+    const { resumenDeConversacion } = await import("./ficha");
+    expect(resumenDeConversacion("", "video")).toBe("Video");
+    expect(resumenDeConversacion(null, "imagen")).toBe("Foto");
+    expect(resumenDeConversacion("", "audio")).toBe("Audio");
+    expect(resumenDeConversacion("", "otro")).toBe("Adjunto");
+  });
+  it("con texto, el texto; y «Sin mensajes» solo si de verdad no tiene", async () => {
+    const { resumenDeConversacion } = await import("./ficha");
+    expect(resumenDeConversacion("hola", "texto")).toBe("hola");
+    expect(resumenDeConversacion("", null)).toBe("Sin mensajes");
+  });
+});

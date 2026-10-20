@@ -155,6 +155,11 @@ await correr(async () => {
     const convFWa = await conv(F, canalWa, "whatsapp", new Date(ahora - 120_000).toISOString());
     const convA = await conv(A, canalWa, "whatsapp", new Date(ahora - 30_000).toISOString());
     await admin("messages", { method: "POST", body: JSON.stringify({ conversation_id: convA, direction: "inbound", text: `ajeno-${sufijo}`, platform_message_id: `b3-ficha-A-${sufijo}` }) });
+    // Un video sin texto como último mensaje de la de WhatsApp, con el resumen
+    // vacío, como lo deja el receptor: la ficha tiene que decir «Video», no
+    // «Sin mensajes» (lectura de Marcos del 20/10/2026).
+    await admin("messages", { method: "POST", body: JSON.stringify({ conversation_id: convFWa, direction: "inbound", message_type: "video", platform_message_id: `b3-ficha-video-${sufijo}` }) });
+    await admin(`conversations?id=eq.${convFWa}`, { method: "PATCH", body: JSON.stringify({ last_message_preview: "" }) });
     const NOTA = `nota-del-owner-${sufijo}`;
     await comoUsuario(owner.token, "contact_notes", { method: "POST", body: JSON.stringify({ workspace_id: espacio, contact_id: F, body: NOTA }) });
 
@@ -205,6 +210,7 @@ await correr(async () => {
     tiene(fo.html, `WhatsApp (instancia b3-ficha-${sufijo})`, "el grupo de WhatsApp");
     tiene(fo.html, `/dashboard/inbox?conversacion=${convFIg}`, "el enlace al hilo de Instagram");
     tiene(fo.html, `/dashboard/inbox?conversacion=${convFWa}`, "el enlace al hilo de WhatsApp");
+    check(fo.html.includes(">Video</p>"), "una conversación cuyo último mensaje es un video sin texto dice «Video», no «Sin mensajes»");
     check(fo.html.includes("14:40") && !fo.html.includes("20:40"), "la última interacción en la hora de Costa Rica (14:40), no en UTC (20:40)");
 
     titulo("La marca de «Teléfono sin resolver», en U");

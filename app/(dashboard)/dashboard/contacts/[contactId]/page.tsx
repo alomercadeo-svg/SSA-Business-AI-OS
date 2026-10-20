@@ -15,6 +15,7 @@ import {
   enlaceAlHilo,
   fechaSinHora,
   horaDelNegocio,
+  resumenDeConversacion,
   textoDeToque,
   TEXTO_DE_TEMPERATURA,
   type ConversacionDeFicha,
@@ -93,6 +94,24 @@ export default async function ContactDetailPage({
   const contact = contactRes.data;
   const canales = channelsRes.data ?? [];
   const grupos = agruparPorCanal((conversationsRes.data ?? []) as unknown as ConversacionDeFicha[], etiquetaDeCanal);
+  // El tipo del último mensaje de cada conversación: para un resumen vacío
+  // (un video, una foto sin texto). Una consulta por conversación; un contacto
+  // tiene pocas.
+  const tipos = new Map<string, string | null>(
+    await Promise.all(
+      (conversationsRes.data ?? []).map(async (c) => {
+        const { data } = await supabase
+          .from("messages")
+          .select("message_type")
+          .eq("conversation_id", c.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        // Un mensaje sin tipo (de antes de F27) cuenta como «otro»: hay mensaje.
+        return [c.id, data ? ((data as { message_type?: string | null }).message_type ?? "otro") : null] as [string, string | null];
+      }),
+    ),
+  );
   const customFields = customFieldsRes.data ?? [];
   const notas = (notasRes.data ?? []) as NotaDeFicha[];
   const historial = historialRes.data ?? [];
@@ -276,7 +295,7 @@ export default async function ContactDetailPage({
                             <span>{conv.status === "closed" ? "Cerrada" : conv.status === "snoozed" ? "Pospuesta" : "Abierta"}</span>
                             <span>{horaDelNegocio(conv.last_message_at)}</span>
                           </div>
-                          <p className="mt-0.5 truncate text-sm">{conv.last_message_preview || "Sin mensajes"}</p>
+                          <p className="mt-0.5 truncate text-sm">{resumenDeConversacion(conv.last_message_preview, tipos.get(conv.id))}</p>
                         </Link>
                       ))}
                     </div>

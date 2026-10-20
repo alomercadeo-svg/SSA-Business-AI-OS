@@ -105,6 +105,29 @@ export function textoDeToque(t: Toque | null | undefined): string {
 
 export const TEXTO_DE_TEMPERATURA: Record<string, string> = { frio: "Frío", tibio: "Tibio", caliente: "Caliente" };
 
+const TEXTO_DE_TIPO: Record<string, string> = {
+  texto: "Mensaje",
+  imagen: "Foto",
+  audio: "Audio",
+  video: "Video",
+  documento: "Documento",
+  sticker: "Sticker",
+  ubicacion: "Ubicación",
+  otro: "Adjunto",
+};
+
+/**
+ * La línea de una conversación en la ficha. Un mensaje sin texto (un video,
+ * una foto) deja el resumen guardado vacío: entonces se muestra el tipo del
+ * último mensaje. «Sin mensajes» solo cuando no hay ninguno. Antes decía «Sin
+ * mensajes» con 18 mensajes guardados (lectura de Marcos del 20/10/2026).
+ */
+export function resumenDeConversacion(resumen: string | null | undefined, tipoDelUltimo: string | null | undefined): string {
+  if (resumen && resumen.trim()) return resumen;
+  if (!tipoDelUltimo) return "Sin mensajes";
+  return TEXTO_DE_TIPO[tipoDelUltimo] ?? "Adjunto";
+}
+
 /** El enlace de una conversación de la ficha: abre ese hilo en la bandeja. */
 export function enlaceAlHilo(conversacionId: string): string {
   return `/dashboard/inbox?conversacion=${encodeURIComponent(conversacionId)}`;
