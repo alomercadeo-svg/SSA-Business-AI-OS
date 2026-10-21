@@ -635,7 +635,7 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 
 **Descripción.** WhatsApp está migrando a un esquema donde el identificador del contacto puede ser un código opaco en lugar del número de teléfono. Evolution reemplaza ese código por el número antes de avisarnos, pero solo cuando tiene el dato para hacerlo. Cuando no lo tiene, el mensaje llega sin número por ningún lado, y no existe forma de averiguarlo.
 
-**Estado: no completa** (7 de octubre de 2026). Construida en la sesión 1 del Bloque 3, con la migración 00031: el identificador crudo y el modo en `contact_channels`, `messages.remote_jid` (los dos sin sobrescribirse), `channels.platform_account_id` con un solo canal activo por ranura de Zernio, y las funciones `reconciliar_telefono`, `fusionar_contactos` y `contar_mensajes_sin_telefono`. En la ficha están la carga manual del teléfono y la propuesta de fusión con los dos lados; la fusión es solo de Owner y Admin. Probada contra la base real con datos simulados (`scripts/verify-identidad-canal.mjs`, 32 de 32). Que `platformUserId` llega en la raíz de cada cuenta se verificó el 07/10/2026 con un GET de solo lectura a Zernio; un reemplazo real de cuenta no se provocó. **Cierra con F27, en la sesión 2:** guardar los entrantes y, con eso, escribir los identificadores, las dos vías automáticas de reconciliación y el contador con datos reales; el detalle está en `docs/estado-fase1.md`, «Lo que F27 tiene que cerrar de F25 y F26». **Dependen además de otras funcionalidades:** las notas en la fusión (F30), la sugerencia de fusión cuando la reconciliación es automática (F29) y «Ver la cola» del contador (F35). Antes decía: no construido (verificado el 22 de septiembre de 2026: depende de columnas de F25, que no están aplicadas).
+**Estado: no completa** (7 de octubre de 2026). Construida en la sesión 1 del Bloque 3, con la migración 00031: el identificador crudo y el modo en `contact_channels`, `messages.remote_jid` (los dos sin sobrescribirse), `channels.platform_account_id` con un solo canal activo por ranura de Zernio, y las funciones `reconciliar_telefono`, `fusionar_contactos` y `contar_mensajes_sin_telefono`. En la ficha están la carga manual del teléfono y la propuesta de fusión con los dos lados; la fusión es solo de Owner y Admin. Probada contra la base real con datos simulados (`scripts/verify-identidad-canal.mjs`, 32 de 32). Que `platformUserId` llega en la raíz de cada cuenta se verificó el 07/10/2026 con un GET de solo lectura a Zernio; un reemplazo real de cuenta no se provocó. **Cierra con F27, en la sesión 2:** guardar los entrantes y, con eso, escribir los identificadores, las dos vías automáticas de reconciliación y el contador con datos reales; el detalle está en `docs/estado-fase1.md`, «Lo que F27 tiene que cerrar de F25 y F26». **Dependen además de otras funcionalidades:** las notas en la fusión (F30), la sugerencia de fusión cuando la reconciliación es automática (F29) y «Ver la cola» del contador (F35). **Actualizado el 20/10/2026:** las notas en la fusión y la sugerencia automática están construidas y probadas (F30 y F29, completas); la vía 2 de reconciliación se dio de baja ese día, decidido por Marcos (en Evolution 2.3.7 el aviso de contacto trae un solo identificador), y el criterio queda con dos vías. Antes decía: no construido (verificado el 22 de septiembre de 2026: depende de columnas de F25, que no están aplicadas).
 
 Como el número todavía no está conectado, no sabemos con qué frecuencia pasa. El diseño tiene que funcionar bien en los dos escenarios.
 
@@ -645,10 +645,9 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [x] Cada mensaje guarda el identificador con el que llegó, sin sobrescribirlo
 - [x] Un contacto sin teléfono conocido entra como contacto nuevo, con marca visible de "teléfono sin resolver"
 - [x] Nunca se deduplica por nombre. Un duplicado visible y reconciliable es preferible a una fusión incorrecta, que es destructiva y difícil de deshacer
-- [ ] Reconciliación posterior por tres vías, todas con registro en el historial de auditoría:
+- [ ] Reconciliación posterior por dos vías, las dos con registro en el historial de auditoría:
     1. Un mensaje posterior de la misma conversación que sí traiga el teléfono
-    2. El aviso de actualización de contacto que manda Evolution, que aplica el mismo criterio
-    3. Carga manual del teléfono por el operador desde la ficha. Esta es la que garantiza que el caso nunca queda trabado, y es barata de construir
+    2. Carga manual del teléfono por el operador desde la ficha. Esta es la que garantiza que el caso nunca queda trabado, y es barata de construir
 - [ ] Al reconciliar, si ya existe otro contacto con ese teléfono, se propone la fusión mostrando los dos lados. La fusión la confirma una persona, nunca es automática
 - [ ] Al fusionar se unifican conversaciones, notas, etiquetas y atribución
 - [x] Instrumentación obligatoria: contador de cuántos mensajes entrantes llegan sin teléfono resuelto, visible para el Owner. Es el dato que decide si esto es marginal o si hay que invertir más
@@ -858,17 +857,17 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** reconocer que el que escribe por WhatsApp es el mismo que ya escribió por Instagram.
 
-**Estado: no construido** (inspeccionado el 22 de septiembre de 2026). `upsertContactForSender` en `lib/inbox-sync.ts` vincula por `platform_sender_id` y **no busca por teléfono ni por correo**. No hay nada de deduplicación entre canales.
+**Estado: completa** (20 de octubre de 2026, tramo 2 de la sesión 3 del Bloque 3): **7 de 7**, con el 1 y el 2 reescritos ese día (el correo no llega por ningún canal de la Fase 1). Migración 00039 (`buscar_contacto_entre_canales`, `sugerencias_union` con `descartar_sugerencia`, «contacto.vinculado» y las sugerencias en la fusión); el receptor vincula por teléfono en WhatsApp (también por `whatsapp_phone`, y restaura a un eliminado de los últimos 30 días), sugiere por usuario en Instagram y por conflicto de `reconciliar_telefono` (`lib/entre-canales.ts`); «¿Es la misma persona?» en el panel de la bandeja. Probada con `verify-entre-canales` contra producción (45 de 45). **Límites:** lo de WhatsApp, con avisos firmados de Evolution 2.3.7 (la forma de `prepareMessage`, `whatsapp.baileys.service.ts:4652-4704`); la llegada real, en la puesta en marcha del número. Lo de usuario, con una entrega de prueba armada desde una entrega real de Zernio; el primer caso real se verá cuando ocurra. La búsqueda por usuario no reconoce los contactos sin usuario guardado: 510 de 655 en @alomercadeo (candidato antes de S7 en §15). Antes decía: no construido (inspeccionado el 22 de septiembre de 2026): `upsertContactForSender` en `lib/inbox-sync.ts` vinculaba por `platform_sender_id` y no buscaba por teléfono ni por correo.
 
 **Criterios de aceptación:**
 
-- [ ] Al llegar un mensaje de un canal nuevo, se busca contacto por teléfono normalizado a E.164 según §14, correo o nombre de usuario (devuelto el 23/09/2026, auditoría #13b)
-- [ ] Coincidencia exacta de teléfono o correo vincula automáticamente
-- [ ] Coincidencia solo por nombre de usuario sugiere la vinculación al operador, no la hace sola
-- [ ] Se crea el registro de canal para el contacto
-- [ ] Cada conversación queda separada por canal, los hilos no se mezclan
-- [ ] La ficha muestra todas las conversaciones agrupadas por canal
-- [ ] Las vinculaciones automáticas y manuales quedan en el historial de auditoría
+- [x] Al llegar un mensaje de un canal nuevo, se busca contacto por teléfono normalizado a E.164 según §14 o por nombre de usuario. Por correo, cuando un canal lo traiga al llegar: en la Fase 1 ninguno lo trae (llega con el correo bidireccional de la Etapa 2); la búsqueda por correo está construida y probada simulada. (Reescrito el 20/10/2026, decidido por Marcos: el correo no llega por ningún canal de la Fase 1, y el 19/10 se decidió que una simulación no cuenta como datos reales; los correos de Pipedrive (F37) están en el contacto guardado, no en el mensaje que llega)
+- [x] Coincidencia exacta de teléfono vincula automáticamente. La de correo también, cuando un canal lo traiga al llegar (Etapa 2); en la Fase 1 ningún canal lo trae. (Reescrito el 20/10/2026, decidido por Marcos, con el mismo motivo que el anterior)
+- [x] Coincidencia solo por nombre de usuario sugiere la vinculación al operador, no la hace sola
+- [x] Se crea el registro de canal para el contacto
+- [x] Cada conversación queda separada por canal, los hilos no se mezclan
+- [x] La ficha muestra todas las conversaciones agrupadas por canal
+- [x] Las vinculaciones automáticas y manuales quedan en el historial de auditoría
 
 > **Hallazgo del 22 de septiembre de 2026, desarrollado en F26: una fila de canal puede convertirse en silencio en otra cuenta de Instagram**, porque Zernio reusó su identificador de cuenta al conectar una distinta y nuestro código empareja por ese identificador.
 >
@@ -880,27 +879,27 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** la vista completa del lead y la posibilidad de deshacer un borrado.
 
-**Estado: no construido** (verificado el 22 de septiembre de 2026: la tabla `contact_notes` no existe en la base).
+**Estado: completa** (20 de octubre de 2026, tramo 2 de la sesión 3 del Bloque 3): **10 de 11.** El 8 (`deleted_at` en respuestas rápidas) queda pendiente de F36, que desde el 20/10/2026 tiene el criterio que lo cubre. Migraciones 00037 (las notas, con su seguridad por filas y en la fusión) y 00038 (el borrado suave: «no eliminado» en las políticas de lectura y edición, ninguna política de borrar para usuarios, `eliminar_contacto`, `restaurar_contacto` y `contactos_eliminados`); la purga diaria (`lib/purga.ts`, una tarea de `POST /api/cron/tareas`, con su marca en Vigilancia de canales); la ficha en dos columnas con «Editar datos» (`PATCH /api/v1/contacts/[id]`), las notas, el historial y el clic al hilo. El lead eliminado se restaura solo si él o el negocio le escriben (decisiones de Marcos del 19 y el 20/10/2026). Probada con sesiones reales contra producción: `verify-notas` (43 de 43), `verify-borrado` (73 de 73), `verify-ficha` (64 de 64) y `verify-purga` (las tres fases, con la tarea real del cron); el detalle, en `docs/estado-fase1.md`. «No contactar» se vio con el dato puesto a mano en un espacio fantasma: el dato lo escribe F34. Antes decía: no construido (verificado el 22 de septiembre de 2026: la tabla `contact_notes` no existe en la base).
 
 **Criterios de aceptación:**
 
-- [ ] Tabla `contact_notes` con lista cronológica en la ficha. Cualquier miembro con acceso al contacto crea notas; solo el autor, un Admin o el Owner edita o elimina
-- [ ] **RLS: `contact_notes` hereda el scope del contacto asociado.** Un Member solo lee, crea o edita notas de los contactos donde es setter, vendedor o asignado, y eso se aplica en la base, no con un filtro en la interfaz. Se prueba con una consulta directa con el token de un Member, que no devuelve notas de contactos ajenos, y con su contraparte: un Owner o un Admin las ve todas. **Venía de F13 en `ebc9702` (`docs/requerimientos-fase1.md`, el plano de fase 1), se perdió en la conciliación de `584226f`, y se devolvió el 22 de septiembre de 2026.** Ver `docs/auditoria-conciliacion.md`
-- [ ] Ficha completa con datos, conversaciones por canal, notas, etiquetas, campos personalizados, historial y atribución
-- [ ] Muestra todos los datos: nombre, email, teléfono, redes, país, setter, vendedor, temperatura, fecha de seguimiento. Las redes son el handle de cada canal, que vive en `contact_channels` por la decisión del 22 de septiembre (§0) (devuelto el 23/09/2026, auditoría #63a y #63b)
-- [ ] Botón para editar todos los datos (devuelto el 23/09/2026, auditoría #67)
-- [ ] Clic en una conversación navega al hilo en la bandeja (devuelto el 23/09/2026, auditoría #68)
-- [ ] Marca visible si el contacto pidió no ser contactado, y marca si el teléfono está sin resolver
+- [x] Tabla `contact_notes` con lista cronológica en la ficha. Cualquier miembro con acceso al contacto crea notas; solo el autor, un Admin o el Owner edita o elimina
+- [x] **RLS: `contact_notes` hereda el scope del contacto asociado.** Un Member solo lee, crea o edita notas de los contactos donde es setter, vendedor o asignado, y eso se aplica en la base, no con un filtro en la interfaz. Se prueba con una consulta directa con el token de un Member, que no devuelve notas de contactos ajenos, y con su contraparte: un Owner o un Admin las ve todas. **Venía de F13 en `ebc9702` (`docs/requerimientos-fase1.md`, el plano de fase 1), se perdió en la conciliación de `584226f`, y se devolvió el 22 de septiembre de 2026.** Ver `docs/auditoria-conciliacion.md`
+- [x] Ficha completa con datos, conversaciones por canal, notas, etiquetas, campos personalizados, historial y atribución
+- [x] Muestra todos los datos: nombre, email, teléfono, redes, país, setter, vendedor, temperatura, fecha de seguimiento. Las redes son el handle de cada canal, que vive en `contact_channels` por la decisión del 22 de septiembre (§0) (devuelto el 23/09/2026, auditoría #63a y #63b)
+- [x] Botón para editar todos los datos (devuelto el 23/09/2026, auditoría #67)
+- [x] Clic en una conversación navega al hilo en la bandeja (devuelto el 23/09/2026, auditoría #68)
+- [x] Marca visible si el contacto pidió no ser contactado, y marca si el teléfono está sin resolver
 - [ ] Campo `deleted_at` en contactos, notas, conversaciones y respuestas rápidas. Eliminar marca la fecha, no borra
-- [ ] Los listados y las reglas de seguridad excluyen lo eliminado
-- [ ] Tarea diaria que borra definitivamente lo que lleva más de 30 días eliminado, en cascada
-- [ ] El historial de auditoría no se purga nunca
+- [x] Los listados y las reglas de seguridad excluyen lo eliminado
+- [x] Tarea diaria que borra definitivamente lo que lleva más de 30 días eliminado, en cascada
+- [x] El historial de auditoría no se purga nunca
 
 #### F31: Historial de auditoría
 
 **Descripción:** saber quién hizo qué y cuándo.
 
-**Estado: completa** (7 de octubre de 2026; vuelve a contar como completa el 8 de octubre de 2026, con el arreglo de abajo). **El camino de la importación estuvo roto desde el 07/10/2026 hasta el commit del arreglo, `8e21367`, el 08/10/2026:** la sincronización y «Probar y guardar» le pasaban a la importación el cliente del usuario, la importación auditaba «contacto creado» con ese cliente, y la 00028 le quita a los usuarios el permiso de insertar en `audit_log`. La fila se rechazaba y el rechazo solo iba al log. Se encontró en la prueba de F24 del 08/10/2026: los 7 contactos importados ese día entre las 12:20:49 y las 12:21:13 quedaron sin su fila, y no se completan. **El arreglo:** `registrarAuditoria` ya no recibe cliente y escribe siempre con el de servicio, y la importación audita a nombre de quien la disparó. Ningún usuario recupera el permiso de insertar. Lo que sigue es como estaba, por la regla decidida ese día: una funcionalidad está completa cuando todo lo que hace por sí misma funciona con datos reales y lo único pendiente son registros de funcionalidades que todavía no existen y que ya tienen dueño escrito. La migración 00028, `lib/auditoria.ts` y la pestaña «Historial de cambios» de Configuración. Probada contra la base real con `scripts/verify-auditoria.mjs` (19 de 19). Registra: contacto creado, teléfono editado o reconciliado y contactos fusionados; canal conectado, desconectado, con error y reemplazado; los cambios de configuración (Integraciones, la clave de Zernio y la pestaña General, que pasó a acción de servidor para esto); y los movimientos de equipo. **El criterio «Registran entrada: …» queda sin tildar hasta que las cuatro funcionalidades que faltan registren sus eventos:** F41 (asignado), F34 (no contactar) y F37 (importaciones), por criterio propio; contacto editado desde la ficha, eliminado y restaurado, F30, por instrucción de su sesión, porque F30 no tiene un criterio que lo pida. Antes decía: no construido (verificado el 22 de septiembre de 2026: la tabla `audit_log` no existe en la base).
+**Estado: completa** (7 de octubre de 2026; vuelve a contar como completa el 8 de octubre de 2026, con el arreglo de abajo). **El camino de la importación estuvo roto desde el 07/10/2026 hasta el commit del arreglo, `8e21367`, el 08/10/2026:** la sincronización y «Probar y guardar» le pasaban a la importación el cliente del usuario, la importación auditaba «contacto creado» con ese cliente, y la 00028 le quita a los usuarios el permiso de insertar en `audit_log`. La fila se rechazaba y el rechazo solo iba al log. Se encontró en la prueba de F24 del 08/10/2026: los 7 contactos importados ese día entre las 12:20:49 y las 12:21:13 quedaron sin su fila, y no se completan. **El arreglo:** `registrarAuditoria` ya no recibe cliente y escribe siempre con el de servicio, y la importación audita a nombre de quien la disparó. Ningún usuario recupera el permiso de insertar. Lo que sigue es como estaba, por la regla decidida ese día: una funcionalidad está completa cuando todo lo que hace por sí misma funciona con datos reales y lo único pendiente son registros de funcionalidades que todavía no existen y que ya tienen dueño escrito. La migración 00028, `lib/auditoria.ts` y la pestaña «Historial de cambios» de Configuración. Probada contra la base real con `scripts/verify-auditoria.mjs` (19 de 19). Registra: contacto creado, teléfono editado o reconciliado y contactos fusionados; canal conectado, desconectado, con error y reemplazado; los cambios de configuración (Integraciones, la clave de Zernio y la pestaña General, que pasó a acción de servidor para esto); y los movimientos de equipo. **El criterio «Registran entrada: …» queda sin tildar hasta que las cuatro funcionalidades que faltan registren sus eventos:** F41 (asignado), F34 (no contactar) y F37 (importaciones), por criterio propio; contacto editado desde la ficha, eliminado y restaurado, F30, por instrucción de su sesión, porque F30 no tiene un criterio que lo pida (**hecho el 20/10/2026:** la 00038 los suma al `check`, y los escriben «Editar datos», `eliminar_contacto` y `restaurar_contacto`; quedan F34 y F37). Antes decía: no construido (verificado el 22 de septiembre de 2026: la tabla `audit_log` no existe en la base).
 
 **Criterios de aceptación:**
 
@@ -1031,7 +1030,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** textos reutilizables que el operador inserta escribiendo una barra.
 
-**Estado: no construido, y la tabla hay que crearla** (verificado el 22 de septiembre de 2026).
+**Estado: no construido, y la tabla hay que crearla** (verificado el 22 de septiembre de 2026). **El 20/10/2026 suma un criterio**, decidido por Marcos: el borrado suave de las respuestas rápidas, que es el dueño de esa parte del criterio de `deleted_at` de F30. F36 es del Bloque 4: no toca la línea de base del Bloque 3.
 
 > **`response_templates` no es una tabla del fork que el `CLAUDE.md` recordara mal: es un nombre que elegimos nosotros para una tabla que no existe.**
 >
@@ -1048,6 +1047,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [ ] Interpolación de datos del contacto; si un dato falta, queda vacío
 - [ ] Al seleccionar, se inserta el contenido con las variables interpoladas: `{{contact.display_name}}`, `{{contact.email}}`, `{{contact.phone}}`, `{{workspace.name}}` (devuelto el 23/09/2026, auditoría #88b)
 - [ ] En la interfaz se llaman "respuestas rápidas", nunca "plantillas", para no confundirlas con las plantillas de WhatsApp del plan B
+- [ ] Eliminar una respuesta rápida marca la fecha y no la borra (`deleted_at` en `response_templates`). Las listas y la seguridad por filas excluyen las eliminadas, y la purga diaria de F30 (`lib/purga.ts`) también las borra a los 30 días. (Agregado el 20/10/2026, decidido por Marcos: es el dueño de la parte de respuestas rápidas del criterio de `deleted_at` de F30)
 
 #### F37: Importación de contactos desde planilla
 

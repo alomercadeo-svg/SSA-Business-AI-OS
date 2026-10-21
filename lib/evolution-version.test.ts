@@ -49,4 +49,11 @@ describe("la versión fijada de Evolution", () => {
     expect(fuente).toContain("jwt_key");
     expect(fuente).toContain("ANTES DE CAMBIAR ESTOS VALORES");
   });
+
+  it("también dice que hay que volver a mirar si el aviso de contacto trae los dos identificadores (F26, 20/10/2026)", () => {
+    const fuente = readFileSync(join(__dirname, "evolution-version.mjs"), "utf8");
+    expect(fuente).toContain("TERCERA COSA QUE HAY QUE REVISAR");
+    expect(fuente).toContain("contacts.upsert");
+    expect(fuente).toContain("@lid");
+  });
 });

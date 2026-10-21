@@ -1041,7 +1041,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F26: Identidad de canal y reconciliación de teléfonos"
     ],
-    "texto": "- [ ] Reconciliación posterior por tres vías, todas con registro en el historial de auditoría:"
+    "texto": "- [ ] Reconciliación posterior por dos vías, las dos con registro en el historial de auditoría:"
   },
   {
     "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
@@ -1059,16 +1059,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F26: Identidad de canal y reconciliación de teléfonos"
     ],
-    "texto": "2. El aviso de actualización de contacto que manda Evolution, que aplica el mismo criterio"
-  },
-  {
-    "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
-    "ruta": [
-      "5. Funcionalidades y criterios de aceptación",
-      "Bloque 3: Modelo de contacto, ingesta y CRM",
-      "F26: Identidad de canal y reconciliación de teléfonos"
-    ],
-    "texto": "3. Carga manual del teléfono por el operador desde la ficha. Esta es la que garantiza que el caso nunca queda trabado, y es barata de construir"
+    "texto": "2. Carga manual del teléfono por el operador desde la ficha. Esta es la que garantiza que el caso nunca queda trabado, y es barata de construir"
   },
   {
     "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
@@ -1437,7 +1428,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F29: Detección de contacto entre canales"
     ],
-    "texto": "- [ ] Al llegar un mensaje de un canal nuevo, se busca contacto por teléfono normalizado a E.164 según §14, correo o nombre de usuario (devuelto el 23/09/2026, auditoría #13b)"
+    "texto": "- [x] Al llegar un mensaje de un canal nuevo, se busca contacto por teléfono normalizado a E.164 según §14 o por nombre de usuario. Por correo, cuando un canal lo traiga al llegar: en la Fase 1 ninguno lo trae (llega con el correo bidireccional de la Etapa 2); la búsqueda por correo está construida y probada simulada. (Reescrito el 20/10/2026, decidido por Marcos: el correo no llega por ningún canal de la Fase 1, y el 19/10 se decidió que una simulación no cuenta como datos reales; los correos de Pipedrive (F37) están en el contacto guardado, no en el mensaje que llega)"
   },
   {
     "seccion": "F29: Detección de contacto entre canales",
@@ -1446,7 +1437,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F29: Detección de contacto entre canales"
     ],
-    "texto": "- [ ] Coincidencia exacta de teléfono o correo vincula automáticamente"
+    "texto": "- [x] Coincidencia exacta de teléfono vincula automáticamente. La de correo también, cuando un canal lo traiga al llegar (Etapa 2); en la Fase 1 ningún canal lo trae. (Reescrito el 20/10/2026, decidido por Marcos, con el mismo motivo que el anterior)"
   },
   {
     "seccion": "F29: Detección de contacto entre canales",
@@ -1455,7 +1446,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F29: Detección de contacto entre canales"
     ],
-    "texto": "- [ ] Coincidencia solo por nombre de usuario sugiere la vinculación al operador, no la hace sola"
+    "texto": "- [x] Coincidencia solo por nombre de usuario sugiere la vinculación al operador, no la hace sola"
   },
   {
     "seccion": "F29: Detección de contacto entre canales",
@@ -1464,7 +1455,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F29: Detección de contacto entre canales"
     ],
-    "texto": "- [ ] Se crea el registro de canal para el contacto"
+    "texto": "- [x] Se crea el registro de canal para el contacto"
   },
   {
     "seccion": "F29: Detección de contacto entre canales",
@@ -1473,7 +1464,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F29: Detección de contacto entre canales"
     ],
-    "texto": "- [ ] Cada conversación queda separada por canal, los hilos no se mezclan"
+    "texto": "- [x] Cada conversación queda separada por canal, los hilos no se mezclan"
   },
   {
     "seccion": "F29: Detección de contacto entre canales",
@@ -1482,7 +1473,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F29: Detección de contacto entre canales"
     ],
-    "texto": "- [ ] La ficha muestra todas las conversaciones agrupadas por canal"
+    "texto": "- [x] La ficha muestra todas las conversaciones agrupadas por canal"
   },
   {
     "seccion": "F29: Detección de contacto entre canales",
@@ -1491,7 +1482,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F29: Detección de contacto entre canales"
     ],
-    "texto": "- [ ] Las vinculaciones automáticas y manuales quedan en el historial de auditoría"
+    "texto": "- [x] Las vinculaciones automáticas y manuales quedan en el historial de auditoría"
   },
   {
     "seccion": "F30: Notas, ficha de contacto y borrado suave",
@@ -1500,7 +1491,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F30: Notas, ficha de contacto y borrado suave"
     ],
-    "texto": "- [ ] Tabla `contact_notes` con lista cronológica en la ficha. Cualquier miembro con acceso al contacto crea notas; solo el autor, un Admin o el Owner edita o elimina"
+    "texto": "- [x] Tabla `contact_notes` con lista cronológica en la ficha. Cualquier miembro con acceso al contacto crea notas; solo el autor, un Admin o el Owner edita o elimina"
   },
   {
     "seccion": "F30: Notas, ficha de contacto y borrado suave",
@@ -1509,7 +1500,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F30: Notas, ficha de contacto y borrado suave"
     ],
-    "texto": "- [ ] **RLS: `contact_notes` hereda el scope del contacto asociado.** Un Member solo lee, crea o edita notas de los contactos donde es setter, vendedor o asignado, y eso se aplica en la base, no con un filtro en la interfaz. Se prueba con una consulta directa con el token de un Member, que no devuelve notas de contactos ajenos, y con su contraparte: un Owner o un Admin las ve todas. **Venía de F13 en `ebc9702` (`docs/requerimientos-fase1.md`, el plano de fase 1), se perdió en la conciliación de `584226f`, y se devolvió el 22 de septiembre de 2026.** Ver `docs/auditoria-conciliacion.md`"
+    "texto": "- [x] **RLS: `contact_notes` hereda el scope del contacto asociado.** Un Member solo lee, crea o edita notas de los contactos donde es setter, vendedor o asignado, y eso se aplica en la base, no con un filtro en la interfaz. Se prueba con una consulta directa con el token de un Member, que no devuelve notas de contactos ajenos, y con su contraparte: un Owner o un Admin las ve todas. **Venía de F13 en `ebc9702` (`docs/requerimientos-fase1.md`, el plano de fase 1), se perdió en la conciliación de `584226f`, y se devolvió el 22 de septiembre de 2026.** Ver `docs/auditoria-conciliacion.md`"
   },
   {
     "seccion": "F30: Notas, ficha de contacto y borrado suave",
@@ -1518,7 +1509,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F30: Notas, ficha de contacto y borrado suave"
     ],
-    "texto": "- [ ] Ficha completa con datos, conversaciones por canal, notas, etiquetas, campos personalizados, historial y atribución"
+    "texto": "- [x] Ficha completa con datos, conversaciones por canal, notas, etiquetas, campos personalizados, historial y atribución"
   },
   {
     "seccion": "F30: Notas, ficha de contacto y borrado suave",
@@ -1527,7 +1518,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F30: Notas, ficha de contacto y borrado suave"
     ],
-    "texto": "- [ ] Muestra todos los datos: nombre, email, teléfono, redes, país, setter, vendedor, temperatura, fecha de seguimiento. Las redes son el handle de cada canal, que vive en `contact_channels` por la decisión del 22 de septiembre (§0) (devuelto el 23/09/2026, auditoría #63a y #63b)"
+    "texto": "- [x] Muestra todos los datos: nombre, email, teléfono, redes, país, setter, vendedor, temperatura, fecha de seguimiento. Las redes son el handle de cada canal, que vive en `contact_channels` por la decisión del 22 de septiembre (§0) (devuelto el 23/09/2026, auditoría #63a y #63b)"
   },
   {
     "seccion": "F30: Notas, ficha de contacto y borrado suave",
@@ -1536,7 +1527,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F30: Notas, ficha de contacto y borrado suave"
     ],
-    "texto": "- [ ] Botón para editar todos los datos (devuelto el 23/09/2026, auditoría #67)"
+    "texto": "- [x] Botón para editar todos los datos (devuelto el 23/09/2026, auditoría #67)"
   },
   {
     "seccion": "F30: Notas, ficha de contacto y borrado suave",
@@ -1545,7 +1536,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F30: Notas, ficha de contacto y borrado suave"
     ],
-    "texto": "- [ ] Clic en una conversación navega al hilo en la bandeja (devuelto el 23/09/2026, auditoría #68)"
+    "texto": "- [x] Clic en una conversación navega al hilo en la bandeja (devuelto el 23/09/2026, auditoría #68)"
   },
   {
     "seccion": "F30: Notas, ficha de contacto y borrado suave",
@@ -1554,7 +1545,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F30: Notas, ficha de contacto y borrado suave"
     ],
-    "texto": "- [ ] Marca visible si el contacto pidió no ser contactado, y marca si el teléfono está sin resolver"
+    "texto": "- [x] Marca visible si el contacto pidió no ser contactado, y marca si el teléfono está sin resolver"
   },
   {
     "seccion": "F30: Notas, ficha de contacto y borrado suave",
@@ -1572,7 +1563,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F30: Notas, ficha de contacto y borrado suave"
     ],
-    "texto": "- [ ] Los listados y las reglas de seguridad excluyen lo eliminado"
+    "texto": "- [x] Los listados y las reglas de seguridad excluyen lo eliminado"
   },
   {
     "seccion": "F30: Notas, ficha de contacto y borrado suave",
@@ -1581,7 +1572,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F30: Notas, ficha de contacto y borrado suave"
     ],
-    "texto": "- [ ] Tarea diaria que borra definitivamente lo que lleva más de 30 días eliminado, en cascada"
+    "texto": "- [x] Tarea diaria que borra definitivamente lo que lleva más de 30 días eliminado, en cascada"
   },
   {
     "seccion": "F30: Notas, ficha de contacto y borrado suave",
@@ -1590,7 +1581,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F30: Notas, ficha de contacto y borrado suave"
     ],
-    "texto": "- [ ] El historial de auditoría no se purga nunca"
+    "texto": "- [x] El historial de auditoría no se purga nunca"
   },
   {
     "seccion": "F31: Historial de auditoría",
@@ -2167,6 +2158,15 @@
       "F36: Respuestas rápidas"
     ],
     "texto": "- [ ] En la interfaz se llaman \"respuestas rápidas\", nunca \"plantillas\", para no confundirlas con las plantillas de WhatsApp del plan B"
+  },
+  {
+    "seccion": "F36: Respuestas rápidas",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F36: Respuestas rápidas"
+    ],
+    "texto": "- [ ] Eliminar una respuesta rápida marca la fecha y no la borra (`deleted_at` en `response_templates`). Las listas y la seguridad por filas excluyen las eliminadas, y la purga diaria de F30 (`lib/purga.ts`) también las borra a los 30 días. (Agregado el 20/10/2026, decidido por Marcos: es el dueño de la parte de respuestas rápidas del criterio de `deleted_at` de F30)"
   },
   {
     "seccion": "F37: Importación de contactos desde planilla",

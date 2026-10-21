@@ -691,5 +691,144 @@
     "nuevo": "- [x] **Control positivo:** asignar un contacto a un Member desde el dropdown hace que ese Member lo lea en una consulta directa por API con su token, y quitarle la asignación hace que deje de leerlo. Probar solo que un Member no ve lo ajeno no distingue entre un scope bien aplicado y una asignación que nunca se escribe (agregado el 23/09/2026)",
     "motivo": "Tildado el 19/10/2026, tramo 1 de la sesión 3 del Bloque 3, decidido por Marcos. F41 #7. `scripts/verify-asignacion.mjs` contra producción, después del despliegue O (`42efbd3`), 19/10/2026 17:50:32 a 17:50:50, salida 0, 38 de 38, en un espacio fantasma borrado y recontado. Con sesiones reales de un Owner y un Member: control de la sesión del Member en verde, no lee X, el Owner asigna por `PATCH /api/v1/contacts/[id]/asignacion` (la ruta del desplegable) y el Member lo lee; se le quita y deja de leerlo. Antes del despliegue, la misma corrida dio rojo por la ruta y el filtro con el control en verde (17:43:47). Clic real de Marcos en producción, el 19/10/2026, sobre @marcospittimusic (su cuenta de prueba, no un lead; única excepción del tramo, decidida por Marcos): Setter «Ale Admin» y vuelta a «Sin asignar», con «Asignación guardada. Queda en el historial.» las dos veces; filas `e09fd41e` (17:58:31) y `ccac15ce` (17:59:30) de `audit_log`, y el setter de `f2747f9b` releído en nulo a las 18:02:08. Ese clic cubre el paso del desplegable a la ruta, que el script no tocaba.",
     "fecha": "2026-10-19"
+  },
+  {
+    "texto": "- [ ] Tabla `contact_notes` con lista cronológica en la ficha. Cualquier miembro con acceso al contacto crea notas; solo el autor, un Admin o el Owner edita o elimina",
+    "destino": "reescrito",
+    "nuevo": "- [x] Tabla `contact_notes` con lista cronológica en la ficha. Cualquier miembro con acceso al contacto crea notas; solo el autor, un Admin o el Owner edita o elimina",
+    "motivo": "Tildado el 20/10/2026 por Marcos. Prueba: scripts/verify-notas.mjs contra producción (11:47 y 16:11, salida 0, 43 de 43: crear, leer, editar y eliminar con sus contrapartes) y scripts/verify-ficha.mjs (16:34:03 a 16:34:28, salida 0, 64 de 64): dos notas con horas distintas salen en la ficha con la más nueva arriba, el orden decidido por Marcos; visto en rojo con la expectativa invertida (16:33, salida 1). Datos reales en un espacio fantasma, con sesiones reales.",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] **RLS: `contact_notes` hereda el scope del contacto asociado.** Un Member solo lee, crea o edita notas de los contactos donde es setter, vendedor o asignado, y eso se aplica en la base, no con un filtro en la interfaz. Se prueba con una consulta directa con el token de un Member, que no devuelve notas de contactos ajenos, y con su contraparte: un Owner o un Admin las ve todas. **Venía de F13 en `ebc9702` (`docs/requerimientos-fase1.md`, el plano de fase 1), se perdió en la conciliación de `584226f`, y se devolvió el 22 de septiembre de 2026.** Ver `docs/auditoria-conciliacion.md`",
+    "destino": "reescrito",
+    "nuevo": "- [x] **RLS: `contact_notes` hereda el scope del contacto asociado.** Un Member solo lee, crea o edita notas de los contactos donde es setter, vendedor o asignado, y eso se aplica en la base, no con un filtro en la interfaz. Se prueba con una consulta directa con el token de un Member, que no devuelve notas de contactos ajenos, y con su contraparte: un Owner o un Admin las ve todas. **Venía de F13 en `ebc9702` (`docs/requerimientos-fase1.md`, el plano de fase 1), se perdió en la conciliación de `584226f`, y se devolvió el 22 de septiembre de 2026.** Ver `docs/auditoria-conciliacion.md`",
+    "motivo": "Tildado el 20/10/2026 por Marcos. Prueba: scripts/verify-notas.mjs contra producción (11:47 y 16:11, salida 0, 43 de 43): el Member no lee ni crea notas en un lead ajeno con su token, y el Owner y el Admin ven todas. Visto en rojo antes de la 00037 (10:55, salida 1).",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] Ficha completa con datos, conversaciones por canal, notas, etiquetas, campos personalizados, historial y atribución",
+    "destino": "reescrito",
+    "nuevo": "- [x] Ficha completa con datos, conversaciones por canal, notas, etiquetas, campos personalizados, historial y atribución",
+    "motivo": "Tildado el 20/10/2026 por Marcos. Prueba: scripts/verify-ficha.mjs contra producción (16:34, salida 0, 64 de 64), después de d54f159 (los campos propios: la ficha pedía field_type) y fbf4402 (el tipo del último mensaje en vez de «Sin mensajes»), los dos encontrados por las pruebas; y las lecturas de Marcos en producción (16:03 y 16:10).",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] Muestra todos los datos: nombre, email, teléfono, redes, país, setter, vendedor, temperatura, fecha de seguimiento. Las redes son el handle de cada canal, que vive en `contact_channels` por la decisión del 22 de septiembre (§0) (devuelto el 23/09/2026, auditoría #63a y #63b)",
+    "destino": "reescrito",
+    "nuevo": "- [x] Muestra todos los datos: nombre, email, teléfono, redes, país, setter, vendedor, temperatura, fecha de seguimiento. Las redes son el handle de cada canal, que vive en `contact_channels` por la decisión del 22 de septiembre (§0) (devuelto el 23/09/2026, auditoría #63a y #63b)",
+    "motivo": "Tildado el 20/10/2026 por Marcos. Prueba: scripts/verify-ficha.mjs (16:34, salida 0, 64 de 64), un chequeo por dato, con la fecha de seguimiento sin correrse de día y la hora en Costa Rica; y la lectura de Marcos de las 16:03 (las redes como el usuario del canal). La temperatura y el seguimiento con datos se vieron en el espacio fantasma.",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] Botón para editar todos los datos (devuelto el 23/09/2026, auditoría #67)",
+    "destino": "reescrito",
+    "nuevo": "- [x] Botón para editar todos los datos (devuelto el 23/09/2026, auditoría #67)",
+    "motivo": "Tildado el 20/10/2026 por Marcos. Prueba: scripts/verify-ficha.mjs (16:34, salida 0), la ruta PATCH /api/v1/contacts/[id] que llama el botón, con sesiones reales: el Member edita su lead y no uno ajeno, sin origen de la aplicación 403, el nombre a mano queda manual, «contacto editado» con antes y después, el teléfono de otro contacto da 409 con el otro (la propuesta de unión), el aviso de correo repetido; el botón está en la ficha. Nadie apretó el botón en pantalla; las redes no se editan, a propósito.",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] Clic en una conversación navega al hilo en la bandeja (devuelto el 23/09/2026, auditoría #68)",
+    "destino": "reescrito",
+    "nuevo": "- [x] Clic en una conversación navega al hilo en la bandeja (devuelto el 23/09/2026, auditoría #68)",
+    "motivo": "Tildado el 20/10/2026 por Marcos. Prueba: scripts/verify-ficha.mjs (16:34, salida 0): el enlace a /dashboard/inbox?conversacion=, una conversación más abajo de las 50 que el Member ve, una ajena que no ve, la lista sin cambios; y el clic de Marcos en producción a las 16:10, que abrió el hilo en la bandeja.",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] Marca visible si el contacto pidió no ser contactado, y marca si el teléfono está sin resolver",
+    "destino": "reescrito",
+    "nuevo": "- [x] Marca visible si el contacto pidió no ser contactado, y marca si el teléfono está sin resolver",
+    "motivo": "Tildado el 20/10/2026 por Marcos. Prueba: scripts/verify-ficha.mjs (16:34, salida 0): «Teléfono sin resolver» con datos reales en el espacio fantasma. «No contactar» se vio con el dato puesto a mano en el espacio fantasma; el dato lo escribe F34.",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] Los listados y las reglas de seguridad excluyen lo eliminado",
+    "destino": "reescrito",
+    "nuevo": "- [x] Los listados y las reglas de seguridad excluyen lo eliminado",
+    "motivo": "Tildado el 20/10/2026 por Marcos. Prueba: scripts/verify-borrado.mjs contra producción (15:20:48 a 15:21:17, salida 0, 73 de 73): el Member y el Owner dejan de leer el contacto, la conversación, los mensajes y el canal eliminados (con la presencia probada antes), «Eliminados» muestra a cada uno lo de su alcance, y ni el Member ni el Admin cambian deleted_at ni borran de verdad pidiéndolo directo.",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] Tarea diaria que borra definitivamente lo que lleva más de 30 días eliminado, en cascada",
+    "destino": "reescrito",
+    "nuevo": "- [x] Tarea diaria que borra definitivamente lo que lleva más de 30 días eliminado, en cascada",
+    "motivo": "Tildado el 20/10/2026 por Marcos. Prueba: scripts/verify-purga.mjs en sus tres fases (15:36 a 15:51, salida 0): la tarea real del cron (15:51:22) borró el contacto eliminado hace 31 días con su conversación, mensaje, canal, nota y archivo en message-media, y dejó el de 29 días y el vivo; además la purga real corrió en los espacios reales (15:31, 0 filas).",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] El historial de auditoría no se purga nunca",
+    "destino": "reescrito",
+    "nuevo": "- [x] El historial de auditoría no se purga nunca",
+    "motivo": "Tildado el 20/10/2026 por Marcos. Prueba: scripts/verify-purga.mjs comprobar (15:51, salida 0): audit_log en 475 antes y 475 después de la purga, y la fila «contacto.eliminado» del contacto purgado sigue; el trigger de F31 impide borrar.",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] Al llegar un mensaje de un canal nuevo, se busca contacto por teléfono normalizado a E.164 según §14, correo o nombre de usuario (devuelto el 23/09/2026, auditoría #13b)",
+    "destino": "reescrito",
+    "nuevo": "- [x] Al llegar un mensaje de un canal nuevo, se busca contacto por teléfono normalizado a E.164 según §14 o por nombre de usuario. Por correo, cuando un canal lo traiga al llegar: en la Fase 1 ninguno lo trae (llega con el correo bidireccional de la Etapa 2); la búsqueda por correo está construida y probada simulada. (Reescrito el 20/10/2026, decidido por Marcos: el correo no llega por ningún canal de la Fase 1, y el 19/10 se decidió que una simulación no cuenta como datos reales; los correos de Pipedrive (F37) están en el contacto guardado, no en el mensaje que llega)",
+    "motivo": "Reescrito y tildado el 20/10/2026, decidido por Marcos. Motivo de la reescritura: el correo no llega por ningún canal de la Fase 1 (llega con el correo bidireccional de la Etapa 2), y el 19/10 se decidió que una simulación no cuenta como datos reales; los correos de Pipedrive (F37) están en el contacto guardado, no en el mensaje que llega. Prueba: scripts/verify-entre-canales.mjs contra producción (16:32:38 a 16:33:07, salida 0, 45 de 45). Teléfono, también en whatsapp_phone: aviso firmado de Evolution 2.3.7 (messages.upsert con la forma de prepareMessage, whatsapp.baileys.service.ts:4652-4704; firmado HS256 como webhook.controller.ts:287-305) contra el receptor de producción en un espacio fantasma; la llegada real, en la puesta en marcha del número. Usuario: con una entrega de prueba armada desde una entrega real de Zernio (lib/fixtures/zernio-webhook-message-received.json); el primer caso real se verá cuando ocurra. La búsqueda por correo, simulada (llamada directo en el espacio fantasma). Límite: la búsqueda por usuario no reconoce los contactos sin usuario guardado: 510 de 655 en @alomercadeo.",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] Coincidencia exacta de teléfono o correo vincula automáticamente",
+    "destino": "reescrito",
+    "nuevo": "- [x] Coincidencia exacta de teléfono vincula automáticamente. La de correo también, cuando un canal lo traiga al llegar (Etapa 2); en la Fase 1 ningún canal lo trae. (Reescrito el 20/10/2026, decidido por Marcos, con el mismo motivo que el anterior)",
+    "motivo": "Reescrito y tildado el 20/10/2026, decidido por Marcos, con el mismo motivo que el criterio anterior. Prueba: scripts/verify-entre-canales.mjs (16:32, salida 0, 45 de 45): P (teléfono), W (whatsapp_phone) y E (eliminado: se restaura y se vincula, decisión de Marcos) quedan vinculados sin contacto nuevo; aviso firmado de Evolution 2.3.7 (messages.upsert con la forma de prepareMessage, whatsapp.baileys.service.ts:4652-4704; firmado HS256 como webhook.controller.ts:287-305) contra el receptor de producción en un espacio fantasma; la llegada real, en la puesta en marcha del número.",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] Coincidencia solo por nombre de usuario sugiere la vinculación al operador, no la hace sola",
+    "destino": "reescrito",
+    "nuevo": "- [x] Coincidencia solo por nombre de usuario sugiere la vinculación al operador, no la hace sola",
+    "motivo": "Tildado el 20/10/2026 por Marcos. Prueba: scripts/verify-entre-canales.mjs (16:32, salida 0, 45 de 45): R se crea aparte, queda la sugerencia «usuario» que el Owner lee y el Member que no ve los dos no (sugerenciasDe lee con el cliente del usuario), «No es la misma» la descarta y no vuelve, el par al revés lo rechaza la base; con una entrega de prueba armada desde una entrega real de Zernio (lib/fixtures/zernio-webhook-message-received.json); el primer caso real se verá cuando ocurra. En pantalla: captura de Marcos (16:43) del bloque «¿Es la misma persona?» con «Ver y unir» y «No es la misma», con una fila escrita y borrada con su OK en el espacio real. Límite: la búsqueda por usuario no reconoce los contactos sin usuario guardado: 510 de 655 en @alomercadeo.",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] Se crea el registro de canal para el contacto",
+    "destino": "reescrito",
+    "nuevo": "- [x] Se crea el registro de canal para el contacto",
+    "motivo": "Tildado el 20/10/2026 por Marcos. Prueba: scripts/verify-entre-canales.mjs (16:32, salida 0): el registro del canal de WhatsApp sobre P, W y E; aviso firmado de Evolution 2.3.7 (messages.upsert con la forma de prepareMessage, whatsapp.baileys.service.ts:4652-4704; firmado HS256 como webhook.controller.ts:287-305) contra el receptor de producción en un espacio fantasma; la llegada real, en la puesta en marcha del número.",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] Cada conversación queda separada por canal, los hilos no se mezclan",
+    "destino": "reescrito",
+    "nuevo": "- [x] Cada conversación queda separada por canal, los hilos no se mezclan",
+    "motivo": "Tildado el 20/10/2026 por Marcos. Prueba: scripts/verify-entre-canales.mjs (16:32, salida 0): P queda con dos conversaciones, una por canal, y el mensaje de WhatsApp solo en la suya; aviso firmado de Evolution 2.3.7 (messages.upsert con la forma de prepareMessage, whatsapp.baileys.service.ts:4652-4704; firmado HS256 como webhook.controller.ts:287-305) contra el receptor de producción en un espacio fantasma; la llegada real, en la puesta en marcha del número.",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] La ficha muestra todas las conversaciones agrupadas por canal",
+    "destino": "reescrito",
+    "nuevo": "- [x] La ficha muestra todas las conversaciones agrupadas por canal",
+    "motivo": "Tildado el 20/10/2026 por Marcos. Prueba: scripts/verify-ficha.mjs (16:34, salida 0): la ficha con los grupos de Instagram y de WhatsApp; y la lectura de Marcos (16:03: «Instagram @poderosascomunidad»).",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] Las vinculaciones automáticas y manuales quedan en el historial de auditoría",
+    "destino": "reescrito",
+    "nuevo": "- [x] Las vinculaciones automáticas y manuales quedan en el historial de auditoría",
+    "motivo": "Tildado el 20/10/2026 por Marcos. Prueba: scripts/verify-entre-canales.mjs (16:32, salida 0): «contacto.vinculado» del Sistema, por teléfono y con el canal (aviso firmado de Evolution 2.3.7 (messages.upsert con la forma de prepareMessage, whatsapp.baileys.service.ts:4652-4704; firmado HS256 como webhook.controller.ts:287-305) contra el receptor de producción en un espacio fantasma; la llegada real, en la puesta en marcha del número), y la unión manual por la función con la sesión del Owner deja «contactos unidos». Nadie apretó «Unir contactos» en pantalla.",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] Reconciliación posterior por tres vías, todas con registro en el historial de auditoría:",
+    "destino": "reescrito",
+    "nuevo": "- [ ] Reconciliación posterior por dos vías, las dos con registro en el historial de auditoría:",
+    "motivo": "Reescrito el 20/10/2026, decidido por Marcos: la vía 2 se dio de baja (ver la entrada siguiente), así que la reconciliación queda con dos vías. Sin tildar.",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "    2. El aviso de actualización de contacto que manda Evolution, que aplica el mismo criterio",
+    "destino": "baja",
+    "motivo": "Dado de baja el 20/10/2026, decidido por Marcos: en Evolution 2.3.7 el aviso de contacto trae un solo identificador, { remoteJid, pushName, profilePicUrl, instanceId } (whatsapp.baileys.service.ts:1496-1506, emitidos en :1524 y :1544, y :819, :861 y :909), así que no hay con qué reconciliar. Al subir de versión hay que volver a mirarlo: está en el recuadro de lib/evolution-version.mjs.",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "    3. Carga manual del teléfono por el operador desde la ficha. Esta es la que garantiza que el caso nunca queda trabado, y es barata de construir",
+    "destino": "reescrito",
+    "nuevo": "    2. Carga manual del teléfono por el operador desde la ficha. Esta es la que garantiza que el caso nunca queda trabado, y es barata de construir",
+    "motivo": "Reescrito el 20/10/2026: solo el número, de 3 a 2, por la baja de la vía 2. Sin tildar.",
+    "fecha": "2026-10-20"
   }
 ]
