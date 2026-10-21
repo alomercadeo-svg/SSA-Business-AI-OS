@@ -1041,7 +1041,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F26: Identidad de canal y reconciliación de teléfonos"
     ],
-    "texto": "- [ ] Reconciliación posterior por dos vías, las dos con registro en el historial de auditoría:"
+    "texto": "- [x] Reconciliación posterior por dos vías, las dos con registro en el historial de auditoría:"
   },
   {
     "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
@@ -1068,7 +1068,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F26: Identidad de canal y reconciliación de teléfonos"
     ],
-    "texto": "- [ ] Al reconciliar, si ya existe otro contacto con ese teléfono, se propone la fusión mostrando los dos lados. La fusión la confirma una persona, nunca es automática"
+    "texto": "- [x] Al reconciliar, si ya existe otro contacto con ese teléfono, se propone la fusión mostrando los dos lados. La fusión la confirma una persona, nunca es automática"
   },
   {
     "seccion": "F26: Identidad de canal y reconciliación de teléfonos",
@@ -1077,7 +1077,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F26: Identidad de canal y reconciliación de teléfonos"
     ],
-    "texto": "- [ ] Al fusionar se unifican conversaciones, notas, etiquetas y atribución"
+    "texto": "- [x] Al fusionar se unifican conversaciones, notas, etiquetas y atribución"
   },
   {
     "seccion": "F26: Identidad de canal y reconciliación de teléfonos",

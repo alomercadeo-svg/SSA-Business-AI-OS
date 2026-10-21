@@ -830,5 +830,26 @@
     "nuevo": "    2. Carga manual del teléfono por el operador desde la ficha. Esta es la que garantiza que el caso nunca queda trabado, y es barata de construir",
     "motivo": "Reescrito el 20/10/2026: solo el número, de 3 a 2, por la baja de la vía 2. Sin tildar.",
     "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] Reconciliación posterior por dos vías, las dos con registro en el historial de auditoría:",
+    "destino": "reescrito",
+    "nuevo": "- [x] Reconciliación posterior por dos vías, las dos con registro en el historial de auditoría:",
+    "motivo": "Tildado el 20/10/2026 (19:28 a 19:32), revisión de antes de S7, decidido por Marcos. F26. Vía 1, el mensaje posterior: un mensaje en modo `pn` con el teléfono en `remoteJid` y el `@lid` en `remoteJidAlt` (Baileys 7.0.0-rc.9, `~85-107` y `~196-207`; la forma del aviso, `prepareMessage`, `whatsapp.baileys.service.ts:4652-4704` de Evolution 2.3.7), con aviso firmado contra el receptor de producción: `scripts/verify-guardado-whatsapp.mjs`, paso 6, «contacto.reconciliado» en el historial (última corrida registrada: 08/10/2026, 18:37:03 a 18:37:33, salida 0, 43 de 43; no se volvió a correr después de la 00038 y la 00039); y `scripts/verify-identidad-canal.mjs` («el servidor sí resuelve por un mensaje posterior», la función llamada directo, con el Sistema en el historial; 20/10/2026 16:12:12 a 16:12:25, salida 0, 32 de 32). Vía 2, la carga manual: `verify-identidad-canal.mjs` (con su autor en el historial) y la ficha («Teléfono sin resolver»). Límite: con qué frecuencia llega un mensaje así no se sabe; la llegada real se comprueba en la puesta en marcha del número.",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] Al reconciliar, si ya existe otro contacto con ese teléfono, se propone la fusión mostrando los dos lados. La fusión la confirma una persona, nunca es automática",
+    "destino": "reescrito",
+    "nuevo": "- [x] Al reconciliar, si ya existe otro contacto con ese teléfono, se propone la fusión mostrando los dos lados. La fusión la confirma una persona, nunca es automática",
+    "motivo": "Tildado el 20/10/2026 (19:28 a 19:32), revisión de antes de S7, decidido por Marcos. F26. Manual: `scripts/verify-identidad-canal.mjs` (el conflicto no escribe y al Owner le muestra el otro contacto; 20/10/2026 16:12, salida 0, 32 de 32), la propuesta con los dos lados en «Teléfono sin resolver» y en «Editar datos» (`scripts/verify-ficha.mjs`, el 409 con el otro; 16:34, salida 0, 64 de 64). Automática: la sugerencia «teléfono» de F29 con aviso firmado de Evolution 2.3.7 (`scripts/verify-entre-canales.mjs`: el aviso entra sin crear contactos, la sugerencia queda y el contacto sigue sin resolver; 16:32:38 a 16:33:07, salida 0, 45 de 45). Límite: en pantalla se vio solo la sugerencia por usuario (captura de Marcos del 20/10/2026); la de teléfono usa el mismo componente según la lectura del código (`components/inbox/sugerencia-union.tsx`), y nadie la vio en pantalla ni comprobó si el texto cambia según el motivo.",
+    "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] Al fusionar se unifican conversaciones, notas, etiquetas y atribución",
+    "destino": "reescrito",
+    "nuevo": "- [x] Al fusionar se unifican conversaciones, notas, etiquetas y atribución",
+    "motivo": "Tildado el 20/10/2026 (19:28 a 19:32), revisión de antes de S7, decidido por Marcos. F26. `scripts/verify-identidad-canal.mjs` (conversaciones, etiquetas y atribución; 20/10/2026 16:12:12 a 16:12:25, salida 0, 32 de 32) y `scripts/verify-notas.mjs` (las notas, vivas y eliminadas; 16:11:53 a 16:12:08, salida 0, 43 de 43), corridos contra producción después de la 00038 y de la 00039. Límite: nadie unió dos contactos desde la pantalla; la prueba usa la misma función de la base que el botón (`fusionar_contactos`).",
+    "fecha": "2026-10-20"
   }
 ]
