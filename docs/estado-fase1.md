@@ -1291,6 +1291,8 @@ Tests:
 2. **F26, retrabajo:** el hueco de `decidirCanalDeCuenta` (`lib/channel-rules.ts:213-239`). Decidir cuándo, con la recomendación de hacerlo antes de la puesta en marcha del número. Se mide como un tramo nuevo de la sesión 1 del Bloque 3.
 3. **Siguen sin cambios:** F25 (`last_click`), F28 (3 de 6, en la puesta en marcha), los candidatos de §15 y el grupo B de la revisión de errores.
 
+**Commit de las decisiones de F26: `8144c8b`**, con suite 836 de 836 y `typecheck` en cero. **No se subió.** `node scripts/verificar-despliegue.mjs` salió dos veces con **salida 1, leída directo con `echo $?`**: el `git push` no llegó a GitHub («SSL connection timeout», de 19:36:36 a 19:41:36; «Failed to connect to github.com port 443 after 75091 ms», de 19:41:41 a 19:42:56). A las 19:43, `https://github.com` no respondía en 15 segundos desde esta máquina, y `/login` de producción respondía 200: es la conexión de esta máquina con GitHub, no el commit ni producción. Producción sigue en el build `7X-fIAIptGgIIDy99I4or` (`d817069`). **Condición de destrabe:** que `github.com` responda desde esta máquina; entonces se sube con `node scripts/verificar-despliegue.mjs` y se mira el título en Railway. La compuerta de un día pone la suite en rojo si sigue sin subir mañana a esta hora.
+
 
 ---
 
