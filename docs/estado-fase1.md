@@ -1335,11 +1335,20 @@ Tests:
 - **En el plano, el mismo día:** cinco criterios nuevos en F35 (pestañas, cerrar y reabrir, reapertura sola, el seguimiento al cerrar y los no leídos), F43 y F44 nuevas, «abierta, cerrada» en §14, y en §15 lo resuelto, lo deseable y los pendientes.
 
 **PENDIENTE PARA LA PRÓXIMA SESIÓN.** Reemplaza al de la primera parte, arriba.
-1. **Apertura:** el despliegue del commit de estas decisiones, que no puede figurar en sí mismo.
+1. **Apertura:** el despliegue del commit de estas decisiones, que no puede figurar en sí mismo. **Actualizado el 02/11/2026:** anotado en la tercera parte de la apertura, abajo.
 2. **Antes de S8, en la apertura:** decidir qué hacer con las conversaciones y contactos que crea el mensaje de bienvenida de ManyChat (las lecturas de arriba), y con los usuarios de Instagram que faltan (552 de @alomercadeo; la sincronización de hoy completó 0). Con eso se cierra la línea de base del Bloque 4.
 3. **Primer tramo:** el retrabajo de F26 (arriba).
 4. **Después, S7:** F32.
 5. **Siguen sin cambios:** F25 (`last_click`) y F28 (3 de 6, en la puesta en marcha).
+
+## Revisión de antes de S7: apertura, tercera parte (fuera de la medición)
+
+**02/11/2026, fuera de la medición.** `node scripts/commits-sin-subir.mjs`: «Sin commits sin subir contra origin/bloque-1-foundation», salida 0; último commit `8774a72`, comprobado con `git log`. La hora del inicio de la sesión no se leyó; la primera leída, con `TZ=America/Costa_Rica date`, fue 17:18:11.
+
+- **Despliegue de `8774a72`** (las decisiones de la segunda parte, que no podían figurar en sí mismas). `node scripts/verificar-despliegue.mjs`, **salida 0, leída directo con `echo $?`**: lectura previa a las 17:03:43 (build `oF0i3gqDr0OEK8TpJxtKz`), push `cb72711..8774a72`, el build pasó a `WABHl8xBXub8mzEgoZyPp` a las 17:06:50, con `/login` en 200. Antes: suite 836 de 836, `typecheck` en cero, y sin importación corriendo (`tareas_estado`, `ocupada_hasta` nulo, leído a las 17:03:36). De la salida del script, anotada en la memoria de Claude Code; en el repo no figuraba.
+- **Railway, captura de Marcos del 02/11/2026, llegada a las 17:08 según la nota de memoria** (Marcos la recordó «hacia las 17:10»): ACTIVE «docs: revisión de antes de S7, decisiones del 02/11/2026 (F26 ...» (cortado así en pantalla), «4 minutes ago via GitHub», «Deployment successful». **Identificado por título: `8774a72`.** El HISTORY no se ve en la captura.
+- **Segunda captura, de esta apertura** (llegó con la hora leída a las 17:21:32): el mismo ACTIVE, «17 minutes ago via GitHub», «Deployment successful». Producción sigue en `8774a72`. **Inferencia:** 17 minutos antes de las 17:21 pone el despliegue hacia las 17:04, después de la lectura previa (17:03:43); con eso, «4 minutes ago» cae hacia las 17:08, como dice la nota (a las 17:10 habría dicho «6 minutes ago»). El HISTORY tampoco se ve.
+- **La nota de memoria se conserva** hasta el despliegue en verde del retrabajo de F26 (decisión de Marcos, 02/11/2026). La nota decía borrarla al anotarla.
 
 
 ---
