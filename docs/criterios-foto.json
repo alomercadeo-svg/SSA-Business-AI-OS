@@ -2160,6 +2160,15 @@
     "texto": "- [ ] El contador de no leídos de cada conversación suma uno por cada mensaje del lead y vuelve a cero al abrir la conversación (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos; viene del grupo B de la revisión de errores del 20/10/2026)"
   },
   {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] Una conversación que nace de un mensaje del negocio, sin ningún mensaje del lead, se crea cerrada, y se reabre con las reglas de los otros criterios de F35: cuando el lead escribe, o el día de su próximo seguimiento. Las conversaciones que hoy existen sin ningún mensaje del lead (315 de 761 en @alomercadeo el 02/11/2026) pasan a cerradas una sola vez, mostrando antes la cantidad y los id cortos. Control positivo: un mensaje desde @poderosascomunidad a una cuenta que no está en la base crea la conversación en «Cerradas», y cuando esa cuenta contesta aparece en «Abiertas» sin recargar (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
+  },
+  {
     "seccion": "F36: Respuestas rápidas",
     "ruta": [
       "5. Funcionalidades y criterios de aceptación",
@@ -2680,6 +2689,15 @@
       "F43: Lista de contactos completa"
     ],
     "texto": "- [ ] Control positivo: un contacto que está más allá de los primeros 100 aparece al buscarlo y se abre. Con el token de un Member, la búsqueda no devuelve contactos fuera de su alcance, y con el de un Owner sí."
+  },
+  {
+    "seccion": "F43: Lista de contactos completa",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F43: Lista de contactos completa"
+    ],
+    "texto": "- [ ] Un contacto sin nombre ni usuario se muestra como «Sin nombre» en la bandeja, en Contactos y en la ficha, en vez de su identificador de remitente. El identificador queda en la ficha como dato secundario. Incluye los contactos que hoy tienen el identificador como nombre (95 de 743 en @alomercadeo el 02/11/2026) (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
   },
   {
     "seccion": "F44: Contenido del hilo: compartidos, historias y fotos",
