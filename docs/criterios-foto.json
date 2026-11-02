@@ -2115,6 +2115,51 @@
     "texto": "- [ ] Control positivo: una conversación que está más abajo de las primeras 50 aparece al buscar por el nombre o el usuario del contacto y se abre, y en una conversación de más de 200 mensajes se llega al primero. Con el token de un Member, la búsqueda no devuelve conversaciones fuera de su alcance, y con el de un Owner sí (agregado el 19/10/2026)"
   },
   {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] La bandeja tiene las pestañas «Abiertas» (la que se abre por defecto), «Cerradas» y «Todas», con la cantidad de cada una calculada en el servidor. No hay pestaña «Pospuestas»: para volver a un lead en una fecha se usa el próximo seguimiento (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] En el hilo, «Cerrar» y «Reabrir», con los avisos «Conversación cerrada» y «Conversación reabierta» (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] Una conversación cerrada se reabre sola cuando el lead vuelve a escribir, y el día de su próximo seguimiento, en la zona horaria del negocio. Lo que escribe el negocio no la reabre. Si el contacto tiene más de una conversación, se reabren todas. Control positivo: con el reloj fijado, una conversación cerrada con seguimiento para mañana aparece mañana en «Abiertas» sin que nadie la toque, y una cerrada a la que el lead le escribe aparece en «Abiertas» sin recargar (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] Al cerrar una conversación cuyo próximo seguimiento es hoy o ya venció, antes de cerrarla se pide el próximo, con el mismo selector («En 3 días», «En 7 días», «En 14 días», «Otra fecha», «Quitar») (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] El contador de no leídos de cada conversación suma uno por cada mensaje del lead y vuelve a cero al abrir la conversación (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos; viene del grupo B de la revisión de errores del 20/10/2026)"
+  },
+  {
     "seccion": "F36: Respuestas rápidas",
     "ruta": [
       "5. Funcionalidades y criterios de aceptación",
@@ -2599,6 +2644,78 @@
       "F42: Respuesta por WhatsApp desde la bandeja"
     ],
     "texto": "- [ ] Control positivo en la puesta en marcha, con el número vinculado: un mensaje enviado desde la bandeja llega a un teléfono de prueba y queda guardado una sola vez"
+  },
+  {
+    "seccion": "F43: Lista de contactos completa",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F43: Lista de contactos completa"
+    ],
+    "texto": "- [ ] La lista de Contactos carga por páginas desde el servidor, ordenada por interacción más reciente, y muestra el total de contactos del alcance de quien mira, no solo los de la página."
+  },
+  {
+    "seccion": "F43: Lista de contactos completa",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F43: Lista de contactos completa"
+    ],
+    "texto": "- [ ] El buscador busca en el servidor por nombre, teléfono, correo y usuario de Instagram, sobre todos los contactos del alcance de quien mira. Los filtros de la fila (seguimiento, etapa, setter, vendedor y etiqueta) también corren en el servidor."
+  },
+  {
+    "seccion": "F43: Lista de contactos completa",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F43: Lista de contactos completa"
+    ],
+    "texto": "- [ ] La navegación es por páginas numeradas, con «Página N de M»."
+  },
+  {
+    "seccion": "F43: Lista de contactos completa",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F43: Lista de contactos completa"
+    ],
+    "texto": "- [ ] Control positivo: un contacto que está más allá de los primeros 100 aparece al buscarlo y se abre. Con el token de un Member, la búsqueda no devuelve contactos fuera de su alcance, y con el de un Owner sí."
+  },
+  {
+    "seccion": "F44: Contenido del hilo: compartidos, historias y fotos",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F44: Contenido del hilo: compartidos, historias y fotos"
+    ],
+    "texto": "- [ ] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con «Ver en Instagram», en vez de «Adjunto». No se descarga ni se guarda ningún archivo: se guarda solo el enlace."
+  },
+  {
+    "seccion": "F44: Contenido del hilo: compartidos, historias y fotos",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F44: Contenido del hilo: compartidos, historias y fotos"
+    ],
+    "texto": "- [ ] Un reel compartido se ve como «Compartió un reel», con «Ver en Instagram», en vez de «Este archivo no está disponible.». Se reconoce sin intentar bajarlo y no se guarda ningún archivo. Un video grabado con la cámara se sigue bajando y viendo como video."
+  },
+  {
+    "seccion": "F44: Contenido del hilo: compartidos, historias y fotos",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F44: Contenido del hilo: compartidos, historias y fotos"
+    ],
+    "texto": "- [ ] Una respuesta a una historia se ve con la marca «Respondió a tu historia» y, si el aviso trae el enlace de la historia, con «Ver historia». No se guarda la imagen de la historia."
+  },
+  {
+    "seccion": "F44: Contenido del hilo: compartidos, historias y fotos",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F44: Contenido del hilo: compartidos, historias y fotos"
+    ],
+    "texto": "- [ ] Tocar una foto del hilo la abre a pantalla completa dentro de la app, y se cierra con «X», con la tecla Escape o con el gesto de volver en el teléfono. Vale para Instagram y para WhatsApp, y no descarga ni guarda nada nuevo."
   },
   {
     "seccion": "F6: WhatsApp por API oficial vía Zernio",
