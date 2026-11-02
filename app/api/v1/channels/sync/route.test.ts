@@ -33,6 +33,8 @@ const h = vi.hoisted(() => ({
   ensureWebhookRegistered: vi.fn(async () => {}),
   pendientes: [] as Array<() => unknown | Promise<unknown>>,
   notificarAlerta: vi.fn(async () => null),
+  /** Si devuelve un mensaje, ese `update` falla con ese error. */
+  fallaUpdate: null as ((valores: Record<string, unknown>) => string | null) | null,
 }));
 
 function supabaseFalso() {
@@ -60,8 +62,13 @@ function supabaseFalso() {
             then: (ok: (r: { error: null }) => unknown) => Promise.resolve(resultado).then(ok),
           };
         },
-        then: (ok: (r: { data: unknown; error: null }) => unknown) =>
-          Promise.resolve({ data: tabla === "channels" && !escritura ? h.canales : null, error: null }).then(ok),
+        then: (ok: (r: { data: unknown; error: { message: string } | null }) => unknown) => {
+          const falla = escritura?.tipo === "update" && h.fallaUpdate ? h.fallaUpdate(escritura.valores) : null;
+          return Promise.resolve({
+            data: tabla === "channels" && !escritura ? h.canales : null,
+            error: falla ? { message: falla } : null,
+          }).then(ok);
+        },
       };
       return cadena;
     },
@@ -157,6 +164,7 @@ beforeEach(() => {
   h.ensureWebhookRegistered.mockClear();
   h.pendientes.length = 0;
   h.notificarAlerta.mockClear();
+  h.fallaUpdate = null;
 });
 
 describe("1. Zernio responde sin una lista de cuentas", () => {
@@ -383,6 +391,65 @@ describe("la misma cuenta con otra ranura", () => {
     expect(escriturasEnCanales()).toContainEqual({ tabla: "channels", tipo: "update", valores: { late_account_id: "acc-nueva" }, id: "ch-a" });
     expect(desactivados()).toEqual([]);
     expect(escriturasEnCanales().filter((e) => e.tipo === "insert")).toEqual([]);
+  });
+
+  /**
+   * Retrabajo de F26 (02/11/2026): la rama deja rastro, para tildar la
+   * identidad del canal la primera vez que aparezca en producción. Los dos
+   * primeros se vieron en rojo antes del cambio; el tercero es el control
+   * positivo, en verde antes y después.
+   */
+  const filasDeRanura = () =>
+    h.escrituras
+      .filter((e) => e.tabla === "audit_log")
+      .flatMap((e) => e.valores as unknown as Record<string, unknown>[])
+      .filter((f) => f.action === "canal.ranura_actualizada");
+
+  it("deja en el historial la ranura anterior y la nueva, a nombre de quien sincronizó", async () => {
+    h.canales = [
+      canal("ch-a", { late_account_id: "acc-vieja", platform_account_id: "222", is_active: false, username: "acc-a", display_name: "acc-a" }),
+    ];
+    h.listAccounts.mockResolvedValue({ data: { accounts: [{ ...cuenta("acc-a", "p1"), _id: "acc-nueva", platformUserId: "222" }] } });
+    await POST();
+    const filas = filasDeRanura();
+    expect(filas).toHaveLength(1);
+    expect(filas[0]).toMatchObject({
+      actor_id: "u-1",
+      entity_type: "canal",
+      entity_id: "ch-a",
+      changes: { late_account_id: { antes: "acc-vieja", despues: "acc-nueva" } },
+      detail: { origen: "sincronizacion" },
+    });
+  });
+
+  it("si el cambio de ranura falla, lo informa y no lo registra como hecho", async () => {
+    h.canales = [
+      canal("ch-a", { late_account_id: "acc-vieja", platform_account_id: "222", username: "acc-a", display_name: "acc-a" }),
+    ];
+    h.listAccounts.mockResolvedValue({ data: { accounts: [{ ...cuenta("acc-a", "p1"), _id: "acc-nueva", platformUserId: "222" }] } });
+    h.fallaUpdate = (valores) => ("late_account_id" in valores ? "permiso denegado" : null);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const res = await POST();
+      const cuerpo = await res.json();
+      expect(res.status).toBe(200);
+      expect(cuerpo.synced.failed).toEqual(["instagram: no se pudo pasar a la ranura nueva de Zernio (permiso denegado)"]);
+      expect(log.mock.calls.some((c) => String(c[0]).includes("ranura nueva"))).toBe(true);
+      expect(filasDeRanura()).toEqual([]);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("control positivo: la reconexión con la MISMA ranura no escribe esa fila", async () => {
+    // El camino que se probó en real el 02/11/2026 con @poderosascomunidad.
+    h.canales = [
+      canal("ch-a", { late_account_id: "acc-a", platform_account_id: "222", is_active: false, username: "acc-a", display_name: "acc-a" }),
+    ];
+    h.listAccounts.mockResolvedValue({ data: { accounts: [{ ...cuenta("acc-a", "p1"), platformUserId: "222" }] } });
+    await POST();
+    expect(filasDeRanura()).toEqual([]);
+    expect(escriturasEnCanales().some((e) => "late_account_id" in e.valores)).toBe(false);
   });
 });
 

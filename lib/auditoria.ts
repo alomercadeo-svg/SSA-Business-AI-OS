@@ -21,7 +21,7 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/server";
 
-/** La lista cerrada, igual al último `check` de las migraciones (hoy, la 00039). Sumar una es una migración. */
+/** La lista cerrada, igual al último `check` de las migraciones (hoy, la 00040). Sumar una es una migración. */
 export const ACCIONES_AUDITORIA = [
   "contacto.creado",
   "contacto.editado",
@@ -35,6 +35,7 @@ export const ACCIONES_AUDITORIA = [
   "canal.desconectado",
   "canal.error",
   "canal.reemplazado",
+  "canal.ranura_actualizada",
   "configuracion.cambiada",
   "equipo.invitado",
   "equipo.invitacion_revocada",
@@ -293,6 +294,8 @@ export function textoDeEvento(fila: FilaAuditoria): string {
       return `Canal con error: ${quien || "sin canal identificado"}${d.condicion === "webhook_auth_failed" ? " · rechazo de autenticación" : ""}`;
     case "canal.reemplazado":
       return `Canal reemplazado: ${quien} · la ranura de Zernio pasó a otra cuenta`;
+    case "canal.ranura_actualizada":
+      return `Canal pasado a otra ranura de Zernio: ${quien} · la misma cuenta, con su historial`;
     case "configuracion.cambiada":
       return con(quien || "Configuración cambiada");
     case "equipo.invitado":

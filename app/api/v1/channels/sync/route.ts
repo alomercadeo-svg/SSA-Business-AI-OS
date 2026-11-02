@@ -115,11 +115,29 @@ export async function POST() {
 
       // La misma cuenta volvió con otra ranura de Zernio: la fila de la cuenta
       // pasa a la ranura nueva, con su historial. No se reactiva: eso es a mano.
+      // Si el cambio falla, la fila se queda con la ranura vieja y el receptor
+      // responde 404 a todo lo que llegue por la nueva: se informa como el
+      // insert que falla, y la sincronización siguiente lo reintenta.
       if (decision.tipo === "existente" && decision.actualizarRanura) {
-        await supabase
+        const { error: ranuraErr } = await supabase
           .from("channels")
           .update({ late_account_id: decision.actualizarRanura })
           .eq("id", decision.canal.id);
+        if (ranuraErr) {
+          console.error("[channels/sync] no se pudo pasar el canal a la ranura nueva:", decision.canal.id, ranuraErr.message);
+          failed.push(`${account.platform}: no se pudo pasar a la ranura nueva de Zernio (${ranuraErr.message})`);
+          continue;
+        }
+        // Retrabajo de F26 (02/11/2026): la primera fila de estas en
+        // producción es el disparador para tildar la identidad del canal.
+        await registrarAuditoria({
+          workspaceId: workspace.id,
+          actor,
+          accion: "canal.ranura_actualizada",
+          entidad: { tipo: "canal", id: decision.canal.id, etiqueta: etiquetaDeCanal(decision.canal) },
+          cambios: { late_account_id: { antes: decision.canal.late_account_id, despues: decision.actualizarRanura } },
+          detalle: { origen: "sincronizacion" },
+        });
       }
 
       if (decision.tipo === "existente") {
