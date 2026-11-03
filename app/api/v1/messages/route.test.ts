@@ -22,6 +22,9 @@ const h = vi.hoisted(() => ({
   /** F28: la RLS no devuelve la conversación (un Member sin ese lead). */
   fueraDeAlcance: false,
   firmas: [] as Array<{ bucket: string; rutas: string[]; segundos: number }>,
+  /** F35: el filtro del cursor y el orden que pidió la ruta. */
+  or: null as string | null,
+  ordenes: [] as Array<[string, unknown]>,
 }));
 
 function supabaseFalso(rol: "usuario" | "servicio" = "usuario") {
@@ -41,7 +44,14 @@ function supabaseFalso(rol: "usuario" | "servicio" = "usuario") {
         select: () => cadena,
         eq: () => cadena,
         update: () => cadena,
-        order: () => cadena,
+        or: (f: string) => {
+          h.or = f;
+          return cadena;
+        },
+        order: (columna: string, opciones: unknown) => {
+          if (tabla === "messages") h.ordenes.push([columna, opciones]);
+          return cadena;
+        },
         limit: (n: number) => {
           h.limite = n;
           return Promise.resolve({ data: h.filasDeMensajes.slice(0, n), error: null });
@@ -258,5 +268,52 @@ describe("GET /api/v1/messages: las direcciones firmadas de los adjuntos (F28)",
     const cuerpo = await (await leer()).json();
     expect(h.firmas).toHaveLength(0);
     expect(cuerpo.messages[0].archivo).toBeNull();
+  });
+});
+
+/**
+ * F35 (tramo A de S8): el hilo carga los mensajes anteriores a los últimos 200,
+ * hasta el primero guardado. El cursor es la pareja hora e id del más viejo
+ * que ya tiene el hilo: el historial importado tiene mensajes con la misma
+ * hora, y con la hora sola se repetirían o se perderían en el corte.
+ */
+describe("GET /api/v1/messages: los anteriores (F35)", () => {
+  const ID = "6f1c3d2e-1a2b-4c3d-8e9f-0a1b2c3d4e5f";
+  const leer = (q: string) => GET(new NextRequestReal(`http://localhost/api/v1/messages?conversationId=conv-1${q}`));
+
+  beforeEach(() => {
+    h.filasDeMensajes = [];
+    h.fueraDeAlcance = false;
+    h.or = null;
+    h.ordenes.length = 0;
+  });
+
+  it("sin cursor, ordena por hora y desempata por id", async () => {
+    await leer("");
+    expect(h.ordenes).toEqual([
+      ["created_at", { ascending: false }],
+      ["id", { ascending: false }],
+    ]);
+    expect(h.or).toBeNull();
+  });
+
+  it("con cursor, pide los anteriores a esa pareja de hora e id", async () => {
+    const hora = "2026-10-24T17:32:00.123456+00:00";
+    await leer(`&antesAt=${encodeURIComponent(hora)}&antesId=${ID}`);
+    expect(h.or).toBe(`created_at.lt."${hora}",and(created_at.eq."${hora}",id.lt.${ID})`);
+  });
+
+  it("al llegar al primero no avisa que hay anteriores", async () => {
+    h.filasDeMensajes = [{ id: "m1", conversation_id: "conv-1", direction: "inbound", text: "primero", attachments: null, created_at: "2026-10-01T10:00:00Z" }];
+    const cuerpo = await (await leer(`&antesAt=2026-10-02T10%3A00%3A00Z&antesId=${ID}`)).json();
+    expect(cuerpo.messages.map((m: { text: string }) => m.text)).toEqual(["primero"]);
+    expect(cuerpo.hayAnteriores).toBe(false);
+  });
+
+  it("un cursor a medias, o con una hora o un id que no lo son, es 400", async () => {
+    expect((await leer("&antesAt=2026-10-02T10:00:00Z")).status).toBe(400);
+    expect((await leer(`&antesAt=ayer&antesId=${ID}`)).status).toBe(400);
+    expect((await leer("&antesAt=2026-10-02T10:00:00Z&antesId=x),id.gt.(0")).status).toBe(400);
+    expect(h.or).toBeNull();
   });
 });

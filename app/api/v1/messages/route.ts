@@ -10,11 +10,20 @@ import { BUCKET_DE_ADJUNTOS } from "@/lib/adjuntos";
 /** Cuántos mensajes trae el hilo de una vez: los más recientes. */
 export const MENSAJES_POR_HILO = 200;
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Una hora como la devuelve Postgres (`2026-10-24T17:32:00.123456+00:00`), o en ISO. */
+const HORA = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/;
+
 /** Vida de la dirección firmada de un adjunto (F28): alcanza para escuchar un audio o ver un video. */
 export const SEGUNDOS_DE_FIRMA = 600;
 
 /**
- * GET /api/v1/messages?conversationId=...
+ * GET /api/v1/messages?conversationId=...[&antesAt=…&antesId=…]
+ *
+ * F35: con `antesAt` y `antesId` (la hora y el id del mensaje más viejo que ya
+ * tiene el hilo) trae los 200 anteriores a ese, hasta el primero guardado. El
+ * orden desempata por id: el historial importado tiene mensajes con la misma
+ * hora, y con la hora sola se repetirían o se perderían en el corte.
  *
  * Lee los mensajes de la BASE (F27): desde el 08/10/2026 la base es la fuente
  * de verdad de la bandeja, y esta ruta no consulta más al proveedor. Lee con
@@ -46,6 +55,11 @@ export async function GET(request: NextRequest) {
   if (!conversationId) {
     return NextResponse.json({ error: "conversationId required" }, { status: 400 });
   }
+  const antesAt = request.nextUrl.searchParams.get("antesAt");
+  const antesId = request.nextUrl.searchParams.get("antesId");
+  if ((antesAt || antesId) && !(antesAt && antesId && HORA.test(antesAt) && UUID.test(antesId))) {
+    return NextResponse.json({ error: "Cursor inválido" }, { status: 400 });
+  }
 
   const { data: conversation } = await supabase
     .from("conversations")
@@ -68,13 +82,17 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { data: filas, error } = await supabase
+  let consulta = supabase
     .from("messages")
     .select(
       "id, conversation_id, direction, text, attachments, quick_reply_payload, postback_payload, callback_data, platform_message_id, remote_jid, message_type, quoted_message_id, media_path, media_status, media_mime, sent_by_flow_id, sent_by_node_id, sent_by_user_id, status, created_at"
     )
-    .eq("conversation_id", conversationId)
+    .eq("conversation_id", conversationId);
+  // Los valores van entre comillas: la hora trae «:», «.» y «+».
+  if (antesAt && antesId) consulta = consulta.or(`created_at.lt."${antesAt}",and(created_at.eq."${antesAt}",id.lt.${antesId})`);
+  const { data: filas, error } = await consulta
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(MENSAJES_POR_HILO + 1);
 
   if (error) {

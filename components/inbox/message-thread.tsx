@@ -1,7 +1,8 @@
 "use client";
 
 import { avisoDelHistorial, type EstadoDelHistorial } from "@/lib/historial-aviso";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import { refrescarHilo, sumarAnteriores } from "@/lib/hilo";
 import { useRouter } from "next/navigation";
 import { Send, Paperclip, Bot, User, MessageSquare, CheckCircle, RotateCcw, Loader2, History } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -188,6 +189,13 @@ export function MessageThread({
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
+  // F35: los anteriores a los últimos 200, hasta el primero guardado.
+  const [hayMasAnteriores, setHayMasAnteriores] = useState(hayAnteriores);
+  const [cargandoAnteriores, setCargandoAnteriores] = useState(false);
+  const [errorAnteriores, setErrorAnteriores] = useState<string | null>(null);
+  const [llegoAlPrimero, setLlegoAlPrimero] = useState(false);
+  // Al sumar arriba, el hilo no baja al final y conserva lo que se estaba leyendo.
+  const alturaAntesDeSumar = useRef<number | null>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState<string | null>(null);
@@ -221,15 +229,48 @@ export function MessageThread({
 
   useEffect(() => {
     setMessages(initialMessages);
-  }, [initialMessages]);
+    setHayMasAnteriores(hayAnteriores);
+    setLlegoAlPrimero(false);
+    setErrorAnteriores(null);
+  }, [initialMessages, hayAnteriores]);
 
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
+  // Auto-scroll to bottom when messages change, salvo cuando se sumaron los
+  // anteriores arriba: ahí se conserva la posición.
+  useLayoutEffect(() => {
+    const contenedor = scrollContainerRef.current;
+    if (alturaAntesDeSumar.current !== null && contenedor) {
+      contenedor.scrollTop += contenedor.scrollHeight - alturaAntesDeSumar.current;
+      alturaAntesDeSumar.current = null;
+      return;
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  async function verAnteriores() {
+    const masViejo = messages.find((m) => !m.id.startsWith("optimistic-"));
+    if (!conversation || !masViejo || cargandoAnteriores) return;
+    setCargandoAnteriores(true);
+    setErrorAnteriores(null);
+    try {
+      const res = await fetch(
+        `/api/v1/messages?conversationId=${conversation.id}&antesAt=${encodeURIComponent(masViejo.created_at)}&antesId=${masViejo.id}`
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !Array.isArray(data?.messages)) throw new Error(String(res.status));
+      alturaAntesDeSumar.current = scrollContainerRef.current?.scrollHeight ?? null;
+      setMessages((prev) => sumarAnteriores(prev, data.messages as Message[]));
+      setHayMasAnteriores(data.hayAnteriores === true);
+      if (data.hayAnteriores !== true) setLlegoAlPrimero(true);
+    } catch {
+      setErrorAnteriores("No se pudieron traer los mensajes anteriores. Probá de nuevo.");
+    } finally {
+      setCargandoAnteriores(false);
+    }
+  }
+
   // Listen for conversation updates (last_message_at changes when a new message arrives)
-  // and re-fetch messages from Zernio API.
+  // and re-fetch the latest messages from the base (F27), keeping the older
+  // ones already loaded (F35).
   useEffect(() => {
     if (!conversation) return;
 
@@ -253,10 +294,7 @@ export function MessageThread({
               // La respuesta es { messages, hayAnteriores }, no un array.
               const data = await res.json();
               const freshMessages: Message[] = data?.messages ?? [];
-              setMessages((prev) => {
-                const optimistic = prev.filter((m) => m.id.startsWith("optimistic-"));
-                return [...freshMessages, ...optimistic];
-              });
+              setMessages((prev) => refrescarHilo(prev, freshMessages));
             }
           } catch (err) {
             console.error("Failed to refresh messages:", err);
@@ -437,13 +475,23 @@ export function MessageThread({
               {avisoDelHistorial(historial)}
             </div>
           )}
-          {hayAnteriores && (
+          {hayMasAnteriores && (
+            <div className="flex flex-col items-center gap-1 pb-2">
+              <button
+                onClick={verAnteriores}
+                disabled={cargandoAnteriores}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
+              >
+                {cargandoAnteriores ? <Loader2 className="h-3 w-3 animate-spin" /> : <History className="h-3 w-3" />}
+                Ver mensajes anteriores
+              </button>
+              {errorAnteriores && <p className="text-[11px] text-destructive">{errorAnteriores}</p>}
+            </div>
+          )}
+          {llegoAlPrimero && (
             <div className="flex items-center gap-3 pb-2">
               <div className="h-px flex-1 bg-border" />
-              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <History className="h-3 w-3" />
-                Hay mensajes anteriores que no se muestran acá
-              </span>
+              <span className="text-[11px] text-muted-foreground">Este es el primer mensaje guardado</span>
               <div className="h-px flex-1 bg-border" />
             </div>
           )}
