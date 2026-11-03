@@ -139,8 +139,14 @@ describe("decidirEstado", () => {
     it("la segunda seguida, desde «no se pudo verificar», es caído", () => {
       expect(decidirEstado(guardada("sin_verificar", "connecting"), leer("connecting")).estado).toBe("caido");
     });
+    /**
+     * Parte de «no se pudo verificar», que está entre los vigilados: desde
+     * «sin vincular» pasaría aunque se perdiera la guarda de la marca (visto el
+     * 03/11/2026, S7 tramo 2). Es el canal nunca vinculado cuyo chequeo falló
+     * una vez y que lee `connecting` mientras alguien escanea el código.
+     */
     it("sin marca no cambia: es una vinculación en curso", () => {
-      expect(decidirEstado(guardada("sin_vincular", "connecting", null), leer("connecting")).estado).toBeNull();
+      expect(decidirEstado(guardada("sin_verificar", "connecting", null), leer("connecting")).estado).toBeNull();
     });
     it("con el estado en agotado no cambia: es una vinculación en curso", () => {
       expect(decidirEstado(guardada("agotado", "connecting"), leer("connecting")).estado).toBeNull();
