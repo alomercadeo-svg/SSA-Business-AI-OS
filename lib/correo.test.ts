@@ -107,7 +107,7 @@ function servicioFalso() {
   };
 }
 
-const { enviarCorreo, notificarAlerta, notificarSesionWhatsapp, esDireccionDePrueba, ESPERAS_REINTENTO_MS } = await import("./correo");
+const { enviarCorreo, notificarAlerta, notificarSesionWhatsapp, esDireccionDePrueba, ESPERAS_REINTENTO_MS, contenidoDeAlerta } = await import("./correo");
 const { validarRemitente, dominioDeRemitente } = await import("./integraciones");
 
 // ── Resend simulado ─────────────────────────────────────────────────────────
@@ -473,5 +473,21 @@ describe("direcciones y remitente", () => {
     expect(dominioDeRemitente("ALO Mercadeo <avisos@notificaciones.alomercadeo.com>")).toBe("notificaciones.alomercadeo.com");
     expect(dominioDeRemitente("avisos@notificaciones.alomercadeo.com")).toBe("notificaciones.alomercadeo.com");
     expect(dominioDeRemitente(null)).toBeNull();
+  });
+});
+
+/**
+ * Un rechazo de autenticación es cualquier entrega cuyo JWT no verifica: un
+ * mensaje real de un lead, o una entrega que no viene de nuestro número
+ * (decidido por Marcos el 03/11/2026). El correo no afirma que cada uno sea un
+ * mensaje perdido.
+ */
+describe("el correo del rechazo de autenticación", () => {
+  it("dice que puede ser un mensaje perdido o una entrega ajena, no que cada uno es un lead", () => {
+    const { parrafos } = contenidoDeAlerta("webhook_auth_failed", 1);
+    expect(parrafos).toContain(
+      "Cada aviso rechazado que venía de tu WhatsApp es un mensaje de un lead que no entró a la bandeja, y no se puede recuperar: WhatsApp no lo vuelve a mandar. Un aviso rechazado también puede ser una entrega que no viene de tu número, por ejemplo una prueba."
+    );
+    expect(parrafos.join(" ")).not.toContain("Cada rechazo es un mensaje de un lead");
   });
 });

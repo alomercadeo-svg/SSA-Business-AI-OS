@@ -501,7 +501,7 @@
       "Bloque 2: Infraestructura de canal, email e integraciones",
       "F22: Receptor de mensajes entrantes, autenticado"
     ],
-    "texto": "- [x] Alerta ante cualquier rechazo, con lo que significa cada una escrito en la pantalla: en el rechazo de autenticación, cada ocurrencia es un mensaje de un lead que se perdió; en la instancia desconocida todavía no se perdió ninguno, y lo que se muestra es el plazo que queda para corregir"
+    "texto": "- [x] Alerta ante cualquier rechazo, con lo que significa cada una escrito en la pantalla: en el rechazo de autenticación, cada ocurrencia es un aviso rechazado, que es un mensaje de un lead perdido para siempre si venía de nuestro WhatsApp, o una entrega que no viene de nuestro número, por ejemplo una prueba; en la instancia desconocida todavía no se perdió ninguno, y lo que se muestra es el plazo que queda para corregir"
   },
   {
     "seccion": "F22: Receptor de mensajes entrantes, autenticado",

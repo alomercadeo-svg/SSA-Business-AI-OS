@@ -492,7 +492,7 @@ TikTok no se conecta como canal de bandeja. Zernio no entrega sus DMs ni comenta
 - [x] Ruta nueva en `app/api/webhooks/evolution/`
 - [x] Verificación del dato de autenticación que manda Evolution, fijando el algoritmo esperado y usando el secreto guardado en Vault. Sin autenticación válida, se rechaza
 - [x] Procedimiento de cambio de secreto documentado y soportado: durante el cambio se aceptan el secreto viejo y el nuevo. Un rechazo de autenticación cancela los reintentos de Evolution y el mensaje se pierde para siempre, así que un cambio mal hecho pierde mensajes en silencio
-- [x] Alerta ante cualquier rechazo, con lo que significa cada una escrito en la pantalla: en el rechazo de autenticación, cada ocurrencia es un mensaje de un lead que se perdió; en la instancia desconocida todavía no se perdió ninguno, y lo que se muestra es el plazo que queda para corregir
+- [x] Alerta ante cualquier rechazo, con lo que significa cada una escrito en la pantalla: en el rechazo de autenticación, cada ocurrencia es un aviso rechazado, que es un mensaje de un lead perdido para siempre si venía de nuestro WhatsApp, o una entrega que no viene de nuestro número, por ejemplo una prueba; en la instancia desconocida todavía no se perdió ninguno, y lo que se muestra es el plazo que queda para corregir
 - [x] Nunca se registra en los logs el contenido completo del aviso, porque incluye credenciales
 - [x] Control de duplicados reusando el registro de eventos que ya existe
 - [x] La idempotencia por `webhook_events` funciona igual para los dos canales (devuelto el 23/09/2026, auditoría #5)
@@ -1527,7 +1527,7 @@ Se llama `alert_condition` y no `condition` porque `CONDITION` es una palabra re
 |---|---|---|
 | Qué responde el receptor | Rechazo definitivo | **Servicio no disponible**, que sí se reintenta |
 | ¿Se perdió el mensaje? | **Sí**, el proveedor no reintenta | **Todavía no**: hay unos 20 minutos de reintentos |
-| Qué cuenta el contador | Mensajes perdidos | Intentos de entrega, con un tope de uno por minuto |
+| Qué cuenta el contador | Avisos rechazados: un mensaje perdido si venía de nuestro WhatsApp, o una entrega que no viene de nuestro número | Intentos de entrega, con un tope de uno por minuto |
 | Espacio de trabajo | Sí, sabe de qué canal viene | **No**, no hay canal al que atribuirlo |
 | Cómo se cierra | Sola, con el primer aviso válido | **Solo a mano** |
 

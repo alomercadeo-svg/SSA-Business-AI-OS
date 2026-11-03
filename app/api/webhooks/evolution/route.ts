@@ -439,7 +439,7 @@ function logRechazo(instancia: string, motivo: MotivoRechazo): void {
   };
   console.error(
     `[evolution] 401 para la instancia "${instancia}": ${explicacion[motivo]} ` +
-    `Evolution NO reintenta este aviso: el mensaje se perdió.`
+    `Evolution NO reintenta este aviso: si era un mensaje real, se perdió.`
   );
 }
 

@@ -367,7 +367,7 @@ export function contenidoDeAlerta(
           ocurrencias === 1
             ? "El sistema rechazó un aviso de WhatsApp porque su autenticación no coincidió."
             : `El sistema rechazó ${ocurrencias} avisos de WhatsApp porque su autenticación no coincidió.`,
-          "Cada rechazo es un mensaje de un lead que no entró a la bandeja, y no se puede recuperar: WhatsApp no lo vuelve a mandar.",
+          "Cada aviso rechazado que venía de tu WhatsApp es un mensaje de un lead que no entró a la bandeja, y no se puede recuperar: WhatsApp no lo vuelve a mandar. Un aviso rechazado también puede ser una entrega que no viene de tu número, por ejemplo una prueba.",
           "Suele pasar después de cambiar el secreto del webhook sin terminar el procedimiento, o después de actualizar Evolution. La alerta se cierra sola con el primer aviso que llegue bien.",
           `Revisalo en Canales: ${canales}`,
         ],

@@ -879,5 +879,12 @@
     "nuevo": "- [x] Control positivo: con la sesión forzada a caída en un entorno de prueba, el correo queda registrado; con la sesión en «no se pudo verificar», no.",
     "motivo": "Tildado el 02/11/2026, cierre de S7, decidido por Marcos. F32, criterio 9. El criterio pide un entorno de prueba: verify-sesion-whatsapp.mjs en «Pruebas de correo», 19:22:26 a 19:32:30 del 02/11/2026, salida 0, 35 ok.",
     "fecha": "2026-11-02"
+  },
+  {
+    "texto": "- [x] Alerta ante cualquier rechazo, con lo que significa cada una escrito en la pantalla: en el rechazo de autenticación, cada ocurrencia es un mensaje de un lead que se perdió; en la instancia desconocida todavía no se perdió ninguno, y lo que se muestra es el plazo que queda para corregir",
+    "destino": "reescrito",
+    "nuevo": "- [x] Alerta ante cualquier rechazo, con lo que significa cada una escrito en la pantalla: en el rechazo de autenticación, cada ocurrencia es un aviso rechazado, que es un mensaje de un lead perdido para siempre si venía de nuestro WhatsApp, o una entrega que no viene de nuestro número, por ejemplo una prueba; en la instancia desconocida todavía no se perdió ninguno, y lo que se muestra es el plazo que queda para corregir",
+    "motivo": "Corregido el 03/11/2026, decidido por Marcos: un rechazo de autenticación es cualquier entrega cuyo JWT no verifica, que puede ser un mensaje real o una entrega ajena. Mismo sentido que el correo. La tilde no cambia.",
+    "fecha": "2026-11-03"
   }
 ]

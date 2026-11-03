@@ -84,9 +84,11 @@ function titulo(condicion: WebhookAlertCondition): string {
 /**
  * El recuento, y por qué dice cosas distintas según la condición.
  *
- * En `webhook_auth_failed` un incremento ES un mensaje perdido: el 401 está en
+ * En `webhook_auth_failed` un incremento es un aviso rechazado: el 401 está en
  * la lista de códigos que cancelan los reintentos de Evolution, así que ese
- * evento no vuelve nunca.
+ * evento no vuelve nunca. Si venía de nuestro número, era un mensaje de un lead
+ * y se perdió; si no, era una entrega ajena, por ejemplo una prueba. Desde el
+ * servidor no se distinguen, por eso el recuento no dice "mensajes perdidos".
  *
  * En `webhook_unknown_instance` NO. Ahí devolvemos 503, que sí se reintenta
  * hasta diez veces, así que el mismo mensaje puede haber golpeado el endpoint
@@ -112,7 +114,7 @@ function recuento(alerta: Alerta): string {
       ? "1 intento de entrega rechazado"
       : `${alerta.occurrences} intentos de entrega rechazados`;
   }
-  return alerta.occurrences === 1 ? "1 mensaje perdido" : `${alerta.occurrences} mensajes perdidos`;
+  return alerta.occurrences === 1 ? "1 aviso rechazado" : `${alerta.occurrences} avisos rechazados`;
 }
 
 export async function WebhookAlertsBanner({
@@ -225,10 +227,13 @@ export async function WebhookAlertsBanner({
               </p>
             ) : (
               <p className="mt-1 text-sm text-red-800 dark:text-red-200">
-                Los mensajes llegan pero no se pueden verificar, así que se descartan. Casi
-                siempre es un cambio de secreto a medio hacer: revisá que el secreto configurado
-                en Evolution sea el mismo que está guardado en Vault. Mientras esto siga, cada
-                mensaje nuevo se pierde.
+                Los avisos llegan pero no se pueden verificar, así que se descartan. Cada aviso
+                rechazado que venía de tu WhatsApp es un mensaje de un lead que no entró a la
+                bandeja, y no se puede recuperar: WhatsApp no lo vuelve a mandar. Un aviso
+                rechazado también puede ser una entrega que no viene de tu número, por ejemplo una
+                prueba. Si venían de tu WhatsApp, casi siempre es un cambio de secreto a medio
+                hacer: revisá que el secreto configurado en Evolution sea el mismo que está
+                guardado en Vault.
               </p>
             )}
 
