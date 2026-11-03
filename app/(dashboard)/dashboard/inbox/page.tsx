@@ -1,5 +1,6 @@
-import { getWorkspace } from "@/lib/workspace";
+import { getWorkspace, esManager } from "@/lib/workspace";
 import { InboxView } from "./inbox-view";
+import { AvisoSesionWhatsapp, COLUMNAS_DEL_AVISO, type CanalDeSesion } from "@/components/inbox/aviso-sesion-whatsapp";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -8,7 +9,7 @@ export default async function InboxPage({
 }: {
   searchParams: Promise<{ conversacion?: string | string[] }>;
 }) {
-  const { workspace, supabase } = await getWorkspace();
+  const { workspace, supabase, role } = await getWorkspace();
   const { conversacion } = await searchParams;
 
   const { data: conversations } = await supabase
@@ -37,11 +38,25 @@ export default async function InboxPage({
     }
   }
 
+  // F32: el aviso de WhatsApp caído. F35 reescribe la bandeja y lo tiene que
+  // conservar (ver el encabezado del componente).
+  const { data: canalesDeWhatsapp } = await supabase
+    .from("channels")
+    .select(COLUMNAS_DEL_AVISO)
+    .eq("workspace_id", workspace.id)
+    .eq("provider", "evolution")
+    .eq("is_active", true);
+
   return (
-    <InboxView
-      conversations={conversations ?? []}
-      workspaceId={workspace.id}
-      conversacionInicial={conversacionInicial}
-    />
+    <div className="flex h-full flex-col">
+      <AvisoSesionWhatsapp inicial={(canalesDeWhatsapp ?? []) as CanalDeSesion[]} esManager={esManager(role)} />
+      <div className="min-h-0 flex-1">
+        <InboxView
+          conversations={conversations ?? []}
+          workspaceId={workspace.id}
+          conversacionInicial={conversacionInicial}
+        />
+      </div>
+    </div>
   );
 }
