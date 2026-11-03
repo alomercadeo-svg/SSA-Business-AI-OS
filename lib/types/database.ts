@@ -37,9 +37,18 @@ export type IntegrationTipo = "canal" | "correo" | "ia";
 /**
  * Tipos de correo (F23, migración 00027). La lista es cerrada y la hace cumplir
  * un `check` de la base: un tipo nuevo necesita su criterio en el plano y una
- * migración.
+ * migración. `sesion_whatsapp` es el de F32 (00041). Igual al último `check`
+ * de las migraciones: lo comprueba `lib/sesion-whatsapp-migracion.test.ts`.
  */
-export type EmailTipo = "invitacion" | "alerta_webhook";
+export const EMAIL_TIPOS = ["invitacion", "alerta_webhook", "sesion_whatsapp"] as const;
+export type EmailTipo = (typeof EMAIL_TIPOS)[number];
+/**
+ * Estado de la sesión de un canal de WhatsApp (F32, 00041). «sin_vincular» es
+ * la decisión de Marcos del 02/11/2026: un canal que nunca estuvo conectado no
+ * está caído. Igual al `check` de la 00041.
+ */
+export const SESION_ESTADOS = ["conectado", "caido", "agotado", "sin_verificar", "sin_vincular"] as const;
+export type SesionEstado = (typeof SESION_ESTADOS)[number];
 /**
  * Estado de un correo (F23). `omitido_techo`: ya salió uno del mismo tipo en la
  * última hora. `omitido_prueba`: todos los destinatarios eran de dominios
@@ -238,6 +247,16 @@ export interface Database {
           last_inbound_at: string | null;
           /** Límite de silencio en horas hábiles; nulo = sin vigilar (F39, 00033). */
           umbral_silencio_horas: number | null;
+          /** Estado de la sesión de WhatsApp (F32, 00041). Nulo hasta la primera lectura. */
+          session_state: SesionEstado | null;
+          /** Última lectura de la sesión, del evento o del chequeo (F32). */
+          session_checked_at: string | null;
+          /** Cuándo cambió `session_state` (F32). */
+          session_changed_at: string | null;
+          /** Última lectura cruda de Evolution, o el motivo de un «no se pudo verificar» (F32). */
+          session_detail: string | null;
+          /** Primera vez que la sesión se vio abierta (F32). No se borra nunca. */
+          session_linked_at: string | null;
           last_comment_cursor: string | null;
           comment_rules: Json | null;
           created_at: string;
@@ -260,6 +279,11 @@ export interface Database {
           excede_plan_zernio?: boolean;
           last_inbound_at?: string | null;
           umbral_silencio_horas?: number | null;
+          session_state?: SesionEstado | null;
+          session_checked_at?: string | null;
+          session_changed_at?: string | null;
+          session_detail?: string | null;
+          session_linked_at?: string | null;
           last_comment_cursor?: string | null;
           comment_rules?: Json | null;
           created_at?: string;
@@ -280,6 +304,11 @@ export interface Database {
           excede_plan_zernio?: boolean;
           last_inbound_at?: string | null;
           umbral_silencio_horas?: number | null;
+          session_state?: SesionEstado | null;
+          session_checked_at?: string | null;
+          session_changed_at?: string | null;
+          session_detail?: string | null;
+          session_linked_at?: string | null;
           last_comment_cursor?: string | null;
           comment_rules?: Json | null;
           updated_at?: string;
