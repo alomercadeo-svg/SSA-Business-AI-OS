@@ -851,5 +851,33 @@
     "nuevo": "- [x] Al fusionar se unifican conversaciones, notas, etiquetas y atribución",
     "motivo": "Tildado el 20/10/2026 (19:28 a 19:32), revisión de antes de S7, decidido por Marcos. F26. `scripts/verify-identidad-canal.mjs` (conversaciones, etiquetas y atribución; 20/10/2026 16:12:12 a 16:12:25, salida 0, 32 de 32) y `scripts/verify-notas.mjs` (las notas, vivas y eliminadas; 16:11:53 a 16:12:08, salida 0, 43 de 43), corridos contra producción después de la 00038 y de la 00039. Límite: nadie unió dos contactos desde la pantalla; la prueba usa la misma función de la base que el botón (`fusionar_contactos`).",
     "fecha": "2026-10-20"
+  },
+  {
+    "texto": "- [ ] La pantalla de canales muestra el estado de la sesión de WhatsApp",
+    "destino": "reescrito",
+    "nuevo": "- [x] La pantalla de canales muestra el estado de la sesión de WhatsApp",
+    "motivo": "Tildado el 02/11/2026, cierre de S7, decidido por Marcos. F32, criterio 1. Visto con sesión en el espacio real el 02/11/2026 (capturas de Marcos de las 19:19 y las 19:41): alomercadeo-ventas en «Sin vincular», con la lectura del chequeo real. «Caído» y «No se pudo verificar» se vieron solo en «Pruebas de correo» (segunda corrida de verify-sesion-whatsapp.mjs, 19:22:26 a 19:32:30); «Conectado», solo en la base, unos segundos, y con datos reales, en la vinculación del número.",
+    "fecha": "2026-11-02"
+  },
+  {
+    "texto": "- [ ] Un estado desconocido se muestra como \"no se pudo verificar\", nunca como \"desconectado\"",
+    "destino": "reescrito",
+    "nuevo": "- [x] Un estado desconocido se muestra como \"no se pudo verificar\", nunca como \"desconectado\"",
+    "motivo": "Tildado el 02/11/2026, cierre de S7, decidido por Marcos. F32, criterio 3. Con la respuesta real de nuestro Evolution (404) al chequeo de producción, sobre instancias de prueba en «Pruebas de correo» (segunda corrida, hacia las 19:30 del 02/11/2026). No es una simulación: el chequeo y la respuesta son reales; lo inventado es la instancia. Evolution caído entero (sin respuesta) está probado solo con tests.",
+    "fecha": "2026-11-02"
+  },
+  {
+    "texto": "- [ ] Un estado «no se pudo verificar» no manda correo: no es una caída.",
+    "destino": "reescrito",
+    "nuevo": "- [x] Un estado «no se pudo verificar» no manda correo: no es una caída.",
+    "motivo": "Tildado el 02/11/2026, cierre de S7, decidido por Marcos. F32, criterio 8. 0 filas de correo después del chequeo real que dejó las instancias de prueba en «no se pudo verificar» (segunda corrida, hacia las 19:30 del 02/11/2026).",
+    "fecha": "2026-11-02"
+  },
+  {
+    "texto": "- [ ] Control positivo: con la sesión forzada a caída en un entorno de prueba, el correo queda registrado; con la sesión en «no se pudo verificar», no.",
+    "destino": "reescrito",
+    "nuevo": "- [x] Control positivo: con la sesión forzada a caída en un entorno de prueba, el correo queda registrado; con la sesión en «no se pudo verificar», no.",
+    "motivo": "Tildado el 02/11/2026, cierre de S7, decidido por Marcos. F32, criterio 9. El criterio pide un entorno de prueba: verify-sesion-whatsapp.mjs en «Pruebas de correo», 19:22:26 a 19:32:30 del 02/11/2026, salida 0, 35 ok.",
+    "fecha": "2026-11-02"
   }
 ]

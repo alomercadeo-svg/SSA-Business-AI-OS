@@ -936,19 +936,19 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** que se vea cuando WhatsApp dejó de estar conectado.
 
-**Estado: construida** (2 de noviembre de 2026, S7), **con las tildes pendientes de la decisión de Marcos** (`docs/estado-fase1.md`, «S7: F32»). El estado se guarda en `channels` (00041), lo escriben el receptor (`connection.update`) y el chequeo periódico de las tareas programadas; la pantalla de canales lo muestra con su fecha de verificación y el botón de reconectar con el código QR; la bandeja avisa la caída; el correo es el tipo `sesion_whatsapp` de F23. El canal real quedó «sin vincular» en el primer chequeo real. Lo que depende de un número vinculado (el evento real, la caída real, el QR real) se comprueba en la puesta en marcha del número. Antes decía: no construido (inspeccionado el 22 de septiembre de 2026), `channels-view.tsx` no mostraba estado de sesión ni tenía QR ni botón de reconectar.
+**Estado: construida, 4 de 9** (2 de noviembre de 2026, S7, tildes decididas por Marcos): 1, 3, 8 y 9 (`docs/criterios-bajas.json`). **2, 4, 5, 6 y 7 quedan sin tildar, pendientes de la vinculación del número** (entre S7 y S8, con Alejandra): el evento real, «se agotaron los intentos», el QR, el aviso de la bandeja y el correo solo se probaron con avisos simulados (`docs/estado-fase1.md`, «S7: F32»). Antes decía: construida, con las tildes pendientes de la decisión de Marcos. El estado se guarda en `channels` (00041), lo escriben el receptor (`connection.update`) y el chequeo periódico de las tareas programadas; la pantalla de canales lo muestra con su fecha de verificación y el botón de reconectar con el código QR; la bandeja avisa la caída; el correo es el tipo `sesion_whatsapp` de F23. El canal real quedó «sin vincular» en el primer chequeo real. Lo que depende de un número vinculado (el evento real, la caída real, el QR real) se comprueba en la puesta en marcha del número. Antes decía: no construido (inspeccionado el 22 de septiembre de 2026), `channels-view.tsx` no mostraba estado de sesión ni tenía QR ni botón de reconectar.
 
 **Criterios de aceptación:**
 
-- [ ] La pantalla de canales muestra el estado de la sesión de WhatsApp
+- [x] La pantalla de canales muestra el estado de la sesión de WhatsApp
 - [ ] Aviso por evento y chequeo periódico, los dos. Ante una caída pasajera Evolution reconecta solo y no avisa, así que el aviso por sí solo no alcanza para mostrar el estado real
-- [ ] Un estado desconocido se muestra como "no se pudo verificar", nunca como "desconectado"
+- [x] Un estado desconocido se muestra como "no se pudo verificar", nunca como "desconectado"
 - [ ] Se contempla el estado de "se agotaron los intentos de vinculación", que significa empezar de nuevo
 - [ ] Botón de reconectar que muestra el código QR cuando corresponde. No siempre puede entregarlo, porque depende del estado actual, y eso se explica en pantalla
 - [ ] Si la sesión está caída, la bandeja lo indica de forma visible. Una bandeja silenciosa no puede parecer un día tranquilo
 - [ ] Cuando la sesión de WhatsApp pasa a caída o a «se agotaron los intentos de vinculación», se envía un correo a Owner y Admin por la función única de notificaciones de F23, con el techo de un correo por tipo de aviso por hora. Motivo: la pantalla de canales solo avisa a quien la mira, y una caída de noche se notaba recién a la mañana.
-- [ ] Un estado «no se pudo verificar» no manda correo: no es una caída.
-- [ ] Control positivo: con la sesión forzada a caída en un entorno de prueba, el correo queda registrado; con la sesión en «no se pudo verificar», no.
+- [x] Un estado «no se pudo verificar» no manda correo: no es una caída.
+- [x] Control positivo: con la sesión forzada a caída en un entorno de prueba, el correo queda registrado; con la sesión en «no se pudo verificar», no.
 
 #### F33: Reglas de seguridad de secuencia
 

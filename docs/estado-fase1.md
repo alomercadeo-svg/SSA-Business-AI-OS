@@ -1468,6 +1468,10 @@ Tests:
 
 **La compuerta de un día no aplica:** `6dd0b16` se subió a las 18:51:52 con F32.
 
+**Las tildes, decididas por Marcos el 02/11/2026: F32 queda en 4 de 9.** Se tildan **1, 3, 8 y 9**, cada uno como reescrito en `docs/criterios-bajas.json` con su prueba (el texto del 1, ajustado con Marcos: las capturas son de las 19:19 y las 19:41, y «Conectado» no se vio en pantalla). **2, 4, 5, 6 y 7 quedan sin tildar, pendientes de la vinculación del número** (entre S7 y S8, con Alejandra), no de F28: el evento real, «se agotaron los intentos», el QR, el aviso de la bandeja y el correo solo se probaron con avisos simulados. Foto de criterios regenerada: 343 líneas.
+
+**Fin del tramo 1 y de S7: 19:48:15**, leída antes del commit final. De 18:11:32 a 19:48:15 son 96 min 43 s, menos tres cortes que no se cuentan, las esperas de Railway: de 18:51:51 a 18:55:10 (3 min 19 s), de 19:11:40 a 19:14:28 (2 min 48 s) y de 19:35:58 a 19:38:25 (2 min 27 s). **Medido: 88 min** (88 min 9 s, truncando los segundos). Contra el rango de S7, de 144 a 261 min, **por debajo del rango, no adentro**. De esos 88 min, la revisión del plan llevó entre 11 y 19 min y la construcción de los ítems 1 a 9 unos 17; el resto fueron las verificaciones contra producción, la caída de la bandeja y su arreglo, las capturas y las decisiones. La subida final y su espera quedan fuera, como en el Bloque 3.
+
 
 ---
 
@@ -1548,7 +1552,7 @@ Sin fecha: el Flujo 4 del plano, la conexión en vivo de WhatsApp. Espera el nú
 
 | Sesión | Funcionalidades | Criterios | Rango (min) | Días reales | Anotado el |
 |---|---|---|---|---|---|
-| S7 | F32 | 9 | 144 a 261 | Tramo 1: 02/11/2026 18:11 a (se anota al cerrar), con dos cortes que no se cuentan, las esperas de Railway de 18:51 a 18:55 y de 19:11 a 19:14. Hora de Costa Rica | 02/11/2026 |
+| S7 | F32 | 9 | 144 a 261 | Tramo 1: 02/11/2026 18:11 a 02/11/2026 19:48, con tres cortes que no se cuentan, las esperas de Railway de 18:51 a 18:55, de 19:11 a 19:14 y de 19:35 a 19:38. Hora de Costa Rica. Suma de la sesión: 88 min (1 h 28 min), por debajo del rango. F32 construida, 4 de 9; 2, 4, 5, 6 y 7 pendientes de la vinculación del número | 02/11/2026 |
 | S8 | F35 | 30 | 480 a 870 | | |
 | S9 | F40, F36, F43, F44 | 28 | 448 a 812 | | |
 | S10 | F34, F42, F33 | 25 | 400 a 725 | | |

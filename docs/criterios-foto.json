@@ -1689,7 +1689,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F32: Estado de sesión del canal y reconexión"
     ],
-    "texto": "- [ ] La pantalla de canales muestra el estado de la sesión de WhatsApp"
+    "texto": "- [x] La pantalla de canales muestra el estado de la sesión de WhatsApp"
   },
   {
     "seccion": "F32: Estado de sesión del canal y reconexión",
@@ -1707,7 +1707,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F32: Estado de sesión del canal y reconexión"
     ],
-    "texto": "- [ ] Un estado desconocido se muestra como \"no se pudo verificar\", nunca como \"desconectado\""
+    "texto": "- [x] Un estado desconocido se muestra como \"no se pudo verificar\", nunca como \"desconectado\""
   },
   {
     "seccion": "F32: Estado de sesión del canal y reconexión",
@@ -1752,7 +1752,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F32: Estado de sesión del canal y reconexión"
     ],
-    "texto": "- [ ] Un estado «no se pudo verificar» no manda correo: no es una caída."
+    "texto": "- [x] Un estado «no se pudo verificar» no manda correo: no es una caída."
   },
   {
     "seccion": "F32: Estado de sesión del canal y reconexión",
@@ -1761,7 +1761,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F32: Estado de sesión del canal y reconexión"
     ],
-    "texto": "- [ ] Control positivo: con la sesión forzada a caída en un entorno de prueba, el correo queda registrado; con la sesión en «no se pudo verificar», no."
+    "texto": "- [x] Control positivo: con la sesión forzada a caída en un entorno de prueba, el correo queda registrado; con la sesión en «no se pudo verificar», no."
   },
   {
     "seccion": "F33: Reglas de seguridad de secuencia",
