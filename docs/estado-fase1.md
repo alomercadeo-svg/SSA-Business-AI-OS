@@ -131,12 +131,13 @@ Queda una decisión de segundo orden: los adjuntos. Las URL de medios de Meta ve
 - ~~**La marca de última ejecución de F39** no dice en qué pantalla va.~~ **Resuelto el 7 de octubre de 2026, en §11 del plano:** va en la pestaña «Vigilancia de canales» de Configuración, como «Última revisión», según el prototipo aprobado el 06/10/2026.
 - ~~**El contador de F26** de mensajes sin teléfono resuelto tampoco dice en qué pantalla va.~~ **Resuelto el 7 de octubre de 2026, en §11 del plano:** va en la pantalla de Canales, solo para el Owner, con «Ver la cola», según el prototipo aprobado el 06/10/2026.
 - **Las seis reglas de seguridad de F33** no tienen pantalla asignada. Son configuración del canal de WhatsApp.
+- **Anotado el 02/11/2026 (S7), sin dueño: la tarjeta de un canal en Canales muestra «Active» y «Connected Sep 17», del fork y en inglés** (`app/(dashboard)/dashboard/channels/channels-view.tsx`, la fila de pastillas). En el canal de WhatsApp, «Connected» contradice «Sin vincular»: el número nunca se conectó, y la fecha es la de alta de la fila. No es de F32 y no se arregla en S7. Lo vio Marcos en su captura de las 19:19.
 - ~~F23 no arranca hasta que el dominio `notificaciones.alomercadeo.com` esté verificado en Resend.~~ **Resuelto el 5 de octubre de 2026:** verificado en Resend a las 18:45, según Marcos. Los registros, con el alias de `send.notificaciones` hacia `send.forge.rmta.net`, son los que Resend espera. F23 queda sin dependencias externas.
 
 **Para verificar:**
 
 - ~~Que `EVOLUTION_API_URL` esté cargada en el servicio de la app en Railway.~~ **Cerrado el 5 de octubre de 2026,** pendiente desde el 22/09: Marcos la cargó, y la pantalla de integraciones en producción muestra WhatsApp "Conectado", verificado a las 19:05.
-- **La versión de Node en producción no está fijada.** Pasó de `24.20.0` a `24.21.0` entre despliegues sin que nadie lo decidiera.
+- **La versión de Node en producción no está fijada.** Pasó de `24.20.0` a `24.21.0` entre despliegues sin que nadie lo decidiera. **El 02/11/2026 volvió a moverse:** Railway mostró `node@24.22.0` a las 18:04 y `node@24.22.1` a las 19:18 (capturas de Marcos, apertura y cierre de S7).
 
 **Para la Fase 2:** `lib/flow-engine/nodes/ai-response.ts:103` usa `createGateway`, y la decisión 4 del alcance dice conexión directa con cada proveedor. La migración va con el cableado de BYOK en el nodo.
 
@@ -1450,6 +1451,10 @@ Tests:
 | 7 | Correo en caída o agotado | Dos correos reales en «Pruebas de correo» (19:01:40 y 19:06:45) con la sesión forzada | Simulación con correo real → pendiente de la vinculación |
 | 8 | «No se pudo verificar» no manda correo | 0 filas nuevas después del chequeo real (≈19:11) | Entorno de prueba, con la respuesta real de Evolution |
 | 9 | Control positivo en entorno de prueba | El script: caída con correo, «sin vincular» y «no se pudo verificar» sin | Se cumple así, como pide el criterio |
+
+- **Captura de Marcos del 02/11/2026, llegada a las 19:19: la pantalla del criterio 1, vista con sesión.** El canal real `alomercadeo-ventas` en Canales: «Sesión de WhatsApp: Sin vincular», «El servicio está listo, pero el número todavía no se vinculó.», «Verificado hace 5 min» y el botón «Vincular número».
+
+**Para la decisión de proceso del cierre (la decide Marcos).** `verificar-despliegue.mjs` dio salida 0 a las 18:55:10 con la bandeja caída, porque solo mira `/login`. **Propuesta:** antes de dar un despliegue por bueno, abrir con sesión cada pantalla que tocó la sesión.
 
 **La compuerta de un día no aplica:** `6dd0b16` se subió a las 18:51:52 con F32.
 
