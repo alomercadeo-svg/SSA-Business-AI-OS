@@ -61,14 +61,14 @@ export function InboxView({
       const res = await fetch("/api/v1/channels/sync", { method: "POST" });
       const data = await res.json();
       if (!res.ok || data.error) {
-        setSyncError(data.error || "Sync failed");
+        setSyncError(data.error || "No se pudo sincronizar");
         return;
       }
       // Cero cuentas en Zernio: no se desactivó nada, pero tampoco se importó.
       if (data.synced?.aviso) setSyncError(data.synced.aviso);
       router.refresh();
     } catch {
-      setSyncError("Failed to sync. Check your connection.");
+      setSyncError("No se pudo sincronizar. Revisá la conexión.");
     } finally {
       setSyncing(false);
     }
@@ -161,10 +161,10 @@ export function InboxView({
             <button
               onClick={() => setShowContactPanel(true)}
               className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              aria-label="Show contact info"
+              aria-label="Mostrar los datos del contacto"
             >
               <User className="h-3.5 w-3.5" />
-              Contact info
+              Datos del contacto
             </button>
           </div>
         )}
@@ -174,11 +174,11 @@ export function InboxView({
             <div className="flex h-full flex-col items-center justify-center px-6 text-center">
               <MessageSquare className="h-10 w-10 text-muted-foreground/40" />
               <p className="mt-3 text-sm font-medium text-muted-foreground">
-                No conversations yet
+                Todavía no hay conversaciones
               </p>
               <p className="mt-1 max-w-xs text-xs text-muted-foreground/70">
-                If you already have conversations in Zernio, sync them to bring
-                them into your inbox.
+                Si ya tenés conversaciones en Instagram, sincronizalas para
+                traerlas a la bandeja.
               </p>
               <button
                 onClick={handleSyncConversations}
@@ -186,7 +186,7 @@ export function InboxView({
                 className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50"
               >
                 <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
-                {syncing ? "Syncing..." : "Sync conversations"}
+                {syncing ? "Sincronizando..." : "Sincronizar conversaciones"}
               </button>
               {syncError && (
                 <p className="mt-2 text-xs text-destructive">{syncError}</p>

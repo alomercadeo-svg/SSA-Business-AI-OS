@@ -13,6 +13,7 @@ import {
   type ConversacionDeBandeja,
   type EstadoDeBandeja,
 } from "@/lib/bandeja";
+import { horaDeLaLista } from "@/lib/fechas-bandeja";
 
 type Conversation = ConversacionDeBandeja;
 
@@ -21,23 +22,6 @@ export interface InicialDeLaLista {
   conversaciones: Conversation[];
   hayMas: boolean;
   cantidades: CantidadesDeBandeja | null;
-}
-
-function formatTime(dateStr: string | null): string {
-  if (!dateStr) return "";
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) {
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) {
-    return date.toLocaleDateString([], { weekday: "short" });
-  }
-  return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
 /**
@@ -259,7 +243,7 @@ export function ConversationList({
     <div className="flex h-full flex-col border-r border-border bg-background">
       {/* Header */}
       <div className="flex h-14 items-center justify-between border-b border-border px-4">
-        <h2 className="text-sm font-semibold">Inbox</h2>
+        <h2 className="text-sm font-semibold">Bandeja</h2>
         <span className="text-xs text-muted-foreground">
           {total !== null ? `${conversations.length} de ${total}` : `${conversations.length}`}
         </span>
@@ -310,7 +294,7 @@ export function ConversationList({
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <MessageSquare className="h-8 w-8 text-muted-foreground/50" />
             <p className="mt-2 text-sm text-muted-foreground">
-              {buscada.current ? `Ninguna conversación coincide con «${buscada.current}»` : "No conversations found"}
+              {buscada.current ? `Ninguna conversación coincide con «${buscada.current}»` : "No hay conversaciones"}
             </p>
           </div>
         ) : (
@@ -349,18 +333,18 @@ export function ConversationList({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between">
                   <p className="truncate text-sm font-medium">
-                    {conversation.contacts?.display_name ?? "Unknown"}
+                    {conversation.contacts?.display_name ?? "Sin nombre"}
                   </p>
                   <span
                     suppressHydrationWarning
                     className="flex-shrink-0 text-[11px] text-muted-foreground"
                   >
-                    {mounted ? formatTime(conversation.last_message_at) : ""}
+                    {mounted ? horaDeLaLista(conversation.last_message_at) : ""}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {conversation.last_message_preview ?? "No messages yet"}
+                    {conversation.last_message_preview ?? "Sin mensajes"}
                   </p>
                   {conversation.unread_count > 0 && (
                     <span className="ml-2 flex h-5 min-w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">

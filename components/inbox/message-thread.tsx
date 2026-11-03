@@ -3,6 +3,7 @@
 import { avisoDelHistorial, type EstadoDelHistorial } from "@/lib/historial-aviso";
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { refrescarHilo, sumarAnteriores } from "@/lib/hilo";
+import { cambiaDeDia, separadorDeDia } from "@/lib/fechas-bandeja";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { enlaceAFicha } from "@/lib/ficha";
@@ -26,31 +27,6 @@ type Conversation = Database["public"]["Tables"]["conversations"]["Row"] & {
 function formatMessageTime(dateStr: string): string {
   const date = new Date(dateStr);
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
-function formatDateSeparator(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
-  return date.toLocaleDateString([], {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function shouldShowDateSeparator(
-  current: Message,
-  previous: Message | undefined
-): boolean {
-  if (!previous) return true;
-  const currentDate = new Date(current.created_at).toDateString();
-  const previousDate = new Date(previous.created_at).toDateString();
-  return currentDate !== previousDate;
 }
 
 /**
@@ -146,11 +122,11 @@ export function MessageBubble({ message }: { message: Message }) {
           )}
           <span>{formatMessageTime(message.created_at)}</span>
           {!isInbound && message.status !== "sent" && (
-            <span className="capitalize">
+            <span>
               {message.status === "delivered"
-                ? "Delivered"
+                ? "Entregado"
                 : message.status === "failed"
-                ? "Failed"
+                ? "No se envió"
                 : ""}
             </span>
           )}
@@ -383,10 +359,10 @@ export function MessageThread({
       <div className="flex h-full flex-col items-center justify-center bg-background text-center">
         <MessageSquare className="h-12 w-12 text-muted-foreground/30" />
         <h3 className="mt-4 text-sm font-medium text-muted-foreground">
-          Select a conversation
+          Elegí una conversación
         </h3>
         <p className="mt-1 text-xs text-muted-foreground/70">
-          Choose a conversation from the list to view messages
+          Elegí una de la lista para ver sus mensajes
         </p>
       </div>
     );
@@ -421,10 +397,10 @@ export function MessageThread({
             {/* F35, criterio 31: el nombre abre la ficha del contacto. */}
             {conversation.contact_id ? (
               <Link href={enlaceAFicha(conversation.contact_id)} className="text-sm font-medium hover:underline">
-                {conversation.contacts?.display_name ?? "Unknown"}
+                {conversation.contacts?.display_name ?? "Sin nombre"}
               </Link>
             ) : (
-              <p className="text-sm font-medium">{conversation.contacts?.display_name ?? "Unknown"}</p>
+              <p className="text-sm font-medium">{conversation.contacts?.display_name ?? "Sin nombre"}</p>
             )}
           </div>
         </div>
@@ -444,7 +420,7 @@ export function MessageThread({
           </span>
           {conversation.is_automation_paused && (
             <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-medium text-orange-700">
-              Bot paused
+              Automatización en pausa
             </span>
           )}
           <div className="flex items-center gap-1">
@@ -504,11 +480,11 @@ export function MessageThread({
           )}
           {messages.map((message, i) => (
             <div key={message.id}>
-              {shouldShowDateSeparator(message, messages[i - 1]) && (
+              {cambiaDeDia(message.created_at, messages[i - 1]?.created_at) && (
                 <div className="my-4 flex items-center gap-3">
                   <div className="h-px flex-1 bg-border" />
                   <span className="text-[11px] text-muted-foreground">
-                    {formatDateSeparator(message.created_at)}
+                    {separadorDeDia(message.created_at)}
                   </span>
                   <div className="h-px flex-1 bg-border" />
                 </div>
@@ -537,7 +513,7 @@ export function MessageThread({
                   handleSend();
                 }
               }}
-              placeholder="Type a message..."
+              placeholder="Escribí un mensaje..."
               rows={1}
               className="w-full resize-none rounded-lg border border-input bg-background px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               style={{ maxHeight: 150 }}
@@ -546,7 +522,7 @@ export function MessageThread({
           <button
             onClick={handleSend}
             disabled={!input.trim() || sending}
-            aria-label="Send message"
+            aria-label="Enviar mensaje"
             className={cn(
               "flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
               input.trim() && !sending

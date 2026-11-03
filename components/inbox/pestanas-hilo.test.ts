@@ -38,10 +38,10 @@ describe("el estado vacío de la bandeja", () => {
     );
 
   it("con «Cerradas» vacía pero conversaciones en el espacio, no ofrece sincronizar", () => {
-    expect(vista({ abiertas: 3, cerradas: 0, todas: 3 }, "closed")).not.toContain("Sync conversations");
+    expect(vista({ abiertas: 3, cerradas: 0, todas: 3 }, "closed")).not.toContain("Sincronizar conversaciones");
   });
 
   it("control: sin ninguna conversación en el espacio, sí lo ofrece", () => {
-    expect(vista({ abiertas: 0, cerradas: 0, todas: 0 }, "open")).toContain("Sync conversations");
+    expect(vista({ abiertas: 0, cerradas: 0, todas: 0 }, "open")).toContain("Sincronizar conversaciones");
   });
 });
