@@ -13,13 +13,19 @@
  *   - sin `--correr` no escribe ni manda nada: comprueba e imprime a quién le
  *     llegaría.
  *
- * NO LLAMA A NUESTRO EVOLUTION. Los dos canales son solo filas en `channels`,
- * con instancias inventadas, y los avisos se los manda el script al receptor
- * de producción, firmados con un secreto que genera y borra al final. Los
- * canales no tienen token de instancia en Vault, así que el chequeo periódico
- * los deja en «no se pudo verificar» con motivo `sin_credencial` SIN llamar a
- * Evolution (`lib/chequeo-sesion-whatsapp.ts`). Es una simulación de Evolution:
- * no cuenta como dato real (regla del 19/10/2026).
+ * EL SCRIPT NO LLAMA A NUESTRO EVOLUTION. Los dos canales son solo filas en
+ * `channels`, con instancias inventadas, y los avisos se los manda el script al
+ * receptor de producción, firmados con un secreto que genera y borra al final.
+ * Los avisos son una simulación de Evolution: no cuentan como dato real (regla
+ * del 19/10/2026).
+ *
+ * EL CHEQUEO PERIÓDICO SÍ PUEDE LLAMARLO. Sin `--token-inventado`, los canales
+ * no tienen token de instancia y el chequeo los deja en «no se pudo verificar»
+ * con `sin_credencial`, sin llamar a Evolution. Con `--token-inventado`, el
+ * script guarda un token aleatorio por canal (y lo borra al final): el chequeo
+ * le pregunta a nuestro Evolution por las dos instancias inventadas, solo
+ * lectura, y se espera un 401 real (`auth.guard.ts` de la 2.3.7). Esa llamada
+ * la aprobó Marcos el 02/11/2026; sin su aprobación no se usa esta opción.
  *
  * LOS PARES AVISO → LECTURA, Y EL CRON (condición 4 de Marcos, 02/11/2026). El
  * chequeo real corre cada 10 minutos y puede pasar un canal a «no se pudo
@@ -40,6 +46,7 @@
  *   node scripts/verify-sesion-whatsapp.mjs <workspace_id> --para <correo> --correr        (escribe y manda)
  *     [--pausa <segundos>] se detiene con B caído, para mirar Canales y la Bandeja
  *     [--esperar-chequeo]  al final espera la corrida siguiente del chequeo (hasta 12 min)
+ *     [--token-inventado]  con un token aleatorio por canal: el chequeo llama a Evolution y espera 401
  */
 
 import { readFileSync } from "node:fs";
@@ -79,6 +86,7 @@ const PARA = (argumentos[argumentos.indexOf("--para") + 1] ?? "").trim().toLower
 const CORRER = argumentos.includes("--correr");
 const PAUSA = argumentos.includes("--pausa") ? Number(argumentos[argumentos.indexOf("--pausa") + 1]) || 0 : 0;
 const ESPERAR_CHEQUEO = argumentos.includes("--esperar-chequeo");
+const TOKEN_INVENTADO = argumentos.includes("--token-inventado");
 
 if (!WORKSPACE || !argumentos.includes("--para") || !PARA.includes("@")) {
   console.error("Uso: node scripts/verify-sesion-whatsapp.mjs <workspace_id> --para <correo> [--correr] [--pausa] [--esperar-chequeo]");
@@ -193,6 +201,7 @@ function nombreEnVault(nombre) {
 
 const canales = { A: { instancia: `verificador-sesion-a-${SUFIJO}`, id: null }, B: { instancia: `verificador-sesion-b-${SUFIJO}`, id: null } };
 let secretoGuardado = false;
+const tokensGuardados = [];
 
 // ── Precondiciones ──────────────────────────────────────────────────────────
 
@@ -232,7 +241,11 @@ async function precondiciones() {
 
   console.log(`\n  Destinatario de los correos de prueba: ${PARA}. Ningún otro. Son dos: la caída y «se agotaron los intentos».`);
   console.log(`  Receptor: ${RECEPTOR}`);
-  console.log(`  No se llama a Evolution: los canales no tienen token de instancia.`);
+  console.log(
+    TOKEN_INVENTADO
+      ? "  Con --token-inventado: el chequeo periódico le va a preguntar a nuestro Evolution por las dos instancias inventadas (solo lectura, se espera 401)."
+      : "  Sin --token-inventado: los canales no tienen token de instancia y nadie llama a Evolution."
+  );
 }
 
 // ── Verificación ────────────────────────────────────────────────────────────
@@ -257,6 +270,13 @@ async function main() {
     if (status >= 300 || !data?.[0]?.id) throw new Error(`no se pudo crear el canal ${letra}: HTTP ${status}`);
     c.id = data[0].id;
     ok(`canal ${letra}: ${c.id}`);
+    if (TOKEN_INVENTADO) {
+      const nombre = `evolution_instance_token:${c.id}`;
+      const t = await rpc("store_secret", { secret_name: nombre, secret_value: randomBytes(24).toString("hex"), workspace_id: WORKSPACE });
+      if (!t.ok) throw new Error(`no se pudo guardar el token inventado de ${letra}: HTTP ${t.status}`);
+      tokensGuardados.push(nombre);
+      ok(`token inventado de ${letra} guardado`);
+    }
   }
 
   paso(2, "B: open → conectado, con la marca de vinculado (control positivo del camino)");
@@ -355,6 +375,8 @@ async function main() {
       continue;
     }
     s.session_state === "sin_verificar" ? ok(`${letra} quedó en «no se pudo verificar» (${s.session_detail})`) : fail(`${letra} quedó en ${s.session_state}`);
+    const motivo = TOKEN_INVENTADO ? "http_401" : "sin_credencial";
+    s.session_detail === motivo ? ok(`${letra}: el motivo es ${motivo}`) : fail(`${letra}: el motivo es ${s.session_detail}, se esperaba ${motivo}`);
   }
   await esperar(20_000);
   const filasDespues = (await admin(`email_log?select=id&workspace_id=eq.${WORKSPACE}&tipo=eq.sesion_whatsapp&created_at=gt.${encodeURIComponent(INICIO)}`)).data?.length ?? 0;
@@ -368,6 +390,10 @@ async function limpieza() {
     await admin(`channels?id=eq.${c.id}`, { method: "DELETE" });
     const { data } = await admin(`channels?select=id&id=eq.${c.id}`);
     (data ?? []).length === 0 ? ok(`canal ${letra} borrado`) : fail(`el canal ${letra} sigue en la base`);
+  }
+  for (const nombre of tokensGuardados) {
+    const r = await rpc("delete_secret", { secret_name: nombre, workspace_id: WORKSPACE });
+    r.ok ? ok(`${nombre.split(":")[0]} del canal borrado`) : fail(`no se pudo borrar ${nombre}: HTTP ${r.status}`);
   }
   if (secretoGuardado) {
     const r = await rpc("delete_secret", { secret_name: "evolution_webhook_secret", workspace_id: WORKSPACE });
