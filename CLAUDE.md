@@ -127,7 +127,7 @@ node scripts/verificar-despliegue.mjs   # sube y espera a que producción cambie
 
 **Al abrir sesión** se corre `node scripts/commits-sin-subir.mjs` y se informa cuántos commits hay sin subir y de qué fecha es el más viejo. Si dice "No medido", se dice así, no como "no hay nada sin subir".
 
-**Al cerrar sesión**, si `npm test` está verde, se sube **con `node scripts/verificar-despliegue.mjs`**, que lee el build que sirve `/login`, corre `git push` y espera hasta 5 minutos a que cambie. Sale con 0 si cambió y `/login` responde 200, y con 1 si no. Reemplaza mirar a mano la tarjeta ACTIVE de Railway. **El historial de despliegues de Railway se sigue mirando**: es lo único que muestra un despliegue fallido y su causa, y qué commit quedó activo. El script detecta "no se desplegó nada nuevo", no "se desplegó otro commit". **Si no se sube, se escribe en `docs/estado-fase1.md` por qué y qué condición lo destraba.** Un "no subimos" sin condición de destrabe no se acepta.
+**Al cerrar sesión**, si `npm test` está verde, se sube **con `node scripts/verificar-despliegue.mjs`**, que lee el build que sirve `/login`, corre `git push` y espera hasta 5 minutos a que cambie. Sale con 0 si cambió y `/login` responde 200, y con 1 si no. **Salida 0 no alcanza si el despliegue toca pantallas:** ver «Planes: revisión completa o liviana», en Reglas del proyecto. Reemplaza mirar a mano la tarjeta ACTIVE de Railway. **El historial de despliegues de Railway se sigue mirando**: es lo único que muestra un despliegue fallido y su causa, y qué commit quedó activo. El script detecta "no se desplegó nada nuevo", no "se desplegó otro commit". **Si no se sube, se escribe en `docs/estado-fase1.md` por qué y qué condición lo destraba.** Un "no subimos" sin condición de destrabe no se acepta.
 
 **La pantalla de Deployments de Railway no muestra hashes de commits**, ni en ACTIVE ni en HISTORY. Marcos pasa el título del despliegue, se compara con `git log`, y se anota como «identificado por título».
 
@@ -214,6 +214,20 @@ Cada canal tiene su propia configuración y se guarda **como configuración del 
 - Los datos de demo van en seeds separados de las migraciones de estructura.
 - **Fijar la versión exacta de `@zernio/node`** (sin `^`). Es una librería 0.x y puede romper compatibilidad entre versiones menores.
 - Agregar tests de lo nuevo y de lo que se toca. El fork traía poca cobertura: **7 archivos de test para 23.000 líneas al momento de forkear**. Hoy hay 21, y ese número sube con cada bloque: no lo copies acá, contalo.
+
+## Planes: revisión completa o liviana
+
+Decidido por Marcos el 02/11/2026, después de S7. El agregado del `CLAUDE.md` y los criterios del plano, el 03/11/2026.
+
+- **Cada plan dice al principio si es de revisión completa o liviana, y por qué.** Es **completa** si toca cualquiera de estas cosas: migraciones o la base; seguridad por filas o roles; secretos o Vault; servicios externos (Zernio, Evolution, Resend, Meta); escrituras en producción, incluidos los verificadores; receptores de webhooks; tareas programadas; cambios en el propio `CLAUDE.md` o en los criterios del plano (`docs/requerimientos-fase1.md`). Si no toca ninguna, es **liviana**: solo pantallas, componentes y su lógica de presentación, con sus tests.
+- **Un plan de revisión completa no se aprueba sin que Marcos lo lleve a su chat de revisión.** Uno liviano lo aprueba Marcos directo. Si en medio de un trabajo liviano aparece algo de la lista, se frena y se dice.
+- **En los dos: cada test nuevo se ve fallar antes del cambio que lo hace pasar**, y el reporte dice cuántos se vieron en rojo por ítem. El que no se vio en rojo se dice con esas palabras; nunca se da por visto.
+- **En los dos: un despliegue que toca pantallas no se da por bueno con `verificar-despliegue.mjs` en salida 0.** Queda «salida 0, pantallas sin mirar» hasta que Marcos abre con sesión, recargando, cada pantalla que tocó la sesión, y lo confirma.
+- **Las tildes de criterios las sigue decidiendo Marcos en su chat**, en los dos casos.
+
+**Por qué existe.** El 02/11/2026, en S7, la bandeja estuvo caída para todos de 18:55:10 a 19:14:28 por un error que ni Vitest ni `next build` ven, con `verificar-despliegue.mjs` en salida 0, porque solo mira `/login`; y la mitad de los tests nuevos de esa sesión no se vio en rojo. Al mismo tiempo, la revisión de cada plan en el chat de Marcos llevaba más tiempo que construir. El relato está en `docs/estado-fase1.md`, en S7.
+
+**Por qué el `CLAUDE.md` y los criterios del plano están en la lista.** Aplicada al pie de la letra, la regla clasificaba como liviano un cambio a las reglas mismas: el plan que la escribió fue el primer caso, el 03/11/2026. El `CLAUDE.md` gobierna cada sesión, y los criterios los decide Marcos.
 
 ## Verificación: toda comprobación negativa necesita un control positivo
 
