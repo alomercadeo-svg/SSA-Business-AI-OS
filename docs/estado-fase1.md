@@ -1390,6 +1390,13 @@ Tests:
 - **Railway, segunda captura de Marcos, del 02/11/2026, llegada al chat a las 18:04** (comprobación de la apertura de S7, antes de pegar este prompt): ACTIVE «docs: cierre de la revisión de antes de S7 (ManyChat y usuario...», «13 minutes ago via GitHub», «Deployment successful», `node@24.22.0`. Es el mismo despliegue que la captura de las 17:53:30 («2 minutes ago»): los dos dan unas 17:51. **Identificado por título: `28f82c4`.** Desde entonces no se desplegó nada nuevo; la captura no puede distinguir un redespliegue del mismo commit.
 - **La nota de memoria se conserva** hasta el despliegue en verde del cierre de S7 (decisión de Marcos, 02/11/2026).
 
+## S7: F32, estado de sesión del canal de WhatsApp y reconexión (Bloque 4, medida)
+
+**Lo que F35 tiene que conservar (anotado el 02/11/2026, antes de subir F32).** S8 reescribe la bandeja entera, y el aviso de WhatsApp caído de F32 (criterio 6) está montado sobre la bandeja de hoy:
+- **El componente:** `AvisoSesionWhatsapp`, en `components/inbox/aviso-sesion-whatsapp.tsx` (commit `801733a`). Aparece con la sesión en caído o en «se agotaron los intentos», no con «sin vincular» ni con «no se pudo verificar». Se vuelve a leer cada 60 s con la sesión del usuario, y el botón a Canales lo ven solo Owner y Admin.
+- **Dónde está montado:** en `app/(dashboard)/dashboard/inbox/page.tsx`, arriba de `InboxView`, en una columna (`flex h-full flex-col`), con `InboxView` dentro de `min-h-0 flex-1`. La página lee los canales de Evolution activos del espacio con `COLUMNAS_DEL_AVISO` y le pasa `esManager(role)`. No está dentro de `inbox-view.tsx`; el plan aprobado decía montarlo ahí, y se cambió para no tocar la vista que S8 reescribe.
+- **Su test:** `components/inbox/aviso-sesion-whatsapp.test.ts`, que además comprueba que la página lo monte arriba de `InboxView`. Si F35 mueve la bandeja, el test tiene que seguir en verde con el aviso en su nuevo lugar, no borrarse.
+
 
 ---
 
