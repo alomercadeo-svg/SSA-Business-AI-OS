@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { textoDeSesion, interpretarConnect, pedirCodigoQR } from "./sesion-whatsapp-pantalla";
+import { textoDeSesion, interpretarConnect, pedirCodigoQR, textoDeMotivo } from "./sesion-whatsapp-pantalla";
 
 /**
  * Lo que la pantalla de Canales dice de la sesión de WhatsApp (F32), y cómo se
@@ -39,8 +39,13 @@ describe("textoDeSesion", () => {
     expect(textoDeSesion(canal("sin_vincular"), AHORA)).toMatchObject({ etiqueta: "Sin vincular", boton: "Vincular número" });
   });
 
+  /**
+   * `canal(null)` es el canal nuevo cuya primera lectura no cambió el estado
+   * (un `connecting` sin marca): tiene hora de chequeo y ningún estado. Sin él,
+   * borrar `!guardado` seguía en verde (visto el 03/11/2026, S7 tramo 2).
+   */
   it("un estado desconocido nunca se muestra como desconectado", () => {
-    for (const t of [textoDeSesion(canal("sin_verificar"), AHORA), textoDeSesion(canal(null, null), AHORA)]) {
+    for (const t of [textoDeSesion(canal("sin_verificar"), AHORA), textoDeSesion(canal(null, null), AHORA), textoDeSesion(canal(null), AHORA)]) {
       expect(t.etiqueta).toBe("No se pudo verificar");
       expect(JSON.stringify(t)).not.toMatch(/desconectad/i);
     }
@@ -88,6 +93,7 @@ describe("interpretarConnect", () => {
 
   it("un 401: la credencial", () => {
     expect(interpretarConnect(401, {})).toEqual({ tipo: "error", motivo: "http_401" });
+    expect(textoDeMotivo("http_401")).toMatch(/credencial/);
   });
 
   it("una imagen que no es un PNG en data URL no se muestra", () => {
