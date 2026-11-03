@@ -4,6 +4,8 @@ import { avisoDelHistorial, type EstadoDelHistorial } from "@/lib/historial-avis
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { refrescarHilo, sumarAnteriores } from "@/lib/hilo";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { enlaceAFicha } from "@/lib/ficha";
 import { Send, Paperclip, Bot, User, MessageSquare, CheckCircle, RotateCcw, Loader2, History } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -416,9 +418,14 @@ export function MessageThread({
             </div>
           </div>
           <div>
-            <p className="text-sm font-medium">
-              {conversation.contacts?.display_name ?? "Unknown"}
-            </p>
+            {/* F35, criterio 31: el nombre abre la ficha del contacto. */}
+            {conversation.contact_id ? (
+              <Link href={enlaceAFicha(conversation.contact_id)} className="text-sm font-medium hover:underline">
+                {conversation.contacts?.display_name ?? "Unknown"}
+              </Link>
+            ) : (
+              <p className="text-sm font-medium">{conversation.contacts?.display_name ?? "Unknown"}</p>
+            )}
           </div>
         </div>
 

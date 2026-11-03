@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   X,
   Mail,
@@ -13,6 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { PlatformIcon } from "@/components/platform-icon";
 import { SugerenciaUnion } from "@/components/inbox/sugerencia-union";
+import { enlaceAFicha } from "@/lib/ficha";
 import type { Database, Platform } from "@/lib/types/database";
 
 type Contact = Database["public"]["Tables"]["contacts"]["Row"];
@@ -285,12 +287,39 @@ export function ContactPanel({
               </div>
             )}
           </div>
+          <PieDelPanel contactoId={details.contact.id} telefonoResuelto={details.contact.phone_resolved !== false} />
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
           Contact not found
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * El pie del panel (F35, criterio 31, agregado el 03/11/2026): abre la ficha
+ * del contacto. Con el teléfono sin resolver, lo dice y lleva a la ficha, que
+ * es donde se carga (F26).
+ */
+export function PieDelPanel({ contactoId, telefonoResuelto }: { contactoId: string; telefonoResuelto: boolean }) {
+  return (
+    <div className="space-y-2 border-t border-border p-4">
+      {!telefonoResuelto && (
+        <Link
+          href={enlaceAFicha(contactoId)}
+          className="block rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-center text-xs font-medium text-amber-800 hover:bg-amber-500/10 dark:text-amber-300"
+        >
+          Cargar teléfono en la ficha
+        </Link>
+      )}
+      <Link
+        href={enlaceAFicha(contactoId)}
+        className="block rounded-md border border-border px-3 py-2 text-center text-xs font-medium text-foreground hover:bg-muted"
+      >
+        Ver ficha completa
+      </Link>
     </div>
   );
 }

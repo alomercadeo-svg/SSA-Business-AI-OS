@@ -128,6 +128,11 @@ export function resumenDeConversacion(resumen: string | null | undefined, tipoDe
   return TEXTO_DE_TIPO[tipoDelUltimo] ?? "Adjunto";
 }
 
+/** El enlace a la ficha de un contacto (F35, criterio 31: se abre desde la bandeja). */
+export function enlaceAFicha(contactoId: string): string {
+  return `/dashboard/contacts/${encodeURIComponent(contactoId)}`;
+}
+
 /** El enlace de una conversación de la ficha: abre ese hilo en la bandeja. */
 export function enlaceAlHilo(conversacionId: string): string {
   return `/dashboard/inbox?conversacion=${encodeURIComponent(conversacionId)}`;
