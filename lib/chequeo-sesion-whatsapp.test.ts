@@ -56,6 +56,7 @@ describe("tieneOwnerJid", () => {
 
   it("false con ownerJid vacío, con error o sin respuesta", async () => {
     expect(await tieneOwnerJid("x", "t", { url: URL_EVO, fetch: (async () => respuesta(200, [{ ownerJid: null }])) as never })).toBe(false);
+    expect(await tieneOwnerJid("x", "t", { url: URL_EVO, fetch: (async () => respuesta(200, [{ ownerJid: " " }])) as never })).toBe(false);
     expect(await tieneOwnerJid("x", "t", { url: URL_EVO, fetch: (async () => respuesta(404, {})) as never })).toBe(false);
     expect(
       await tieneOwnerJid("x", "t", {
