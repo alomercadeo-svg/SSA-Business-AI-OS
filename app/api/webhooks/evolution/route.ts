@@ -13,7 +13,8 @@ import {
 } from "@/lib/evolution-webhook";
 import { guardarEventoEvolution, procesarEventoEvolution } from "@/lib/evolution-processor";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { notificarAlerta } from "@/lib/correo";
+import { notificarAlerta, notificarSesionWhatsapp } from "@/lib/correo";
+import { lecturaDeAviso, registrarLectura, type Transicion } from "@/lib/sesion-whatsapp";
 import { auditarAlertaSiEsNueva } from "@/lib/auditoria";
 import { almacenDeSupabase, descargarAdjunto } from "@/lib/adjuntos";
 import type { Database } from "@/lib/types/database";
@@ -240,6 +241,32 @@ async function manejarWebhook(request: NextRequest) {
 
   if (claves.length > 0 && nuevas.length === 0) {
     return NextResponse.json({ ok: true, skipped: true, reason: "duplicate_event" });
+  }
+
+  // ── 4b. El estado de sesión (F32), ANTES del acuse ────────────────────────
+  //
+  // Solo escrituras en la base: la lectura, la marca de vinculado y, si cambió,
+  // el estado. El correo de una caída NO va acá: nada antes del acuse llama a
+  // un servicio externo (condición 1 de Marcos, 02/11/2026). Sale en el
+  // `after()` de abajo, con la transición que devolvió esta escritura. Si
+  // falla, 500: Evolution reintenta y el aviso trae el mismo estado.
+  // `connection.update` no tiene `key`, así que no pasa por el reclamo: un
+  // reintento vuelve a escribir lo mismo, y sin cambio no hay transición.
+  let transicion: Transicion | null = null;
+  const lectura = lecturaDeAviso(payload.event, payload.data);
+  if (lectura) {
+    try {
+      transicion = await registrarLectura(supabase as unknown as SupabaseClient, canal.id, lectura, new Date());
+    } catch (err) {
+      console.error("[evolution] no se pudo guardar el estado de sesión:", err instanceof Error ? err.message : "error");
+      return NextResponse.json({ error: "No se pudo guardar" }, { status: 500 });
+    }
+  }
+  if (transicion?.avisar) {
+    const aviso = transicion;
+    after(async () => {
+      await notificarSesionWhatsapp(aviso, { servicio: supabase });
+    });
   }
 
   // ── 5. Acusar ANTES de procesar ───────────────────────────────────────────

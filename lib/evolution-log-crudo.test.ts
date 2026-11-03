@@ -51,6 +51,7 @@ const ARCHIVOS = [
   "app/api/webhooks/evolution/route.ts",
   "lib/evolution-processor.ts",
   "lib/evolution-webhook.ts",
+  "lib/sesion-whatsapp.ts",
 ];
 
 /**

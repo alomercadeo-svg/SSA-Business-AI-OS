@@ -51,6 +51,21 @@ export interface Decision {
   marcar: boolean;
 }
 
+const ESTADOS_DE_EVOLUTION = new Set(["open", "connecting", "close", "refused"]);
+
+/**
+ * La lectura que trae un aviso del receptor, o null si no es de sesión.
+ * `connection.update` trae `{ instance, state, statusReason, … }` en `data`
+ * (B:350-357, B:463, B:509-515, B:519). Un `state` que no conocemos no se
+ * adivina: no es una lectura.
+ */
+export function lecturaDeAviso(evento: string | undefined, data: unknown): LecturaDeSesion | null {
+  if ((evento ?? "").trim().toLowerCase().replace(/_/g, ".") !== "connection.update") return null;
+  const estado = data && typeof data === "object" ? (data as { state?: unknown }).state : undefined;
+  if (typeof estado !== "string" || !ESTADOS_DE_EVOLUTION.has(estado)) return null;
+  return { tipo: "estado", estado: estado as "open" | "connecting" | "close" | "refused" };
+}
+
 /** Los estados que mandan correo a Owner y Admin al entrar (criterio 7). */
 export const ESTADOS_QUE_AVISAN: readonly SesionEstado[] = ["caido", "agotado"];
 

@@ -70,9 +70,19 @@ vi.mock("@/lib/vault", async (importOriginal) => {
 });
 
 const notificarAlerta = vi.fn(async () => null);
+const notificarSesionWhatsapp = vi.fn(async (..._args: unknown[]) => null);
 vi.mock("@/lib/correo", () => ({
   notificarAlerta: (...args: unknown[]) => notificarAlerta(...(args as [])),
+  notificarSesionWhatsapp: (...args: unknown[]) => notificarSesionWhatsapp(...args),
 }));
+
+// F32: la escritura del estado se simula; sus reglas se prueban en
+// `lib/sesion-whatsapp.test.ts`. El lector del aviso es el real.
+const registrarLectura = vi.fn(async (..._args: unknown[]): Promise<unknown> => null);
+vi.mock("@/lib/sesion-whatsapp", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/sesion-whatsapp")>();
+  return { ...real, registrarLectura: (...args: unknown[]) => registrarLectura(...args) };
+});
 
 const procesarEventoEvolution = vi.fn();
 const guardarEventoEvolution = vi.fn(async (..._args: unknown[]) => {});
@@ -242,6 +252,9 @@ beforeEach(() => {
   guardarEventoEvolution.mockReset();
   guardarEventoEvolution.mockResolvedValue(undefined);
   descargarAdjunto.mockClear();
+  registrarLectura.mockReset();
+  registrarLectura.mockResolvedValue(null);
+  notificarSesionWhatsapp.mockClear();
 });
 
 // ── 1. Autenticación ────────────────────────────────────────────────────────
@@ -698,6 +711,64 @@ describe("F28: la descarga de WhatsApp no bloquea el acuse", () => {
 });
 
 // ── 6. Cuerpo inválido ──────────────────────────────────────────────────────
+
+describe("F32: el estado de sesión", () => {
+  const conexion = (state: unknown) =>
+    JSON.stringify({ event: "connection.update", instance: INSTANCIA, data: { instance: INSTANCIA, state, statusReason: 200 }, apikey: "APIKEY-DE-LA-INSTANCIA-NO-DEBE-FILTRARSE" });
+  const caida = { canalId: "ch-evo-1", workspaceId: "ws-1", de: "conectado", a: "caido", avisar: true };
+
+  it("connection.update guarda la lectura antes de responder, con el canal verificado (control positivo)", async () => {
+    const res = await POST(pedido(conexion("open"), await firmar()));
+    expect(res.status).toBe(200);
+    expect(registrarLectura).toHaveBeenCalledTimes(1);
+    const [, canalId, lectura] = registrarLectura.mock.calls[0];
+    expect(canalId).toBe("ch-evo-1");
+    expect(lectura).toEqual({ tipo: "estado", estado: "open" });
+  });
+
+  it("un aviso de mensajes no toca el estado de sesión", async () => {
+    await POST(pedido(cuerpo(), await firmar()));
+    expect(registrarLectura).not.toHaveBeenCalled();
+  });
+
+  it("un connection.update con un state desconocido no toca el estado", async () => {
+    await POST(pedido(conexion("pairing"), await firmar()));
+    expect(registrarLectura).not.toHaveBeenCalled();
+  });
+
+  it("el correo de la caída sale DESPUÉS del acuse, en el after(), con la transición (condición 1)", async () => {
+    registrarLectura.mockResolvedValue(caida);
+    const res = await POST(pedido(conexion("close"), await firmar()));
+
+    expect(res.status).toBe(200);
+    expect(notificarSesionWhatsapp).not.toHaveBeenCalled();
+
+    await correrPendientes();
+    expect(notificarSesionWhatsapp).toHaveBeenCalledTimes(1);
+    expect(notificarSesionWhatsapp.mock.calls[0][0]).toEqual(caida);
+  });
+
+  it("sin transición que avise, no hay correo ni después del acuse", async () => {
+    registrarLectura.mockResolvedValue({ ...caida, a: "sin_vincular", avisar: false });
+    await POST(pedido(conexion("close"), await firmar()));
+    await correrPendientes();
+    expect(notificarSesionWhatsapp).not.toHaveBeenCalled();
+  });
+
+  it("si no se pudo guardar el estado, responde 500 para que Evolution reintente", async () => {
+    registrarLectura.mockRejectedValue(new Error("channels: caído"));
+    const res = await POST(pedido(conexion("close"), await firmar()));
+    expect(res.status).toBe(500);
+    await correrPendientes();
+    expect(notificarSesionWhatsapp).not.toHaveBeenCalled();
+  });
+
+  it("sin token válido no se toca el estado", async () => {
+    const res = await POST(pedido(conexion("close"), await firmar(OTRO_SECRETO)));
+    expect(res.status).toBe(401);
+    expect(registrarLectura).not.toHaveBeenCalled();
+  });
+});
 
 describe("cuerpo inválido", () => {
   it("responde 400 ante un cuerpo que no es JSON", async () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { decidirEstado, registrarLectura, type LecturaDeSesion, type SesionGuardada } from "./sesion-whatsapp";
+import { decidirEstado, lecturaDeAviso, registrarLectura, type LecturaDeSesion, type SesionGuardada } from "./sesion-whatsapp";
 import type { SesionEstado } from "@/lib/types/database";
 
 /**
@@ -145,6 +145,21 @@ describe("decidirEstado", () => {
     it("con el estado en agotado no cambia: es una vinculación en curso", () => {
       expect(decidirEstado(guardada("agotado", "connecting"), leer("connecting")).estado).toBeNull();
     });
+  });
+});
+
+describe("lecturaDeAviso", () => {
+  it("lee el estado de connection.update, con puntos o con guiones bajos", () => {
+    expect(lecturaDeAviso("connection.update", { instance: "x", state: "refused" })).toEqual({ tipo: "estado", estado: "refused" });
+    expect(lecturaDeAviso("CONNECTION_UPDATE", { state: "open" })).toEqual({ tipo: "estado", estado: "open" });
+  });
+  it("otro evento no es una lectura, aunque traiga state", () => {
+    expect(lecturaDeAviso("messages.upsert", { state: "open" })).toBeNull();
+  });
+  it("un state desconocido o ausente no se adivina", () => {
+    expect(lecturaDeAviso("connection.update", { state: "pairing" })).toBeNull();
+    expect(lecturaDeAviso("connection.update", {})).toBeNull();
+    expect(lecturaDeAviso("connection.update", null)).toBeNull();
   });
 });
 
