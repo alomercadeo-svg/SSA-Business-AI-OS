@@ -15,6 +15,9 @@
 import { revalidatePath } from "next/cache";
 import { getWorkspaceOrNull, esManager } from "@/lib/workspace";
 import { actorDe, etiquetaDeCanal, registrarAuditoria } from "@/lib/auditoria";
+import { createServiceClient } from "@/lib/supabase/server";
+import { getWorkspaceSecret, evolutionInstanceTokenName } from "@/lib/vault";
+import { pedirCodigoQR, type RespuestaDeCodigo } from "@/lib/sesion-whatsapp-pantalla";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -44,4 +47,36 @@ export async function activarCanal(channelId: string): Promise<Resultado> {
 
   revalidatePath("/dashboard/channels");
   return { ok: true };
+}
+
+/**
+ * «Reconectar» y «Vincular número» (F32): le pide el código QR a Evolution
+ * (`GET /instance/connect`) con el token de la instancia. Solo Owner y Admin, y
+ * solo para un canal de Evolution del propio espacio. No escribe el estado: lo
+ * escriben el aviso de Evolution y el chequeo periódico.
+ *
+ * OJO: con la sesión cerrada, este pedido ARRANCA la vinculación y Evolution
+ * genera códigos; si nadie los escanea, a los 30 la instancia pasa a «se
+ * agotaron los intentos» (Evolution 2.3.7, `whatsapp.baileys.service.ts:336`).
+ */
+export async function pedirCodigoWhatsapp(channelId: string): Promise<RespuestaDeCodigo> {
+  const contexto = await getWorkspaceOrNull();
+  if (!contexto || !esManager(contexto.role)) return { tipo: "error", motivo: "permiso" };
+  const workspaceId = contexto.workspace.id;
+
+  const { data: canal } = await contexto.supabase
+    .from("channels")
+    .select("id, instance_name")
+    .eq("id", channelId)
+    .eq("workspace_id", workspaceId)
+    .eq("provider", "evolution")
+    .maybeSingle();
+  if (!canal?.instance_name) return { tipo: "error", motivo: "canal" };
+
+  const url = process.env.EVOLUTION_API_URL ?? "";
+  if (!url) return { tipo: "error", motivo: "sin_configurar" };
+  const token = await getWorkspaceSecret(await createServiceClient(), workspaceId, evolutionInstanceTokenName(canal.id));
+  if (!token) return { tipo: "error", motivo: "sin_credencial" };
+
+  return pedirCodigoQR(canal.instance_name, token, { url });
 }

@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { PlatformIcon } from "@/components/platform-icon";
+import { SesionWhatsapp } from "./sesion-whatsapp";
 import type { Database } from "@/lib/types/database";
 import {
   PLATFORMS,
@@ -392,6 +393,9 @@ export function ChannelsView({
                       })}
                     </span>
                   </div>
+
+                  {/* F32: el estado de la sesión y la reconexión, solo en WhatsApp por Evolution. */}
+                  {channel.provider === "evolution" && <SesionWhatsapp canal={channel} />}
 
                   {(() => {
                     const dm = getDmLink(channel.platform as Platform, channel.username);
