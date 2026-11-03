@@ -13,6 +13,7 @@ const h = vi.hoisted(() => ({
   canal: { id: "c-wa", instance_name: "mi-inst" } as Record<string, unknown> | null,
   token: "token-x" as string | null,
   pedidos: [] as Array<[string, string]>,
+  filtros: [] as Array<[string, unknown]>,
 }));
 
 vi.mock("@/lib/workspace", () => ({
@@ -23,7 +24,11 @@ vi.mock("@/lib/workspace", () => ({
     role: h.rol,
     supabase: {
       from: () => {
-        const c = { select: () => c, eq: () => c, maybeSingle: async () => ({ data: h.canal, error: null }) };
+        const c = {
+          select: () => c,
+          eq: (col: string, v: unknown) => (h.filtros.push([col, v]), c),
+          maybeSingle: async () => ({ data: h.canal, error: null }),
+        };
         return c;
       },
     },
@@ -50,6 +55,7 @@ beforeEach(() => {
   h.canal = { id: "c-wa", instance_name: "mi-inst" };
   h.token = "token-x";
   h.pedidos.length = 0;
+  h.filtros.length = 0;
   process.env.EVOLUTION_API_URL = "https://evo.ejemplo";
 });
 
@@ -70,10 +76,23 @@ describe("pedirCodigoWhatsapp", () => {
     expect(h.pedidos).toHaveLength(0);
   });
 
+  /**
+   * Los filtros los aplica la base, así que el doble no puede devolver vacío
+   * por su cuenta: se comprueba que la consulta los pida. Sin esto, sacar el de
+   * `provider` o el de `workspace_id` seguía en verde (visto el 03/11/2026, S7
+   * tramo 2).
+   */
   it("un canal que no es de Evolution del espacio no pide nada", async () => {
     h.canal = null;
     expect(await pedirCodigoWhatsapp("otro")).toEqual({ tipo: "error", motivo: "canal" });
     expect(h.pedidos).toHaveLength(0);
+    expect(h.filtros).toEqual(
+      expect.arrayContaining([
+        ["id", "otro"],
+        ["workspace_id", "ws-1"],
+        ["provider", "evolution"],
+      ]),
+    );
   });
 
   it("sin credencial no llama a Evolution y lo dice", async () => {
