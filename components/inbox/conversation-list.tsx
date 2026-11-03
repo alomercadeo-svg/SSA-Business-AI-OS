@@ -34,13 +34,24 @@ function formatTime(dateStr: string | null): string {
   return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
+/** La dirección de la bandeja con lo buscado: se puede recargar o compartir. */
+function direccionCon(busqueda: string): string {
+  const url = new URL(window.location.href);
+  if (busqueda) url.searchParams.set("q", busqueda);
+  else url.searchParams.delete("q");
+  return `${url.pathname}${url.search}`;
+}
+
 export function ConversationList({
   inicial,
+  busqueda = "",
   workspaceId,
   selectedId,
   onSelect,
 }: {
   inicial: InicialDeLaLista;
+  /** Lo buscado que vino en la dirección (`?q=`), ya aplicado por el servidor. */
+  busqueda?: string;
   workspaceId: string;
   selectedId: string | null;
   onSelect: (conversation: Conversation) => void;
@@ -53,7 +64,11 @@ export function ConversationList({
   // Lo que ya está cargado, para que Realtime sepa si una conversación es nueva
   // en la lista sin depender del estado viejo de la suscripción.
   const cargadas = useRef(new Set(inicial.conversaciones.map((c) => c.id)));
-  const [search, setSearch] = useState("");
+  // `search` es lo escrito; `buscada`, lo que ya respondió el servidor.
+  const [search, setSearch] = useState(busqueda);
+  const buscada = useRef(busqueda);
+  const pedidoDeBusqueda = useRef(0);
+  const [buscando, setBuscando] = useState(false);
   const [statusFilter, setStatusFilter] = useState<ConversationStatus | "all">("open");
   // Relative timestamps depend on the client's clock/locale, which differ from the
   // server's during SSR and trigger a hydration mismatch (React #418, which crashes
@@ -67,7 +82,8 @@ export function ConversationList({
     setHayMas(inicial.hayMas);
     setCantidades(inicial.cantidades);
     cargadas.current = new Set(inicial.conversaciones.map((c) => c.id));
-  }, [inicial]);
+    buscada.current = busqueda;
+  }, [inicial, busqueda]);
 
   useEffect(() => {
     cargadas.current = new Set(conversations.map((c) => c.id));
@@ -83,7 +99,7 @@ export function ConversationList({
     setErrorAlCargar(null);
     try {
       const cursor = cursorDe(ultima);
-      const res = await fetch(`/api/v1/conversations?estado=all&antesOrden=${encodeURIComponent(cursor.orden)}&antesId=${cursor.id}`);
+      const res = await fetch(`/api/v1/conversations?estado=all&q=${encodeURIComponent(buscada.current)}&antesOrden=${encodeURIComponent(cursor.orden)}&antesId=${cursor.id}`);
       const data = await res.json().catch(() => null);
       if (!res.ok || !Array.isArray(data?.conversaciones)) throw new Error(String(res.status));
       setConversations((prev) => fusionarDeBandeja(prev, data.conversaciones));
@@ -101,11 +117,40 @@ export function ConversationList({
   const recontar = useCallback(() => {
     if (temporizador.current) clearTimeout(temporizador.current);
     temporizador.current = setTimeout(async () => {
-      const res = await fetch("/api/v1/conversations?soloCantidades=1").catch(() => null);
+      const res = await fetch(`/api/v1/conversations?soloCantidades=1&q=${encodeURIComponent(buscada.current)}`).catch(() => null);
       const data = await res?.json().catch(() => null);
       if (data?.cantidades) setCantidades(data.cantidades);
     }, 1000);
   }, []);
+
+  // La búsqueda corre en el servidor, sobre todas las conversaciones que quien
+  // mira puede ver (F35), 300 ms después de la última tecla. Una respuesta
+  // vieja que llega tarde no pisa a la nueva.
+  useEffect(() => {
+    const q = search.trim();
+    if (q === buscada.current) return;
+    const pedido = ++pedidoDeBusqueda.current;
+    const espera = setTimeout(async () => {
+      setBuscando(true);
+      setErrorAlCargar(null);
+      try {
+        const res = await fetch(`/api/v1/conversations?estado=all&q=${encodeURIComponent(q)}`);
+        const data = await res.json().catch(() => null);
+        if (pedido !== pedidoDeBusqueda.current) return;
+        if (!res.ok || !Array.isArray(data?.conversaciones)) throw new Error(String(res.status));
+        buscada.current = q;
+        setConversations(data.conversaciones);
+        setHayMas(data.hayMas === true);
+        setCantidades(data.cantidades ?? null);
+        window.history.replaceState(null, "", direccionCon(q));
+      } catch {
+        if (pedido === pedidoDeBusqueda.current) setErrorAlCargar("No se pudo buscar. Probá de nuevo.");
+      } finally {
+        if (pedido === pedidoDeBusqueda.current) setBuscando(false);
+      }
+    }, 300);
+    return () => clearTimeout(espera);
+  }, [search]);
 
   // Subscribe to conversation updates via Realtime
   useEffect(() => {
@@ -114,7 +159,7 @@ export function ConversationList({
     // Una conversación que no está cargada se pide sola, por la ruta de la
     // lista: la seguridad por filas decide si la puede ver.
     async function traerUna(id: string) {
-      const res = await fetch(`/api/v1/conversations?estado=all&id=${id}`).catch(() => null);
+      const res = await fetch(`/api/v1/conversations?estado=all&q=${encodeURIComponent(buscada.current)}&id=${id}`).catch(() => null);
       const data = await res?.json().catch(() => null);
       if (Array.isArray(data?.conversaciones) && data.conversaciones.length > 0) {
         setConversations((prev) => fusionarDeBandeja(prev, data.conversaciones));
@@ -158,16 +203,9 @@ export function ConversationList({
     };
   }, [workspaceId, recontar]);
 
-  const filtered = conversations.filter((c) => {
-    if (statusFilter !== "all" && c.status !== statusFilter) return false;
-    if (search) {
-      const name = c.contacts?.display_name?.toLowerCase() ?? "";
-      const preview = c.last_message_preview?.toLowerCase() ?? "";
-      const q = search.toLowerCase();
-      if (!name.includes(q) && !preview.includes(q)) return false;
-    }
-    return true;
-  });
+  // La búsqueda ya la aplicó el servidor: acá no se vuelve a filtrar por
+  // texto, porque el servidor también busca por usuario, correo y teléfono.
+  const filtered = conversations.filter((c) => statusFilter === "all" || c.status === statusFilter);
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-background">
@@ -182,10 +220,14 @@ export function ConversationList({
       {/* Search */}
       <div className="p-3">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          {buscando ? (
+            <Loader2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+          ) : (
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          )}
           <input
             type="text"
-            placeholder="Search conversations..."
+            placeholder="Buscar por nombre, usuario, correo o teléfono"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
@@ -216,7 +258,9 @@ export function ConversationList({
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <MessageSquare className="h-8 w-8 text-muted-foreground/50" />
-            <p className="mt-2 text-sm text-muted-foreground">No conversations found</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {buscada.current ? `Ninguna conversación coincide con «${buscada.current}»` : "No conversations found"}
+            </p>
           </div>
         ) : (
           filtered.map((conversation) => (

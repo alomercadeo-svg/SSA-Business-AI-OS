@@ -18,11 +18,14 @@ type Message = Database["public"]["Tables"]["messages"]["Row"];
 
 export function InboxView({
   inicial,
+  busqueda = "",
   workspaceId,
   conversacionInicial = null,
 }: {
   /** La primera página de la lista, leída por el servidor (F35). */
   inicial: InicialDeLaLista;
+  /** Lo buscado que vino en la dirección (`?q=`). */
+  busqueda?: string;
   workspaceId: string;
   /**
    * F30: la conversación que pidió la ficha (`?conversacion=`), ya leída por
@@ -138,6 +141,7 @@ export function InboxView({
       <div className="w-80 flex-shrink-0">
         <ConversationList
           inicial={inicial}
+          busqueda={busqueda}
           workspaceId={workspaceId}
           selectedId={selected?.id ?? null}
           onSelect={handleSelect}
@@ -160,7 +164,7 @@ export function InboxView({
           </div>
         )}
         <div className="min-h-0 flex-1">
-          {inicial.conversaciones.length === 0 ? (
+          {inicial.conversaciones.length === 0 && !busqueda ? (
             <div className="flex h-full flex-col items-center justify-center px-6 text-center">
               <MessageSquare className="h-10 w-10 text-muted-foreground/40" />
               <p className="mt-3 text-sm font-medium text-muted-foreground">

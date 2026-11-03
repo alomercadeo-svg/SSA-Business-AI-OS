@@ -42,3 +42,24 @@ describe("la lista de la bandeja", () => {
     expect(html).toContain("1 de 1");
   });
 });
+
+describe("la búsqueda (c): corre en el servidor y vive en la dirección", () => {
+  it("el buscador arranca con lo buscado que vino en la dirección (?q=)", () => {
+    expect(dibujar({ busqueda: "ana" })).toMatch(/<input[^>]*value="ana"/);
+  });
+
+  it("el buscador dice por qué se busca", () => {
+    expect(dibujar({})).toContain('placeholder="Buscar por nombre, usuario, correo o teléfono"');
+  });
+
+  it("lo que trajo el servidor no se vuelve a filtrar en el navegador: el servidor también busca por usuario y teléfono", () => {
+    const html = dibujar({ busqueda: "8888-7777" });
+    expect(html).toContain("Contacto 7");
+    expect(html).toContain("50 de 761");
+  });
+
+  it("una búsqueda sin resultados lo dice", () => {
+    const html = dibujar({ busqueda: "nadie", inicial: { conversaciones: [], hayMas: false, cantidades: { abiertas: 0, cerradas: 0, todas: 0 } } });
+    expect(html).toContain("Ninguna conversación coincide con «nadie»");
+  });
+});
