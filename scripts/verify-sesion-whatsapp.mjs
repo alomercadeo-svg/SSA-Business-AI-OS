@@ -38,7 +38,7 @@
  * Uso:
  *   node scripts/verify-sesion-whatsapp.mjs <workspace_id> --para <correo>                 (solo comprueba)
  *   node scripts/verify-sesion-whatsapp.mjs <workspace_id> --para <correo> --correr        (escribe y manda)
- *     [--pausa]            se detiene con B caído, para mirar Canales y la Bandeja
+ *     [--pausa <segundos>] se detiene con B caído, para mirar Canales y la Bandeja
  *     [--esperar-chequeo]  al final espera la corrida siguiente del chequeo (hasta 12 min)
  */
 
@@ -47,7 +47,6 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID, randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { createInterface } from "node:readline";
 import { SignJWT } from "jose";
 
 // ── Entorno ─────────────────────────────────────────────────────────────────
@@ -78,7 +77,7 @@ const argumentos = process.argv.slice(2);
 const WORKSPACE = argumentos.find((a) => !a.startsWith("--") && argumentos[argumentos.indexOf(a) - 1] !== "--para");
 const PARA = (argumentos[argumentos.indexOf("--para") + 1] ?? "").trim().toLowerCase();
 const CORRER = argumentos.includes("--correr");
-const PAUSA = argumentos.includes("--pausa");
+const PAUSA = argumentos.includes("--pausa") ? Number(argumentos[argumentos.indexOf("--pausa") + 1]) || 0 : 0;
 const ESPERAR_CHEQUEO = argumentos.includes("--esperar-chequeo");
 
 if (!WORKSPACE || !argumentos.includes("--para") || !PARA.includes("@")) {
@@ -291,9 +290,10 @@ async function main() {
     todas.length === 1 ? ok("una sola fila para la caída") : fail(`${todas.length} filas para la caída`);
   }
 
-  if (PAUSA) {
-    console.log(`\n  PAUSA: B está caído. Mirá Canales y la Bandeja de «Pruebas de correo» y apretá Enter para seguir.`);
-    await new Promise((r) => createInterface({ input: process.stdin }).once("line", r));
+  if (PAUSA > 0) {
+    console.log(`\n  PAUSA de ${PAUSA} s (${new Date().toLocaleTimeString("es-CR", { timeZone: "America/Costa_Rica" })}): B está caído. Mirá Canales y la Bandeja de «Pruebas de correo».`);
+    // Una pausa larga puede cruzarse con el chequeo: el par siguiente lo detecta y queda no concluyente.
+    await esperar(PAUSA * 1000);
   }
 
   paso(4, "B: refused → «se agotaron los intentos» y otro correo enviado");
