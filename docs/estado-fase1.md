@@ -1375,10 +1375,20 @@ Tests:
 - **El avance sigue en 14 de 28.** No se tildó ningún criterio.
 
 **PENDIENTE PARA LA PRÓXIMA SESIÓN.** Reemplaza al de la segunda parte en el punto 1 y el 2; los demás siguen igual.
-1. **Apertura:** el despliegue del commit de este cierre, que no puede figurar en sí mismo.
+1. **Apertura:** el despliegue del commit de este cierre, que no puede figurar en sí mismo. **Actualizado el 02/11/2026:** anotado en la apertura de S7, abajo.
 2. **Próxima revisión:** el dueño del hueco del 404 del receptor de Zernio (§15 del plano).
 3. **S7:** F32.
 4. **Siguen sin cambios:** F25 (`last_click`) y F28 (3 de 6, en la puesta en marcha).
+
+## S7: apertura (fuera de la medición)
+
+**02/11/2026, fuera de la medición.** `node scripts/commits-sin-subir.mjs`: «Sin commits sin subir contra origin/bloque-1-foundation», salida 0, leída directo; último commit `28f82c4`, comprobado con `git log`. La hora del inicio de la sesión no se leyó; la primera leída, con `TZ=America/Costa_Rica date`, fue 18:05:47.
+
+- **Despliegue de `28f82c4`** (el cierre de la revisión de antes de S7, que no podía figurar en sí mismo). `node scripts/verificar-despliegue.mjs`, **salida 0, leída directo con `echo $?`**: lectura previa a las 17:49:58 (build `0P5-Qb3ErWdunr9vx0lMf`), push `7ace4db..28f82c4`, el build pasó a `81hbEN_5lIGjCFrL-GqKx` a las 17:52:35, con `/login` en 200. Antes: suite 839 de 839, `typecheck` en cero, foto de criterios escrita (343 líneas, 2 nuevas), importación libre (`recuento-base.mjs`, 17:49:45). De la salida del script, anotada en la memoria de Claude Code; en el repo no figuraba.
+- **La subida, del registro local de git:** `.git/logs/refs/remotes/origin/bloque-1-foundation` tiene `7ace4db → 28f82c4`, «update by push», a las 17:50:00; el commit es de las 17:49:45 en `.git/logs/HEAD`. **La hora del recuento no se distingue de la del commit:** la nota dice 17:49:45 para los dos, como pasó con la lectura previa de Z.
+- **Railway, captura de Marcos del 02/11/2026, llegada con la hora leída a las 17:53:30:** ACTIVE «docs: cierre de la revisión de antes de S7 (ManyChat y usuario...» (cortado así en pantalla), «2 minutes ago via GitHub», «Deployment successful». **Identificado por título: `28f82c4`.** El HISTORY no se ve en la captura.
+- **Railway, segunda captura de Marcos, del 02/11/2026, llegada al chat a las 18:04** (comprobación de la apertura de S7, antes de pegar este prompt): ACTIVE «docs: cierre de la revisión de antes de S7 (ManyChat y usuario...», «13 minutes ago via GitHub», «Deployment successful», `node@24.22.0`. Es el mismo despliegue que la captura de las 17:53:30 («2 minutes ago»): los dos dan unas 17:51. **Identificado por título: `28f82c4`.** Desde entonces no se desplegó nada nuevo; la captura no puede distinguir un redespliegue del mismo commit.
+- **La nota de memoria se conserva** hasta el despliegue en verde del cierre de S7 (decisión de Marcos, 02/11/2026).
 
 
 ---
