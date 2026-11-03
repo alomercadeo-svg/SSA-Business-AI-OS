@@ -24,6 +24,13 @@
  * no se toca, y el resto de los espacios sigue. Su marca es
  * `purga_eliminados:<espacio>`, y corre cuando la última buena tiene más de 24
  * horas (`lib/purga.ts`). Vigilancia de canales la muestra, en rojo a las 25.
+ *
+ * EL CHEQUEO DE LA SESIÓN DE WHATSAPP (F32) corre por espacio, después de la
+ * purga, en su propio `try/catch`, con la misma forma: si falla, no toca las
+ * otras marcas ni cuenta como falla de la corrida. Su marca es
+ * `sesion_whatsapp:<espacio>`, y solo avanza si todos los canales del espacio
+ * se leyeron y se guardaron (`lib/chequeo-sesion-whatsapp.ts`). La pantalla de
+ * canales muestra la fecha de verificación de cada canal (`session_checked_at`).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revisarSilencio, type Auditar, type Notificar } from "./vigilancia-canales";
@@ -31,6 +38,7 @@ import { revisarSuscripcion, type ResultadoSuscripcion } from "./vigilancia-susc
 import type { EstadoWebhook } from "./integraciones";
 import { almacenDeSupabase, reintentarAdjuntos, type ResumenDeReintento } from "./adjuntos";
 import { almacenParaPurgar, claveDePurga, purgarEspacio, tocaPurgar, type ResumenDePurga } from "./purga";
+import { claveDeChequeoDeSesion, type ResumenDeSesion } from "./chequeo-sesion-whatsapp";
 
 /** Un redespliegue corta la corrida sin liberar; a los 5 minutos se puede volver a tomar. */
 const MINUTOS_DE_RESERVA = 5;
@@ -52,18 +60,28 @@ export interface Dependencias {
   reintentarAdjuntos?: (servicio: SupabaseClient, ahora: Date) => Promise<ResumenDeReintento>;
   /** F30. Si falta, la corrida no purga. */
   purgar?: (servicio: SupabaseClient, workspaceId: string, ahora: Date) => Promise<ResumenDePurga>;
+  /** F32. Si falta, la corrida no chequea la sesión de WhatsApp. */
+  chequearSesion?: (servicio: SupabaseClient, workspaceId: string, ahora: Date) => Promise<ResumenDeSesion>;
 }
 
 /** Las de producción. Se cargan al usarlas, para que los tests no las arrastren. */
 async function dependenciasReales(): Promise<Dependencias> {
-  const [{ notificarAlerta }, { auditarAlertaSiEsNueva }, { getWorkspaceSecret, SECRET_NAMES }, { leerWebhook }, { createZernioClient }] =
-    await Promise.all([
-      import("./correo"),
-      import("./auditoria"),
-      import("./vault"),
-      import("./integraciones-estado"),
-      import("./zernio-client"),
-    ]);
+  const [
+    { notificarAlerta, notificarSesionWhatsapp },
+    { auditarAlertaSiEsNueva },
+    { getWorkspaceSecret, SECRET_NAMES, evolutionInstanceTokenName },
+    { leerWebhook },
+    { createZernioClient },
+    { chequearSesionesDelEspacio, leerSesionDeEvolution, tieneOwnerJid },
+  ] = await Promise.all([
+    import("./correo"),
+    import("./auditoria"),
+    import("./vault"),
+    import("./integraciones-estado"),
+    import("./zernio-client"),
+    import("./chequeo-sesion-whatsapp"),
+  ]);
+  const evolution = { url: process.env.EVOLUTION_API_URL ?? "" };
   return {
     notificar: (id, o) => notificarAlerta(id, { servicio: o.servicio as never }),
     auditar: auditarAlertaSiEsNueva,
@@ -71,6 +89,18 @@ async function dependenciasReales(): Promise<Dependencias> {
     leerSuscripcion: (clave) => leerWebhook(createZernioClient(clave)),
     reintentarAdjuntos: (servicio, ahora) => reintentarAdjuntos({ almacen: almacenDeSupabase(servicio), ahoraFijo: ahora }),
     purgar: (servicio, workspaceId, ahora) => purgarEspacio({ servicio, workspaceId, ahora, almacen: almacenParaPurgar(servicio) }),
+    chequearSesion: (servicio, workspaceId, ahora) =>
+      chequearSesionesDelEspacio({
+        servicio,
+        workspaceId,
+        ahora,
+        leerToken: (s, ws, canalId) => getWorkspaceSecret(s, ws, evolutionInstanceTokenName(canalId)),
+        // Sin EVOLUTION_API_URL no se puede preguntar: «no se pudo verificar».
+        leerEstado: async (instancia, token) =>
+          evolution.url ? leerSesionDeEvolution(instancia, token, evolution) : { tipo: "sin_verificar", motivo: "sin_configurar" },
+        leerOwnerJid: async (instancia, token) => (evolution.url ? tieneOwnerJid(instancia, token, evolution) : false),
+        notificar: (t, o) => notificarSesionWhatsapp(t, { servicio: o.servicio as never }),
+      }),
   };
 }
 
@@ -83,6 +113,8 @@ export interface ResumenDeCorrida {
   adjuntos?: "ok" | "fallo" | "ocupada" | "sin_correr";
   /** F30: cuántos espacios purgó, cuántos fallaron. Los que estaban al día no cuentan. */
   purgas?: { ok: number; fallo: number };
+  /** F32: cuántos espacios chequearon la sesión de WhatsApp, cuántos fallaron. */
+  sesiones?: { ok: number; fallo: number };
 }
 
 export async function correrTareas({
@@ -98,7 +130,7 @@ export async function correrTareas({
   const { data: espacios, error } = await servicio.from("workspaces").select("id, zona_horaria, horario_atencion");
   if (error) throw new Error(`workspaces: ${error.message}`);
 
-  const resumen: ResumenDeCorrida = { espacios: 0, fallidas: 0, ocupadas: 0, purgas: { ok: 0, fallo: 0 } };
+  const resumen: ResumenDeCorrida = { espacios: 0, fallidas: 0, ocupadas: 0, purgas: { ok: 0, fallo: 0 }, sesiones: { ok: 0, fallo: 0 } };
   for (const e of (espacios ?? []) as Array<{ id: string; zona_horaria: string; horario_atencion: unknown }>) {
     resumen.espacios += 1;
     const r = await vigilarEspacio(servicio, e, ahora, d);
@@ -107,6 +139,9 @@ export async function correrTareas({
     const p = await correrPurga(servicio, e.id, ahora, d);
     if (p === "ok") resumen.purgas!.ok += 1;
     if (p === "fallo") resumen.purgas!.fallo += 1;
+    const s = await correrChequeoDeSesion(servicio, e.id, ahora, d);
+    if (s === "ok") resumen.sesiones!.ok += 1;
+    if (s === "fallo") resumen.sesiones!.fallo += 1;
   }
   resumen.adjuntos = await correrReintentoDeAdjuntos(servicio, ahora, d);
   return resumen;
@@ -140,6 +175,50 @@ async function correrPurga(
     if (error) throw new Error(`reservar_tarea: ${error.message}`);
     if (tomada !== true) return "ocupada";
     const resumen = await d.purgar(servicio, workspaceId, ahora);
+    const fin = new Date().toISOString();
+    await servicio
+      .from("tareas_estado")
+      .update({ ocupada_hasta: null, ultimo_ok_at: fin, ultimo_error: null, resultado: { ...resumen, terminada_at: fin }, updated_at: fin })
+      .eq("clave", clave);
+    return "ok";
+  } catch (err) {
+    const motivo = err instanceof Error ? err.message : "error";
+    console.error(`[tareas] ${clave}:`, motivo);
+    try {
+      await servicio
+        .from("tareas_estado")
+        .update({ ocupada_hasta: null, ultimo_error: motivo, updated_at: new Date().toISOString() })
+        .eq("clave", clave);
+    } catch {
+      // Ya quedó en el log.
+    }
+    return "fallo";
+  }
+}
+
+/**
+ * F32. Nunca tira. Si un canal no se pudo leer o guardar, la marca no avanza:
+ * la corrida queda con `ultimo_error`, y lo leído de los demás en el log.
+ */
+async function correrChequeoDeSesion(
+  servicio: SupabaseClient,
+  workspaceId: string,
+  ahora: Date,
+  d: Dependencias,
+): Promise<"ok" | "fallo" | "ocupada" | "sin_correr"> {
+  if (!d.chequearSesion) return "sin_correr";
+  const clave = claveDeChequeoDeSesion(workspaceId);
+  try {
+    const { data: tomada, error } = await servicio.rpc("reservar_tarea", {
+      p_clave: clave,
+      p_workspace_id: workspaceId,
+      p_minutos: MINUTOS_DE_RESERVA,
+    });
+    if (error) throw new Error(`reservar_tarea: ${error.message}`);
+    if (tomada !== true) return "ocupada";
+    const resumen = await d.chequearSesion(servicio, workspaceId, ahora);
+    const errores = resumen.canales.filter((c) => c.error).map((c) => `${c.id}: ${c.error}`);
+    if (errores.length > 0) throw new Error(errores.join("; "));
     const fin = new Date().toISOString();
     await servicio
       .from("tareas_estado")

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { correrTareas, claveDeVigilancia, CLAVE_DE_REINTENTO_DE_ADJUNTOS } from "./tareas-programadas";
 import { marcaVisible, marcaVencida, textoDeLaPurga } from "./tareas-estado";
 import { claveDePurga } from "./purga";
+import { claveDeChequeoDeSesion } from "./chequeo-sesion-whatsapp";
 import { HORARIO_POR_DEFECTO } from "./horas-habiles";
 
 /**
@@ -251,5 +252,54 @@ describe("la purga de F30 en la misma corrida", () => {
     expect(textoDeLaPurga(hace(3), ahora).titulo).toBe("Última purga de eliminados: hace 3 h");
     expect(textoDeLaPurga(null, ahora)).toEqual({ titulo: "La purga de eliminados todavía no corrió nunca.", vencida: true, error: null });
     expect(textoDeLaPurga({ ultimo_ok_at: null, ultimo_error: "boom" }, ahora).error).toBe("boom");
+  });
+});
+
+describe("el chequeo de la sesión de WhatsApp (F32)", () => {
+  const ESPACIO_2 = { ...ESPACIO, id: "ws-2" };
+  const bien = { canales: [{ id: "c-wa", lectura: "close", estado: "sin_vincular", error: null }] };
+
+  it("corre por espacio, escribe su marca y guarda lo leído (control positivo)", async () => {
+    const { servicio, tareas } = baseFalsa([ESPACIO]);
+    const chequearSesion = vi.fn(async () => bien);
+    const r = await correrTareas({ servicio: servicio as never, ahora: new Date(), deps: { ...deps, chequearSesion } });
+    const fila = tareas.get(claveDeChequeoDeSesion("ws-1"))!;
+    expect(chequearSesion).toHaveBeenCalledWith(servicio, "ws-1", expect.any(Date));
+    expect(r.sesiones).toEqual({ ok: 1, fallo: 0 });
+    expect(marcaVisible(fila)).not.toBeNull();
+    expect(fila.ocupada_hasta).toBeNull();
+    expect(fila.resultado).toMatchObject(bien);
+  });
+
+  it("si falla en un espacio, no mueve su marca, no frena al otro ni cuenta como falla de la corrida", async () => {
+    const { servicio, tareas } = baseFalsa([ESPACIO, ESPACIO_2]);
+    const r = await correrTareas({
+      servicio: servicio as never,
+      ahora: new Date(),
+      deps: {
+        ...deps,
+        chequearSesion: async (_s, ws) => {
+          if (ws === "ws-1") throw new Error("channels: se cayó");
+          return bien;
+        },
+      },
+    });
+    expect(r.fallidas).toBe(0);
+    expect(r.sesiones).toEqual({ ok: 1, fallo: 1 });
+    expect(tareas.get(claveDeChequeoDeSesion("ws-1"))!.ultimo_error).toBe("channels: se cayó");
+    expect(marcaVisible(tareas.get(claveDeChequeoDeSesion("ws-1")))).toBeNull();
+    expect(marcaVisible(tareas.get(claveDeChequeoDeSesion("ws-2")))).not.toBeNull();
+  });
+
+  it("un canal con error deja la corrida del espacio como fallida: la marca no avanza", async () => {
+    const { servicio, tareas } = baseFalsa([ESPACIO]);
+    await correrTareas({
+      servicio: servicio as never,
+      ahora: new Date(),
+      deps: { ...deps, chequearSesion: async () => ({ canales: [{ id: "c-wa", lectura: "open", estado: null, error: "channels: x" }] }) },
+    });
+    const fila = tareas.get(claveDeChequeoDeSesion("ws-1"))!;
+    expect(marcaVisible(fila)).toBeNull();
+    expect(fila.ultimo_error).toMatch(/c-wa: channels: x/);
   });
 });

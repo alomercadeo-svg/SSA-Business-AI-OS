@@ -52,6 +52,7 @@ const ARCHIVOS = [
   "lib/evolution-processor.ts",
   "lib/evolution-webhook.ts",
   "lib/sesion-whatsapp.ts",
+  "lib/chequeo-sesion-whatsapp.ts",
 ];
 
 /**
