@@ -32,6 +32,7 @@ function canalFalso(inicial: Partial<Fila> = {}, opts: { antesDelCambioDeEstado?
     session_state: null,
     session_detail: null,
     session_linked_at: null,
+    session_known_state: null,
     session_checked_at: null,
     session_changed_at: null,
     ...inicial,
@@ -95,8 +96,13 @@ const sinRespuesta: LecturaDeSesion = { tipo: "sin_verificar", motivo: "sin_resp
 const AHORA = new Date("2026-11-02T18:40:00-06:00");
 const MARCA = "2026-11-01T10:00:00.000Z";
 
-function guardada(estado: SesionEstado | null, detalle: string | null = null, marca: string | null = MARCA): SesionGuardada {
-  return { session_state: estado, session_detail: detalle, session_linked_at: marca };
+function guardada(
+  estado: SesionEstado | null,
+  detalle: string | null = null,
+  marca: string | null = MARCA,
+  conocido: SesionGuardada["session_known_state"] = null,
+): SesionGuardada {
+  return { session_state: estado, session_detail: detalle, session_linked_at: marca, session_known_state: conocido };
 }
 
 describe("decidirEstado", () => {
@@ -110,6 +116,15 @@ describe("decidirEstado", () => {
 
   it("un close después de agotado sigue siendo agotado (Evolution deja la instancia en close)", () => {
     expect(decidirEstado(guardada("agotado", "refused"), leer("close")).estado).toBe("agotado");
+  });
+
+  /**
+   * Sin la marca: el número que nunca se vinculó y agotó los códigos (03/11/2026,
+   * con el número real). El de arriba corre con la marca por defecto de
+   * `guardada`, así que nunca pasaba por la guarda de «sin vincular».
+   */
+  it("un close después de agotado sigue siendo agotado también sin la marca", () => {
+    expect(decidirEstado(guardada("agotado", "refused", null), leer("close"))).toEqual({ estado: "agotado", detalle: "close", marcar: false });
   });
 
   it("una lectura sin respuesta es «no se pudo verificar», nunca caído", () => {
@@ -150,6 +165,22 @@ describe("decidirEstado", () => {
     });
     it("con el estado en agotado no cambia: es una vinculación en curso", () => {
       expect(decidirEstado(guardada("agotado", "connecting"), leer("connecting")).estado).toBeNull();
+    });
+  });
+
+  /**
+   * Un chequeo que falla pisa `session_state` con «no se pudo verificar»; el
+   * agotado queda en el último estado conocido (00042, 03/11/2026, S7 tramo 3).
+   */
+  describe("«no se pudo verificar» no borra el agotado", () => {
+    it("close con marca sigue siendo agotado, no caído", () => {
+      expect(decidirEstado(guardada("sin_verificar", "sin_respuesta", MARCA, "agotado"), leer("close")).estado).toBe("agotado");
+    });
+    it("close sin marca sigue siendo agotado, no «sin vincular»", () => {
+      expect(decidirEstado(guardada("sin_verificar", "sin_respuesta", null, "agotado"), leer("close")).estado).toBe("agotado");
+    });
+    it("connecting dos veces seguidas con marca no cambia: es una vinculación en curso", () => {
+      expect(decidirEstado(guardada("sin_verificar", "connecting", MARCA, "agotado"), leer("connecting")).estado).toBeNull();
     });
   });
 });
@@ -236,5 +267,31 @@ describe("registrarLectura", () => {
     expect(await registrarLectura(c.servicio, CANAL, leer("refused"), AHORA)).toMatchObject({ a: "agotado", avisar: true });
     expect(await registrarLectura(c.servicio, CANAL, leer("close"), AHORA)).toBeNull();
     expect(c.fila.session_state).toBe("agotado");
+  });
+
+  describe("el último estado conocido (00042)", () => {
+    it("se escribe con el estado, y «no se pudo verificar» no lo pisa", async () => {
+      const c = canalFalso({ session_state: "conectado", session_detail: "open", session_linked_at: MARCA, session_known_state: "conectado" });
+      await registrarLectura(c.servicio, CANAL, leer("refused"), AHORA);
+      expect(c.fila.session_known_state).toBe("agotado");
+      await registrarLectura(c.servicio, CANAL, sinRespuesta, AHORA);
+      expect(c.fila.session_state).toBe("sin_verificar");
+      expect(c.fila.session_known_state).toBe("agotado");
+    });
+
+    it("de «no se pudo verificar» a agotado otra vez: transición sin un segundo correo", async () => {
+      const c = canalFalso({ session_state: "sin_verificar", session_detail: "sin_respuesta", session_linked_at: MARCA, session_known_state: "agotado" });
+      expect(await registrarLectura(c.servicio, CANAL, leer("close"), AHORA)).toMatchObject({ de: "sin_verificar", a: "agotado", avisar: false });
+    });
+
+    it("de «no se pudo verificar» a caído otra vez: transición sin un segundo correo (decisión de Marcos del 03/11/2026)", async () => {
+      const c = canalFalso({ session_state: "sin_verificar", session_detail: "sin_respuesta", session_linked_at: MARCA, session_known_state: "caido" });
+      expect(await registrarLectura(c.servicio, CANAL, leer("close"), AHORA)).toMatchObject({ de: "sin_verificar", a: "caido", avisar: false });
+    });
+
+    it("control positivo: de «no se pudo verificar» con conectado conocido, el close es una caída nueva y avisa", async () => {
+      const c = canalFalso({ session_state: "sin_verificar", session_detail: "sin_respuesta", session_linked_at: MARCA, session_known_state: "conectado" });
+      expect(await registrarLectura(c.servicio, CANAL, leer("close"), AHORA)).toMatchObject({ de: "sin_verificar", a: "caido", avisar: true });
+    });
   });
 });

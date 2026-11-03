@@ -33,4 +33,10 @@ describe("las listas cerradas de F32", () => {
       ...SESION_ESTADOS,
     ]);
   });
+
+  it("el último estado conocido (00042) es cualquier estado de sesión menos «no se pudo verificar»", () => {
+    expect(
+      valoresDelCheck(/channels_session_known_state_check check \(session_known_state in \(([\s\S]*?)\)\);/),
+    ).toEqual(SESION_ESTADOS.filter((e) => e !== "sin_verificar"));
+  });
 });

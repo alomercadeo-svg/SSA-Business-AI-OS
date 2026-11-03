@@ -23,6 +23,14 @@
  * borran ni la rama de `close` ni `cleaningUp`). No se borra nunca. Sin marca,
  * un `close` es «sin vincular», no una caída, y no manda correo.
  *
+ * EL ÚLTIMO ESTADO CONOCIDO (00042, decisión de Marcos del 03/11/2026). Un
+ * «no se pudo verificar» pisa `session_state`, y eso borraba el agotado: el
+ * `close` siguiente daba caído con otro correo, o «sin vincular».
+ * `session_known_state` guarda el último estado que no fue «no se pudo
+ * verificar»; `session_state` sigue diciendo «sin_verificar» mientras no se
+ * sabe, y eso es lo que se muestra (criterios 3 y 8). Volver de ahí al mismo
+ * estado conocido no avisa: no es una caída nueva.
+ *
  * LA TRANSICIÓN. El evento y el chequeo pueden escribir a la vez. El cambio de
  * estado es un `update` condicionado a que el estado sea otro, y solo quien
  * obtiene la fila tiene una transición: así una caída manda un solo correo.
@@ -40,6 +48,7 @@ export interface SesionGuardada {
   session_state: SesionEstado | null;
   session_detail: string | null;
   session_linked_at: string | null;
+  session_known_state: Exclude<SesionEstado, "sin_verificar"> | null;
 }
 
 export interface Decision {
@@ -82,6 +91,10 @@ export function decidirEstado(guardada: SesionGuardada, lectura: LecturaDeSesion
   const detalle = lectura.estado;
   const marcar = ownerJid || lectura.estado === "open";
   const conMarca = guardada.session_linked_at !== null || marcar;
+  // Agotado, o agotado antes de un «no se pudo verificar».
+  const agotado =
+    guardada.session_state === "agotado" ||
+    (guardada.session_state === "sin_verificar" && guardada.session_known_state === "agotado");
 
   switch (lectura.estado) {
     case "open":
@@ -89,10 +102,12 @@ export function decidirEstado(guardada: SesionGuardada, lectura: LecturaDeSesion
     case "refused":
       return { estado: "agotado", detalle, marcar };
     case "close":
-      if (!conMarca) return { estado: "sin_vincular", detalle, marcar };
       // Después de `refused`, Evolution deja la instancia en `close`: sigue
-      // siendo «se agotaron los intentos» hasta que alguien empiece de nuevo.
-      if (guardada.session_state === "agotado") return { estado: "agotado", detalle, marcar };
+      // siendo «se agotaron los intentos» hasta que alguien empiece de nuevo,
+      // con la marca o sin ella (un número que nunca se vinculó también agota
+      // los códigos: 03/11/2026, con el número real).
+      if (agotado) return { estado: "agotado", detalle, marcar };
+      if (!conMarca) return { estado: "sin_vincular", detalle, marcar };
       return { estado: "caido", detalle, marcar };
     case "connecting": {
       // Depende de la marca, no del estado anterior (ajuste de Marcos del
@@ -105,7 +120,7 @@ export function decidirEstado(guardada: SesionGuardada, lectura: LecturaDeSesion
       // Evolution (B:428-431): no cambia y deja el detalle. La segunda seguida
       // es caído. `session_detail` lleva la cuenta: cualquier otra lectura la
       // pisa, y un `open` la vuelve a cero.
-      const enCurso = !conMarca || guardada.session_state === "agotado";
+      const enCurso = !conMarca || agotado;
       const vigilado = ["conectado", "caido", "sin_verificar"].includes(guardada.session_state ?? "");
       if (!enCurso && vigilado && guardada.session_detail === "connecting") {
         return { estado: "caido", detalle, marcar };
@@ -140,7 +155,7 @@ export async function registrarLectura(
 ): Promise<Transicion | null> {
   const { data: fila, error } = await servicio
     .from("channels")
-    .select("id, workspace_id, session_state, session_detail, session_linked_at")
+    .select("id, workspace_id, session_state, session_detail, session_linked_at, session_known_state")
     .eq("id", canalId)
     .maybeSingle();
   if (error) throw new Error(`channels: ${error.message}`);
@@ -168,9 +183,11 @@ export async function registrarLectura(
 
   if (d.estado === null || d.estado === guardada.session_state) return null;
 
+  // El último estado conocido va con el estado, en el mismo `update`.
+  const conocido = d.estado === "sin_verificar" ? {} : { session_known_state: d.estado };
   const { data: cambiadas, error: errEstado } = await servicio
     .from("channels")
-    .update({ session_state: d.estado, session_changed_at: cuando })
+    .update({ session_state: d.estado, session_changed_at: cuando, ...conocido })
     .eq("id", canalId)
     .or(`session_state.is.null,session_state.neq.${d.estado}`)
     .select("id");
@@ -182,6 +199,8 @@ export async function registrarLectura(
     workspaceId: guardada.workspace_id,
     de: guardada.session_state,
     a: d.estado,
-    avisar: ESTADOS_QUE_AVISAN.includes(d.estado),
+    avisar:
+      ESTADOS_QUE_AVISAN.includes(d.estado) &&
+      !(guardada.session_state === "sin_verificar" && guardada.session_known_state === d.estado),
   };
 }

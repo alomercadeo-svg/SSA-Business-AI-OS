@@ -1678,6 +1678,65 @@ Tests:
 **Fin del tramo 2 de S7: 11:49:41**, leída antes del commit final. De 11:20:51 a 11:49:41 no hubo cortes. La revisión del plan (hasta las 11:34:07) y la espera de la respuesta de Marcos sobre G10 (de 11:42:33 a 11:46:30) se cuentan, igual que la revisión del plan en el tramo 1. **Medido: 28 min** (28 min 50 s, truncando los segundos). **Suma de S7: 88 + 28 = 116 min.** La subida final y su espera quedan fuera, como en el tramo 1.
 
 
+## Apertura del tramo 3 de S7 (fuera de la medición)
+
+**03/11/2026, fuera de la medición.** `node scripts/commits-sin-subir.mjs`: «Sin commits sin subir contra origin/bloque-1-foundation», salida 0; último commit `6f73749`, comprobado con `git log`. Los dos despliegues que siguen no podían figurar en sí mismos. Se anotan de la memoria de Claude Code; en el repo no figuraban.
+
+- **Despliegue de `2fa2666`** (docs: S7 tramo 2). `node scripts/verificar-despliegue.mjs`, **salida 0, leída directo con `echo $?`**: lectura previa a las 11:50:07 (build `uoLEqYn0lrNWSO3WwW-CD`), push `1ced6b2..2fa2666` (lleva `e94b99b`, la apertura, los cuatro `test(F32)` y el docs), a las 11:50:15 según `.git/logs/refs/remotes/origin/bloque-1-foundation`; el build pasó a `4FEV5f0KNpZ0lbGTusjTx` a las 11:53:30, con `/login` en 200. Antes: suite 932 de 932, `typecheck` en cero, foto de criterios sin cambios. Solo tests y docs: no toca pantallas. **Railway, captura de Marcos del 03/11/2026, llegada con la hora leída a las 12:00:45:** ACTIVE «docs: S7 tramo 2, los tests de F32 vistos en rojo (83 de G1 a G9; 28 ...» (cortado así en pantalla), «10 minutes ago via GitHub», «Deployment successful», `node@24.22.1`. **Identificado por título: `2fa2666`.** El HISTORY no se ve. «10 minutes ago» lo pone hacia las 11:50: compatible con el push de las 11:50:15, no lo prueba.
+- **Despliegue de `6f73749`** (F22: un rechazo de autenticación es un aviso rechazado, no siempre un lead perdido; fuera de la medición). `verificar-despliegue.mjs` **salida 0, leída directo con `echo $?`**: lectura previa a las 12:10:24 (build `4FEV5f0KNpZ0lbGTusjTx`), push `2fa2666..6f73749`, el build pasó a `99NhfOHXsSP8aIyBu9s7y` a las 12:12:23, con `/login` en 200. Antes: suite 937 de 937, `typecheck` y lint en cero, guardia de criterios en verde. **El cambio no se había anotado en este archivo** (el prompt no lo pedía): el aviso de `webhook_auth_failed` deja de decir siempre «lead perdido». **Railway, captura de Marcos del 03/11/2026, llegada con la hora leída a las 12:14:31:** ACTIVE «F22: un rechazo de autenticación es un aviso rechazado, no siempre ...» (cortado así), «3 minutes ago via GitHub», «Deployment successful», `node@24.22.1`. **Identificado por título: `6f73749`.** El HISTORY no se ve. **Canales mirado con sesión** (captura de Marcos, llegada a las 12:15:47, «canales en producción carga bien»): carga, con tres canales; `alomercadeo-ventas` en «Sin vincular», «Verificado hace 3 min». No había alertas abiertas, así que el aviso nuevo no se vio: lo cubre el test de render. **Dado por bueno.**
+
+
+## S7, tramo 3: retrabajo de F32, el «agotado» que se perdía (Bloque 4, medido)
+
+**03/11/2026, desde las 15:06:33** (`TZ=America/Costa_Rica date`, leída al recibir el prompt). **Medido** como tramo nuevo de S7 (regla del 08/10/2026). **Revisión completa:** toca la regla del estado de sesión que usan el receptor de Evolution y el chequeo programado, y suma la migración 00042. El plan se aprobó a las 15:39:52, con dos rondas de ajustes de Marcos (de su chat de revisión). La línea de base no cambia.
+
+**Qué pasó, con el número real** (datos de Marcos, de su chat de revisión): a las 13:25 se apretó «Vincular número» en Canales y no se escaneó; a las 13:48 salió el correo «WhatsApp quedó desvinculado: se agotaron los intentos de vinculación» a Owner y Admin (fila «Enviado» en Correos enviados, 13:48), así que el receptor recibió el `refused` y puso «agotado»; a las 14:13 la tarjeta decía «Sin vincular». Después, a las 14:26, se vinculó; a las 14:42 se cerró la sesión desde el teléfono (caída real, con su correo de las 14:42) y se reconectó enseguida. **Hoy el canal `f81fd726` (`alomercadeo-ventas`) está en «conectado»**: lo confirma la lectura previa a la 00042 (15:42:52, abajo). **Corrección al plan:** el plan suponía que el canal seguía en «sin vincular»; Marcos lo corrigió antes de aprobar.
+
+- **El prompt tenía un dato mal redactado, corregido por Marcos antes de aprobar:** decía que las corridas de vigilancia-cron de las 13:41 y las 13:50 tenían `sesiones.ok` y `sesiones.fallo` en 0. **El valor correcto:** todas las corridas de 13:21 a 14:10 (13:21, 13:30, 13:41, 13:50, 14:01 y 14:10) dicen «sesiones.ok: 4 sesiones.fallo: 0». El chequeo de sesión corrió en cada una. Con el dato mal escrito, el plan había concluido que el chequeo no corrió («ocupada»); esa conclusión se retiró.
+- **Que la corrida de las 13:50 leyó `close` y pisó «agotado» con «sin vincular» es una inferencia del chat de Marcos, sin verificar en la base.**
+
+**1. `close` después de agotado, sin la marca de vinculado.** En `decidirEstado` (`lib/sesion-whatsapp.ts`), caso `close`, la guarda `if (!conMarca) return sin_vincular` iba antes que `if (guardada.session_state === "agotado") return agotado`: un canal que nunca se vinculó salía por la primera y nunca llegaba a la segunda. Contradecía el comentario de esas mismas líneas. Verificado contra el código antes de tocarlo. **Arreglo:** la guarda de agotado va primero, y el comentario dice que vale con la marca o sin ella.
+- **Por qué el test de «sigue siendo agotado» que ya existía no lo vio:** `guardada("agotado", "refused")` usa el tercer parámetro de `guardada`, la marca, que vale `MARCA` por defecto. Siempre corría con la marca, así que nunca pasaba por la guarda de «sin vincular». El verificador de producción (`scripts/verify-sesion-whatsapp.mjs`, pasos 4 y 5) tampoco: B llega a agotado con la marca, y A pasa de vacío a `close` sin pasar por agotado.
+
+**2. «No se pudo verificar» borraba el agotado (decidido arreglarlo en este tramo por Marcos, opción B del plan).** Una lectura `sin_verificar` pisa `session_state`, que era el único lugar donde quedaba el agotado. Así se perdía por tres caminos: un `close` con la marca daba caído con un segundo correo; uno sin la marca, «sin vincular»; y dos `connecting` seguidos con la marca, caído con correo. Además, recuperar el agotado habría sido una transición nueva, con otro correo.
+- **Opción B:** la columna `channels.session_known_state` (migración 00042) guarda el último estado que no fue «no se pudo verificar». `session_state` no cambia de significado. **Los criterios 3 y 8 se cumplen igual que antes:** mientras no se sabe, el estado guardado sigue siendo «sin_verificar», y la pantalla y la bandeja leen ese. Ni `lib/sesion-whatsapp-pantalla.ts` ni el aviso de la bandeja cambian, y sus tests siguieron en verde sin tocarlos. La opción A (que «no se pudo verificar» no pisara el agotado) se descartó: dejaba en la base un estado distinto del que se muestra, y la pantalla y la bandeja tenían que deducirlo de `session_detail`.
+- **La regla:** el agotado es `session_state === "agotado"`, o «sin_verificar» con `session_known_state === "agotado"`. Lo usan la rama `close` y el `enCurso` de `connecting`. El `vigilado` de `connecting` no cambió. `registrarLectura` escribe `session_known_state` en el mismo `update` condicionado que el estado, salvo con «sin_verificar».
+- **El correo, decidido por Marcos que vale también para caído:** volver de «no se pudo verificar» al último estado conocido no avisa (`avisar` exige que no sea `de === "sin_verificar"` con el conocido igual al estado nuevo). El riesgo, dicho en el plan: si durante el «no se pudo verificar» la sesión se reconectó y se volvió a caer sin que se viera, ese correo no sale; la bandeja la sigue mostrando.
+- **Las demás transiciones desde agotado no cambian:** `open` sigue pasando a conectado, `connecting` sigue sin cambiar y `refused` sigue en agotado.
+
+**Los tests nuevos, 9, todos vistos en rojo antes de su cambio** (la línea del error es la de Vitest, copiada):
+
+| Test | Archivo | Rojo |
+|---|---|---|
+| Punto 1: `close` después de agotado, sin la marca → agotado | `lib/sesion-whatsapp.test.ts` | 15:40:04, `AssertionError: expected { estado: 'sin_vincular', …(2) } to deeply equal { estado: 'agotado', …(2) }` |
+| B8: el `check` de `session_known_state` es `SESION_ESTADOS` sin `sin_verificar` | `lib/sesion-whatsapp-migracion.test.ts` | 15:40:20, `AssertionError: expected 0 to be greater than 0` (ninguna migración tenía el `check`) |
+| B1: sin verificar, conocido agotado, `close` con marca → agotado | `lib/sesion-whatsapp.test.ts` | 15:41:23, `expected 'caido' to be 'agotado'` |
+| B2: ídem sin marca → agotado | ídem | 15:41:23, `expected 'sin_vincular' to be 'agotado'` |
+| B3: sin verificar con `connecting`, conocido agotado, `connecting` con marca → sin cambio | ídem | 15:41:23, `expected 'caido' to be null` |
+| B4: `refused` escribe el conocido; un «no se pudo verificar» no lo pisa | ídem | 15:41:23, `expected 'conectado' to be 'agotado'` |
+| B5: de sin verificar con conocido agotado, `close` → agotado sin correo | ídem | 15:41:23, recibido `a: "caido"`, `avisar: true` |
+| B6: de sin verificar con conocido caído, `close` → caído sin correo | ídem | 15:41:23, recibido `avisar: true` |
+| B7, control positivo: de sin verificar con conocido conectado, `close` → caído con correo | ídem | Verde antes del cambio, como se esperaba. Visto en rojo a las 15:42:00 con una rotura a propósito (la condición del correo sin la comparación con el estado nuevo: `!== null` en vez de `=== d.estado`) y restaurado |
+
+`guardada()` suma un cuarto parámetro, el conocido, en `null` por defecto: los tests que ya existían no cambiaron.
+
+**La migración 00042** (`supabase/migrations/00042_sesion_estado_conocido.sql`): la columna, su `check` con nombre y un relleno desde `session_state` donde no es nulo ni «sin_verificar». Idempotente. Sumada al final de `ALL_MIGRATIONS.sql`, a `lib/types/database.ts` y a `CHANNEL_PUBLIC_COLUMNS`; el conteo de §14c del plano pasa a 42 migraciones. **El OK de Marcos fue por adelantado, con tres condiciones cerradas, y se cumplieron las tres:**
+- **Lectura previa, 15:42:52**, de solo conteo, por el mismo camino que `scripts/recuento-base.mjs` (`npx supabase db query --linked`), con el mismo filtro del relleno: **una fila**, `f81fd726`, espacio `e8f4f678`, `evolution`, `conectado`. Se sumó `provider`, que hacía falta para la condición (b). Ninguna fila con estado nulo ni «sin_verificar».
+- **Recuento previo** (`recuento-base.mjs`): 32 tablas, 41 migraciones, la última `00041`.
+- **Dry-run, 15:43:12:** «Would push these migrations: • 00042_sesion_estado_conocido.sql», solo esa.
+- **Push: aplicada por Marcos desde su terminal.** El clasificador de permisos de Claude Code frenó el `npx supabase db push` de la sesión (15:43, después del dry-run), y Marcos lo corrió y pegó la salida: «Applying migration 00042_sesion_estado_conocido.sql...» y «Finished supabase db push.», una sola migración. **La salida no muestra la hora ni el código de salida.** Hora en que llegó el mensaje con la salida: **15:53:00**. El push quedó entre las 15:44:31 (cuando se pidió) y las 15:53:00.
+- **Lectura posterior, 15:53:07**, por el mismo camino y con el mismo filtro, más `session_known_state`: la misma fila, `f81fd726`, `e8f4f678`, `evolution`, `session_state` «conectado», **`session_known_state` «conectado»**.
+- **Recuento posterior:** 32 tablas, **42 migraciones, la última `00042`**. Las cantidades de filas son las mismas que antes. Solo cambiaron las filas de `tareas_estado` (`resultado`, `ultima_ejecucion_at` y `ultimo_ok_at` de la vigilancia, el chequeo de sesión y el reintento de adjuntos), porque en el medio corrió una vuelta de vigilancia-cron. El chequeo de sesión del espacio real terminó bien a las 15:51:10, sin error. No se sabe si fue antes o después del push.
+
+**El orden del despliegue:** primero `db push`, después el commit y `verificar-despliegue.mjs`. Entre el push y el despliegue, el código viejo ignora la columna. Al revés, el código nuevo sin la columna haría fallar `registrarLectura`, y el receptor respondería 500 a cada `connection.update`.
+
+Nada llamó a Evolution, Zernio, Resend ni Meta. Lo único que escribió en producción es la 00042, con el CLI.
+
+**Antes del commit:** suite 946 de 946, `typecheck` y lint en cero, foto de criterios sin cambios (ningún criterio se tocó).
+
+**Fin del tramo 3 de S7: 15:54:10**, leída antes del commit. De 15:06:33 a 15:54:10 no hubo cortes. Se cuentan la revisión del plan (hasta las 15:39:52, con dos rondas de ajustes de Marcos) y la espera del push que corrió Marcos (de 15:44:31 a 15:53:00), igual que las esperas de respuesta del tramo 2. **Medido: 47 min** (47 min 37 s, truncando los segundos). **Suma de S7: 88 + 28 + 47 = 163 min**, dentro del rango de 144 a 261. **Contra la estimación del plan** (de 75 a 110 min con la opción B): por debajo. La subida final y su espera quedan fuera, como en los tramos 1 y 2.
+
+
 ---
 
 ## Siguiente paso
@@ -1757,7 +1816,7 @@ Sin fecha: el Flujo 4 del plano, la conexión en vivo de WhatsApp. Espera el nú
 
 | Sesión | Funcionalidades | Criterios | Rango (min) | Días reales | Anotado el |
 |---|---|---|---|---|---|
-| S7 | F32 | 9 | 144 a 261 | Tramo 1: 02/11/2026 18:11 a 02/11/2026 19:48, con tres cortes que no se cuentan, las esperas de Railway de 18:51 a 18:55, de 19:11 a 19:14 y de 19:35 a 19:38. Hora de Costa Rica. Suma del tramo 1: 88 min (1 h 28 min). Tramo 2, retrabajo de F32 (los tests no vistos en rojo): 03/11/2026 11:20 a 03/11/2026 11:49, sin cortes. Suma del tramo 2: 28 min. Suma de la sesión: 116 min (1 h 56 min), por debajo del rango. Actualizado el 03/11/2026: decía 88 min. F32 construida, 4 de 9; 2, 4, 5, 6 y 7 pendientes de la vinculación del número | 02/11/2026 y 03/11/2026 |
+| S7 | F32 | 9 | 144 a 261 | Tramo 1: 02/11/2026 18:11 a 02/11/2026 19:48, con tres cortes que no se cuentan, las esperas de Railway de 18:51 a 18:55, de 19:11 a 19:14 y de 19:35 a 19:38. Hora de Costa Rica. Suma del tramo 1: 88 min (1 h 28 min). Tramo 2, retrabajo de F32 (los tests no vistos en rojo): 03/11/2026 11:20 a 03/11/2026 11:49, sin cortes. Suma del tramo 2: 28 min. Tramo 3, retrabajo de F32 (el agotado que se perdía, con la 00042): 03/11/2026 15:06 a 03/11/2026 15:54, sin cortes. Suma del tramo 3: 47 min. Suma de la sesión: 163 min (2 h 43 min), dentro del rango. Actualizado el 03/11/2026: decía 116 min (1 h 56 min), por debajo del rango; antes, 88 min. F32 construida, 4 de 9; 2, 4, 5, 6 y 7 pendientes de la vinculación del número | 02/11/2026 y 03/11/2026 |
 | S8 | F35 | 30 | 480 a 870 | | |
 | S9 | F40, F36, F43, F44 | 28 | 448 a 812 | | |
 | S10 | F34, F42, F33 | 25 | 400 a 725 | | |

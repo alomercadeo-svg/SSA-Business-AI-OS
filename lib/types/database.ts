@@ -257,6 +257,8 @@ export interface Database {
           session_detail: string | null;
           /** Primera vez que la sesión se vio abierta (F32). No se borra nunca. */
           session_linked_at: string | null;
+          /** Último estado que no fue «no se pudo verificar» (F32, 00042). */
+          session_known_state: Exclude<SesionEstado, "sin_verificar"> | null;
           last_comment_cursor: string | null;
           comment_rules: Json | null;
           created_at: string;
@@ -284,6 +286,7 @@ export interface Database {
           session_changed_at?: string | null;
           session_detail?: string | null;
           session_linked_at?: string | null;
+          session_known_state?: Exclude<SesionEstado, "sin_verificar"> | null;
           last_comment_cursor?: string | null;
           comment_rules?: Json | null;
           created_at?: string;
@@ -309,6 +312,7 @@ export interface Database {
           session_changed_at?: string | null;
           session_detail?: string | null;
           session_linked_at?: string | null;
+          session_known_state?: Exclude<SesionEstado, "sin_verificar"> | null;
           last_comment_cursor?: string | null;
           comment_rules?: Json | null;
           updated_at?: string;
