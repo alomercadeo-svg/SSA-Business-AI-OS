@@ -1396,6 +1396,61 @@ Tests:
 - **El componente:** `AvisoSesionWhatsapp`, en `components/inbox/aviso-sesion-whatsapp.tsx` (commit `801733a`). Aparece con la sesión en caído o en «se agotaron los intentos», no con «sin vincular» ni con «no se pudo verificar». Se vuelve a leer cada 60 s con la sesión del usuario, y el botón a Canales lo ven solo Owner y Admin.
 - **Dónde está montado:** en `app/(dashboard)/dashboard/inbox/page.tsx`, arriba de `InboxView`, en una columna (`flex h-full flex-col`), con `InboxView` dentro de `min-h-0 flex-1`. La página lee los canales de Evolution activos del espacio con `COLUMNAS_DEL_AVISO` y le pasa `esManager(role)`. No está dentro de `inbox-view.tsx`; el plan aprobado decía montarlo ahí, y se cambió para no tocar la vista que S8 reescribe.
 - **Su test:** `components/inbox/aviso-sesion-whatsapp.test.ts`, que además comprueba que la página lo monte arriba de `InboxView`. Si F35 mueve la bandeja, el test tiene que seguir en verde con el aviso en su nuevo lugar, no borrarse.
+- **Actualizado el mismo día, después del arreglo de la caída (abajo):** la constante `COLUMNAS_DEL_AVISO` y el tipo `CanalDeSesion` viven en `lib/sesion-whatsapp-pantalla.ts`, no en el componente. Si F35 mueve el aviso, la página de servidor no puede importar nada que no sea un componente desde un archivo `"use client"`: lo vigila `app/frontera-cliente.test.ts`.
+
+**Tramo 1: 02/11/2026, desde las 18:11:32** (`TZ=America/Costa_Rica date`). **Medido**, primera sesión del Bloque 4. Rango de S7: de 144 a 261 min (9 criterios; línea de base cerrada el 02/11/2026, sin cambios).
+- **La aprobación del plan no tiene hora exacta.** Marcos lo aprobó, con condiciones, entre la última hora leída antes (18:22:08, al escribir el plan) y la primera leída después (18:30:31, la consulta del ítem 1). Revisión: de 18:11 a ese momento, entre 11 y 19 min. Construcción de los ítems 1 a 9: de 18:30:31 a 18:47:25, unos 17 min contra 215 estimados.
+- **Decisión de Marcos, 02/11/2026: el quinto estado, «sin vincular».** Un canal que nunca estuvo conectado no está caído: Evolution 2.3.7 le contesta `close` igual que a una caída (`whatsapp.baileys.service.ts:259`). Se muestra «Sin vincular», con el botón «Vincular número», sin correo y sin aviso en la bandeja. Lo distingue la marca `session_linked_at`, que se pone con la primera de tres señales (`open` en el chequeo, `connection.update` con `open`, o `ownerJid` no vacío) y no se borra nunca. En §11 del plano como decisión suya; no es un criterio nuevo y no cambia la línea de base.
+- **Evolution 2.3.7, leído en su código público** (clon de la etiqueta `2.3.7` fuera del repo, commit `cd800f2…`, blob `60e857fc…` del archivo de Baileys, el mismo del 08/10; Baileys `v7.0.0-rc.9`, `cb8b3717…`). Estados `open`, `connecting`, `close` y `refused`; `refused` solo viaja en el webhook (`monitor.service.ts:428-437` deja la instancia en `close`); `ownerJid` se escribe solo al pasar a `open` (B:493) y no lo borran ni `close` (B:441-449) ni `cleaningUp` (`monitor.service.ts:167-170`); `connectionState` no lo devuelve y `fetchInstances` sí, con el token de la instancia en el cuerpo. **Corrección del mismo día:** el plan decía que una instancia inexistente da 401; da **404**, porque las rutas de instancia pasan antes por `instanceExistsGuard` (`src/api/routes/index.router.ts:41`, `src/api/guards/instance.guard.ts:35-36`). Lo mostró el chequeo real (abajo).
+- **La credencial del canal real:** `select exists` sobre `vault.secrets`, solo el nombre, filtrado por el id del canal (`f81fd726-fe8d-462c-a375-7286fbcdb31c`), por `npx supabase db query --linked`: **true**, a las 18:30:39. Ese comando no figuraba en este archivo, pero sí se usaba: `scripts/recuento-base.mjs` y `scripts/lib-verificador.mjs`.
+- **La 00041**, ítem 2: recuento 18:32:01 (32 tablas, 40 migraciones, importación libre), `--dry-run` 18:32:13 con solo la 00041, salida 0; **`npx supabase db push` de 18:32:25 a 18:32:28, salida 0**; recuento 18:32:34, sin otra diferencia que las migraciones (40 a 41). Los dos `check` y las cinco columnas, leídos en producción.
+
+**Lo hecho, ítem por ítem, con su commit.**
+
+| # | Ítem | Commit | Tests vistos en rojo |
+|---|---|---|---|
+| 1 | Credencial en Vault | (lectura) | — |
+| 2 | 00041 y tipos | `684f89f` | 2 de 2 (18:31:31); `plano-conteos` 2 hasta corregir §14c |
+| 3 | Reglas, marca, transición | `ff87869` | **solo 2 de 21** (18:34:50, con la regla vieja de «connecting»); los otros 19, no |
+| 6 | Correo `sesion_whatsapp` (antes del 4, para que cada commit compile) | `100bbfa` | 6 de 6, pero por «not a function» (rojo trivial) |
+| 4 | Receptor; correo después del acuse (C1) | `805a392` | 3 de 7, los afirmativos (18:37:38); los 3 de `lecturaDeAviso`, no |
+| 5 | Chequeo en `correrTareas` | `d3d3021` | los 3 de `tareas-programadas` (18:39:34); los 11 de `chequeo-sesion-whatsapp`, **no**: el archivo no cargaba |
+| 7 | Canales y el modal del QR | `3106caa` | la acción, al menos 3 (18:41:54; el total no se capturó); los de la pantalla, **no**; los de render, con una rotura a propósito: 3 de 8 |
+| 8 | Aviso en la bandeja | `801733a` | **no**: el archivo no cargaba |
+| — | Nota de F35 | `c73de7d` | — |
+| 9 | `verify-sesion-whatsapp.mjs` | `acd07a4`, `273460f`, `c0f6e77` | **sí, contra producción antes del despliegue:** 18:47:07 a 18:47:13, salida 1 (B quedó sin estado); la limpieza borró los dos canales y el secreto, comprobado a las 18:50:19 |
+| — | Arreglo de la caída de la bandeja | `76f183d` | la guardia nueva, 1 de 2, marcando solo esa importación (después de corregir un falso verde) |
+
+**Despliegue de F32** (lleva `6dd0b16`, la apertura). Antes: suite 929 de 929, `typecheck` en cero, importación libre (18:51:38). `node scripts/verificar-despliegue.mjs`, **salida 0, leída directo con `echo $?`**: lectura previa 18:51:52 (build `81hbEN_5lIGjCFrL-GqKx`), push `28f82c4..c73de7d`, el build pasó a `WmrOrYcxOJuA56awKzwpI` a las 18:55:10, `/login` en 200.
+
+**La bandeja se cayó en producción, de 18:55:10 a 19:14:28, para todos los que entraban** (avisado por Marcos: «Application error: a server-side exception has occurred», digest 301866277).
+- **Qué pasó:** `app/(dashboard)/dashboard/inbox/page.tsx`, que corre en el servidor, importaba la constante `COLUMNAS_DEL_AVISO` del componente `"use client"` del aviso. En el servidor llega como referencia de cliente y tira al usarla; en el build, `.next/server` tenía `COLUMNAS_DEL_AVISO = registerClientReference(function() { throw new Error("Attempted to call COLUMNAS_DEL_AVISO() from the server…`. Error de esta sesión, ítem 8.
+- **Por qué no se vio antes:** Vitest no aplica la frontera de Next y `next build` compila; solo falla al renderizar la página con sesión. No se miró la bandeja en el navegador antes de subir: pide iniciar sesión.
+- **Arreglo, `76f183d`:** la constante y su tipo pasan a `lib/sesion-whatsapp-pantalla.ts`, y una guardia nueva, `app/frontera-cliente.test.ts`, falla si un archivo de servidor importa algo que no sea un componente o un tipo de un módulo `"use client"`. **Su primera versión dio verde con el código roto**: tomaba cualquier nombre con mayúscula por componente; corregida a PascalCase, marcó solo esa importación. En el build nuevo, 0 referencias de cliente para la constante; suite 931 de 931. Subido con el OK de Marcos: **salida 0**, lectura previa 19:11:40 (build `WmrOrYcxOJuA56awKzwpI`), push `c73de7d..76f183d`, build `G2eH-aO7g9PhDkcT4L6fq` a las 19:14:28, `/login` en 200. **Marcos confirmó que la bandeja carga.**
+
+**La primera corrida real del chequeo**, aprobada en solo lectura: de **19:01:04 a 19:01:05**, en «Ale Admin's Workspace». `alomercadeo-ventas` leyó `close`, `fetchInstances` trajo `ownerJid` vacío, y quedó **«sin vincular»**, sin marca, sin error y sin correo. A las 19:11:27, igual. Dos llamadas por corrida a nuestro Evolution, `connectionState` y `fetchInstances`.
+
+**`verify-sesion-whatsapp.mjs`, de 19:01:30 a 19:12:07, en «Pruebas de correo»**, con `--correr --pausa 300 --esperar-chequeo --token-inventado`, arrancado después de la corrida del cron de las 19:01. **Salida 1: 33 ok, 2 fallas, ningún par no concluyente.**
+- B: `open` → conectado con marca; `close` → caído, **correo enviado a las 19:01:40**, intento 1, solo a alomercadeo@gmail.com; `refused` → agotado, **correo enviado a las 19:06:45**, intento 1. A: `close` sin marca → «sin vincular», **0 filas** de correo.
+- El chequeo real dejó A y B en «no se pudo verificar» y no hubo fila de correo nueva. **Las dos fallas son del valor esperado, no de la app:** el script esperaba el motivo `http_401` y nuestro Evolution contestó `http_404` (la corrección de arriba). La llamada con token inventado la aprobó Marcos.
+- Limpieza: los dos canales, los dos tokens inventados y el secreto, borrados.
+- La pausa de 19:01:42 a 19:06:42 era para mirar Canales y la Bandeja con B caído; la caída de la bandeja (arriba) cayó en esa ventana.
+
+**Los criterios de F32, con su prueba, su corrida y la clasificación propuesta** (las tildes las decide Marcos):
+
+| # | Criterio | Prueba y corrida | Clasificación propuesta |
+|---|---|---|---|
+| 1 | La pantalla muestra el estado | El canal real, «sin vincular», por el chequeo real (19:01:04); la tarjeta, por tests de render; la pantalla no la miró nadie con sesión | Datos reales en el estado; la pantalla, pendiente de verla |
+| 2 | Aviso por evento y chequeo, los dos | Chequeo: real (19:01:04). Evento: avisos firmados al receptor de producción (19:01 a 19:07) | Chequeo real; evento simulación → pendiente de la vinculación |
+| 3 | Desconocido como «no se pudo verificar» | El chequeo real con instancias inventadas: nuestro Evolution contestó 404 y quedó «no se pudo verificar» (≈19:11) | Respuesta real de Evolution con instancias de prueba |
+| 4 | «Se agotaron los intentos» | `refused` firmado (19:06:45) | Simulación → pendiente de la vinculación |
+| 5 | Reconectar con QR | Tests de la acción y del modal; no se apretó sobre la instancia real | Simulación → pendiente de la vinculación (el Flujo 4, paso 6, usa este botón) |
+| 6 | La bandeja lo indica | Test de render y del montaje; en pantalla no se vio (la bandeja estaba caída en la pausa) | Simulación → pendiente de la vinculación |
+| 7 | Correo en caída o agotado | Dos correos reales en «Pruebas de correo» (19:01:40 y 19:06:45) con la sesión forzada | Simulación con correo real → pendiente de la vinculación |
+| 8 | «No se pudo verificar» no manda correo | 0 filas nuevas después del chequeo real (≈19:11) | Entorno de prueba, con la respuesta real de Evolution |
+| 9 | Control positivo en entorno de prueba | El script: caída con correo, «sin vincular» y «no se pudo verificar» sin | Se cumple así, como pide el criterio |
+
+**La compuerta de un día no aplica:** `6dd0b16` se subió a las 18:51:52 con F32.
 
 
 ---
@@ -1470,3 +1525,16 @@ Después, el Bloque 3: modelo de contacto extendido (F25), identidad de canal y 
 **Esta es también la razón por la que F32 no se adelantó al Bloque 3**, decidido el 22 de septiembre de 2026: sumarle una funcionalidad al bloque que se va a medir destruye la comparación, porque ya no serían los mismos dos días planificados. El razonamiento completo está en `docs/requerimientos-fase1.md` §4.7. **F41 no contradice esto:** F32 era del Bloque 4 en la estimación original, y F41 estaba en el Bloque 3 desde el principio.
 
 Sin fecha: el Flujo 4 del plano, la conexión en vivo de WhatsApp. Espera el número dedicado **y el cierre del Bloque 4**, porque la compuerta son F27 y F32, y F32 se queda en el Bloque 4. Ver el Flujo 4, pasos 4 y 5.
+
+### El Bloque 4 se mide, por sesiones
+
+**Línea de base cerrada el 02/11/2026** (cierre de la revisión de antes de S7, arriba): 117 criterios, de 16 a 29 min medidos por criterio, **de 1872 a 3393 min**. No se toca mientras se mide; lo que se agregue después se anota aparte. Las reglas de medición son las del Bloque 3: tramos con fecha y hora de inicio y fin en hora de Costa Rica, truncando los segundos, y no se cuentan la apertura, la espera de Railway ni las pausas de Marcos. Los días de calendario se anotan como dato, sin comparar.
+
+| Sesión | Funcionalidades | Criterios | Rango (min) | Días reales | Anotado el |
+|---|---|---|---|---|---|
+| S7 | F32 | 9 | 144 a 261 | Tramo 1: 02/11/2026 18:11 a (se anota al cerrar), con dos cortes que no se cuentan, las esperas de Railway de 18:51 a 18:55 y de 19:11 a 19:14. Hora de Costa Rica | 02/11/2026 |
+| S8 | F35 | 30 | 480 a 870 | | |
+| S9 | F40, F36, F43, F44 | 28 | 448 a 812 | | |
+| S10 | F34, F42, F33 | 25 | 400 a 725 | | |
+| S11 | F37, F38 | 25 | 400 a 725 | | |
+| **Bloque** | | **117** | **1872 a 3393** | | |
