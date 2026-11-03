@@ -46,6 +46,14 @@ describe("textoDeSesion", () => {
     }
   });
 
+  it("sin ninguna lectura, no dice que un chequeo no respondió: dice que todavía no hay lectura", () => {
+    const t = textoDeSesion(canal(null, null), AHORA);
+    expect(t.etiqueta).toBe("No se pudo verificar");
+    expect(t.explicacion).toBe("Todavía no hay ninguna lectura de la sesión.");
+    // Control positivo: con una lectura fallida, sí habla del chequeo.
+    expect(textoDeSesion(canal("sin_verificar"), AHORA).explicacion).toMatch(/El último chequeo no obtuvo respuesta/);
+  });
+
   it("un chequeo de más de 30 minutos es «no se pudo verificar», aunque lo guardado diga conectado", () => {
     const viejo = textoDeSesion(canal("conectado", 31), AHORA);
     expect(viejo.etiqueta).toBe("No se pudo verificar");

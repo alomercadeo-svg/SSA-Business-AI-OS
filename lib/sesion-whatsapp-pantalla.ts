@@ -57,7 +57,11 @@ export function textoDeSesion(canal: SesionDelCanal, ahora: Date = new Date()): 
       estado: "sin_verificar",
       etiqueta: "No se pudo verificar",
       tono: "aviso",
-      explicacion: `El último chequeo no obtuvo respuesta. No significa que esté caído; se reintenta en 10 minutos.${ultimo}`,
+      // Sin ninguna lectura no hubo chequeo que dejara de responder (captura
+      // de Marcos del 02/11/2026, S7).
+      explicacion: verificadoEl
+        ? `El último chequeo no obtuvo respuesta. No significa que esté caído; se reintenta en 10 minutos.${ultimo}`
+        : "Todavía no hay ninguna lectura de la sesión.",
       verificado,
       boton: guardado === "sin_vincular" ? "Vincular número" : "Reconectar",
     };
