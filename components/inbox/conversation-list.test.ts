@@ -29,7 +29,7 @@ const dibujar = (props: Record<string, unknown>) =>
 
 describe("la lista de la bandeja", () => {
   it("arriba dice cuántas hay cargadas de cuántas hay en el servidor", () => {
-    expect(dibujar({})).toContain("50 de 761");
+    expect(dibujar({ estado: "all" })).toContain("50 de 761");
   });
 
   it("con más en el servidor, al pie está «Cargar más conversaciones»", () => {
@@ -53,7 +53,7 @@ describe("la búsqueda (c): corre en el servidor y vive en la dirección", () =>
   });
 
   it("lo que trajo el servidor no se vuelve a filtrar en el navegador: el servidor también busca por usuario y teléfono", () => {
-    const html = dibujar({ busqueda: "8888-7777" });
+    const html = dibujar({ busqueda: "8888-7777", estado: "all" });
     expect(html).toContain("Contacto 7");
     expect(html).toContain("50 de 761");
   });
@@ -61,5 +61,25 @@ describe("la búsqueda (c): corre en el servidor y vive en la dirección", () =>
   it("una búsqueda sin resultados lo dice", () => {
     const html = dibujar({ busqueda: "nadie", inicial: { conversaciones: [], hayMas: false, cantidades: { abiertas: 0, cerradas: 0, todas: 0 } } });
     expect(html).toContain("Ninguna conversación coincide con «nadie»");
+  });
+});
+
+describe("las pestañas (e): «Abiertas», «Cerradas» y «Todas», con la cantidad del servidor", () => {
+  it("las tres, con su cantidad", () => {
+    const html = dibujar({ estado: "open" });
+    expect(html).toMatch(/Abiertas[^<]*<span[^>]*>700</);
+    expect(html).toMatch(/Cerradas[^<]*<span[^>]*>61</);
+    expect(html).toMatch(/Todas[^<]*<span[^>]*>761</);
+  });
+
+  it("no hay pestaña de pospuestas", () => {
+    const html = dibujar({ estado: "open" });
+    expect(html).not.toMatch(/>snoozed</i);
+    expect(html).not.toContain("Pospuestas");
+  });
+
+  it("arriba, las cargadas de la pestaña elegida", () => {
+    expect(dibujar({ estado: "open" })).toContain("50 de 700");
+    expect(dibujar({ estado: "closed" })).toContain("50 de 61");
   });
 });

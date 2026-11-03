@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, MessageSquare, RefreshCw, User } from "lucide-react";
 import { ConversationList, type InicialDeLaLista } from "@/components/inbox/conversation-list";
+import type { EstadoDeBandeja } from "@/lib/bandeja";
 import { MessageThread } from "@/components/inbox/message-thread";
 import type { EstadoDelHistorial } from "@/lib/historial-aviso";
 import { ContactPanel } from "@/components/inbox/contact-panel";
@@ -18,12 +19,15 @@ type Message = Database["public"]["Tables"]["messages"]["Row"];
 
 export function InboxView({
   inicial,
+  estado = "open",
   busqueda = "",
   workspaceId,
   conversacionInicial = null,
 }: {
   /** La primera página de la lista, leída por el servidor (F35). */
   inicial: InicialDeLaLista;
+  /** La pestaña que vino en la dirección (`?estado=`). */
+  estado?: EstadoDeBandeja;
   /** Lo buscado que vino en la dirección (`?q=`). */
   busqueda?: string;
   workspaceId: string;
@@ -141,6 +145,7 @@ export function InboxView({
       <div className="w-80 flex-shrink-0">
         <ConversationList
           inicial={inicial}
+          estado={estado}
           busqueda={busqueda}
           workspaceId={workspaceId}
           selectedId={selected?.id ?? null}
@@ -164,7 +169,8 @@ export function InboxView({
           </div>
         )}
         <div className="min-h-0 flex-1">
-          {inicial.conversaciones.length === 0 && !busqueda ? (
+          {/* Sin ninguna conversación en el espacio, no solo en la pestaña elegida. */}
+          {(inicial.cantidades?.todas ?? inicial.conversaciones.length) === 0 && !busqueda ? (
             <div className="flex h-full flex-col items-center justify-center px-6 text-center">
               <MessageSquare className="h-10 w-10 text-muted-foreground/40" />
               <p className="mt-3 text-sm font-medium text-muted-foreground">

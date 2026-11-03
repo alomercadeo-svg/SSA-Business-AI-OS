@@ -5,8 +5,14 @@ import { Search, MessageSquare, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { PlatformIcon } from "@/components/platform-icon";
-import type { Database, ConversationStatus } from "@/lib/types/database";
-import { cursorDe, fusionarDeBandeja, type CantidadesDeBandeja, type ConversacionDeBandeja } from "@/lib/bandeja";
+import type { Database } from "@/lib/types/database";
+import {
+  cursorDe,
+  fusionarDeBandeja,
+  type CantidadesDeBandeja,
+  type ConversacionDeBandeja,
+  type EstadoDeBandeja,
+} from "@/lib/bandeja";
 
 type Conversation = ConversacionDeBandeja;
 
@@ -34,22 +40,40 @@ function formatTime(dateStr: string | null): string {
   return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-/** La dirección de la bandeja con lo buscado: se puede recargar o compartir. */
-function direccionCon(busqueda: string): string {
+/**
+ * Las pestañas (F35). No hay «Pospuestas»: para volver a un lead en una fecha
+ * se usa el próximo seguimiento, y `snoozed` queda en la base sin uso.
+ */
+const PESTANAS: ReadonlyArray<{ estado: EstadoDeBandeja; texto: string; cantidad: keyof CantidadesDeBandeja }> = [
+  { estado: "open", texto: "Abiertas", cantidad: "abiertas" },
+  { estado: "closed", texto: "Cerradas", cantidad: "cerradas" },
+  { estado: "all", texto: "Todas", cantidad: "todas" },
+];
+
+const cantidadDe = (cantidades: CantidadesDeBandeja | null, estado: EstadoDeBandeja) =>
+  cantidades ? cantidades[PESTANAS.find((p) => p.estado === estado)!.cantidad] : null;
+
+/** La dirección de la bandeja con la pestaña y lo buscado: se puede recargar o compartir. */
+function direccionCon(estado: EstadoDeBandeja, busqueda: string): string {
   const url = new URL(window.location.href);
   if (busqueda) url.searchParams.set("q", busqueda);
   else url.searchParams.delete("q");
+  if (estado !== "open") url.searchParams.set("estado", estado);
+  else url.searchParams.delete("estado");
   return `${url.pathname}${url.search}`;
 }
 
 export function ConversationList({
   inicial,
+  estado: estadoInicial = "open",
   busqueda = "",
   workspaceId,
   selectedId,
   onSelect,
 }: {
   inicial: InicialDeLaLista;
+  /** La pestaña que vino en la dirección (`?estado=`), ya aplicada por el servidor. */
+  estado?: EstadoDeBandeja;
   /** Lo buscado que vino en la dirección (`?q=`), ya aplicado por el servidor. */
   busqueda?: string;
   workspaceId: string;
@@ -69,7 +93,8 @@ export function ConversationList({
   const buscada = useRef(busqueda);
   const pedidoDeBusqueda = useRef(0);
   const [buscando, setBuscando] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<ConversationStatus | "all">("open");
+  const [estado, setEstado] = useState<EstadoDeBandeja>(estadoInicial);
+  const estadoVigente = useRef(estadoInicial);
   // Relative timestamps depend on the client's clock/locale, which differ from the
   // server's during SSR and trigger a hydration mismatch (React #418, which crashes
   // the inbox in production). Defer time rendering until after mount so the server
@@ -83,10 +108,16 @@ export function ConversationList({
     setCantidades(inicial.cantidades);
     cargadas.current = new Set(inicial.conversaciones.map((c) => c.id));
     buscada.current = busqueda;
-  }, [inicial, busqueda]);
+    estadoVigente.current = estadoInicial;
+    setEstado(estadoInicial);
+  }, [inicial, busqueda, estadoInicial]);
 
+  // La lista como está ahora, para los avisos de Realtime: un actualizador de
+  // `setConversations` corre más tarde, y lo que se decida adentro no se ve afuera.
+  const listaActual = useRef(conversations);
   useEffect(() => {
     cargadas.current = new Set(conversations.map((c) => c.id));
+    listaActual.current = conversations;
   }, [conversations]);
 
   // La página siguiente, desde la última cargada (F35). El cursor es la pareja
@@ -99,7 +130,7 @@ export function ConversationList({
     setErrorAlCargar(null);
     try {
       const cursor = cursorDe(ultima);
-      const res = await fetch(`/api/v1/conversations?estado=all&q=${encodeURIComponent(buscada.current)}&antesOrden=${encodeURIComponent(cursor.orden)}&antesId=${cursor.id}`);
+      const res = await fetch(`/api/v1/conversations?estado=${estadoVigente.current}&q=${encodeURIComponent(buscada.current)}&antesOrden=${encodeURIComponent(cursor.orden)}&antesId=${cursor.id}`);
       const data = await res.json().catch(() => null);
       if (!res.ok || !Array.isArray(data?.conversaciones)) throw new Error(String(res.status));
       setConversations((prev) => fusionarDeBandeja(prev, data.conversaciones));
@@ -126,31 +157,41 @@ export function ConversationList({
   // La búsqueda corre en el servidor, sobre todas las conversaciones que quien
   // mira puede ver (F35), 300 ms después de la última tecla. Una respuesta
   // vieja que llega tarde no pisa a la nueva.
+  // La primera página de una pestaña y una búsqueda, desde el servidor.
+  const recargar = useCallback(async (nuevoEstado: EstadoDeBandeja, q: string) => {
+    const pedido = ++pedidoDeBusqueda.current;
+    setBuscando(true);
+    setErrorAlCargar(null);
+    try {
+      const res = await fetch(`/api/v1/conversations?estado=${nuevoEstado}&q=${encodeURIComponent(q)}`);
+      const data = await res.json().catch(() => null);
+      if (pedido !== pedidoDeBusqueda.current) return;
+      if (!res.ok || !Array.isArray(data?.conversaciones)) throw new Error(String(res.status));
+      buscada.current = q;
+      estadoVigente.current = nuevoEstado;
+      setConversations(data.conversaciones);
+      setHayMas(data.hayMas === true);
+      setCantidades(data.cantidades ?? null);
+      window.history.replaceState(null, "", direccionCon(nuevoEstado, q));
+    } catch {
+      if (pedido === pedidoDeBusqueda.current) setErrorAlCargar("No se pudo cargar la bandeja. Probá de nuevo.");
+    } finally {
+      if (pedido === pedidoDeBusqueda.current) setBuscando(false);
+    }
+  }, []);
+
   useEffect(() => {
     const q = search.trim();
     if (q === buscada.current) return;
-    const pedido = ++pedidoDeBusqueda.current;
-    const espera = setTimeout(async () => {
-      setBuscando(true);
-      setErrorAlCargar(null);
-      try {
-        const res = await fetch(`/api/v1/conversations?estado=all&q=${encodeURIComponent(q)}`);
-        const data = await res.json().catch(() => null);
-        if (pedido !== pedidoDeBusqueda.current) return;
-        if (!res.ok || !Array.isArray(data?.conversaciones)) throw new Error(String(res.status));
-        buscada.current = q;
-        setConversations(data.conversaciones);
-        setHayMas(data.hayMas === true);
-        setCantidades(data.cantidades ?? null);
-        window.history.replaceState(null, "", direccionCon(q));
-      } catch {
-        if (pedido === pedidoDeBusqueda.current) setErrorAlCargar("No se pudo buscar. Probá de nuevo.");
-      } finally {
-        if (pedido === pedidoDeBusqueda.current) setBuscando(false);
-      }
-    }, 300);
+    const espera = setTimeout(() => recargar(estadoVigente.current, q), 300);
     return () => clearTimeout(espera);
-  }, [search]);
+  }, [search, recargar]);
+
+  function elegirPestana(nuevo: EstadoDeBandeja) {
+    if (nuevo === estado) return;
+    setEstado(nuevo);
+    recargar(nuevo, search.trim());
+  }
 
   // Subscribe to conversation updates via Realtime
   useEffect(() => {
@@ -159,7 +200,7 @@ export function ConversationList({
     // Una conversación que no está cargada se pide sola, por la ruta de la
     // lista: la seguridad por filas decide si la puede ver.
     async function traerUna(id: string) {
-      const res = await fetch(`/api/v1/conversations?estado=all&q=${encodeURIComponent(buscada.current)}&id=${id}`).catch(() => null);
+      const res = await fetch(`/api/v1/conversations?estado=${estadoVigente.current}&q=${encodeURIComponent(buscada.current)}&id=${id}`).catch(() => null);
       const data = await res?.json().catch(() => null);
       if (Array.isArray(data?.conversaciones) && data.conversaciones.length > 0) {
         setConversations((prev) => fusionarDeBandeja(prev, data.conversaciones));
@@ -180,9 +221,15 @@ export function ConversationList({
           if (payload.eventType === "UPDATE") {
             const updated = payload.new as Database["public"]["Tables"]["conversations"]["Row"];
             if (cargadas.current.has(updated.id)) {
+              const anterior = listaActual.current.find((c) => c.id === updated.id);
+              const sale = estadoVigente.current !== "all" && updated.status !== estadoVigente.current;
               setConversations((prev) =>
-                fusionarDeBandeja(prev, prev.filter((c) => c.id === updated.id).map((c) => ({ ...c, ...updated })))
+                // Si ya no es de esta pestaña (la cerraron o la reabrieron), sale.
+                sale
+                  ? prev.filter((c) => c.id !== updated.id)
+                  : fusionarDeBandeja(prev, prev.filter((c) => c.id === updated.id).map((c) => ({ ...c, ...updated })))
               );
+              if (anterior && anterior.status !== updated.status) recontar();
             } else {
               // Una que estaba más abajo de lo cargado y le llegó un mensaje.
               await traerUna(updated.id);
@@ -205,7 +252,8 @@ export function ConversationList({
 
   // La búsqueda ya la aplicó el servidor: acá no se vuelve a filtrar por
   // texto, porque el servidor también busca por usuario, correo y teléfono.
-  const filtered = conversations.filter((c) => statusFilter === "all" || c.status === statusFilter);
+  const filtered = conversations;
+  const total = cantidadDe(cantidades, estado);
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-background">
@@ -213,7 +261,7 @@ export function ConversationList({
       <div className="flex h-14 items-center justify-between border-b border-border px-4">
         <h2 className="text-sm font-semibold">Inbox</h2>
         <span className="text-xs text-muted-foreground">
-          {cantidades ? `${conversations.length} de ${cantidades.todas}` : `${conversations.length}`}
+          {total !== null ? `${conversations.length} de ${total}` : `${conversations.length}`}
         </span>
       </div>
 
@@ -235,20 +283,23 @@ export function ConversationList({
         </div>
       </div>
 
-      {/* Status filter */}
-      <div className="flex gap-1 px-3 pb-2">
-        {(["all", "open", "closed", "snoozed"] as const).map((status) => (
+      {/* Pestañas (F35): la cantidad de cada una la calcula el servidor */}
+      <div className="flex gap-1 px-3 pb-2" role="tablist">
+        {PESTANAS.map((p) => (
           <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
+            key={p.estado}
+            role="tab"
+            aria-selected={estado === p.estado}
+            onClick={() => elegirPestana(p.estado)}
             className={cn(
-              "rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors",
-              statusFilter === status
+              "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+              estado === p.estado
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             )}
           >
-            {status}
+            {p.texto}
+            <span className="tabular-nums opacity-80">{cantidades ? cantidades[p.cantidad] : "–"}</span>
           </button>
         ))}
       </div>

@@ -3,7 +3,7 @@
 import { avisoDelHistorial, type EstadoDelHistorial } from "@/lib/historial-aviso";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Send, Paperclip, Bot, User, MessageSquare, CheckCircle, Clock, RotateCcw, Loader2, History } from "lucide-react";
+import { Send, Paperclip, Bot, User, MessageSquare, CheckCircle, RotateCcw, Loader2, History } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { PlatformIcon } from "@/components/platform-icon";
@@ -412,17 +412,6 @@ export function MessageThread({
                 className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors disabled:opacity-50"
               >
                 {statusUpdating === "closed" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5" />}
-              </button>
-            )}
-            {conversation.status !== "snoozed" && (
-              <button
-                onClick={() => updateConversationStatus("snoozed")}
-                disabled={!!statusUpdating}
-                title="Snooze conversation"
-                aria-label="Snooze conversation"
-                className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors disabled:opacity-50"
-              >
-                {statusUpdating === "snoozed" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clock className="h-3.5 w-3.5" />}
               </button>
             )}
             {conversation.status !== "open" && (

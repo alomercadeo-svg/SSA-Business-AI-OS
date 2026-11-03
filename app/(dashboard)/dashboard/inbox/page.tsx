@@ -2,26 +2,27 @@ import { getWorkspace, esManager } from "@/lib/workspace";
 import { InboxView } from "./inbox-view";
 import { AvisoSesionWhatsapp } from "@/components/inbox/aviso-sesion-whatsapp";
 import { COLUMNAS_DEL_AVISO, type CanalDeSesion } from "@/lib/sesion-whatsapp-pantalla";
-import { busquedaDeBandeja, leerCantidades, leerPaginaDeBandeja } from "@/lib/bandeja";
+import { busquedaDeBandeja, estadoDeBandeja, leerCantidades, leerPaginaDeBandeja } from "@/lib/bandeja";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function InboxPage({
   searchParams,
 }: {
-  searchParams: Promise<{ conversacion?: string | string[]; q?: string | string[] }>;
+  searchParams: Promise<{ conversacion?: string | string[]; q?: string | string[]; estado?: string | string[] }>;
 }) {
   const { workspace, supabase, role } = await getWorkspace();
-  const { conversacion, q } = await searchParams;
-  // F35: la búsqueda vive en la dirección (`?q=`), así la página se puede
-  // recargar o compartir con la búsqueda puesta.
+  const { conversacion, q, estado: estadoPedido } = await searchParams;
+  // F35: la pestaña y la búsqueda viven en la dirección (`?estado=`, `?q=`),
+  // así la página se puede recargar o compartir. «Abiertas» por defecto.
   const busqueda = busquedaDeBandeja(q);
+  const estado = estadoDeBandeja(estadoPedido);
 
   // F35: la primera página la lee el servidor, con las funciones de la 00043
   // (security invoker: la seguridad por filas decide qué ve cada uno). Las
   // siguientes las pide la lista a /api/v1/conversations.
   const [pagina, cantidades] = await Promise.all([
-    leerPaginaDeBandeja(supabase, workspace.id, { estado: "all", busqueda, cursor: null }),
+    leerPaginaDeBandeja(supabase, workspace.id, { estado, busqueda, cursor: null }),
     leerCantidades(supabase, workspace.id, busqueda),
   ]);
   if (pagina.error) console.error("[inbox] no se pudo leer la bandeja:", pagina.error);
@@ -61,6 +62,7 @@ export default async function InboxPage({
       <div className="min-h-0 flex-1">
         <InboxView
           inicial={{ conversaciones: conversations, hayMas: pagina.hayMas, cantidades }}
+          estado={estado}
           busqueda={busqueda}
           workspaceId={workspace.id}
           conversacionInicial={conversacionInicial}
