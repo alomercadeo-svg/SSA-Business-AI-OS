@@ -24,8 +24,17 @@
  * con `sin_credencial`, sin llamar a Evolution. Con `--token-inventado`, el
  * script guarda un token aleatorio por canal (y lo borra al final): el chequeo
  * le pregunta a nuestro Evolution por las dos instancias inventadas, solo
- * lectura, y se espera un 401 real (`auth.guard.ts` de la 2.3.7). Esa llamada
- * la aprobó Marcos el 02/11/2026; sin su aprobación no se usa esta opción.
+ * lectura, y se espera un 404 real. Esa llamada la aprobó Marcos el
+ * 02/11/2026; sin su aprobación no se usa esta opción.
+ *
+ * POR QUÉ 404 Y NO 401 (corregido el 02/11/2026, después de la corrida de las
+ * 19:01, que esperaba 401 y vio 404). En Evolution 2.3.7 las rutas de instancia
+ * pasan por tres guardias, en este orden: `[instanceExistsGuard,
+ * instanceLoggedGuard, authGuard['apikey']]` (`src/api/routes/index.router.ts:41`).
+ * La primera corta con `NotFoundException` si la instancia no existe
+ * (`src/api/guards/instance.guard.ts:35-36`), antes de que la de la credencial
+ * (`auth.guard.ts`) mire el token. Con una instancia inventada, el token nunca
+ * se llega a leer.
  *
  * LOS PARES AVISO → LECTURA, Y EL CRON (condición 4 de Marcos, 02/11/2026). El
  * chequeo real corre cada 10 minutos y puede pasar un canal a «no se pudo
@@ -46,7 +55,7 @@
  *   node scripts/verify-sesion-whatsapp.mjs <workspace_id> --para <correo> --correr        (escribe y manda)
  *     [--pausa <segundos>] se detiene con B caído, para mirar Canales y la Bandeja
  *     [--esperar-chequeo]  al final espera la corrida siguiente del chequeo (hasta 12 min)
- *     [--token-inventado]  con un token aleatorio por canal: el chequeo llama a Evolution y espera 401
+ *     [--token-inventado]  con un token aleatorio por canal: el chequeo llama a Evolution y espera 404
  */
 
 import { readFileSync } from "node:fs";
@@ -243,7 +252,7 @@ async function precondiciones() {
   console.log(`  Receptor: ${RECEPTOR}`);
   console.log(
     TOKEN_INVENTADO
-      ? "  Con --token-inventado: el chequeo periódico le va a preguntar a nuestro Evolution por las dos instancias inventadas (solo lectura, se espera 401)."
+      ? "  Con --token-inventado: el chequeo periódico le va a preguntar a nuestro Evolution por las dos instancias inventadas (solo lectura, se espera 404)."
       : "  Sin --token-inventado: los canales no tienen token de instancia y nadie llama a Evolution."
   );
 }
@@ -375,7 +384,8 @@ async function main() {
       continue;
     }
     s.session_state === "sin_verificar" ? ok(`${letra} quedó en «no se pudo verificar» (${s.session_detail})`) : fail(`${letra} quedó en ${s.session_state}`);
-    const motivo = TOKEN_INVENTADO ? "http_401" : "sin_credencial";
+    // 404 y no 401: la instancia inventada no pasa `instanceExistsGuard` (ver el encabezado).
+    const motivo = TOKEN_INVENTADO ? "http_404" : "sin_credencial";
     s.session_detail === motivo ? ok(`${letra}: el motivo es ${motivo}`) : fail(`${letra}: el motivo es ${s.session_detail}, se esperaba ${motivo}`);
   }
   await esperar(20_000);
