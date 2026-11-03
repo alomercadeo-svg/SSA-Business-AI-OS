@@ -415,57 +415,151 @@ export async function notificarAlerta(alertaId: string, opciones: OpcionesEnvio 
     if (!alerta.workspace_id) return null;
 
     const { asunto, parrafos } = contenidoDeAlerta(alerta.alert_condition, alerta.occurrences, alerta.detail);
-    const para = (await destinatariosManagers(servicio, alerta.workspace_id)).filter((p) => !esDireccionDePrueba(p));
-    const claveTecho = `${alerta.source}:${alerta.alert_condition}`;
-
-    if (para.length === 0) {
-      await servicio.from("email_log").insert({
-        workspace_id: alerta.workspace_id,
-        tipo: "alerta_webhook",
-        clave_techo: claveTecho,
-        alerta_id: alerta.id,
-        para: [],
-        para_etiqueta: "Owner y Admin",
-        asunto,
-        estado: "omitido_prueba",
-        ultimo_error: "El workspace no tiene Owner ni Admin con una dirección real.",
-      });
-      return { id: null, estado: "omitido_prueba", error: null };
-    }
-
-    const { data: reserva, error } = await servicio.rpc("reservar_correo_aviso", {
-      p_workspace_id: alerta.workspace_id,
-      p_tipo: "alerta_webhook",
-      p_clave: claveTecho,
-      p_alerta_id: alerta.id,
-      p_para: para,
-      p_para_etiqueta: "Owner y Admin",
-      p_asunto: asunto,
-    });
-    const fila = Array.isArray(reserva) ? reserva[0] : null;
-    if (error || !fila) {
-      console.error("[correo] no se pudo reservar el aviso:", error?.message ?? "sin fila");
-      return null;
-    }
-    if (!fila.reservado) return { id: fila.id, estado: "omitido_techo", error: null };
-
-    return await enviarCorreo(
+    return await avisarAManagers(
+      servicio,
       {
         workspaceId: alerta.workspace_id,
         tipo: "alerta_webhook",
-        para,
-        paraEtiqueta: "Owner y Admin",
-        asunto,
-        texto: parrafos.join("\n\n"),
-        html: aHtml(parrafos),
+        claveTecho: `${alerta.source}:${alerta.alert_condition}`,
         alertaId: alerta.id,
-        claveTecho,
-        filaId: fila.id,
+        asunto,
+        parrafos,
       },
-      { ...opciones, servicio }
+      opciones
     );
   } catch (e) {
     console.error("[correo] no se pudo avisar la alerta:", e instanceof Error ? e.message : "desconocido");
+    return null;
+  }
+}
+
+/**
+ * Lo común de los avisos del sistema a Owner y Admin: los destinatarios sin
+ * direcciones de prueba, la reserva con el techo de F23 (un correo por tipo de
+ * aviso por hora, `reservar_correo_aviso` de la 00027) y el envío.
+ */
+async function avisarAManagers(
+  servicio: Cliente,
+  aviso: { workspaceId: string; tipo: EmailTipo; claveTecho: string; alertaId: string | null; asunto: string; parrafos: string[] },
+  opciones: OpcionesEnvio
+): Promise<ResultadoEnvio | null> {
+  const para = (await destinatariosManagers(servicio, aviso.workspaceId)).filter((p) => !esDireccionDePrueba(p));
+
+  if (para.length === 0) {
+    await servicio.from("email_log").insert({
+      workspace_id: aviso.workspaceId,
+      tipo: aviso.tipo,
+      clave_techo: aviso.claveTecho,
+      alerta_id: aviso.alertaId,
+      para: [],
+      para_etiqueta: "Owner y Admin",
+      asunto: aviso.asunto,
+      estado: "omitido_prueba",
+      ultimo_error: "El workspace no tiene Owner ni Admin con una dirección real.",
+    });
+    return { id: null, estado: "omitido_prueba", error: null };
+  }
+
+  const { data: reserva, error } = await servicio.rpc("reservar_correo_aviso", {
+    p_workspace_id: aviso.workspaceId,
+    p_tipo: aviso.tipo,
+    p_clave: aviso.claveTecho,
+    p_alerta_id: aviso.alertaId,
+    p_para: para,
+    p_para_etiqueta: "Owner y Admin",
+    p_asunto: aviso.asunto,
+  });
+  const fila = Array.isArray(reserva) ? reserva[0] : null;
+  if (error || !fila) {
+    console.error("[correo] no se pudo reservar el aviso:", error?.message ?? "sin fila");
+    return null;
+  }
+  if (!fila.reservado) return { id: fila.id, estado: "omitido_techo", error: null };
+
+  return await enviarCorreo(
+    {
+      workspaceId: aviso.workspaceId,
+      tipo: aviso.tipo,
+      para,
+      paraEtiqueta: "Owner y Admin",
+      asunto: aviso.asunto,
+      texto: aviso.parrafos.join("\n\n"),
+      html: aHtml(aviso.parrafos),
+      alertaId: aviso.alertaId,
+      claveTecho: aviso.claveTecho,
+      filaId: fila.id,
+    },
+    { ...opciones, servicio }
+  );
+}
+
+// ── La sesión de WhatsApp (F32) ─────────────────────────────────────────────
+
+/** Qué dice el correo de cada estado que avisa. */
+export function contenidoDeSesion(estado: "caido" | "agotado", canal: string): { asunto: string; parrafos: string[] } {
+  const canales = `${urlApp()}/dashboard/channels`;
+  if (estado === "agotado") {
+    return {
+      asunto: "WhatsApp quedó desvinculado: se agotaron los intentos de vinculación",
+      parrafos: [
+        `El canal de WhatsApp «${canal}» quedó desvinculado, y WhatsApp ya no acepta más códigos para esta vinculación.`,
+        "Mientras tanto, lo que le escriban por WhatsApp no llega a la bandeja.",
+        "Hay que empezar la vinculación de cero, escaneando un código nuevo desde el teléfono del negocio.",
+        `Hacelo desde Canales: ${canales}`,
+      ],
+    };
+  }
+  return {
+    asunto: "WhatsApp no está recibiendo mensajes",
+    parrafos: [
+      `La sesión del canal de WhatsApp «${canal}» se cortó.`,
+      "Mientras tanto, lo que le escriban por WhatsApp no llega a la bandeja.",
+      "Hay que volver a escanear el código desde el teléfono del negocio, con «Reconectar».",
+      `Hacelo desde Canales: ${canales}`,
+    ],
+  };
+}
+
+/**
+ * El correo de F32: cuando la sesión de WhatsApp pasa a caída o a «se agotaron
+ * los intentos de vinculación», a Owner y Admin, con el techo de un correo por
+ * tipo de aviso por hora. La clave del techo es `<canal>:<estado>`. Cualquier
+ * otro estado no manda nada: «no se pudo verificar» no es una caída
+ * (criterio 8), y «sin vincular» nunca estuvo conectado.
+ *
+ * La llama quien obtuvo la transición (`registrarLectura`). En el receptor va
+ * en `after()`, después del acuse (condición 1 de Marcos, 02/11/2026).
+ *
+ * Nunca tira.
+ */
+export async function notificarSesionWhatsapp(
+  transicion: { canalId: string; workspaceId: string; a: string },
+  opciones: OpcionesEnvio = {}
+): Promise<ResultadoEnvio | null> {
+  if (transicion.a !== "caido" && transicion.a !== "agotado") return null;
+  try {
+    const servicio = opciones.servicio ?? (await createServiceClient());
+    const { data: canal } = await servicio
+      .from("channels")
+      .select("display_name, instance_name")
+      .eq("id", transicion.canalId)
+      .maybeSingle();
+    const nombre = canal?.display_name || canal?.instance_name || "WhatsApp";
+    const { asunto, parrafos } = contenidoDeSesion(transicion.a, nombre);
+    return await avisarAManagers(
+      servicio,
+      {
+        workspaceId: transicion.workspaceId,
+        tipo: "sesion_whatsapp",
+        claveTecho: `${transicion.canalId}:${transicion.a}`,
+        alertaId: null,
+        asunto,
+        parrafos,
+      },
+      opciones
+    );
+  } catch (e) {
+    console.error("[correo] no se pudo avisar la sesión de WhatsApp:", e instanceof Error ? e.message : "desconocido");
     return null;
   }
 }

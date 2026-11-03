@@ -16,6 +16,7 @@ const h = vi.hoisted(() => ({
   correos: [] as Array<Record<string, unknown> & { id: string }>,
   integraciones: [] as Array<Record<string, unknown>>,
   alertas: [] as Array<Record<string, unknown>>,
+  canales: [] as Array<Record<string, unknown>>,
   miembros: [] as Array<{ workspace_id: string; user_id: string; role: string }>,
   usuarios: {} as Record<string, string>,
   clave: "re_clave_de_prueba_123456789" as string | null,
@@ -36,6 +37,7 @@ function servicioFalso() {
     email_log: h.correos,
     integration_configs: h.integraciones,
     webhook_alerts: h.alertas,
+    channels: h.canales,
     workspace_members: h.miembros,
   };
   return {
@@ -105,7 +107,7 @@ function servicioFalso() {
   };
 }
 
-const { enviarCorreo, notificarAlerta, esDireccionDePrueba, ESPERAS_REINTENTO_MS } = await import("./correo");
+const { enviarCorreo, notificarAlerta, notificarSesionWhatsapp, esDireccionDePrueba, ESPERAS_REINTENTO_MS } = await import("./correo");
 const { validarRemitente, dominioDeRemitente } = await import("./integraciones");
 
 // ── Resend simulado ─────────────────────────────────────────────────────────
@@ -382,6 +384,68 @@ describe("notificarAlerta", () => {
     expect(r?.estado).toBe("omitido_prueba");
     expect(llamadas).toHaveLength(0);
     expect(h.rpcs).toHaveLength(0);
+  });
+});
+
+// ── notificarSesionWhatsapp (F32) ───────────────────────────────────────────
+
+describe("notificarSesionWhatsapp", () => {
+  beforeEach(() => {
+    h.miembros.push(
+      { workspace_id: "ws-1", user_id: "u-owner", role: "owner" },
+      { workspace_id: "ws-1", user_id: "u-admin", role: "admin" },
+      { workspace_id: "ws-1", user_id: "u-member", role: "member" }
+    );
+    h.usuarios = { "u-owner": "owner@correo.com", "u-admin": "admin@correo.com", "u-member": "member@correo.com" };
+    h.canales.length = 0;
+    h.canales.push({ id: "c-wa", workspace_id: "ws-1", display_name: null, instance_name: "alomercadeo-ventas" });
+  });
+
+  const caida = { canalId: "c-wa", workspaceId: "ws-1", a: "caido" as const };
+
+  it("una caída manda a Owner y Admin, no al Member, con su tipo y su clave (control positivo)", async () => {
+    const r = await notificarSesionWhatsapp(caida, { esperar: sinEsperar });
+
+    expect(r?.estado).toBe("enviado");
+    expect(llamadas).toHaveLength(1);
+    expect([...(llamadas[0].cuerpo.to as string[])].sort()).toEqual(["admin@correo.com", "owner@correo.com"]);
+    expect(llamadas[0].cuerpo.subject).toBe("WhatsApp no está recibiendo mensajes");
+    expect(String(llamadas[0].cuerpo.html)).toContain("alomercadeo-ventas");
+    expect(fila(r!.id)).toMatchObject({ tipo: "sesion_whatsapp", clave_techo: "c-wa:caido", para_etiqueta: "Owner y Admin" });
+  });
+
+  it("«se agotaron los intentos» también manda, con su propio asunto", async () => {
+    const r = await notificarSesionWhatsapp({ ...caida, a: "agotado" }, { esperar: sinEsperar });
+    expect(r?.estado).toBe("enviado");
+    expect(llamadas[0].cuerpo.subject).toBe("WhatsApp quedó desvinculado: se agotaron los intentos de vinculación");
+  });
+
+  it("«no se pudo verificar» no manda correo ni reserva nada (criterio 8)", async () => {
+    const r = await notificarSesionWhatsapp({ ...caida, a: "sin_verificar" }, { esperar: sinEsperar });
+    expect(r).toBeNull();
+    expect(llamadas).toHaveLength(0);
+    expect(h.rpcs).toHaveLength(0);
+    expect(h.correos).toHaveLength(0);
+  });
+
+  it("«sin vincular» y «conectado» tampoco mandan", async () => {
+    expect(await notificarSesionWhatsapp({ ...caida, a: "sin_vincular" }, { esperar: sinEsperar })).toBeNull();
+    expect(await notificarSesionWhatsapp({ ...caida, a: "conectado" }, { esperar: sinEsperar })).toBeNull();
+    expect(h.correos).toHaveLength(0);
+  });
+
+  it("la segunda caída de la hora queda omitida por el techo; agotado es otro tipo de aviso y sale", async () => {
+    expect((await notificarSesionWhatsapp(caida, { esperar: sinEsperar }))?.estado).toBe("enviado");
+    expect((await notificarSesionWhatsapp(caida, { esperar: sinEsperar }))?.estado).toBe("omitido_techo");
+    expect((await notificarSesionWhatsapp({ ...caida, a: "agotado" }, { esperar: sinEsperar }))?.estado).toBe("enviado");
+    expect(llamadas).toHaveLength(2);
+  });
+
+  it("un espacio sin clave de Resend deja la fila en fallido, sin llamar a Resend", async () => {
+    h.clave = null;
+    const r = await notificarSesionWhatsapp(caida, { esperar: sinEsperar });
+    expect(r?.estado).toBe("fallido");
+    expect(llamadas).toHaveLength(0);
   });
 });
 
