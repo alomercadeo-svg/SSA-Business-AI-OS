@@ -884,7 +884,63 @@
     "texto": "- [x] Alerta ante cualquier rechazo, con lo que significa cada una escrito en la pantalla: en el rechazo de autenticación, cada ocurrencia es un mensaje de un lead que se perdió; en la instancia desconocida todavía no se perdió ninguno, y lo que se muestra es el plazo que queda para corregir",
     "destino": "reescrito",
     "nuevo": "- [x] Alerta ante cualquier rechazo, con lo que significa cada una escrito en la pantalla: en el rechazo de autenticación, cada ocurrencia es un aviso rechazado, que es un mensaje de un lead perdido para siempre si venía de nuestro WhatsApp, o una entrega que no viene de nuestro número, por ejemplo una prueba; en la instancia desconocida todavía no se perdió ninguno, y lo que se muestra es el plazo que queda para corregir",
-    "motivo": "Corregido el 03/11/2026, decidido por Marcos: un rechazo de autenticación es cualquier entrega cuyo JWT no verifica, que puede ser un mensaje real o una entrega ajena. Mismo sentido que el correo. La tilde no cambia.",
+    "motivo": "Corregido el 03/11/2026, decidido por Marcos: un rechazo de autenticación es cualquier entrega cuyo JWT no verifica, que puede ser un mensaje real o una entrega ajena. Mismo sentido que el correo. La tilde no cambia. Conserva la tilde (decidido por Marcos el 03/11/2026): comprobado con el test de render; en pantalla real se verá con la primera alerta de rechazo.",
+    "fecha": "2026-11-03"
+  },
+  {
+    "texto": "- [ ] Aviso por evento y chequeo periódico, los dos. Ante una caída pasajera Evolution reconecta solo y no avisa, así que el aviso por sí solo no alcanza para mostrar el estado real",
+    "destino": "reescrito",
+    "nuevo": "- [x] Aviso por evento y chequeo periódico, los dos. Ante una caída pasajera Evolution reconecta solo y no avisa, así que el aviso por sí solo no alcanza para mostrar el estado real",
+    "motivo": "Tildado el 03/11/2026, decidido por Marcos. F32, criterio 2. Con datos reales el 03/11/2026: aviso refused a las 13:48 y open entre las 14:26 y las 14:27; chequeo cada 10 minutos, vigilancia-cron de 13:21 a 14:10 sin fallas.",
+    "fecha": "2026-11-03"
+  },
+  {
+    "texto": "- [ ] Se contempla el estado de \"se agotaron los intentos de vinculación\", que significa empezar de nuevo",
+    "destino": "reescrito",
+    "nuevo": "- [x] Se contempla el estado de \"se agotaron los intentos de vinculación\", que significa empezar de nuevo",
+    "motivo": "Tildado el 03/11/2026, decidido por Marcos. F32, criterio 4. Estado agotado real el 03/11/2026 a las 13:48, con correo; la tarjeta no se vio con datos reales porque la regla la pisaba a los dos minutos, arreglado en 7670b76 con tests vistos en rojo.",
+    "fecha": "2026-11-03"
+  },
+  {
+    "texto": "- [ ] Botón de reconectar que muestra el código QR cuando corresponde. No siempre puede entregarlo, porque depende del estado actual, y eso se explica en pantalla",
+    "destino": "reescrito",
+    "nuevo": "- [x] Botón de reconectar que muestra el código QR cuando corresponde. No siempre puede entregarlo, porque depende del estado actual, y eso se explica en pantalla",
+    "motivo": "Tildado el 03/11/2026, decidido por Marcos. F32, criterio 5. QR real escaneado el 03/11/2026 a las 14:26; las explicaciones de cuando no hay código, con tests.",
+    "fecha": "2026-11-03"
+  },
+  {
+    "texto": "- [ ] Si la sesión está caída, la bandeja lo indica de forma visible. Una bandeja silenciosa no puede parecer un día tranquilo",
+    "destino": "reescrito",
+    "nuevo": "- [x] Si la sesión está caída, la bandeja lo indica de forma visible. Una bandeja silenciosa no puede parecer un día tranquilo",
+    "motivo": "Tildado el 03/11/2026, decidido por Marcos. F32, criterio 6. Caída real provocada el 03/11/2026 a las 14:42, cerrando la sesión desde el teléfono; aviso visto en la bandeja.",
+    "fecha": "2026-11-03"
+  },
+  {
+    "texto": "- [ ] Cuando la sesión de WhatsApp pasa a caída o a «se agotaron los intentos de vinculación», se envía un correo a Owner y Admin por la función única de notificaciones de F23, con el techo de un correo por tipo de aviso por hora. Motivo: la pantalla de canales solo avisa a quien la mira, y una caída de noche se notaba recién a la mañana.",
+    "destino": "reescrito",
+    "nuevo": "- [x] Cuando la sesión de WhatsApp pasa a caída o a «se agotaron los intentos de vinculación», se envía un correo a Owner y Admin por la función única de notificaciones de F23, con el techo de un correo por tipo de aviso por hora. Motivo: la pantalla de canales solo avisa a quien la mira, y una caída de noche se notaba recién a la mañana.",
+    "motivo": "Tildado el 03/11/2026, decidido por Marcos. F32, criterio 7. Correos reales del 03/11/2026, 13:48 (agotado) y 14:42 (caído), a Owner y dos Admin; el techo de uno por hora, con tests.",
+    "fecha": "2026-11-03"
+  },
+  {
+    "texto": "- [ ] El archivo se descarga al recibirlo y se guarda en Supabase Storage. Ninguna dirección que entrega el proveedor sirve a largo plazo: la de WhatsApp está cifrada y la del almacenamiento intermedio caduca a los 7 días",
+    "destino": "reescrito",
+    "nuevo": "- [x] El archivo se descarga al recibirlo y se guarda en Supabase Storage. Ninguna dirección que entrega el proveedor sirve a largo plazo: la de WhatsApp está cifrada y la del almacenamiento intermedio caduca a los 7 días",
+    "motivo": "Tildado el 03/11/2026, decidido por Marcos. F28, criterio 1. WhatsApp real el 03/11/2026: foto, audio y video guardados en message-media y vistos en la bandeja.",
+    "fecha": "2026-11-03"
+  },
+  {
+    "texto": "- [ ] Estructura de carpetas por espacio de trabajo, conversación y mensaje",
+    "destino": "reescrito",
+    "nuevo": "- [x] Estructura de carpetas por espacio de trabajo, conversación y mensaje",
+    "motivo": "Tildado el 03/11/2026, decidido por Marcos. F28, criterio 3. Visto en Storage el 03/11/2026 con los tres archivos de WhatsApp; la ruta sale de lib/adjuntos.ts:415.",
+    "fecha": "2026-11-03"
+  },
+  {
+    "texto": "- [ ] Validación del tipo de archivo real, no de la extensión. Tamaño máximo configurable",
+    "destino": "reescrito",
+    "nuevo": "- [x] Validación del tipo de archivo real, no de la extensión. Tamaño máximo configurable",
+    "motivo": "Tildado el 03/11/2026, decidido por Marcos. F28, criterio 4. Tipo por contenido visto con datos reales el 03/11/2026; el tamaño máximo, con tests.",
     "fecha": "2026-11-03"
   }
 ]

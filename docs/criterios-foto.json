@@ -1374,7 +1374,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F28: Adjuntos"
     ],
-    "texto": "- [ ] El archivo se descarga al recibirlo y se guarda en Supabase Storage. Ninguna dirección que entrega el proveedor sirve a largo plazo: la de WhatsApp está cifrada y la del almacenamiento intermedio caduca a los 7 días"
+    "texto": "- [x] El archivo se descarga al recibirlo y se guarda en Supabase Storage. Ninguna dirección que entrega el proveedor sirve a largo plazo: la de WhatsApp está cifrada y la del almacenamiento intermedio caduca a los 7 días"
   },
   {
     "seccion": "F28: Adjuntos",
@@ -1392,7 +1392,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F28: Adjuntos"
     ],
-    "texto": "- [ ] Estructura de carpetas por espacio de trabajo, conversación y mensaje"
+    "texto": "- [x] Estructura de carpetas por espacio de trabajo, conversación y mensaje"
   },
   {
     "seccion": "F28: Adjuntos",
@@ -1401,7 +1401,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F28: Adjuntos"
     ],
-    "texto": "- [ ] Validación del tipo de archivo real, no de la extensión. Tamaño máximo configurable"
+    "texto": "- [x] Validación del tipo de archivo real, no de la extensión. Tamaño máximo configurable"
   },
   {
     "seccion": "F28: Adjuntos",
@@ -1698,7 +1698,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F32: Estado de sesión del canal y reconexión"
     ],
-    "texto": "- [ ] Aviso por evento y chequeo periódico, los dos. Ante una caída pasajera Evolution reconecta solo y no avisa, así que el aviso por sí solo no alcanza para mostrar el estado real"
+    "texto": "- [x] Aviso por evento y chequeo periódico, los dos. Ante una caída pasajera Evolution reconecta solo y no avisa, así que el aviso por sí solo no alcanza para mostrar el estado real"
   },
   {
     "seccion": "F32: Estado de sesión del canal y reconexión",
@@ -1716,7 +1716,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F32: Estado de sesión del canal y reconexión"
     ],
-    "texto": "- [ ] Se contempla el estado de \"se agotaron los intentos de vinculación\", que significa empezar de nuevo"
+    "texto": "- [x] Se contempla el estado de \"se agotaron los intentos de vinculación\", que significa empezar de nuevo"
   },
   {
     "seccion": "F32: Estado de sesión del canal y reconexión",
@@ -1725,7 +1725,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F32: Estado de sesión del canal y reconexión"
     ],
-    "texto": "- [ ] Botón de reconectar que muestra el código QR cuando corresponde. No siempre puede entregarlo, porque depende del estado actual, y eso se explica en pantalla"
+    "texto": "- [x] Botón de reconectar que muestra el código QR cuando corresponde. No siempre puede entregarlo, porque depende del estado actual, y eso se explica en pantalla"
   },
   {
     "seccion": "F32: Estado de sesión del canal y reconexión",
@@ -1734,7 +1734,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F32: Estado de sesión del canal y reconexión"
     ],
-    "texto": "- [ ] Si la sesión está caída, la bandeja lo indica de forma visible. Una bandeja silenciosa no puede parecer un día tranquilo"
+    "texto": "- [x] Si la sesión está caída, la bandeja lo indica de forma visible. Una bandeja silenciosa no puede parecer un día tranquilo"
   },
   {
     "seccion": "F32: Estado de sesión del canal y reconexión",
@@ -1743,7 +1743,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F32: Estado de sesión del canal y reconexión"
     ],
-    "texto": "- [ ] Cuando la sesión de WhatsApp pasa a caída o a «se agotaron los intentos de vinculación», se envía un correo a Owner y Admin por la función única de notificaciones de F23, con el techo de un correo por tipo de aviso por hora. Motivo: la pantalla de canales solo avisa a quien la mira, y una caída de noche se notaba recién a la mañana."
+    "texto": "- [x] Cuando la sesión de WhatsApp pasa a caída o a «se agotaron los intentos de vinculación», se envía un correo a Owner y Admin por la función única de notificaciones de F23, con el techo de un correo por tipo de aviso por hora. Motivo: la pantalla de canales solo avisa a quien la mira, y una caída de noche se notaba recién a la mañana."
   },
   {
     "seccion": "F32: Estado de sesión del canal y reconexión",
@@ -2167,6 +2167,15 @@
       "F35: Bandeja y filtros"
     ],
     "texto": "- [ ] Una conversación que nace de un mensaje del negocio, sin ningún mensaje del lead, se crea cerrada, y se reabre con las reglas de los otros criterios de F35: cuando el lead escribe, o el día de su próximo seguimiento. Las conversaciones que hoy existen sin ningún mensaje del lead (315 de 761 en @alomercadeo el 02/11/2026) pasan a cerradas una sola vez, mostrando antes la cantidad y los id cortos. Control positivo: un mensaje desde @poderosascomunidad a una cuenta que no está en la base crea la conversación en «Cerradas», y cuando esa cuenta contesta aparece en «Abiertas» sin recargar (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
+  },
+  {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] En el panel del contacto de la bandeja, «Ver ficha completa» abre la ficha de ese contacto, y el nombre del contacto en el encabezado del hilo también. Si el teléfono está sin resolver, el panel muestra «Cargar teléfono en la ficha», que abre la ficha. (agregado el 03/11/2026, decidido por Marcos: con el número real vinculado, desde la bandeja no había forma de abrir la ficha; el prototipo aprobado lo tenía)"
   },
   {
     "seccion": "F36: Respuestas rápidas",
