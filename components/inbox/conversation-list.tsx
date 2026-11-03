@@ -1,15 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Search, MessageSquare } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Search, MessageSquare, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { PlatformIcon } from "@/components/platform-icon";
-import type { Database, Platform, ConversationStatus } from "@/lib/types/database";
+import type { Database, ConversationStatus } from "@/lib/types/database";
+import { cursorDe, fusionarDeBandeja, type CantidadesDeBandeja, type ConversacionDeBandeja } from "@/lib/bandeja";
 
-type Conversation = Database["public"]["Tables"]["conversations"]["Row"] & {
-  contacts: Database["public"]["Tables"]["contacts"]["Row"] | null;
-};
+type Conversation = ConversacionDeBandeja;
+
+/** La primera página, leída por el servidor (F35, tramo A de S8). */
+export interface InicialDeLaLista {
+  conversaciones: Conversation[];
+  hayMas: boolean;
+  cantidades: CantidadesDeBandeja | null;
+}
 
 function formatTime(dateStr: string | null): string {
   if (!dateStr) return "";
@@ -29,17 +35,24 @@ function formatTime(dateStr: string | null): string {
 }
 
 export function ConversationList({
-  conversations: initialConversations,
+  inicial,
   workspaceId,
   selectedId,
   onSelect,
 }: {
-  conversations: Conversation[];
+  inicial: InicialDeLaLista;
   workspaceId: string;
   selectedId: string | null;
   onSelect: (conversation: Conversation) => void;
 }) {
-  const [conversations, setConversations] = useState(initialConversations);
+  const [conversations, setConversations] = useState(inicial.conversaciones);
+  const [hayMas, setHayMas] = useState(inicial.hayMas);
+  const [cantidades, setCantidades] = useState(inicial.cantidades);
+  const [cargandoMas, setCargandoMas] = useState(false);
+  const [errorAlCargar, setErrorAlCargar] = useState<string | null>(null);
+  // Lo que ya está cargado, para que Realtime sepa si una conversación es nueva
+  // en la lista sin depender del estado viejo de la suscripción.
+  const cargadas = useRef(new Set(inicial.conversaciones.map((c) => c.id)));
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ConversationStatus | "all">("open");
   // Relative timestamps depend on the client's clock/locale, which differ from the
@@ -50,12 +63,63 @@ export function ConversationList({
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    setConversations(initialConversations);
-  }, [initialConversations]);
+    setConversations(inicial.conversaciones);
+    setHayMas(inicial.hayMas);
+    setCantidades(inicial.cantidades);
+    cargadas.current = new Set(inicial.conversaciones.map((c) => c.id));
+  }, [inicial]);
+
+  useEffect(() => {
+    cargadas.current = new Set(conversations.map((c) => c.id));
+  }, [conversations]);
+
+  // La página siguiente, desde la última cargada (F35). El cursor es la pareja
+  // último mensaje e id, como el orden de la base: una conversación que sube
+  // mientras tanto no hace saltear otra.
+  async function cargarMas() {
+    const ultima = conversations[conversations.length - 1];
+    if (!ultima || cargandoMas) return;
+    setCargandoMas(true);
+    setErrorAlCargar(null);
+    try {
+      const cursor = cursorDe(ultima);
+      const res = await fetch(`/api/v1/conversations?estado=all&antesOrden=${encodeURIComponent(cursor.orden)}&antesId=${cursor.id}`);
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !Array.isArray(data?.conversaciones)) throw new Error(String(res.status));
+      setConversations((prev) => fusionarDeBandeja(prev, data.conversaciones));
+      setHayMas(data.hayMas === true);
+    } catch {
+      setErrorAlCargar("No se pudieron cargar más conversaciones. Probá de nuevo.");
+    } finally {
+      setCargandoMas(false);
+    }
+  }
+
+  // Las cantidades, de nuevo desde el servidor, un segundo después del último
+  // aviso: una conversación nueva suma al total.
+  const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recontar = useCallback(() => {
+    if (temporizador.current) clearTimeout(temporizador.current);
+    temporizador.current = setTimeout(async () => {
+      const res = await fetch("/api/v1/conversations?soloCantidades=1").catch(() => null);
+      const data = await res?.json().catch(() => null);
+      if (data?.cantidades) setCantidades(data.cantidades);
+    }, 1000);
+  }, []);
 
   // Subscribe to conversation updates via Realtime
   useEffect(() => {
     const supabase = createClient();
+
+    // Una conversación que no está cargada se pide sola, por la ruta de la
+    // lista: la seguridad por filas decide si la puede ver.
+    async function traerUna(id: string) {
+      const res = await fetch(`/api/v1/conversations?estado=all&id=${id}`).catch(() => null);
+      const data = await res?.json().catch(() => null);
+      if (Array.isArray(data?.conversaciones) && data.conversaciones.length > 0) {
+        setConversations((prev) => fusionarDeBandeja(prev, data.conversaciones));
+      }
+    }
 
     const channel = supabase
       .channel("conversations-updates")
@@ -70,26 +134,19 @@ export function ConversationList({
         async (payload) => {
           if (payload.eventType === "UPDATE") {
             const updated = payload.new as Database["public"]["Tables"]["conversations"]["Row"];
-            setConversations((prev) =>
-              prev
-                .map((c) => (c.id === updated.id ? { ...c, ...updated } : c))
-                .sort((a, b) => {
-                  const aTime = a.last_message_at ?? a.created_at;
-                  const bTime = b.last_message_at ?? b.created_at;
-                  return new Date(bTime).getTime() - new Date(aTime).getTime();
-                })
-            );
+            if (cargadas.current.has(updated.id)) {
+              setConversations((prev) =>
+                fusionarDeBandeja(prev, prev.filter((c) => c.id === updated.id).map((c) => ({ ...c, ...updated })))
+              );
+            } else {
+              // Una que estaba más abajo de lo cargado y le llegó un mensaje.
+              await traerUna(updated.id);
+              recontar();
+            }
           } else if (payload.eventType === "INSERT") {
             const inserted = payload.new as Database["public"]["Tables"]["conversations"]["Row"];
-            // Fetch full conversation with contact
-            const { data } = await supabase
-              .from("conversations")
-              .select("*, contacts(*)")
-              .eq("id", inserted.id)
-              .single();
-            if (data) {
-              setConversations((prev) => [data as Conversation, ...prev]);
-            }
+            await traerUna(inserted.id);
+            recontar();
           }
         }
       )
@@ -97,8 +154,9 @@ export function ConversationList({
 
     return () => {
       supabase.removeChannel(channel);
+      if (temporizador.current) clearTimeout(temporizador.current);
     };
-  }, [workspaceId]);
+  }, [workspaceId, recontar]);
 
   const filtered = conversations.filter((c) => {
     if (statusFilter !== "all" && c.status !== statusFilter) return false;
@@ -117,7 +175,7 @@ export function ConversationList({
       <div className="flex h-14 items-center justify-between border-b border-border px-4">
         <h2 className="text-sm font-semibold">Inbox</h2>
         <span className="text-xs text-muted-foreground">
-          {filtered.length} conversation{filtered.length !== 1 ? "s" : ""}
+          {cantidades ? `${conversations.length} de ${cantidades.todas}` : `${conversations.length}`}
         </span>
       </div>
 
@@ -218,6 +276,19 @@ export function ConversationList({
               </div>
             </button>
           ))
+        )}
+        {hayMas && (
+          <div className="flex flex-col items-center gap-1 p-3">
+            <button
+              onClick={cargarMas}
+              disabled={cargandoMas}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
+            >
+              {cargandoMas && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Cargar más conversaciones
+            </button>
+            {errorAlCargar && <p className="text-xs text-destructive">{errorAlCargar}</p>}
+          </div>
         )}
       </div>
     </div>

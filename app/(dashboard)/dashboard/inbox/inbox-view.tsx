@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, MessageSquare, RefreshCw, User } from "lucide-react";
-import { ConversationList } from "@/components/inbox/conversation-list";
+import { ConversationList, type InicialDeLaLista } from "@/components/inbox/conversation-list";
 import { MessageThread } from "@/components/inbox/message-thread";
 import type { EstadoDelHistorial } from "@/lib/historial-aviso";
 import { ContactPanel } from "@/components/inbox/contact-panel";
@@ -17,16 +17,17 @@ type Conversation = Database["public"]["Tables"]["conversations"]["Row"] & {
 type Message = Database["public"]["Tables"]["messages"]["Row"];
 
 export function InboxView({
-  conversations,
+  inicial,
   workspaceId,
   conversacionInicial = null,
 }: {
-  conversations: Conversation[];
+  /** La primera página de la lista, leída por el servidor (F35). */
+  inicial: InicialDeLaLista;
   workspaceId: string;
   /**
    * F30: la conversación que pidió la ficha (`?conversacion=`), ya leída por
    * el servidor con la seguridad por filas. Abre su hilo aunque no esté entre
-   * las que carga la lista; la lista y su orden no cambian (paginarla es F35).
+   * las que carga la lista; la lista y su orden no cambian.
    */
   conversacionInicial?: Conversation | null;
 }) {
@@ -136,7 +137,7 @@ export function InboxView({
       {/* Left panel: Conversation list */}
       <div className="w-80 flex-shrink-0">
         <ConversationList
-          conversations={conversations}
+          inicial={inicial}
           workspaceId={workspaceId}
           selectedId={selected?.id ?? null}
           onSelect={handleSelect}
@@ -159,7 +160,7 @@ export function InboxView({
           </div>
         )}
         <div className="min-h-0 flex-1">
-          {conversations.length === 0 ? (
+          {inicial.conversaciones.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center px-6 text-center">
               <MessageSquare className="h-10 w-10 text-muted-foreground/40" />
               <p className="mt-3 text-sm font-medium text-muted-foreground">

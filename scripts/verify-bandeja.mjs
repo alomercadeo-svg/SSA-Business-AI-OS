@@ -91,12 +91,15 @@ const traeComoDato = (html, id) => [...html.matchAll(ID_COMO_DATO)].some((m) => 
 let paso = 0;
 const titulo = (t) => console.log(`\n${++paso}. ${t}`);
 
+/** La función de la base, con el orden pedido explícito: el cursor sale de la última fila. */
+const ORDEN_DE_LA_BANDEJA = "bandeja_pagina?order=last_message_at.desc.nullslast,id.desc";
+
 /** Todas las páginas de la función de la base, siguiendo el cursor. */
 async function paginasDeLaBase(token, espacio, estado, busqueda) {
   const ids = [];
   let cursor = { orden: null, id: null };
   for (let i = 0; i < 10; i++) {
-    const r = await rpcComo(token, "bandeja_pagina", { p_workspace: espacio, p_estado: estado, p_busqueda: busqueda, p_antes_orden: cursor.orden, p_antes_id: cursor.id, p_limite: 50 });
+    const r = await rpcComo(token, ORDEN_DE_LA_BANDEJA, { p_workspace: espacio, p_estado: estado, p_busqueda: busqueda, p_antes_orden: cursor.orden, p_antes_id: cursor.id, p_limite: 50 });
     if (r.status !== 200 || !Array.isArray(r.data)) return { ok: false, status: r.status, ids, detalle: JSON.stringify(r.data).slice(0, 200) };
     ids.push(...r.data.map((c) => c.id));
     if (r.data.length < 50) return { ok: true, ids };
@@ -107,7 +110,7 @@ async function paginasDeLaBase(token, espacio, estado, busqueda) {
 }
 
 const buscarEnLaBase = async (token, espacio, q) => {
-  const r = await rpcComo(token, "bandeja_pagina", { p_workspace: espacio, p_estado: "all", p_busqueda: q, p_antes_orden: null, p_antes_id: null, p_limite: 50 });
+  const r = await rpcComo(token, ORDEN_DE_LA_BANDEJA, { p_workspace: espacio, p_estado: "all", p_busqueda: q, p_antes_orden: null, p_antes_id: null, p_limite: 50 });
   return { status: r.status, ids: Array.isArray(r.data) ? r.data.map((c) => c.id) : null, detalle: JSON.stringify(r.data).slice(0, 200) };
 };
 

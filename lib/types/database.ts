@@ -1723,6 +1723,28 @@ export interface Database {
         Args: { p_nota: string };
         Returns: undefined;
       };
+      /** F35 (00043). Security invoker: una página de la bandeja, con la RLS de quien llama. */
+      bandeja_pagina: {
+        Args: {
+          p_workspace: string;
+          p_estado: string;
+          p_busqueda: string;
+          p_antes_orden: string | null;
+          p_antes_id: string | null;
+          p_limite: number;
+        };
+        Returns: Database["public"]["Tables"]["conversations"]["Row"][];
+      };
+      /** F35 (00043). Security invoker: las cantidades de las pestañas. */
+      bandeja_cantidades: {
+        Args: { p_workspace: string; p_busqueda: string };
+        Returns: { abiertas: number; cerradas: number; todas: number }[];
+      };
+      /** F35 (00043). Security invoker: si el contacto coincide con lo buscado. */
+      bandeja_coincide: {
+        Args: { p_contacto: string; p_busqueda: string };
+        Returns: boolean;
+      };
       /** F26 (00031). Entrantes de WhatsApp desde una fecha, y cuántos sin teléfono (`@lid`). */
       contar_mensajes_sin_telefono: {
         Args: { p_workspace: string; p_desde: string };
