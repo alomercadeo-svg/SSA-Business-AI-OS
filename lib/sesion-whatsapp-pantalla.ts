@@ -97,6 +97,25 @@ export function textoDeSesion(canal: SesionDelCanal, ahora: Date = new Date()): 
   }
 }
 
+// ── El aviso de la bandeja ──────────────────────────────────────────────────
+
+/**
+ * Lo que lee la bandeja para el aviso de WhatsApp caído (F32, criterio 6). Vive
+ * acá y no en el componente porque lo usa también la página, que corre en el
+ * servidor: una constante importada de un archivo `"use client"` llega al
+ * servidor como referencia de cliente y rompe la página (pasó el 02/11/2026;
+ * lo vigila `app/frontera-cliente.test.ts`).
+ */
+export const COLUMNAS_DEL_AVISO = "id, display_name, instance_name, session_state, session_changed_at";
+
+export interface CanalDeSesion {
+  id: string;
+  display_name: string | null;
+  instance_name: string | null;
+  session_state: SesionEstado | null;
+  session_changed_at: string | null;
+}
+
 // ── El código QR ────────────────────────────────────────────────────────────
 
 export type RespuestaDeCodigo =

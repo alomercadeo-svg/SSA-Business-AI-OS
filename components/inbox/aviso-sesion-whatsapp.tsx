@@ -24,16 +24,8 @@ import { AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { haceCuanto } from "@/lib/tareas-estado";
 import type { SesionEstado } from "@/lib/types/database";
+import { COLUMNAS_DEL_AVISO, type CanalDeSesion } from "@/lib/sesion-whatsapp-pantalla";
 
-export interface CanalDeSesion {
-  id: string;
-  display_name: string | null;
-  instance_name: string | null;
-  session_state: SesionEstado | null;
-  session_changed_at: string | null;
-}
-
-export const COLUMNAS_DEL_AVISO = "id, display_name, instance_name, session_state, session_changed_at";
 const CADA_MS = 60_000;
 
 export function canalesCaidos<T extends { session_state: SesionEstado | null }>(canales: T[]): T[] {

@@ -1,6 +1,7 @@
 import { getWorkspace, esManager } from "@/lib/workspace";
 import { InboxView } from "./inbox-view";
-import { AvisoSesionWhatsapp, COLUMNAS_DEL_AVISO, type CanalDeSesion } from "@/components/inbox/aviso-sesion-whatsapp";
+import { AvisoSesionWhatsapp } from "@/components/inbox/aviso-sesion-whatsapp";
+import { COLUMNAS_DEL_AVISO, type CanalDeSesion } from "@/lib/sesion-whatsapp-pantalla";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
