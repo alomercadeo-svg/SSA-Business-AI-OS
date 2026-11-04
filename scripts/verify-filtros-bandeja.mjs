@@ -37,8 +37,9 @@
  * EN U: B03, B04, B05 y BNULO, iguales.
  *
  * NINGUNA fila que el Member pueda ver lleva el id del Owner (ni setter, ni
- * vendedor, ni `assigned_to`): así, una aparición del Owner en la página del
- * Member es atribuible a la lista de «Asignación».
+ * vendedor, ni `assigned_to`), y el espacio E se renombra sin el nombre del
+ * Owner: así, una aparición del Owner en la página del Member es atribuible a
+ * la lista de «Asignación».
  *
  * QUÉ CAMBIA CADA PASO. Solo la preparación escribe, con la clave de servicio,
  * antes de todas las lecturas. Las lecturas no escriben: la ruta de la lista
@@ -167,6 +168,13 @@ await correr(async () => {
     // ── La preparación (lo único que escribe) ──────────────────────────────
     const zona = await admin(`workspaces?id=eq.${U}`, { method: "PATCH", body: JSON.stringify({ zona_horaria: "UTC" }) });
     if (zona.status >= 300) throw new Error(`no se pudo poner U en UTC: HTTP ${zona.status}`);
+    // El alta llama al espacio «<nombre del dueño>'s Workspace» (00001:313), y
+    // el selector de espacios lo muestra a todos (workspace-switcher.tsx:91):
+    // sin esto, el nombre del Owner llega a la página del Member por ahí y el
+    // paso de la lista de «Asignación» no sería atribuible. Agregado el
+    // 04/11/2026, con el OK de Marcos, después de la corrida de las 10:33:10.
+    const nombreE = await admin(`workspaces?id=eq.${E}`, { method: "PATCH", body: JSON.stringify({ name: `B8F espacio-${sufijo}` }) });
+    if (nombreE.status >= 300) throw new Error(`no se pudo renombrar E: HTTP ${nombreE.status}`);
     const nuevoCanal = async (espacio, campos) => (await admin("channels", { method: "POST", body: JSON.stringify({ workspace_id: espacio, is_active: true, umbral_silencio_horas: null, ...campos }) })).data?.[0]?.id;
     const igE = await nuevoCanal(E, { platform: "instagram", provider: "zernio", late_account_id: `b8f${sufijo}e${Date.now()}`, username: `b8fcuenta${sufijo}` });
     const waE = await nuevoCanal(E, { platform: "whatsapp", provider: "evolution", instance_name: `b8f-${sufijo}` });
