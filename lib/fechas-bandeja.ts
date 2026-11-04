@@ -58,3 +58,13 @@ export function cambiaDeDia(actual: string, anterior: string | undefined): boole
   if (!anterior) return true;
   return diaDelNegocio(new Date(actual)) !== diaDelNegocio(new Date(anterior));
 }
+
+/**
+ * La hora de cada mensaje del hilo: «20:51», en 24 horas y en la zona del
+ * negocio (tramo B, decidido por Marcos el 04/11/2026: la misma constante que
+ * la lista y los separadores). Hasta el 04/11/2026 era `toLocaleTimeString`
+ * del navegador: «08:51 PM», en la zona de quien mira.
+ */
+export function horaDelMensaje(iso: string): string {
+  return formato({ hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
+}

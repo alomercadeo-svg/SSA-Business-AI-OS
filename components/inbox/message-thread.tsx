@@ -3,7 +3,7 @@
 import { avisoDelHistorial, type EstadoDelHistorial } from "@/lib/historial-aviso";
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { refrescarHilo, sumarAnteriores } from "@/lib/hilo";
-import { cambiaDeDia, separadorDeDia } from "@/lib/fechas-bandeja";
+import { cambiaDeDia, horaDelMensaje, separadorDeDia } from "@/lib/fechas-bandeja";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { enlaceAFicha } from "@/lib/ficha";
@@ -24,10 +24,6 @@ type Conversation = Database["public"]["Tables"]["conversations"]["Row"] & {
   contacts: Database["public"]["Tables"]["contacts"]["Row"] | null;
 };
 
-function formatMessageTime(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
 
 /**
  * Un mensaje sin texto ni adjunto. Lo medido es que Zernio devuelve
@@ -120,7 +116,7 @@ export function MessageBubble({ message }: { message: Message }) {
           {isBot && (
             <Bot className="h-3 w-3" />
           )}
-          <span>{formatMessageTime(message.created_at)}</span>
+          <span>{horaDelMensaje(message.created_at)}</span>
           {!isInbound && message.status !== "sent" && (
             <span>
               {message.status === "delivered"

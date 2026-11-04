@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { cambiaDeDia, horaDeLaLista, separadorDeDia } from "./fechas-bandeja";
+import { cambiaDeDia, horaDeLaLista, horaDelMensaje, separadorDeDia } from "./fechas-bandeja";
 
 /**
  * Las fechas de la lista y del hilo de la bandeja (tramo A de S8). Hasta el
@@ -80,5 +80,18 @@ describe("cambiaDeDia, el corte entre separadores", () => {
 
   it("el primer mensaje siempre lleva separador", () => {
     expect(cambiaDeDia("2026-11-03T00:30:00Z", undefined)).toBe(true);
+  });
+});
+
+describe("horaDelMensaje, la hora de cada mensaje del hilo (tramo B)", () => {
+  // Hasta el 04/11/2026 era `toLocaleTimeString` del navegador: «08:51 PM», y
+  // en la zona del navegador, no en la del negocio.
+  it("en 24 horas y en la hora de Costa Rica, con el proceso en UTC", () => {
+    expect(horaDelMensaje("2026-11-04T02:51:00Z")).toBe("20:51");
+  });
+
+  it("la medianoche y la mañana", () => {
+    expect(horaDelMensaje("2026-11-04T06:00:00Z")).toBe("00:00");
+    expect(horaDelMensaje("2026-11-04T14:05:00Z")).toBe("08:05");
   });
 });
