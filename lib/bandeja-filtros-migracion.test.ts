@@ -76,9 +76,12 @@ describe("la migración 00044 de los filtros de la bandeja", () => {
     expect(texto).not.toMatch(/current_date/);
   });
 
-  it("va al final de ALL_MIGRATIONS.sql, con su encabezado", () => {
-    const bundle = readFileSync(join(DIR, "ALL_MIGRATIONS.sql"), "utf8").trimEnd();
-    expect(bundle.endsWith(sql().trim())).toBe(true);
-    expect(bundle).toContain("-- MIGRATION 44: BANDEJA FILTROS");
+  // Hasta el 04/11/2026 (retrabajo de la búsqueda) exigía que el bundle
+  // *terminara* con la 00044, y la 00045 lo dejaba en rojo. Ahora exige que
+  // esté entera, con su encabezado justo antes; el orden lo controla
+  // `lib/platforms.test.ts`.
+  it("está en ALL_MIGRATIONS.sql, entera y con su encabezado", () => {
+    const bundle = readFileSync(join(DIR, "ALL_MIGRATIONS.sql"), "utf8");
+    expect(bundle).toContain(`-- MIGRATION 44: BANDEJA FILTROS\n-- ============================================================\n${sql().trim()}`);
   });
 });

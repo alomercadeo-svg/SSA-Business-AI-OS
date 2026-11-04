@@ -1773,6 +1773,11 @@ export interface Database {
         Args: { p_conversacion: string | null; p_contacto: string | null; p_busqueda: string };
         Returns: boolean;
       };
+      /** F35, retrabajo (00045). Security definer: la búsqueda, con el acceso una vez por conversación. */
+      bandeja_busca_con_acceso: {
+        Args: { p_conversacion: string; p_busqueda: string };
+        Returns: boolean;
+      };
       /** F26 (00031). Entrantes de WhatsApp desde una fecha, y cuántos sin teléfono (`@lid`). */
       contar_mensajes_sin_telefono: {
         Args: { p_workspace: string; p_desde: string };
