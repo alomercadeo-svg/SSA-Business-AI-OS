@@ -4,7 +4,8 @@
  * Hasta el 03/11/2026 la bandeja cargaba un tope fijo de 50 conversaciones y
  * buscaba solo entre esas, en el navegador. Ahora la lista, la búsqueda y las
  * cantidades de las pestañas las calculan las funciones de la 00043 sobre
- * todas las conversaciones que quien mira puede ver: son `security invoker`,
+ * todas las conversaciones que quien mira puede ver; desde el tramo B
+ * (04/11/2026), las de la 00044, con los filtros. Son `security invoker`,
  * así que la seguridad por filas decide igual que en una lectura directa.
  *
  * La usan la página de la bandeja (la primera página, en el servidor) y la
@@ -12,7 +13,8 @@
  * No es `"use client"` ni importa nada de servidor: recibe el cliente.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "./types/database";
+import type { Database, Json } from "./types/database";
+import { SIN_FILTROS, filtrosParaLaBase, type FiltrosDeBandeja } from "./filtros-bandeja";
 
 export const CONVERSACIONES_POR_PAGINA = 50;
 /** Lo buscado se corta acá: más largo no identifica mejor a nadie. */
@@ -59,6 +61,8 @@ export interface PedidoDeBandeja {
   estado: EstadoDeBandeja;
   busqueda: string;
   cursor: CursorDeBandeja | null;
+  /** Los filtros (tramo B). Sin filtros si no viene. */
+  filtros?: FiltrosDeBandeja;
   /** Una sola conversación, con los mismos filtros (la que avisa Realtime). */
   id?: string;
 }
@@ -69,17 +73,21 @@ export interface PaginaDeBandeja {
   error: string | null;
 }
 
+/**
+ * Una página, o una sola por id, con `bandeja_pagina_filtros` (00044). Por id
+ * va a la misma función con `p_id`, que filtra por id antes del límite: así
+ * una conversación lejana vuelve igual, si cumple los filtros.
+ */
 export async function leerPaginaDeBandeja(supabase: Cliente, workspaceId: string, pedido: PedidoDeBandeja): Promise<PaginaDeBandeja> {
-  if (pedido.id) return leerUna(supabase, workspaceId, pedido);
-
   const { data, error } = await supabase
-    .rpc("bandeja_pagina", {
+    .rpc("bandeja_pagina_filtros", {
       p_workspace: workspaceId,
       p_estado: pedido.estado,
-      p_busqueda: pedido.busqueda,
+      p_filtros: filtrosParaLaBase(pedido.filtros ?? SIN_FILTROS, pedido.busqueda) as Json,
       p_antes_orden: pedido.cursor?.orden ?? null,
       p_antes_id: pedido.cursor?.id ?? null,
       p_limite: CONVERSACIONES_POR_PAGINA + 1,
+      p_id: pedido.id ?? null,
     })
     .select("*, contacts(*)")
     .order("last_message_at", { ascending: false, nullsFirst: false })
@@ -89,34 +97,16 @@ export async function leerPaginaDeBandeja(supabase: Cliente, workspaceId: string
   return { conversaciones: filas.slice(0, CONVERSACIONES_POR_PAGINA), hayMas: filas.length > CONVERSACIONES_POR_PAGINA, error: null };
 }
 
-/**
- * Por id, con la RLS, y no con la función: la función limita antes de que se
- * pueda filtrar por id, así que una conversación lejana no volvería nunca.
- */
-async function leerUna(supabase: Cliente, workspaceId: string, pedido: PedidoDeBandeja): Promise<PaginaDeBandeja> {
-  const nada = { conversaciones: [], hayMas: false, error: null };
-  const { data, error } = await supabase
-    .from("conversations")
-    .select("*, contacts(*)")
-    .eq("id", pedido.id!)
-    .eq("workspace_id", workspaceId)
-    .is("deleted_at", null)
-    .maybeSingle();
-  if (error) return { ...nada, error: error.message };
-  const c = data as unknown as ConversacionDeBandeja | null;
-  if (!c) return nada;
-  if (pedido.estado !== "all" && c.status !== pedido.estado) return nada;
-  if (pedido.busqueda) {
-    if (!c.contact_id) return nada;
-    const { data: coincide, error: e2 } = await supabase.rpc("bandeja_coincide", { p_contacto: c.contact_id, p_busqueda: pedido.busqueda });
-    if (e2) return { ...nada, error: e2.message };
-    if (coincide !== true) return nada;
-  }
-  return { conversaciones: [c], hayMas: false, error: null };
-}
-
-export async function leerCantidades(supabase: Cliente, workspaceId: string, busqueda: string): Promise<CantidadesDeBandeja | null> {
-  const { data, error } = await supabase.rpc("bandeja_cantidades", { p_workspace: workspaceId, p_busqueda: busqueda });
+export async function leerCantidades(
+  supabase: Cliente,
+  workspaceId: string,
+  busqueda: string,
+  filtros: FiltrosDeBandeja = SIN_FILTROS,
+): Promise<CantidadesDeBandeja | null> {
+  const { data, error } = await supabase.rpc("bandeja_cantidades_filtros", {
+    p_workspace: workspaceId,
+    p_filtros: filtrosParaLaBase(filtros, busqueda) as Json,
+  });
   const fila = Array.isArray(data) ? data[0] : null;
   if (error || !fila) return null;
   return { abiertas: Number(fila.abiertas), cerradas: Number(fila.cerradas), todas: Number(fila.todas) };

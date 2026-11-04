@@ -10,6 +10,7 @@ import {
   leerCantidades,
   leerPaginaDeBandeja,
 } from "./bandeja";
+import { SIN_FILTROS } from "./filtros-bandeja";
 
 /**
  * La lectura de la bandeja (F35, tramo A de S8) con el cliente REAL de
@@ -45,21 +46,25 @@ beforeEach(() => {
 });
 
 describe("leerPaginaDeBandeja: el pedido a la base", () => {
-  it("llama a bandeja_pagina por POST, con contacts anidado y el orden explícito", async () => {
+  // Desde el tramo B (04/11/2026) va a bandeja_pagina_filtros (00044), con los
+  // filtros en un jsonb. Antes iba a bandeja_pagina (00043), que sigue en la
+  // base sin uso de la app.
+  it("llama a bandeja_pagina_filtros por POST, con contacts anidado y el orden explícito", async () => {
     await leerPaginaDeBandeja(cliente as never, "ws-1", { estado: "open", busqueda: "", cursor: null });
     expect(pedidos).toHaveLength(1);
     const [p] = pedidos;
     expect(p.metodo).toBe("POST");
-    expect(p.url.pathname).toBe("/rest/v1/rpc/bandeja_pagina");
+    expect(p.url.pathname).toBe("/rest/v1/rpc/bandeja_pagina_filtros");
     expect(p.url.searchParams.get("select")).toBe("*,contacts(*)");
     expect(p.url.searchParams.get("order")).toBe("last_message_at.desc.nullslast,id.desc");
     expect(p.cuerpo).toEqual({
       p_workspace: "ws-1",
       p_estado: "open",
-      p_busqueda: "",
+      p_filtros: { q: "" },
       p_antes_orden: null,
       p_antes_id: null,
       p_limite: CONVERSACIONES_POR_PAGINA + 1,
+      p_id: null,
     });
   });
 
@@ -77,42 +82,44 @@ describe("leerPaginaDeBandeja: el pedido a la base", () => {
     expect(r.hayMas).toBe(false);
   });
 
-  it("el cursor y la búsqueda viajan como argumentos de la función", async () => {
-    await leerPaginaDeBandeja(cliente as never, "ws-1", { estado: "closed", busqueda: "ana", cursor: { orden: "2026-11-01T10:00:00Z", id: "c9" } });
-    expect(pedidos[0].cuerpo).toMatchObject({ p_estado: "closed", p_busqueda: "ana", p_antes_orden: "2026-11-01T10:00:00Z", p_antes_id: "c9" });
+  it("el cursor, la búsqueda y los filtros viajan como argumentos de la función", async () => {
+    await leerPaginaDeBandeja(cliente as never, "ws-1", {
+      estado: "closed",
+      busqueda: "ana",
+      cursor: { orden: "2026-11-01T10:00:00Z", id: "c9" },
+      filtros: { ...SIN_FILTROS, canal: ["whatsapp"], seguimiento: "hoy" },
+    });
+    expect(pedidos[0].cuerpo).toMatchObject({
+      p_estado: "closed",
+      p_filtros: { q: "ana", canal: ["whatsapp"], seguimiento: "hoy" },
+      p_antes_orden: "2026-11-01T10:00:00Z",
+      p_antes_id: "c9",
+    });
   });
 
-  it("una sola por id (Realtime): se lee por id con la RLS, no con la función, que limita antes de filtrar", async () => {
-    respuestas = [fila("c7")];
-    const r = await leerPaginaDeBandeja(cliente as never, "ws-1", { estado: "open", busqueda: "", cursor: null, id: "c7" });
-    expect(pedidos[0].url.pathname).toBe("/rest/v1/conversations");
-    expect(pedidos[0].url.searchParams.get("id")).toBe("eq.c7");
-    expect(pedidos[0].url.searchParams.get("workspace_id")).toBe("eq.ws-1");
-    expect(pedidos[0].url.searchParams.get("deleted_at")).toBe("is.null");
+  it("una sola por id (Realtime): la misma función, con p_id y los mismos filtros, que filtra por id antes del límite", async () => {
+    respuestas = [[fila("c7")]];
+    const r = await leerPaginaDeBandeja(cliente as never, "ws-1", { estado: "open", busqueda: "ana", cursor: null, id: "c7", filtros: { ...SIN_FILTROS, telefonoSinResolver: true } });
+    expect(pedidos).toHaveLength(1);
+    expect(pedidos[0].url.pathname).toBe("/rest/v1/rpc/bandeja_pagina_filtros");
+    expect(pedidos[0].cuerpo).toMatchObject({ p_id: "c7", p_estado: "open", p_filtros: { q: "ana", sin_telefono: true } });
     expect(r.conversaciones.map((c) => c.id)).toEqual(["c7"]);
+    expect(r.hayMas).toBe(false);
   });
 
-  it("por id, una de otro estado que la pestaña no vuelve", async () => {
-    respuestas = [fila("c7", "2026-11-03T12:00:00Z", { status: "closed" })];
+  it("por id, si la base no la devuelve (no cumple los filtros), no vuelve nada", async () => {
+    respuestas = [[]];
     const r = await leerPaginaDeBandeja(cliente as never, "ws-1", { estado: "open", busqueda: "", cursor: null, id: "c7" });
-    expect(r.conversaciones).toEqual([]);
-  });
-
-  it("por id con búsqueda, decide bandeja_coincide en la base", async () => {
-    respuestas = [fila("c7"), false];
-    const r = await leerPaginaDeBandeja(cliente as never, "ws-1", { estado: "all", busqueda: "ana", cursor: null, id: "c7" });
-    expect(pedidos[1].url.pathname).toBe("/rest/v1/rpc/bandeja_coincide");
-    expect(pedidos[1].cuerpo).toEqual({ p_contacto: "ct-c7", p_busqueda: "ana" });
     expect(r.conversaciones).toEqual([]);
   });
 });
 
 describe("leerCantidades", () => {
-  it("llama a bandeja_cantidades y devuelve números", async () => {
+  it("llama a bandeja_cantidades_filtros, con los filtros, y devuelve números", async () => {
     respuestas = [[{ abiertas: 57, cerradas: 2, todas: 59 }]];
-    const c = await leerCantidades(cliente as never, "ws-1", "ana");
-    expect(pedidos[0].url.pathname).toBe("/rest/v1/rpc/bandeja_cantidades");
-    expect(pedidos[0].cuerpo).toEqual({ p_workspace: "ws-1", p_busqueda: "ana" });
+    const c = await leerCantidades(cliente as never, "ws-1", "ana", { ...SIN_FILTROS, etiquetas: ["t1"] });
+    expect(pedidos[0].url.pathname).toBe("/rest/v1/rpc/bandeja_cantidades_filtros");
+    expect(pedidos[0].cuerpo).toEqual({ p_workspace: "ws-1", p_filtros: { q: "ana", etiquetas: ["t1"] } });
     expect(c).toEqual({ abiertas: 57, cerradas: 2, todas: 59 });
   });
 });
