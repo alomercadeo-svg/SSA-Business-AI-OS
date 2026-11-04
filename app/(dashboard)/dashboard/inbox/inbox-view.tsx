@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Lock, MessageSquare, RefreshCw, User } from "lucide-react";
 import { ConversationList, type InicialDeLaLista } from "@/components/inbox/conversation-list";
 import type { EstadoDeBandeja } from "@/lib/bandeja";
@@ -11,6 +11,8 @@ import type { EstadoDelHistorial } from "@/lib/historial-aviso";
 import { ContactPanel } from "@/components/inbox/contact-panel";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { conConversacion, crearVigiaDeLaDireccion } from "@/lib/direccion-bandeja";
+import { volverDe } from "@/lib/ficha";
 import type { Database } from "@/lib/types/database";
 
 type Conversation = Database["public"]["Tables"]["conversations"]["Row"] & {
@@ -88,10 +90,37 @@ export function InboxView({
     }
   }
 
-  // Keep selected conversation in sync when conversation list updates
+  // La conversación abierta va en la dirección (`?conversacion=`, el mismo
+  // parámetro de F30), así volver desde la ficha la vuelve a abrir (tramo C).
   const handleSelect = useCallback((c: Conversation) => {
     setSelected(c);
+    window.history.replaceState(null, "", conConversacion(window.location.href, c.id));
   }, []);
+
+  // Volver con el atrás del navegador: Next dibuja la página que guardó la
+  // primera vez, aunque la dirección diga otra cosa (visto por Marcos el
+  // 04/11/2026). Si no coinciden, se le pide la página al servidor otra vez,
+  // como mucho una vez por montaje (lib/direccion-bandeja.ts).
+  const [vigia] = useState(() => crearVigiaDeLaDireccion(() => router.refresh()));
+  useEffect(() => {
+    vigia.alMontar(new URLSearchParams(window.location.search), {
+      estado,
+      busqueda,
+      filtros,
+      conversacion: conversacionInicial?.id ?? null,
+    });
+  }, [vigia, estado, busqueda, filtros, conversacionInicial]);
+  // Si la página nueva trae otra conversación (la de la dirección), se abre.
+  useEffect(() => {
+    if (conversacionInicial) setSelected((prev) => (prev?.id === conversacionInicial.id ? prev : conversacionInicial));
+  }, [conversacionInicial]);
+
+  // La dirección de la bandeja como está ahora, para que la ficha vuelva a ella.
+  // `useSearchParams` sigue a cada `replaceState` de la lista (app-router.js:253-255).
+  const pathname = usePathname();
+  const parametros = useSearchParams();
+  const consulta = parametros?.toString() ?? "";
+  const volver = volverDe(`${pathname ?? ""}${consulta ? `?${consulta}` : ""}`);
 
   // Load messages when a conversation is selected
   useEffect(() => {
@@ -228,6 +257,7 @@ export function InboxView({
                 onClick={() => {
                   setSelected(null);
                   setScopeError(null);
+                  window.history.replaceState(null, "", conConversacion(window.location.href, null));
                   router.refresh();
                 }}
                 className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
@@ -242,6 +272,7 @@ export function InboxView({
               messages={messages}
               hayAnteriores={hayAnteriores}
               historial={historial}
+              volverALaBandeja={volver}
             />
           )}
         </div>
@@ -253,6 +284,7 @@ export function InboxView({
           contactId={selected.contact_id}
           workspaceId={workspaceId}
           zona={zonaDelNegocio}
+          volver={volver}
           onClose={() => setShowContactPanel(false)}
           alGuardarSeguimiento={() => setListaDesactualizada((n) => n + 1)}
         />

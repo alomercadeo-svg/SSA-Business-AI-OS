@@ -46,11 +46,14 @@ export function ContactPanel({
   contactId,
   workspaceId,
   zona = "America/Costa_Rica",
+  volver = null,
   onClose,
   alGuardarSeguimiento,
 }: {
   contactId: string | null;
   workspaceId: string;
+  /** La dirección de la bandeja, para que la ficha vuelva a ella como estaba (tramo C de S8). */
+  volver?: string | null;
   /** `workspaces.zona_horaria` (tramo C de S8): con la que se cuentan los días del seguimiento. */
   zona?: string;
   onClose: () => void;
@@ -119,7 +122,7 @@ export function ContactPanel({
   const details =
     loadedDetails?.contact.id === contactId ? loadedDetails : null;
 
-  return <VistaDelPanel cargando={loading} details={details} onClose={onClose} zona={zona} alGuardarSeguimiento={alGuardarSeguimiento} />;
+  return <VistaDelPanel cargando={loading} details={details} onClose={onClose} zona={zona} volver={volver} alGuardarSeguimiento={alGuardarSeguimiento} />;
 }
 
 /** Lo que dibuja el panel, sin la carga: así se puede probar con datos fijos. */
@@ -128,12 +131,14 @@ export function VistaDelPanel({
   details,
   onClose,
   zona = "America/Costa_Rica",
+  volver = null,
   alGuardarSeguimiento,
 }: {
   cargando: boolean;
   details: ContactDetails | null;
   onClose: () => void;
   zona?: string;
+  volver?: string | null;
   alGuardarSeguimiento?: (fecha: string | null) => void;
 }) {
   const loading = cargando;
@@ -162,7 +167,7 @@ export function VistaDelPanel({
           {/* Profile section */}
           <div className="flex flex-col items-center border-b border-border p-6">
             {/* El nombre y la foto abren la ficha (decidido por Marcos el 03/11/2026). */}
-            <Link href={enlaceAFicha(details.contact.id)} className="flex flex-col items-center rounded-md hover:opacity-80">
+            <Link href={enlaceAFicha(details.contact.id, volver)} className="flex flex-col items-center rounded-md hover:opacity-80">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted text-xl font-semibold">
                 {details.contact.avatar_url ? (
                   <img
@@ -179,7 +184,7 @@ export function VistaDelPanel({
               </p>
             </Link>
             <Link
-              href={enlaceAFicha(details.contact.id)}
+              href={enlaceAFicha(details.contact.id, volver)}
               className="mt-2 rounded-md border border-border px-3 py-1 text-xs font-medium text-foreground hover:bg-muted"
             >
               Ver ficha completa
@@ -330,7 +335,7 @@ export function VistaDelPanel({
               </div>
             )}
           </div>
-          <PieDelPanel contactoId={details.contact.id} telefonoResuelto={details.contact.phone_resolved !== false} />
+          <PieDelPanel contactoId={details.contact.id} telefonoResuelto={details.contact.phone_resolved !== false} volver={volver} />
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
@@ -346,12 +351,12 @@ export function VistaDelPanel({
  * sin resolver, lo dice y lleva a la ficha, que es donde se carga (F26). «Ver
  * ficha completa» subió a quedar debajo del nombre (tramo C de S8).
  */
-export function PieDelPanel({ contactoId, telefonoResuelto }: { contactoId: string; telefonoResuelto: boolean }) {
+export function PieDelPanel({ contactoId, telefonoResuelto, volver = null }: { contactoId: string; telefonoResuelto: boolean; volver?: string | null }) {
   if (telefonoResuelto) return null;
   return (
     <div className="space-y-2 border-t border-border p-4">
       <Link
-        href={enlaceAFicha(contactoId)}
+        href={enlaceAFicha(contactoId, volver)}
         className="block rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-center text-xs font-medium text-amber-800 hover:bg-amber-500/10 dark:text-amber-300"
       >
         Cargar teléfono en la ficha

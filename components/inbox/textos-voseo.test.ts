@@ -11,7 +11,7 @@ import { join } from "node:path";
  * «Sin nombre» es el mismo texto que pide F43, sin tildar nada de F43.
  */
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {} }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {} }), usePathname: () => "/dashboard/inbox", useSearchParams: () => new URLSearchParams() }));
 const { ConversationList } = await import("./conversation-list");
 const { MessageThread, MessageBubble } = await import("./message-thread");
 const { InboxView } = await import("@/app/(dashboard)/dashboard/inbox/inbox-view");

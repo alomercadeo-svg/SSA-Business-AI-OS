@@ -9,7 +9,7 @@ import { renderToStaticMarkup } from "react-dom/server";
  * que la pestaña elegida esté vacía.
  */
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {}, push: () => {}, replace: () => {} }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {}, push: () => {}, replace: () => {} }), usePathname: () => "/dashboard/inbox", useSearchParams: () => new URLSearchParams() }));
 
 const { MessageThread } = await import("./message-thread");
 const { InboxView } = await import("@/app/(dashboard)/dashboard/inbox/inbox-view");

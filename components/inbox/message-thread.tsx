@@ -149,6 +149,7 @@ export function MessageThread({
   messages: initialMessages,
   hayAnteriores = false,
   historial = null,
+  volverALaBandeja = null,
 }: {
   conversation: Conversation | null;
   messages: Message[];
@@ -160,6 +161,8 @@ export function MessageThread({
    */
   hayAnteriores?: boolean;
   historial?: EstadoDelHistorial | null;
+  /** La dirección de la bandeja, para que la ficha vuelva a ella como estaba (tramo C de S8). */
+  volverALaBandeja?: string | null;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -392,7 +395,7 @@ export function MessageThread({
           <div>
             {/* F35, criterio 31: el nombre abre la ficha del contacto. */}
             {conversation.contact_id ? (
-              <Link href={enlaceAFicha(conversation.contact_id)} className="text-sm font-medium hover:underline">
+              <Link href={enlaceAFicha(conversation.contact_id, volverALaBandeja)} className="text-sm font-medium hover:underline">
                 {conversation.contacts?.display_name ?? "Sin nombre"}
               </Link>
             ) : (

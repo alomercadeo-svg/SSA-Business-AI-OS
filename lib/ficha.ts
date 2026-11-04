@@ -129,8 +129,26 @@ export function resumenDeConversacion(resumen: string | null | undefined, tipoDe
 }
 
 /** El enlace a la ficha de un contacto (F35, criterio 31: se abre desde la bandeja). */
-export function enlaceAFicha(contactoId: string): string {
-  return `/dashboard/contacts/${encodeURIComponent(contactoId)}`;
+export function enlaceAFicha(contactoId: string, volver?: string | null): string {
+  const base = `/dashboard/contacts/${encodeURIComponent(contactoId)}`;
+  const vuelta = volverDe(volver);
+  return vuelta ? `${base}?volver=${encodeURIComponent(vuelta)}` : base;
+}
+
+/** La bandeja, sola o con su dirección: sin espacios, `#`, `\` ni dos barras seguidas. */
+const VUELTA_A_LA_BANDEJA = /^\/dashboard\/inbox(\?[^\s#\\]*)?$/;
+
+/**
+ * La dirección de vuelta de la ficha abierta desde la bandeja (`?volver=`,
+ * tramo C de S8). Solo se acepta una ruta interna de la bandeja: cualquier otra
+ * cosa (otro sitio, `//otro`, otra pantalla, una lista de valores) da `null`, y
+ * la flecha vuelve a «Contactos». Así un enlace armado afuera no puede usar la
+ * flecha de la ficha para mandar a otro lado.
+ */
+export function volverDe(valor: unknown): string | null {
+  if (typeof valor !== "string" || valor.length > 2000) return null;
+  if (!VUELTA_A_LA_BANDEJA.test(valor) || valor.includes("//")) return null;
+  return valor;
 }
 
 /** El enlace de una conversación de la ficha: abre ese hilo en la bandeja. */

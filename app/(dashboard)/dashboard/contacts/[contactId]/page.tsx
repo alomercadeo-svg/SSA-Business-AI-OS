@@ -18,6 +18,7 @@ import {
   resumenDeConversacion,
   textoDeToque,
   TEXTO_DE_TEMPERATURA,
+  volverDe,
   type ConversacionDeFicha,
 } from "@/lib/ficha";
 
@@ -35,10 +36,13 @@ export default async function ContactDetailPage({
   searchParams,
 }: {
   params: Promise<{ contactId: string }>;
-  searchParams: Promise<{ unidos?: string }>;
+  searchParams: Promise<{ unidos?: string; volver?: string | string[] }>;
 }) {
   const { contactId } = await params;
-  const { unidos } = await searchParams;
+  const { unidos, volver } = await searchParams;
+  // Abierta desde la bandeja, la flecha vuelve a ella como estaba (tramo C de
+  // S8). Solo una ruta de la bandeja: cualquier otra cosa vuelve a «Contactos».
+  const vuelta = volverDe(volver);
   const { workspace, supabase, role, user } = await getWorkspace();
   const manager = esManager(role);
 
@@ -132,9 +136,9 @@ export default async function ContactDetailPage({
   return (
     <div className="flex h-full flex-col overflow-auto">
       <div className="border-b border-border px-4 py-4 sm:px-8">
-        <Link href="/dashboard/contacts" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+        <Link href={vuelta ?? "/dashboard/contacts"} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" />
-          Contactos
+          {vuelta ? "Bandeja" : "Contactos"}
         </Link>
       </div>
 

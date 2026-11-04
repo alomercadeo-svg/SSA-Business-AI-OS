@@ -15,7 +15,6 @@ import {
 } from "@/lib/bandeja";
 import { horaDeLaLista } from "@/lib/fechas-bandeja";
 import {
-  CLAVES_DE_FILTROS,
   SIN_FILTROS,
   SIN_OPCIONES,
   hayFiltros,
@@ -27,6 +26,7 @@ import {
 } from "@/lib/filtros-bandeja";
 import { FiltrosBandeja } from "./filtros-bandeja";
 import { crearUnPedidoALaVez } from "@/lib/un-pedido-a-la-vez";
+import { direccionDeLaBandeja } from "@/lib/direccion-bandeja";
 
 type Conversation = ConversacionDeBandeja;
 
@@ -51,16 +51,8 @@ const cantidadDe = (cantidades: CantidadesDeBandeja | null, estado: EstadoDeBand
   cantidades ? cantidades[PESTANAS.find((p) => p.estado === estado)!.cantidad] : null;
 
 /** La dirección de la bandeja con la pestaña, lo buscado y los filtros: se puede recargar o compartir. */
-function direccionCon(estado: EstadoDeBandeja, busqueda: string, filtros: FiltrosDeBandeja): string {
-  const url = new URL(window.location.href);
-  if (busqueda) url.searchParams.set("q", busqueda);
-  else url.searchParams.delete("q");
-  if (estado !== "open") url.searchParams.set("estado", estado);
-  else url.searchParams.delete("estado");
-  for (const clave of CLAVES_DE_FILTROS) url.searchParams.delete(clave);
-  for (const [clave, valor] of parametrosDeFiltros(filtros)) url.searchParams.set(clave, valor);
-  return `${url.pathname}${url.search}`;
-}
+const direccionCon = (estado: EstadoDeBandeja, busqueda: string, filtros: FiltrosDeBandeja) =>
+  direccionDeLaBandeja(window.location.href, estado, busqueda, filtros);
 
 /** Un pedido de la primera página de la lista: pestaña, búsqueda y filtros. */
 type PedidoDeLista = { estado: EstadoDeBandeja; q: string; filtros: FiltrosDeBandeja };

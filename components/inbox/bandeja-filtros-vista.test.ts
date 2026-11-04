@@ -8,7 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
  * coinciden, «Todas» da 0 y ese texto mentiría.
  */
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {} }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {} }), usePathname: () => "/dashboard/inbox", useSearchParams: () => new URLSearchParams() }));
 const { InboxView } = await import("@/app/(dashboard)/dashboard/inbox/inbox-view");
 
 const OPCIONES = { etiquetas: [], miembros: [], plataformas: ["instagram"] };
