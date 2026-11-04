@@ -3,12 +3,21 @@ import { createClient } from "@/lib/supabase/server";
 import { actorDe, registrarAuditoria } from "@/lib/auditoria";
 import { origenPermitido } from "@/lib/asignacion";
 import { cambiosDeEdicion, leerPedidoDeEdicion } from "@/lib/edicion-contacto";
+import { fechaEnDias } from "@/lib/seguimiento";
+import { zonaValida } from "@/lib/horas-habiles";
 
 /**
  * PATCH /api/v1/contacts/[contactId] — «Editar datos» de la ficha (F30).
  *
  * Cuerpo: cualquiera de `display_name`, `email`, `secondary_email`, `phone`,
- * `country`, `lead_temperature` y `next_followup_date`.
+ * `country`, `lead_temperature` y `next_followup_date`. O `seguimiento_en_dias`
+ * (3, 7 o 14), del panel de la bandeja (F35, tramo C de S8): el servidor lo
+ * convierte en `next_followup_date` contando desde hoy en
+ * `workspaces.zona_horaria`, la misma zona que usan los filtros de la bandeja.
+ * Así «En 3 días» nunca es una fecha calculada en el navegador. Queda en el
+ * historial igual que una fecha escrita: «contacto editado», con el valor
+ * anterior y el nuevo. Si el pedido trae el seguimiento, la respuesta trae la
+ * fecha que quedó.
  *
  * ES UNA RUTA Y NO UNA ACCIÓN DE SERVIDOR, por el mismo motivo que la de F41
  * (aprobado por Marcos el 19/10/2026 para F41 y en el plan del 20/10/2026 para
@@ -57,6 +66,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     .maybeSingle();
   if (!contacto) {
     return NextResponse.json({ error: "No encontramos ese contacto, o no está asignado a vos." }, { status: 404 });
+  }
+
+  if (pedido.seguimiento_en_dias !== undefined) {
+    const { data: espacio } = await supabase.from("workspaces").select("zona_horaria").eq("id", contacto.workspace_id).maybeSingle();
+    const zona = (espacio as { zona_horaria?: string | null } | null)?.zona_horaria ?? "America/Costa_Rica";
+    if (!zonaValida(zona)) {
+      console.error("[edicion] la zona del espacio no es válida");
+      return NextResponse.json({ error: "No se pudo guardar el próximo seguimiento." }, { status: 500 });
+    }
+    pedido.next_followup_date = fechaEnDias(new Date(), zona, pedido.seguimiento_en_dias);
+    delete pedido.seguimiento_en_dias;
   }
 
   const cambios = cambiosDeEdicion(contacto, pedido);
@@ -120,5 +140,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
   }
 
-  return NextResponse.json({ guardado: [...Object.keys(cambios), ...(telefono ? ["phone"] : [])], ...(aviso ? { aviso } : {}) });
+  return NextResponse.json({
+    guardado: [...Object.keys(cambios), ...(telefono ? ["phone"] : [])],
+    ...("next_followup_date" in pedido ? { next_followup_date: pedido.next_followup_date ?? null } : {}),
+    ...(aviso ? { aviso } : {}),
+  });
 }

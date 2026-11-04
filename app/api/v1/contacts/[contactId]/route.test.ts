@@ -20,7 +20,10 @@ const estado: {
   /** Otro contacto visible con el mismo correo (F30, aviso del 20/10/2026). */
   mismoCorreo: Array<{ id: string; display_name: string }>;
   consultasDeCorreo: Array<Array<[string, unknown]>>;
-} = { usuario: null, contacto: null, updates: [], rpcs: [], respuestaRpc: { resultado: "resuelto" }, tocoLaBase: false, mismoCorreo: [], consultasDeCorreo: [] };
+  /** La fila de `workspaces` que lee la ruta para «En N días» (tramo C de S8), y cómo la pidió. */
+  espacio: { zona_horaria: string | null } | null;
+  lecturasDelEspacio: Array<Array<[string, unknown]>>;
+} = { usuario: null, contacto: null, updates: [], rpcs: [], respuestaRpc: { resultado: "resuelto" }, tocoLaBase: false, mismoCorreo: [], consultasDeCorreo: [], espacio: null, lecturasDelEspacio: [] };
 
 function supabaseFalso() {
   return {
@@ -30,7 +33,7 @@ function supabaseFalso() {
         return { data: { user: estado.usuario } };
       },
     },
-    from: () => ({
+    from: (tabla: string) => ({
       select: () => {
         const filtros: Array<[string, unknown]> = [];
         const c: any = {
@@ -38,7 +41,8 @@ function supabaseFalso() {
           ilike: (k: string, v: unknown) => (filtros.push(["ilike", k, v] as never), c),
           neq: (k: string, v: unknown) => (filtros.push(["neq", k, v] as never), c),
           is: (k: string, v: unknown) => (filtros.push(["is", k, v] as never), c),
-          maybeSingle: async () => ({ data: estado.contacto }),
+          maybeSingle: async () =>
+            tabla === "workspaces" ? (estado.lecturasDelEspacio.push(filtros), { data: estado.espacio, error: null }) : { data: estado.contacto },
           limit: async () => (estado.consultasDeCorreo.push(filtros), { data: estado.mismoCorreo, error: null }),
         };
         return c;
@@ -94,6 +98,8 @@ beforeEach(() => {
   estado.tocoLaBase = false;
   estado.mismoCorreo = [];
   estado.consultasDeCorreo = [];
+  estado.espacio = { zona_horaria: "America/Costa_Rica" };
+  estado.lecturasDelEspacio = [];
   auditar.mockClear();
 });
 
@@ -200,5 +206,73 @@ describe("PATCH /api/v1/contacts/[id]", () => {
     estado.contacto = { ...estado.contacto, email: "fio@mail.com" };
     await llamar({ email: "fio@mail.com" });
     expect(estado.consultasDeCorreo).toEqual([]);
+  });
+});
+
+/**
+ * «En 3 días», «En 7 días» y «En 14 días» del panel de la bandeja (F35, tramo C
+ * de S8): el navegador manda el número y el servidor cuenta desde hoy en la
+ * zona del espacio. Reloj fijo a las 18:30 del 04/11/2026 de Costa Rica (00:30
+ * del 05 en UTC), con el proceso en UTC.
+ */
+describe("el próximo seguimiento en días, desde la bandeja", () => {
+  const zonaOriginal = process.env.TZ;
+  beforeEach(() => {
+    process.env.TZ = "UTC";
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-05T00:30:00Z"));
+    return () => {
+      vi.useRealTimers();
+      process.env.TZ = zonaOriginal;
+    };
+  });
+
+  it("acepta 3, 7 y 14", () => {
+    for (const dias of [3, 7, 14]) expect(leerPedidoDeEdicion({ seguimiento_en_dias: dias })).toEqual({ ok: true, pedido: { seguimiento_en_dias: dias } });
+  });
+
+  it("rechaza otro número, un texto, y los días junto con una fecha", () => {
+    for (const v of [5, 0, -3, "3", null, 3.5]) expect(leerPedidoDeEdicion({ seguimiento_en_dias: v }).ok).toBe(false);
+    expect(leerPedidoDeEdicion({ seguimiento_en_dias: 3, next_followup_date: "2030-01-01" }).ok).toBe(false);
+  });
+
+  it("«En 3 días» escribe hoy en la zona del espacio más 3, con «contacto editado», y devuelve la fecha", async () => {
+    const r = await llamar({ seguimiento_en_dias: 3 });
+    expect(r.status).toBe(200);
+    expect(estado.lecturasDelEspacio).toEqual([[["eq", "id", "ws-1"]]]);
+    expect(estado.updates).toEqual([{ next_followup_date: "2026-11-07" }]);
+    expect(auditar).toHaveBeenCalledTimes(1);
+    expect(auditar.mock.calls[0][0]).toMatchObject({ accion: "contacto.editado", cambios: { next_followup_date: { antes: null, despues: "2026-11-07" } } });
+    expect(await r.json()).toMatchObject({ next_followup_date: "2026-11-07" });
+  });
+
+  it("con el espacio en UTC, la misma hora ya es el 05: «En 3 días» escribe el 08", async () => {
+    estado.espacio = { zona_horaria: "UTC" };
+    const r = await llamar({ seguimiento_en_dias: 3 });
+    expect(r.status).toBe(200);
+    expect(estado.updates).toEqual([{ next_followup_date: "2026-11-08" }]);
+  });
+
+  it("sin zona guardada, Costa Rica, como la base", async () => {
+    estado.espacio = { zona_horaria: null };
+    const r = await llamar({ seguimiento_en_dias: 14 });
+    expect(r.status).toBe(200);
+    expect(estado.updates).toEqual([{ next_followup_date: "2026-11-18" }]);
+  });
+
+  it("con una zona que no existe, no escribe nada", async () => {
+    estado.espacio = { zona_horaria: "Marte/Olympus" };
+    const r = await llamar({ seguimiento_en_dias: 3 });
+    expect(r.status).toBe(500);
+    expect(estado.updates).toEqual([]);
+    expect(auditar).not.toHaveBeenCalled();
+  });
+
+  it("«Quitar» y «Otra fecha» devuelven la fecha que quedó", async () => {
+    estado.contacto = { ...estado.contacto, next_followup_date: "2026-11-07" };
+    const quitar = await llamar({ next_followup_date: null });
+    expect(await quitar.json()).toMatchObject({ next_followup_date: null });
+    const otra = await llamar({ next_followup_date: "2026-11-20" });
+    expect(await otra.json()).toMatchObject({ next_followup_date: "2026-11-20" });
   });
 });

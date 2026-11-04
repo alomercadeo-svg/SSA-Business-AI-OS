@@ -15,6 +15,7 @@
  * su propia fila en el historial.
  */
 import { normalizarTelefono } from "./telefono";
+import { esDiasDeSeguimiento, type DiasDeSeguimiento } from "./seguimiento";
 
 export const TEMPERATURAS = ["frio", "tibio", "caliente"] as const;
 export type Temperatura = (typeof TEMPERATURAS)[number];
@@ -27,7 +28,12 @@ export interface CamposEditables {
   lead_temperature: Temperatura | null;
   next_followup_date: string | null;
 }
-export type PedidoDeEdicion = Partial<CamposEditables> & { phone?: string };
+/**
+ * `seguimiento_en_dias` es «En 3 días», «En 7 días» o «En 14 días» del panel de
+ * la bandeja (F35, tramo C de S8): la ruta lo convierte en `next_followup_date`
+ * contando desde hoy en la zona del espacio. No viaja junto con una fecha.
+ */
+export type PedidoDeEdicion = Partial<CamposEditables> & { phone?: string; seguimiento_en_dias?: DiasDeSeguimiento };
 
 const CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
@@ -40,7 +46,7 @@ const vacioANulo = (v: unknown) => (typeof v === "string" && v.trim() === "" ? n
 export function leerPedidoDeEdicion(cuerpo: unknown): Lectura {
   if (!cuerpo || typeof cuerpo !== "object" || Array.isArray(cuerpo)) return { ok: false, error: "Pedido inválido." };
   const entrada = cuerpo as Record<string, unknown>;
-  const permitidas = ["display_name", "email", "secondary_email", "phone", "country", "lead_temperature", "next_followup_date"];
+  const permitidas = ["display_name", "email", "secondary_email", "phone", "country", "lead_temperature", "next_followup_date", "seguimiento_en_dias"];
   if (Object.keys(entrada).length === 0 || Object.keys(entrada).some((k) => !permitidas.includes(k))) {
     return { ok: false, error: "Pedido inválido." };
   }
@@ -83,6 +89,12 @@ export function leerPedidoDeEdicion(cuerpo: unknown): Lectura {
     }
     pedido.next_followup_date = v as string | null;
   }
+  if ("seguimiento_en_dias" in entrada) {
+    if (!esDiasDeSeguimiento(entrada.seguimiento_en_dias) || "next_followup_date" in entrada) {
+      return { ok: false, error: "El próximo seguimiento no es válido." };
+    }
+    pedido.seguimiento_en_dias = entrada.seguimiento_en_dias;
+  }
   return { ok: true, pedido };
 }
 
@@ -92,7 +104,7 @@ export type Cambios = Record<string, { antes: unknown; despues: unknown }>;
 export function cambiosDeEdicion(actual: Record<string, unknown>, pedido: PedidoDeEdicion): Cambios {
   const cambios: Cambios = {};
   for (const [campo, despues] of Object.entries(pedido)) {
-    if (campo === "phone") continue;
+    if (campo === "phone" || campo === "seguimiento_en_dias") continue;
     const antes = actual[campo] ?? null;
     if (antes !== despues) cambios[campo] = { antes, despues };
   }
