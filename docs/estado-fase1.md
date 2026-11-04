@@ -2129,7 +2129,24 @@ En su chat de revisión. Fuera de la medición. Cada una está marcada `[x]` en 
 
 Quedan como están: el historial no se borra nunca.
 
+**Despliegue de `3896684`** (los docs de las pantallas y las filas; subió también `504a841`). `node scripts/verificar-despliegue.mjs`, **salida 0, leída con `echo $?`**: lectura previa a las 16:32:34 (build `eONn8F2i5j_sNWnwKvq1h`), push `f00c2c8..3896684`, el build pasó a `kTvLf6zHrCPO0SN2LBb6T` a las 16:36:03, con `/login` en 200. Solo docs. De la salida del script, anotada en la memoria de Claude Code; en el repo no figuraba. **Railway, captura de Marcos recibida hacia las 16:39** (la hora de la captura no se sabe): ACTIVE «docs: S8 tramo 4, las tres filas de historial de las pruebas de Marcos ...» (cortado así en pantalla), «6 minutes ago via GitHub», «Deployment successful», `node@24.22.1`, «US West». Comparado con `git log` a las 16:39: coincide con el comienzo del título de `3896684`; el parecido, `504a841`, sigue «las pantallas del tramo C». **Identificado por título: `3896684`.** «6 minutes ago» es compatible con el push de las 16:32:34, no lo prueba. Los despliegues de `ff824e8` (el código del tramo) y de `f00c2c8` no tienen captura propia: los reemplazaron los siguientes antes de que se mirara.
+
 **Para mirar, del 04/11/2026:** el import del panel a `lib/auditoria.ts` solo lo atrapó `next build`, que corre al final. Ninguna guardia detecta que un componente `"use client"` traiga código del servidor. `app/frontera-cliente.test.ts` mira la dirección contraria.
+
+**Pendiente con dueño propuesto, a pedido de Marcos el 04/11/2026: tramo D, primer ítem.** Una guardia que falle si un archivo `"use client"` importa, directo o en cadena, `lib/supabase/server.ts` o `next/headers`. Hoy solo lo detecta `next build`, al final del cierre: así se encontró el import de `ff824e8`, con la suite y `tsc` en verde.
+
+
+### Las tildes del tramo C, decididas por Marcos el 04/11/2026
+
+En su chat de revisión. Fuera de la medición. Cada una está marcada `[x]` en el plano y registrada como reescrita en `docs/criterios-bajas.json`, con su motivo. Foto de criterios regenerada: 344 líneas, 5 apariciones nuevas. **F35 queda en 20 de 31** (6 del tramo A, 9 del B y 5 de este) **y no completa.**
+
+- **«En el panel de datos del contacto de la bandeja hay un selector de próximo seguimiento…»:** visto por Marcos con sesión (la sección «Próximo seguimiento» con los cinco botones; «Otra fecha» con hoy a las 16:21); verify-seguimiento-bandeja.mjs, 16:09:57, 51 de 51.
+- **«El cambio queda en el historial de auditoría como contacto editado, con el valor anterior y el nuevo»:** las tres filas reales de «Marcos Pitti music» (`2fbe1a45` 16:21:04, `fc70da00` 16:23:10, `0e57c276` 16:23:56), vistas por Marcos en el historial de la ficha y leídas en la base; el verificador, pasos 3 y 6.
+- **El control positivo («fijar «En 3 días» desde la bandeja…»):** verify-seguimiento-bandeja.mjs, 16:09:57, 51 de 51; con datos reales, Marcos vio «En 3 días» en «Rango de fechas» de ese día sin recargar y, después de «Quitar», la conversación fuera de las cuatro opciones (hacia las 16:23).
+- **«Filtro por seguimiento, sobre next_followup_date del contacto, con cuatro opciones…»:** visto por Marcos con datos reales «Vence hoy», «Vence esta semana» y «Rango de fechas», y las cuatro sin la conversación después de «Quitar». Nota: «Vencido» con datos reales solo se vio sin coincidencias, porque no hay contactos con fecha pasada y «Otra fecha» no las ofrece; con presencia, en verify-filtros-bandeja.mjs (13:58:29, pasos 7 a 10) y verify-seguimiento-bandeja.mjs (16:09:57).
+- **«"Vence hoy": fecha igual a hoy. "Vence esta semana"…»:** lo mismo que el anterior, con la misma nota; «los contactos sin fecha no aparecen en ninguna opción», visto después de «Quitar».
+
+**No se tildaron todavía:** «Los días se cuentan desde hoy en la zona horaria del negocio» y «"Hoy" se calcula en la zona horaria del negocio». La prueba real de las 16:21 no distingue Costa Rica de UTC (antes de las 18:00 de Costa Rica, el día es el mismo en las dos). **Disparador: Marcos la repite después de las 18:00**, cuando sí distingue. Hasta entonces los prueban los tests con el reloj fijo a las 18:30 y el paso de Kiritimati del verificador.
 
 ---
 

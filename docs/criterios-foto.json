@@ -1986,7 +1986,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Filtro por seguimiento, sobre next_followup_date del contacto, con cuatro opciones; se elige una a la vez: «Vence hoy», «Vence esta semana», «Vencido» y «Rango de fechas»."
+    "texto": "- [x] Filtro por seguimiento, sobre next_followup_date del contacto, con cuatro opciones; se elige una a la vez: «Vence hoy», «Vence esta semana», «Vencido» y «Rango de fechas»."
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -1995,7 +1995,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] «Vence hoy»: fecha igual a hoy. «Vence esta semana»: desde hoy hasta el domingo de esta semana, inclusive; no incluye los vencidos. «Vencido»: fecha anterior a hoy. «Rango de fechas»: entre dos fechas elegidas, inclusive. Los contactos sin fecha no aparecen en ninguna opción. La semana va de lunes a domingo (supuesto ajustable)."
+    "texto": "- [x] «Vence hoy»: fecha igual a hoy. «Vence esta semana»: desde hoy hasta el domingo de esta semana, inclusive; no incluye los vencidos. «Vencido»: fecha anterior a hoy. «Rango de fechas»: entre dos fechas elegidas, inclusive. Los contactos sin fecha no aparecen en ninguna opción. La semana va de lunes a domingo (supuesto ajustable)."
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2049,7 +2049,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] En el panel de datos del contacto de la bandeja hay un selector de próximo seguimiento con las opciones «En 3 días», «En 7 días», «En 14 días», «Otra fecha» y «Quitar». Escribe next_followup_date sin abrir la ficha ni ninguna ventana."
+    "texto": "- [x] En el panel de datos del contacto de la bandeja hay un selector de próximo seguimiento con las opciones «En 3 días», «En 7 días», «En 14 días», «Otra fecha» y «Quitar». Escribe next_followup_date sin abrir la ficha ni ninguna ventana."
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2067,7 +2067,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] El cambio queda en el historial de auditoría como contacto editado, con el valor anterior y el nuevo."
+    "texto": "- [x] El cambio queda en el historial de auditoría como contacto editado, con el valor anterior y el nuevo."
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2076,7 +2076,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Control positivo: fijar «En 3 días» desde la bandeja hace que la conversación aparezca en el filtro «Rango de fechas» de ese día sin recargar; «Quitar» la saca de todas las opciones del filtro."
+    "texto": "- [x] Control positivo: fijar «En 3 días» desde la bandeja hace que la conversación aparezca en el filtro «Rango de fechas» de ese día sin recargar; «Quitar» la saca de todas las opciones del filtro."
   },
   {
     "seccion": "F35: Bandeja y filtros",

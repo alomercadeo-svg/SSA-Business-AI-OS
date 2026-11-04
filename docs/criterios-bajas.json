@@ -1047,5 +1047,40 @@
     "nuevo": "- [x] Búsqueda de texto dentro de los mensajes, que ahora es posible porque están guardados",
     "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Visto por Marcos con sesión el 04/11/2026 (dos palabras de un mismo mensaje, 13:14); equivalencia en el espacio real a las 12:42 (bandeja_busca contra bandeja_busca_con_acceso, las mismas conversaciones); verify-filtros-bandeja.mjs contra producción, 04/11/2026 13:58:29, 135 de 135, pasos 15 y 16. Nota: unos 2,8 s de punta a punta; el camino B queda pendiente con su señal.",
     "fecha": "2026-11-04"
+  },
+  {
+    "texto": "- [ ] En el panel de datos del contacto de la bandeja hay un selector de próximo seguimiento con las opciones «En 3 días», «En 7 días», «En 14 días», «Otra fecha» y «Quitar». Escribe next_followup_date sin abrir la ficha ni ninguna ventana.",
+    "destino": "reescrito",
+    "nuevo": "- [x] En el panel de datos del contacto de la bandeja hay un selector de próximo seguimiento con las opciones «En 3 días», «En 7 días», «En 14 días», «Otra fecha» y «Quitar». Escribe next_followup_date sin abrir la ficha ni ninguna ventana.",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Visto por Marcos con sesión el 04/11/2026 (la sección «Próximo seguimiento» con los cinco botones; «Otra fecha» con hoy a las 16:21); verify-seguimiento-bandeja.mjs contra producción, 04/11/2026 16:09:57, 51 de 51.",
+    "fecha": "2026-11-04"
+  },
+  {
+    "texto": "- [ ] El cambio queda en el historial de auditoría como contacto editado, con el valor anterior y el nuevo.",
+    "destino": "reescrito",
+    "nuevo": "- [x] El cambio queda en el historial de auditoría como contacto editado, con el valor anterior y el nuevo.",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Tres filas reales de «Marcos Pitti music» (2fbe1a45 16:21:04, fc70da00 16:23:10, 0e57c276 16:23:56), vistas por Marcos en el historial de la ficha y leídas en la base; verify-seguimiento-bandeja.mjs, 04/11/2026 16:09:57, pasos 3 y 6.",
+    "fecha": "2026-11-04"
+  },
+  {
+    "texto": "- [ ] Control positivo: fijar «En 3 días» desde la bandeja hace que la conversación aparezca en el filtro «Rango de fechas» de ese día sin recargar; «Quitar» la saca de todas las opciones del filtro.",
+    "destino": "reescrito",
+    "nuevo": "- [x] Control positivo: fijar «En 3 días» desde la bandeja hace que la conversación aparezca en el filtro «Rango de fechas» de ese día sin recargar; «Quitar» la saca de todas las opciones del filtro.",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. verify-seguimiento-bandeja.mjs contra producción, 04/11/2026 16:09:57, 51 de 51; con datos reales, Marcos vio «En 3 días» en «Rango de fechas» de ese día sin recargar y, después de «Quitar», la conversación fuera de las cuatro opciones (hacia las 16:23).",
+    "fecha": "2026-11-04"
+  },
+  {
+    "texto": "- [ ] Filtro por seguimiento, sobre next_followup_date del contacto, con cuatro opciones; se elige una a la vez: «Vence hoy», «Vence esta semana», «Vencido» y «Rango de fechas».",
+    "destino": "reescrito",
+    "nuevo": "- [x] Filtro por seguimiento, sobre next_followup_date del contacto, con cuatro opciones; se elige una a la vez: «Vence hoy», «Vence esta semana», «Vencido» y «Rango de fechas».",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Visto por Marcos con datos reales el 04/11/2026: «Vence hoy», «Vence esta semana» y «Rango de fechas», y las cuatro sin la conversación después de «Quitar». Nota: «Vencido» con datos reales solo se vio sin coincidencias, porque no hay contactos con fecha pasada y «Otra fecha» no las ofrece; con presencia, en verify-filtros-bandeja.mjs (04/11/2026 13:58:29, pasos 7 a 10) y verify-seguimiento-bandeja.mjs (04/11/2026 16:09:57).",
+    "fecha": "2026-11-04"
+  },
+  {
+    "texto": "- [ ] «Vence hoy»: fecha igual a hoy. «Vence esta semana»: desde hoy hasta el domingo de esta semana, inclusive; no incluye los vencidos. «Vencido»: fecha anterior a hoy. «Rango de fechas»: entre dos fechas elegidas, inclusive. Los contactos sin fecha no aparecen en ninguna opción. La semana va de lunes a domingo (supuesto ajustable).",
+    "destino": "reescrito",
+    "nuevo": "- [x] «Vence hoy»: fecha igual a hoy. «Vence esta semana»: desde hoy hasta el domingo de esta semana, inclusive; no incluye los vencidos. «Vencido»: fecha anterior a hoy. «Rango de fechas»: entre dos fechas elegidas, inclusive. Los contactos sin fecha no aparecen en ninguna opción. La semana va de lunes a domingo (supuesto ajustable).",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Visto por Marcos con datos reales el 04/11/2026: «Vence hoy», «Vence esta semana» y «Rango de fechas», y las cuatro sin la conversación después de «Quitar»; «los contactos sin fecha no aparecen en ninguna opción», visto después de «Quitar». Nota: «Vencido» con datos reales solo se vio sin coincidencias, porque no hay contactos con fecha pasada y «Otra fecha» no las ofrece; con presencia, en verify-filtros-bandeja.mjs (04/11/2026 13:58:29, pasos 7 a 10) y verify-seguimiento-bandeja.mjs (04/11/2026 16:09:57).",
+    "fecha": "2026-11-04"
   }
 ]
