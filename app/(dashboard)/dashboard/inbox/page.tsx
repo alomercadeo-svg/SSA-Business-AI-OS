@@ -3,28 +3,46 @@ import { InboxView } from "./inbox-view";
 import { AvisoSesionWhatsapp } from "@/components/inbox/aviso-sesion-whatsapp";
 import { COLUMNAS_DEL_AVISO, type CanalDeSesion } from "@/lib/sesion-whatsapp-pantalla";
 import { busquedaDeBandeja, estadoDeBandeja, leerCantidades, leerPaginaDeBandeja } from "@/lib/bandeja";
+import { PLATAFORMAS, filtrosDeLaDireccion, filtrosParaElRol, type OpcionesDeFiltros } from "@/lib/filtros-bandeja";
+import { miembrosParaLaBandeja } from "@/lib/miembros-bandeja";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function InboxPage({
   searchParams,
 }: {
-  searchParams: Promise<{ conversacion?: string | string[]; q?: string | string[]; estado?: string | string[] }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { workspace, supabase, role } = await getWorkspace();
-  const { conversacion, q, estado: estadoPedido } = await searchParams;
+  const { workspace, supabase, role, user } = await getWorkspace();
+  const parametros = await searchParams;
+  const { conversacion, q, estado: estadoPedido } = parametros;
   // F35: la pestaña y la búsqueda viven en la dirección (`?estado=`, `?q=`),
   // así la página se puede recargar o compartir. «Abiertas» por defecto.
   const busqueda = busquedaDeBandeja(q);
   const estado = estadoDeBandeja(estadoPedido);
+  // Tramo B: los filtros también viven en la dirección. Un Member con el id de
+  // otro miembro en `asignacion`: se ignora (lib/filtros-bandeja.ts).
+  const filtros = filtrosParaElRol(filtrosDeLaDireccion(parametros), esManager(role), user.id);
 
   // F35: la primera página la lee el servidor, con las funciones de la 00043
   // (security invoker: la seguridad por filas decide qué ve cada uno). Las
   // siguientes las pide la lista a /api/v1/conversations.
-  const [pagina, cantidades] = await Promise.all([
-    leerPaginaDeBandeja(supabase, workspace.id, { estado, busqueda, cursor: null }),
-    leerCantidades(supabase, workspace.id, busqueda),
+  // Lo que ofrece el panel de filtros: las etiquetas del espacio, las
+  // plataformas con algún canal activo y, en «Asignación», el equipo para
+  // Owner y Admin, o solo quien mira si es Member (lib/miembros-bandeja.ts).
+  const [pagina, cantidades, etiquetas, canalesActivos, miembros] = await Promise.all([
+    leerPaginaDeBandeja(supabase, workspace.id, { estado, busqueda, cursor: null, filtros }),
+    leerCantidades(supabase, workspace.id, busqueda, filtros),
+    supabase.from("tags").select("id, name").eq("workspace_id", workspace.id).order("name"),
+    supabase.from("channels").select("platform").eq("workspace_id", workspace.id).eq("is_active", true),
+    miembrosParaLaBandeja(role, user, workspace.id),
   ]);
+  const plataformasActivas = new Set((canalesActivos.data ?? []).map((c) => c.platform));
+  const opcionesDeFiltros: OpcionesDeFiltros = {
+    etiquetas: etiquetas.data ?? [],
+    miembros,
+    plataformas: PLATAFORMAS.filter((p) => plataformasActivas.has(p)),
+  };
   if (pagina.error) console.error("[inbox] no se pudo leer la bandeja:", pagina.error);
   const conversations = pagina.conversaciones;
 
@@ -64,6 +82,8 @@ export default async function InboxPage({
           inicial={{ conversaciones: conversations, hayMas: pagina.hayMas, cantidades }}
           estado={estado}
           busqueda={busqueda}
+          filtros={filtros}
+          opcionesDeFiltros={opcionesDeFiltros}
           workspaceId={workspace.id}
           conversacionInicial={conversacionInicial}
         />

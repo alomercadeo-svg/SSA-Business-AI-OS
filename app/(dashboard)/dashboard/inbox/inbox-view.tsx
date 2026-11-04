@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Lock, MessageSquare, RefreshCw, User } from "lucide-react";
 import { ConversationList, type InicialDeLaLista } from "@/components/inbox/conversation-list";
 import type { EstadoDeBandeja } from "@/lib/bandeja";
+import { SIN_FILTROS, SIN_OPCIONES, hayFiltros, type FiltrosDeBandeja, type OpcionesDeFiltros } from "@/lib/filtros-bandeja";
 import { MessageThread } from "@/components/inbox/message-thread";
 import type { EstadoDelHistorial } from "@/lib/historial-aviso";
 import { ContactPanel } from "@/components/inbox/contact-panel";
@@ -21,6 +22,8 @@ export function InboxView({
   inicial,
   estado = "open",
   busqueda = "",
+  filtros = SIN_FILTROS,
+  opcionesDeFiltros = SIN_OPCIONES,
   workspaceId,
   conversacionInicial = null,
 }: {
@@ -30,6 +33,10 @@ export function InboxView({
   estado?: EstadoDeBandeja;
   /** Lo buscado que vino en la dirección (`?q=`). */
   busqueda?: string;
+  /** Los filtros que vinieron en la dirección (tramo B). */
+  filtros?: FiltrosDeBandeja;
+  /** Lo que ofrece el panel de filtros. */
+  opcionesDeFiltros?: OpcionesDeFiltros;
   workspaceId: string;
   /**
    * F30: la conversación que pidió la ficha (`?conversacion=`), ya leída por
@@ -147,6 +154,8 @@ export function InboxView({
           inicial={inicial}
           estado={estado}
           busqueda={busqueda}
+          filtros={filtros}
+          opcionesDeFiltros={opcionesDeFiltros}
           workspaceId={workspaceId}
           selectedId={selected?.id ?? null}
           onSelect={handleSelect}
@@ -169,8 +178,9 @@ export function InboxView({
           </div>
         )}
         <div className="min-h-0 flex-1">
-          {/* Sin ninguna conversación en el espacio, no solo en la pestaña elegida. */}
-          {(inicial.cantidades?.todas ?? inicial.conversaciones.length) === 0 && !busqueda ? (
+          {/* Sin ninguna conversación en el espacio, no solo en la pestaña elegida.
+              Con búsqueda o filtros, «Todas» en 0 no dice eso (tramo B). */}
+          {(inicial.cantidades?.todas ?? inicial.conversaciones.length) === 0 && !busqueda && !hayFiltros(filtros) ? (
             <div className="flex h-full flex-col items-center justify-center px-6 text-center">
               <MessageSquare className="h-10 w-10 text-muted-foreground/40" />
               <p className="mt-3 text-sm font-medium text-muted-foreground">

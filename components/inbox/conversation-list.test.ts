@@ -83,3 +83,32 @@ describe("las pestañas (e): «Abiertas», «Cerradas» y «Todas», con la cant
     expect(dibujar({ estado: "closed" })).toContain("50 de 61");
   });
 });
+
+describe("los filtros (tramo B de S8)", () => {
+  const OPCIONES = { etiquetas: [], miembros: [], plataformas: ["instagram", "whatsapp"] };
+  const vacia = { conversaciones: [], hayMas: false, cantidades: { abiertas: 0, cerradas: 0, todas: 0 } };
+
+  it("arriba de la lista está el botón «Filtros», con la cantidad de grupos elegidos", () => {
+    const html = dibujar({ filtros: { etiquetas: [], asignacion: null, canal: ["whatsapp"], ultimo: null, telefonoSinResolver: false, seguimiento: null }, opcionesDeFiltros: OPCIONES });
+    expect(html).toContain("Filtros · 1");
+  });
+
+  it("con filtros y ninguna coincidencia, el texto de los filtros y «Limpiar filtros»", () => {
+    const html = dibujar({ inicial: vacia, filtros: { etiquetas: [], asignacion: "sin", canal: [], ultimo: null, telefonoSinResolver: false, seguimiento: null }, opcionesDeFiltros: OPCIONES });
+    expect(html).toContain("Ninguna conversación con estos filtros");
+    expect(html).toContain("Probá con otros filtros o limpialos para ver todas.");
+    expect(html).toMatch(/<button[^>]*>Limpiar filtros<\/button>/);
+  });
+
+  it("con búsqueda y filtros, y ninguna coincidencia, gana el texto de los filtros", () => {
+    const html = dibujar({ inicial: vacia, busqueda: "ana", filtros: { etiquetas: [], asignacion: null, canal: [], ultimo: "hoy", telefonoSinResolver: false, seguimiento: null }, opcionesDeFiltros: OPCIONES });
+    expect(html).toContain("Ninguna conversación con estos filtros");
+    expect(html).not.toContain("Ninguna conversación coincide con");
+  });
+
+  it("sin filtros, el estado vacío sigue como estaba (control)", () => {
+    const html = dibujar({ inicial: vacia, opcionesDeFiltros: OPCIONES });
+    expect(html).toContain("No hay conversaciones");
+    expect(html).not.toContain("Ninguna conversación con estos filtros");
+  });
+});

@@ -33,6 +33,17 @@ export type FiltrosDeBandeja = {
   seguimiento: null | Seguimiento;
 };
 
+/** Lo que el panel ofrece, leído en el servidor (`inbox/page.tsx`). */
+export interface OpcionesDeFiltros {
+  etiquetas: Array<{ id: string; name: string }>;
+  /** Owner y Admin: el equipo; un Member: solo él (`lib/miembros-bandeja.ts`). */
+  miembros: Array<{ id: string; etiqueta: string }>;
+  /** Las plataformas con algún canal activo en el espacio. */
+  plataformas: readonly Plataforma[];
+}
+
+export const SIN_OPCIONES: OpcionesDeFiltros = { etiquetas: [], miembros: [], plataformas: [] };
+
 export const SIN_FILTROS: FiltrosDeBandeja = {
   etiquetas: [],
   asignacion: null,

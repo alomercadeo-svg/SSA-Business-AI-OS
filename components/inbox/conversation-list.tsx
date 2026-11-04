@@ -14,6 +14,16 @@ import {
   type EstadoDeBandeja,
 } from "@/lib/bandeja";
 import { horaDeLaLista } from "@/lib/fechas-bandeja";
+import {
+  CLAVES_DE_FILTROS,
+  SIN_FILTROS,
+  SIN_OPCIONES,
+  hayFiltros,
+  parametrosDeFiltros,
+  type FiltrosDeBandeja,
+  type OpcionesDeFiltros,
+} from "@/lib/filtros-bandeja";
+import { FiltrosBandeja } from "./filtros-bandeja";
 
 type Conversation = ConversacionDeBandeja;
 
@@ -37,20 +47,30 @@ const PESTANAS: ReadonlyArray<{ estado: EstadoDeBandeja; texto: string; cantidad
 const cantidadDe = (cantidades: CantidadesDeBandeja | null, estado: EstadoDeBandeja) =>
   cantidades ? cantidades[PESTANAS.find((p) => p.estado === estado)!.cantidad] : null;
 
-/** La dirección de la bandeja con la pestaña y lo buscado: se puede recargar o compartir. */
-function direccionCon(estado: EstadoDeBandeja, busqueda: string): string {
+/** La dirección de la bandeja con la pestaña, lo buscado y los filtros: se puede recargar o compartir. */
+function direccionCon(estado: EstadoDeBandeja, busqueda: string, filtros: FiltrosDeBandeja): string {
   const url = new URL(window.location.href);
   if (busqueda) url.searchParams.set("q", busqueda);
   else url.searchParams.delete("q");
   if (estado !== "open") url.searchParams.set("estado", estado);
   else url.searchParams.delete("estado");
+  for (const clave of CLAVES_DE_FILTROS) url.searchParams.delete(clave);
+  for (const [clave, valor] of parametrosDeFiltros(filtros)) url.searchParams.set(clave, valor);
   return `${url.pathname}${url.search}`;
 }
+
+/** Los filtros como parámetros para la ruta de la lista (tramo B). */
+const conFiltros = (filtros: FiltrosDeBandeja) => {
+  const p = new URLSearchParams(parametrosDeFiltros(filtros)).toString();
+  return p ? `&${p}` : "";
+};
 
 export function ConversationList({
   inicial,
   estado: estadoInicial = "open",
   busqueda = "",
+  filtros: filtrosIniciales = SIN_FILTROS,
+  opcionesDeFiltros = SIN_OPCIONES,
   workspaceId,
   selectedId,
   onSelect,
@@ -60,6 +80,10 @@ export function ConversationList({
   estado?: EstadoDeBandeja;
   /** Lo buscado que vino en la dirección (`?q=`), ya aplicado por el servidor. */
   busqueda?: string;
+  /** Los filtros que vinieron en la dirección, ya aplicados por el servidor (tramo B). */
+  filtros?: FiltrosDeBandeja;
+  /** Lo que ofrece el panel de filtros, leído por el servidor. */
+  opcionesDeFiltros?: OpcionesDeFiltros;
   workspaceId: string;
   selectedId: string | null;
   onSelect: (conversation: Conversation) => void;
@@ -79,6 +103,9 @@ export function ConversationList({
   const [buscando, setBuscando] = useState(false);
   const [estado, setEstado] = useState<EstadoDeBandeja>(estadoInicial);
   const estadoVigente = useRef(estadoInicial);
+  // `filtros` es lo elegido; `filtrosVigentes`, lo que ya respondió el servidor.
+  const [filtros, setFiltros] = useState<FiltrosDeBandeja>(filtrosIniciales);
+  const filtrosVigentes = useRef(filtrosIniciales);
   // Relative timestamps depend on the client's clock/locale, which differ from the
   // server's during SSR and trigger a hydration mismatch (React #418, which crashes
   // the inbox in production). Defer time rendering until after mount so the server
@@ -94,7 +121,9 @@ export function ConversationList({
     buscada.current = busqueda;
     estadoVigente.current = estadoInicial;
     setEstado(estadoInicial);
-  }, [inicial, busqueda, estadoInicial]);
+    filtrosVigentes.current = filtrosIniciales;
+    setFiltros(filtrosIniciales);
+  }, [inicial, busqueda, estadoInicial, filtrosIniciales]);
 
   // La lista como está ahora, para los avisos de Realtime: un actualizador de
   // `setConversations` corre más tarde, y lo que se decida adentro no se ve afuera.
@@ -114,7 +143,7 @@ export function ConversationList({
     setErrorAlCargar(null);
     try {
       const cursor = cursorDe(ultima);
-      const res = await fetch(`/api/v1/conversations?estado=${estadoVigente.current}&q=${encodeURIComponent(buscada.current)}&antesOrden=${encodeURIComponent(cursor.orden)}&antesId=${cursor.id}`);
+      const res = await fetch(`/api/v1/conversations?estado=${estadoVigente.current}&q=${encodeURIComponent(buscada.current)}${conFiltros(filtrosVigentes.current)}&antesOrden=${encodeURIComponent(cursor.orden)}&antesId=${cursor.id}`);
       const data = await res.json().catch(() => null);
       if (!res.ok || !Array.isArray(data?.conversaciones)) throw new Error(String(res.status));
       setConversations((prev) => fusionarDeBandeja(prev, data.conversaciones));
@@ -132,7 +161,7 @@ export function ConversationList({
   const recontar = useCallback(() => {
     if (temporizador.current) clearTimeout(temporizador.current);
     temporizador.current = setTimeout(async () => {
-      const res = await fetch(`/api/v1/conversations?soloCantidades=1&q=${encodeURIComponent(buscada.current)}`).catch(() => null);
+      const res = await fetch(`/api/v1/conversations?soloCantidades=1&q=${encodeURIComponent(buscada.current)}${conFiltros(filtrosVigentes.current)}`).catch(() => null);
       const data = await res?.json().catch(() => null);
       if (data?.cantidades) setCantidades(data.cantidades);
     }, 1000);
@@ -141,22 +170,23 @@ export function ConversationList({
   // La búsqueda corre en el servidor, sobre todas las conversaciones que quien
   // mira puede ver (F35), 300 ms después de la última tecla. Una respuesta
   // vieja que llega tarde no pisa a la nueva.
-  // La primera página de una pestaña y una búsqueda, desde el servidor.
-  const recargar = useCallback(async (nuevoEstado: EstadoDeBandeja, q: string) => {
+  // La primera página de una pestaña, una búsqueda y unos filtros, desde el servidor.
+  const recargar = useCallback(async (nuevoEstado: EstadoDeBandeja, q: string, nuevosFiltros: FiltrosDeBandeja) => {
     const pedido = ++pedidoDeBusqueda.current;
     setBuscando(true);
     setErrorAlCargar(null);
     try {
-      const res = await fetch(`/api/v1/conversations?estado=${nuevoEstado}&q=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/v1/conversations?estado=${nuevoEstado}&q=${encodeURIComponent(q)}${conFiltros(nuevosFiltros)}`);
       const data = await res.json().catch(() => null);
       if (pedido !== pedidoDeBusqueda.current) return;
       if (!res.ok || !Array.isArray(data?.conversaciones)) throw new Error(String(res.status));
       buscada.current = q;
       estadoVigente.current = nuevoEstado;
+      filtrosVigentes.current = nuevosFiltros;
       setConversations(data.conversaciones);
       setHayMas(data.hayMas === true);
       setCantidades(data.cantidades ?? null);
-      window.history.replaceState(null, "", direccionCon(nuevoEstado, q));
+      window.history.replaceState(null, "", direccionCon(nuevoEstado, q, nuevosFiltros));
     } catch {
       if (pedido === pedidoDeBusqueda.current) setErrorAlCargar("No se pudo cargar la bandeja. Probá de nuevo.");
     } finally {
@@ -167,14 +197,19 @@ export function ConversationList({
   useEffect(() => {
     const q = search.trim();
     if (q === buscada.current) return;
-    const espera = setTimeout(() => recargar(estadoVigente.current, q), 300);
+    const espera = setTimeout(() => recargar(estadoVigente.current, q, filtrosVigentes.current), 300);
     return () => clearTimeout(espera);
   }, [search, recargar]);
 
   function elegirPestana(nuevo: EstadoDeBandeja) {
     if (nuevo === estado) return;
     setEstado(nuevo);
-    recargar(nuevo, search.trim());
+    recargar(nuevo, search.trim(), filtrosVigentes.current);
+  }
+
+  function cambiarFiltros(nuevos: FiltrosDeBandeja) {
+    setFiltros(nuevos);
+    recargar(estadoVigente.current, search.trim(), nuevos);
   }
 
   // Subscribe to conversation updates via Realtime
@@ -184,7 +219,7 @@ export function ConversationList({
     // Una conversación que no está cargada se pide sola, por la ruta de la
     // lista: la seguridad por filas decide si la puede ver.
     async function traerUna(id: string) {
-      const res = await fetch(`/api/v1/conversations?estado=${estadoVigente.current}&q=${encodeURIComponent(buscada.current)}&id=${id}`).catch(() => null);
+      const res = await fetch(`/api/v1/conversations?estado=${estadoVigente.current}&q=${encodeURIComponent(buscada.current)}${conFiltros(filtrosVigentes.current)}&id=${id}`).catch(() => null);
       const data = await res?.json().catch(() => null);
       if (Array.isArray(data?.conversaciones) && data.conversaciones.length > 0) {
         setConversations((prev) => fusionarDeBandeja(prev, data.conversaciones));
@@ -288,9 +323,25 @@ export function ConversationList({
         ))}
       </div>
 
+      {/* Filtros (F35, tramo B): el botón «Filtros» y su panel */}
+      <FiltrosBandeja filtros={filtros} opciones={opcionesDeFiltros} onCambiar={cambiarFiltros} />
+
       {/* Conversation list */}
       <div className="flex-1 overflow-y-auto">
-        {filtered.length === 0 ? (
+        {filtered.length === 0 && hayFiltros(filtrosVigentes.current) ? (
+          <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+            <MessageSquare className="h-8 w-8 text-muted-foreground/50" />
+            <p className="mt-2 text-sm font-medium text-muted-foreground">Ninguna conversación con estos filtros</p>
+            <p className="mt-1 text-xs text-muted-foreground/80">Probá con otros filtros o limpialos para ver todas.</p>
+            <button
+              type="button"
+              onClick={() => cambiarFiltros(SIN_FILTROS)}
+              className="mt-3 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+            >
+              Limpiar filtros
+            </button>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <MessageSquare className="h-8 w-8 text-muted-foreground/50" />
             <p className="mt-2 text-sm text-muted-foreground">
