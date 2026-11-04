@@ -50,13 +50,18 @@ export async function GET(request: NextRequest) {
   if (id !== undefined && !UUID.test(id)) return NextResponse.json({ error: "id inválido" }, { status: 400 });
   const cursor = antesOrden && antesId ? { orden: antesOrden, id: antesId } : null;
 
-  const pagina = await leerPaginaDeBandeja(supabase, workspace.id, { estado, busqueda, cursor, id, filtros });
+  // La primera página trae además las cantidades. Se piden a la vez: cada una
+  // recorre las conversaciones del espacio, y una detrás de la otra sumaban
+  // sus tiempos (retrabajo del 04/11/2026). Con cursor o por id, solo la página.
+  const primera = !cursor && !id;
+  const [pagina, cantidades] = await Promise.all([
+    leerPaginaDeBandeja(supabase, workspace.id, { estado, busqueda, cursor, id, filtros }),
+    primera ? leerCantidades(supabase, workspace.id, busqueda, filtros) : Promise.resolve(null),
+  ]);
   if (pagina.error) {
     console.error("[conversations] no se pudo leer la bandeja:", pagina.error);
     return NextResponse.json({ error: "No se pudieron leer las conversaciones" }, { status: 500 });
   }
-  if (cursor || id) return NextResponse.json({ conversaciones: pagina.conversaciones, hayMas: pagina.hayMas });
-
-  const cantidades = await leerCantidades(supabase, workspace.id, busqueda, filtros);
+  if (!primera) return NextResponse.json({ conversaciones: pagina.conversaciones, hayMas: pagina.hayMas });
   return NextResponse.json({ conversaciones: pagina.conversaciones, hayMas: pagina.hayMas, cantidades });
 }

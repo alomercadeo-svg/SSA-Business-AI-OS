@@ -125,6 +125,23 @@ describe("GET /api/v1/conversations", () => {
     expect(h.pagina).toHaveBeenLastCalledWith(CLIENTE, "ws-1", expect.objectContaining({ filtros: { ...SIN_FILTROS, asignacion: OTRO } }));
   });
 
+  it("la primera página pide la página y las cantidades a la vez, no una después de otra (retrabajo, 04/11/2026)", async () => {
+    let terminarPagina: (v: unknown) => void = () => {};
+    h.pagina.mockReturnValue(new Promise((r) => (terminarPagina = r)));
+    const respuesta = pedir();
+    await new Promise((r) => setTimeout(r, 0));
+    // La página todavía no terminó, y las cantidades ya se pidieron.
+    expect(h.cantidades).toHaveBeenCalledTimes(1);
+    terminarPagina({ conversaciones: [{ id: "c1" }], hayMas: false, error: null });
+    expect((await respuesta).status).toBe(200);
+  });
+
+  it("con cursor o por id sigue pidiendo solo la página (control)", async () => {
+    await pedir(`?antesOrden=2026-11-01T10:00:00Z&antesId=${UUID}`);
+    await pedir(`?id=${UUID}`);
+    expect(h.cantidades).not.toHaveBeenCalled();
+  });
+
   it("si la base falla, 500 sin el detalle", async () => {
     h.pagina.mockResolvedValue({ conversaciones: [], hayMas: false, error: "permission denied for function bandeja_pagina" });
     const res = await pedir();
