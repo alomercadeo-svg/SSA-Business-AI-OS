@@ -2113,6 +2113,15 @@ En su chat de revisión. Fuera de la medición. Cada una está marcada `[x]` en 
 
 **Antes de subir:** suite 1168 de 1168, `typecheck` en cero, lint sin errores (45 avisos, los mismos de los tramos anteriores) y `next build` sin errores (después del arreglo de `ff824e8`), los cuatro con su código de salida leído directo. **Despliegue:** `node scripts/verificar-despliegue.mjs`, **salida 0, leída con `echo $?`**: lectura previa a las 16:05:24 (build `Eu4FFdp4HLILHeZPFeqXu`), push `bc02f39..ff824e8`, el build pasó a `fhC_66Vbkrt1HVrPc9F_3` a las 16:09:43, con `/login` en 200. **Toca pantallas: queda «salida 0, pantallas sin mirar»** hasta que Marcos abra con sesión, recargando, la bandeja y la ficha, y lo confirme. El commit activo en Railway no está identificado: falta la captura.
 
+**Las pantallas, vistas por Marcos con sesión, recargando, el 04/11/2026**, sobre «Marcos Pitti music» (Instagram, @marcospittimusic, del espacio de @poderosascomunidad). Recibido en esta sesión a las 16:28, con sus palabras y una captura del panel; Claude Code no vio las otras pantallas. Con eso, el despliegue de `ff824e8` deja de estar «pantallas sin mirar».
+- **El panel en voseo (paso 1):** se ve en la captura. Aparecen «Datos del contacto», «Ver ficha completa» debajo del nombre, «Suscripto», «Próximo seguimiento» con «4 nov 2026» y los cinco botones, «Canales» con «Instagram @marcospittimusic», «Última interacción» («2 nov 2026, 16:42»), «Creado» («8 oct 2026, 12:25»), «Etiquetas» y «Sin etiquetas». Marcos no comentó el paso 1 aparte.
+- **«Otra fecha» con hoy (paso 2):** «Cambié ultimo seguimiento a fecha de hoy, lo muestra "4 nov 2026"». **No dijo si apareció el aviso «Próximo seguimiento: 4 nov 2026»**: no visto.
+- **«Vence hoy» y «Vence esta semana» (paso 3), «En 3 días» en «Rango de fechas» sin recargar (paso 4) y «Quitar» fuera de las cuatro opciones (paso 5):** «Funciona», uno por uno. Del paso 5 no dijo si apareció «Seguimiento quitado».
+- **El nombre o la foto abren la ficha, con las filas nuevas en el historial (paso 6):** «Funciona, y se muestran los cambios en el historial».
+- **La flecha «Bandeja» (paso 7) y el atrás del navegador (paso 8)** vuelven con la búsqueda, el filtro, la pestaña y la conversación: «Funciona», los dos.
+
+**Excepción sobre un contacto real, del 04/11/2026** (decidida por Marcos antes del tramo): las pruebas de los pasos 2, 4 y 5 escribieron `next_followup_date` de «Marcos Pitti music» y dejaron filas en `audit_log`, que no se borran nunca. Por lo que hizo, serían tres filas de «contacto editado» (hoy, hoy más 3, vacío); **no se leyeron en la base**: los ids quedan pendientes de una lectura de solo ids que Marcos tiene que autorizar. Si después de «Quitar» no volvió a fijar nada, el contacto queda sin fecha (inferencia, no leída).
+
 **Para mirar, del 04/11/2026:** el import del panel a `lib/auditoria.ts` solo lo atrapó `next build`, que corre al final. Ninguna guardia detecta que un componente `"use client"` traiga código del servidor. `app/frontera-cliente.test.ts` mira la dirección contraria.
 
 ---
