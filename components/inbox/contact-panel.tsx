@@ -16,7 +16,7 @@ import { PlatformIcon } from "@/components/platform-icon";
 import { SugerenciaUnion } from "@/components/inbox/sugerencia-union";
 import { SelectorDeSeguimiento } from "@/components/inbox/selector-seguimiento";
 import { enlaceAFicha, horaDelNegocio } from "@/lib/ficha";
-import { nombreDePlataforma } from "@/lib/auditoria";
+import { nombreDePlataforma } from "@/lib/nombre-de-plataforma";
 import type { Database, Platform } from "@/lib/types/database";
 
 type Contact = Database["public"]["Tables"]["contacts"]["Row"];

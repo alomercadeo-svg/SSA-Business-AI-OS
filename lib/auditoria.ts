@@ -171,19 +171,10 @@ async function auditarAlerta(supabase: SupabaseClient, alertaId: string): Promis
   );
 }
 
-const NOMBRE_DE_PLATAFORMA: Record<string, string> = {
-  instagram: "Instagram",
-  whatsapp: "WhatsApp",
-  facebook: "Facebook",
-  telegram: "Telegram",
-  twitter: "X",
-  bluesky: "Bluesky",
-  reddit: "Reddit",
-};
-
-export function nombreDePlataforma(p: string | null | undefined): string {
-  return (p && NOMBRE_DE_PLATAFORMA[p]) || p || "canal";
-}
+// Movido a lib/nombre-de-plataforma.ts (tramo C de S8), para que lo pueda usar
+// el navegador sin traer el cliente del servidor. Se vuelve a exportar acá.
+import { nombreDePlataforma } from "./nombre-de-plataforma";
+export { nombreDePlataforma };
 
 /** «Instagram @alomercadeo», «WhatsApp (instancia ssa-wa)». */
 export function etiquetaDeCanal(c: {
