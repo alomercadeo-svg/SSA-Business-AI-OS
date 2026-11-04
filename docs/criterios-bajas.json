@@ -984,5 +984,68 @@
     "nuevo": "- [x] En el panel del contacto de la bandeja, «Ver ficha completa» abre la ficha de ese contacto, y el nombre del contacto en el encabezado del hilo también. Si el teléfono está sin resolver, el panel muestra «Cargar teléfono en la ficha», que abre la ficha. (agregado el 03/11/2026, decidido por Marcos: con el número real vinculado, desde la bandeja no había forma de abrir la ficha; el prototipo aprobado lo tenía)",
     "motivo": "Tildado el 03/11/2026, decidido por Marcos. Visto por Marcos con sesión y datos reales: el nombre del encabezado del hilo, «Ver ficha completa» y «Cargar teléfono en la ficha» abren la ficha. Nota: al pie del panel el botón es poco visible; decidido para el tramo C: el nombre y la foto del panel también abren la ficha, y el botón sube a quedar debajo del nombre.",
     "fecha": "2026-11-03"
+  },
+  {
+    "texto": "- [ ] Filtro por etiquetas, por asignación, por canal y por fecha del último mensaje",
+    "destino": "reescrito",
+    "nuevo": "- [x] Filtro por etiquetas, por asignación, por canal y por fecha del último mensaje",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Visto por Marcos con sesión el 04/11/2026 (canal, fecha, asignación y el estado vacío de etiquetas); verify-filtros-bandeja.mjs contra producción, 04/11/2026 13:58:29, 135 de 135, pasos 2 a 5.",
+    "fecha": "2026-11-04"
+  },
+  {
+    "texto": "- [ ] Filtro por tags: multi-select (devuelto el 23/09/2026, auditoría #76b)",
+    "destino": "reescrito",
+    "nuevo": "- [x] Filtro por tags: multi-select (devuelto el 23/09/2026, auditoría #76b)",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. El filtro con etiquetas lo probó verify-filtros-bandeja.mjs contra producción, 04/11/2026 13:58:29, 135 de 135, paso 2 («T1 o T2»), en un espacio fantasma. Nota: el espacio real no tiene etiquetas, y Marcos vio «Todavía no hay etiquetas.».",
+    "fecha": "2026-11-04"
+  },
+  {
+    "texto": "- [ ] Filtro por asignación: \"Todas\", \"Sin asignar\" y miembros del equipo. La opción \"Agente IA\" del original pasa a las funcionalidades de fases siguientes, porque esta fase no incluye agente de IA (§4.11) (devuelto el 23/09/2026, auditoría #77b)",
+    "destino": "reescrito",
+    "nuevo": "- [x] Filtro por asignación: \"Todas\", \"Sin asignar\" y miembros del equipo. La opción \"Agente IA\" del original pasa a las funcionalidades de fases siguientes, porque esta fase no incluye agente de IA (§4.11) (devuelto el 23/09/2026, auditoría #77b)",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Visto por Marcos con datos reales el 04/11/2026 hacia las 15:00: un miembro y «Sin asignar», comprobados en la ficha. Para un Member, solo él: verify-filtros-bandeja.mjs contra producción, 04/11/2026 13:58:29, 135 de 135, pasos 3 y 13.",
+    "fecha": "2026-11-04"
+  },
+  {
+    "texto": "- [ ] Filtro por canal: multi-select de canales activos (Instagram, WhatsApp) (devuelto el 23/09/2026, auditoría #78b)",
+    "destino": "reescrito",
+    "nuevo": "- [x] Filtro por canal: multi-select de canales activos (Instagram, WhatsApp) (devuelto el 23/09/2026, auditoría #78b)",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Visto por Marcos con sesión el 04/11/2026 («WhatsApp»); verify-filtros-bandeja.mjs contra producción, 04/11/2026 13:58:29, 135 de 135, paso 4.",
+    "fecha": "2026-11-04"
+  },
+  {
+    "texto": "- [ ] Filtro por fecha de último mensaje: presets y rango personalizado (devuelto el 23/09/2026, auditoría #79b)",
+    "destino": "reescrito",
+    "nuevo": "- [x] Filtro por fecha de último mensaje: presets y rango personalizado (devuelto el 23/09/2026, auditoría #79b)",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Visto por Marcos con sesión el 04/11/2026: «Hoy» (entre 10:42 y 10:57) y «Rango de fechas» del 01/11 al 03/11 (hacia las 15:00); verify-filtros-bandeja.mjs contra producción, 04/11/2026 13:58:29, 135 de 135, paso 5.",
+    "fecha": "2026-11-04"
+  },
+  {
+    "texto": "- [ ] Filtro por \"teléfono sin resolver\", para poder trabajar esa cola",
+    "destino": "reescrito",
+    "nuevo": "- [x] Filtro por \"teléfono sin resolver\", para poder trabajar esa cola",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Visto por Marcos con sesión el 04/11/2026, también desde «Ver la cola» en Channels; verify-filtros-bandeja.mjs contra producción, 04/11/2026 13:58:29, 135 de 135, paso 6.",
+    "fecha": "2026-11-04"
+  },
+  {
+    "texto": "- [ ] Control positivo de bordes, con el reloj fijado a las 18:30 de Costa Rica (00:30 UTC del día siguiente): un contacto con fecha de hoy aparece en «Vence hoy» y en «Vence esta semana», y no en «Vencido»; uno con fecha de ayer aparece en «Vencido»; uno con fecha de mañana no aparece en «Vence hoy» y sí en «Vence esta semana», salvo que hoy sea domingo.",
+    "destino": "reescrito",
+    "nuevo": "- [x] Control positivo de bordes, con el reloj fijado a las 18:30 de Costa Rica (00:30 UTC del día siguiente): un contacto con fecha de hoy aparece en «Vence hoy» y en «Vence esta semana», y no en «Vencido»; uno con fecha de ayer aparece en «Vencido»; uno con fecha de mañana no aparece en «Vence hoy» y sí en «Vence esta semana», salvo que hoy sea domingo.",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. verify-filtros-bandeja.mjs contra producción, 04/11/2026 13:58:29, 135 de 135, pasos 7 a 10: el reloj fijo a las 18:30 de Costa Rica, el miércoles 04/11 y el domingo 08/11, con un espacio en UTC como control. Es lo que el criterio pide.",
+    "fecha": "2026-11-04"
+  },
+  {
+    "texto": "- [ ] Filtros combinables, reflejados en la dirección de la página para poder compartirla, con contador y botón de limpiar",
+    "destino": "reescrito",
+    "nuevo": "- [x] Filtros combinables, reflejados en la dirección de la página para poder compartirla, con contador y botón de limpiar",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Visto por Marcos con sesión el 04/11/2026: «Filtros · 2», la dirección abierta en otra pestaña y «Limpiar filtros»; verify-filtros-bandeja.mjs contra producción, 04/11/2026 13:58:29, 135 de 135, pasos 11 y 12.",
+    "fecha": "2026-11-04"
+  },
+  {
+    "texto": "- [ ] Búsqueda de texto dentro de los mensajes, que ahora es posible porque están guardados",
+    "destino": "reescrito",
+    "nuevo": "- [x] Búsqueda de texto dentro de los mensajes, que ahora es posible porque están guardados",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Visto por Marcos con sesión el 04/11/2026 (dos palabras de un mismo mensaje, 13:14); equivalencia en el espacio real a las 12:42 (bandeja_busca contra bandeja_busca_con_acceso, las mismas conversaciones); verify-filtros-bandeja.mjs contra producción, 04/11/2026 13:58:29, 135 de 135, pasos 15 y 16. Nota: unos 2,8 s de punta a punta; el camino B queda pendiente con su señal.",
+    "fecha": "2026-11-04"
   }
 ]

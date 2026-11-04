@@ -987,26 +987,26 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** el lugar donde el equipo trabaja todos los días.
 
-**Estado: parcial** (inspeccionado el 22 de septiembre de 2026). **Actualizado el 03/11/2026: 6 de 31 tildados (tramo A de S8)**, decididos por Marcos: «lee los mensajes de la base», la lista por páginas, el hilo hasta el primero, las pestañas, el control positivo y el criterio 31 (`docs/criterios-bajas.json`; `docs/estado-fase1.md`, «S8, tramo 1»). No se tildó «La búsqueda y los filtros de la lista corren en el servidor»: le faltan los filtros del tramo B. F35 no queda completa. **Actualizado el 03/11/2026:** suma el criterio 31, abrir la ficha del contacto desde la bandeja, decidido por Marcos con el número real vinculado; es posterior a la línea de base del Bloque 4 y se anota aparte (`docs/estado-fase1.md`, tabla del Bloque 4). **El fork cubre:** `conversation-list.tsx` con búsqueda por texto y filtro por estado. **Falta:** filtros por canal, por asignado y por no leídas, y que el filtrado no sea sobre la página ya cargada en el cliente, que es como está hoy. **Actualizado el 02/11/2026 (revisión de antes de S7):** suma cinco criterios, los de los estados de la conversación (pestañas, cerrar y reabrir, reapertura sola, el seguimiento al cerrar) y el contador de no leídos; va en S8 del Bloque 4.
+**Estado: parcial** (inspeccionado el 22 de septiembre de 2026). **Actualizado el 04/11/2026: 15 de 31 tildados (tramos A y B de S8)**, decididos por Marcos: los 6 del tramo A y 9 del tramo B (los filtros por etiquetas, asignación, canal, fecha del último mensaje y teléfono sin resolver, el control positivo de bordes del seguimiento, los filtros combinables y la búsqueda en los mensajes; ver `docs/estado-fase1.md`, «Las tildes del tramo B»). **Antes decía: Actualizado el 03/11/2026: 6 de 31 tildados (tramo A de S8)**, decididos por Marcos: «lee los mensajes de la base», la lista por páginas, el hilo hasta el primero, las pestañas, el control positivo y el criterio 31 (`docs/criterios-bajas.json`; `docs/estado-fase1.md`, «S8, tramo 1»). No se tildó «La búsqueda y los filtros de la lista corren en el servidor»: le faltan los filtros del tramo B. F35 no queda completa. **Actualizado el 03/11/2026:** suma el criterio 31, abrir la ficha del contacto desde la bandeja, decidido por Marcos con el número real vinculado; es posterior a la línea de base del Bloque 4 y se anota aparte (`docs/estado-fase1.md`, tabla del Bloque 4). **El fork cubre:** `conversation-list.tsx` con búsqueda por texto y filtro por estado. **Falta:** filtros por canal, por asignado y por no leídas, y que el filtrado no sea sobre la página ya cargada en el cliente, que es como está hoy. **Actualizado el 02/11/2026 (revisión de antes de S7):** suma cinco criterios, los de los estados de la conversación (pestañas, cerrar y reabrir, reapertura sola, el seguimiento al cerrar) y el contador de no leídos; va en S8 del Bloque 4.
 
 **Criterios de aceptación:**
 
 - [x] La bandeja lee los mensajes de la base, no del proveedor
-- [ ] Filtro por etiquetas, por asignación, por canal y por fecha del último mensaje
-- [ ] Filtro por tags: multi-select (devuelto el 23/09/2026, auditoría #76b)
-- [ ] Filtro por asignación: "Todas", "Sin asignar" y miembros del equipo. La opción "Agente IA" del original pasa a las funcionalidades de fases siguientes, porque esta fase no incluye agente de IA (§4.11) (devuelto el 23/09/2026, auditoría #77b)
-- [ ] Filtro por canal: multi-select de canales activos (Instagram, WhatsApp) (devuelto el 23/09/2026, auditoría #78b)
-- [ ] Filtro por fecha de último mensaje: presets y rango personalizado (devuelto el 23/09/2026, auditoría #79b)
+- [x] Filtro por etiquetas, por asignación, por canal y por fecha del último mensaje
+- [x] Filtro por tags: multi-select (devuelto el 23/09/2026, auditoría #76b)
+- [x] Filtro por asignación: "Todas", "Sin asignar" y miembros del equipo. La opción "Agente IA" del original pasa a las funcionalidades de fases siguientes, porque esta fase no incluye agente de IA (§4.11) (devuelto el 23/09/2026, auditoría #77b)
+- [x] Filtro por canal: multi-select de canales activos (Instagram, WhatsApp) (devuelto el 23/09/2026, auditoría #78b)
+- [x] Filtro por fecha de último mensaje: presets y rango personalizado (devuelto el 23/09/2026, auditoría #79b)
 - [ ] Filtro por estado de ventana solo para Instagram, que es donde la ventana existe
 - [ ] Filtro por estado de ventana de Instagram: abierta, cerrada, o por vencer en menos de 2 horas (devuelto el 23/09/2026, auditoría #80b)
-- [ ] Filtro por "teléfono sin resolver", para poder trabajar esa cola
+- [x] Filtro por "teléfono sin resolver", para poder trabajar esa cola
 - [ ] Filtro por seguimiento, sobre next_followup_date del contacto, con cuatro opciones; se elige una a la vez: «Vence hoy», «Vence esta semana», «Vencido» y «Rango de fechas».
 - [ ] «Vence hoy»: fecha igual a hoy. «Vence esta semana»: desde hoy hasta el domingo de esta semana, inclusive; no incluye los vencidos. «Vencido»: fecha anterior a hoy. «Rango de fechas»: entre dos fechas elegidas, inclusive. Los contactos sin fecha no aparecen en ninguna opción. La semana va de lunes a domingo (supuesto ajustable).
 - [ ] «Hoy» se calcula en la zona horaria del negocio (America/Costa_Rica), no en UTC.
-- [ ] Control positivo de bordes, con el reloj fijado a las 18:30 de Costa Rica (00:30 UTC del día siguiente): un contacto con fecha de hoy aparece en «Vence hoy» y en «Vence esta semana», y no en «Vencido»; uno con fecha de ayer aparece en «Vencido»; uno con fecha de mañana no aparece en «Vence hoy» y sí en «Vence esta semana», salvo que hoy sea domingo.
+- [x] Control positivo de bordes, con el reloj fijado a las 18:30 de Costa Rica (00:30 UTC del día siguiente): un contacto con fecha de hoy aparece en «Vence hoy» y en «Vence esta semana», y no en «Vencido»; uno con fecha de ayer aparece en «Vencido»; uno con fecha de mañana no aparece en «Vence hoy» y sí en «Vence esta semana», salvo que hoy sea domingo.
 - [ ] Si el contacto tiene más de una conversación, el filtro muestra todas.
-- [ ] Filtros combinables, reflejados en la dirección de la página para poder compartirla, con contador y botón de limpiar
-- [ ] Búsqueda de texto dentro de los mensajes, que ahora es posible porque están guardados
+- [x] Filtros combinables, reflejados en la dirección de la página para poder compartirla, con contador y botón de limpiar
+- [x] Búsqueda de texto dentro de los mensajes, que ahora es posible porque están guardados
 - [ ] En el panel de datos del contacto de la bandeja hay un selector de próximo seguimiento con las opciones «En 3 días», «En 7 días», «En 14 días», «Otra fecha» y «Quitar». Escribe next_followup_date sin abrir la ficha ni ninguna ventana.
 - [ ] Los días se cuentan desde hoy en la zona horaria del negocio (America/Costa_Rica).
 - [ ] El cambio queda en el historial de auditoría como contacto editado, con el valor anterior y el nuevo.

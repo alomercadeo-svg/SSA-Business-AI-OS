@@ -1914,7 +1914,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Filtro por etiquetas, por asignación, por canal y por fecha del último mensaje"
+    "texto": "- [x] Filtro por etiquetas, por asignación, por canal y por fecha del último mensaje"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -1923,7 +1923,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Filtro por tags: multi-select (devuelto el 23/09/2026, auditoría #76b)"
+    "texto": "- [x] Filtro por tags: multi-select (devuelto el 23/09/2026, auditoría #76b)"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -1932,7 +1932,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Filtro por asignación: \"Todas\", \"Sin asignar\" y miembros del equipo. La opción \"Agente IA\" del original pasa a las funcionalidades de fases siguientes, porque esta fase no incluye agente de IA (§4.11) (devuelto el 23/09/2026, auditoría #77b)"
+    "texto": "- [x] Filtro por asignación: \"Todas\", \"Sin asignar\" y miembros del equipo. La opción \"Agente IA\" del original pasa a las funcionalidades de fases siguientes, porque esta fase no incluye agente de IA (§4.11) (devuelto el 23/09/2026, auditoría #77b)"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -1941,7 +1941,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Filtro por canal: multi-select de canales activos (Instagram, WhatsApp) (devuelto el 23/09/2026, auditoría #78b)"
+    "texto": "- [x] Filtro por canal: multi-select de canales activos (Instagram, WhatsApp) (devuelto el 23/09/2026, auditoría #78b)"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -1950,7 +1950,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Filtro por fecha de último mensaje: presets y rango personalizado (devuelto el 23/09/2026, auditoría #79b)"
+    "texto": "- [x] Filtro por fecha de último mensaje: presets y rango personalizado (devuelto el 23/09/2026, auditoría #79b)"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -1977,7 +1977,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Filtro por \"teléfono sin resolver\", para poder trabajar esa cola"
+    "texto": "- [x] Filtro por \"teléfono sin resolver\", para poder trabajar esa cola"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2013,7 +2013,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Control positivo de bordes, con el reloj fijado a las 18:30 de Costa Rica (00:30 UTC del día siguiente): un contacto con fecha de hoy aparece en «Vence hoy» y en «Vence esta semana», y no en «Vencido»; uno con fecha de ayer aparece en «Vencido»; uno con fecha de mañana no aparece en «Vence hoy» y sí en «Vence esta semana», salvo que hoy sea domingo."
+    "texto": "- [x] Control positivo de bordes, con el reloj fijado a las 18:30 de Costa Rica (00:30 UTC del día siguiente): un contacto con fecha de hoy aparece en «Vence hoy» y en «Vence esta semana», y no en «Vencido»; uno con fecha de ayer aparece en «Vencido»; uno con fecha de mañana no aparece en «Vence hoy» y sí en «Vence esta semana», salvo que hoy sea domingo."
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2031,7 +2031,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Filtros combinables, reflejados en la dirección de la página para poder compartirla, con contador y botón de limpiar"
+    "texto": "- [x] Filtros combinables, reflejados en la dirección de la página para poder compartirla, con contador y botón de limpiar"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2040,7 +2040,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Búsqueda de texto dentro de los mensajes, que ahora es posible porque están guardados"
+    "texto": "- [x] Búsqueda de texto dentro de los mensajes, que ahora es posible porque están guardados"
   },
   {
     "seccion": "F35: Bandeja y filtros",

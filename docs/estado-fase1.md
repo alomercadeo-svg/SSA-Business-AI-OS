@@ -2006,6 +2006,40 @@ No dijo si cada búsqueda encontró lo que tenía que encontrar; su «7.» parec
 
 **Despliegue de `d7de102`** (docs: en qué se van los 2,5 s). `node scripts/verificar-despliegue.mjs`, **salida 1, leída con `echo $?`**: lectura previa a las 14:16:02 (build `G6eBGbwY3TpGI491J1qJY`), push `5950ba3..d7de102`, y en 5 minutos el build no cambió (último intento a las 14:21:13; releído con `leerBuild()` a las 14:21:36, igual, con `/login` en 200). Producción no estuvo caída, y el código que servía era el mismo: el commit solo traía docs. **Railway, captura de Marcos leída a las 14:30:** ACTIVE «docs: S8 tramo 3, en qué se van los 2,5 s de una búsqueda, con el S...» (cortado así en pantalla), «13 minutes ago via GitHub», «Deployment successful», `node@24.22.1`, «US West». **Identificado por título: `d7de102`.** Releído con `leerBuild()` a las 14:30:09: build `2LL2ikLu4sEwm_8csVCSr`, con `/login` en 200. **El despliegue terminó bien, después de los 5 minutos que espera el script**: entre las 14:21:36 y las 14:30:09. «13 minutes ago» lo pone hacia las 14:16 o 14:17: compatible con el push de las 14:16:02, no lo prueba. Por qué esta vez tardó más no se sabe. La captura también confirma que Railway está en «US West».
 
+**Despliegue de `12353e0`** (docs: los despliegues de `5950ba3` y `d7de102`). `node scripts/verificar-despliegue.mjs`, **salida 0**: lectura previa a las 14:30:30 (build `2LL2ikLu4sEwm_8csVCSr`), push `d7de102..12353e0`, el build pasó a `W_NkZgm10CbLdgXaEmeYp` a las 14:33:06, con `/login` en 200. Solo docs. De la salida del script, anotada en la memoria de Claude Code. Sin captura de Railway.
+
+
+### Las tildes del tramo B, decididas por Marcos el 04/11/2026
+
+En su chat de revisión. Fuera de la medición. Cada una está marcada `[x]` en el plano y registrada como reescrita en `docs/criterios-bajas.json`, con su motivo. Foto de criterios regenerada: 344 líneas, 9 apariciones nuevas. **F35 queda en 15 de 31** (6 del tramo A y 9 de este) **y no completa.** La evidencia común es `verify-filtros-bandeja.mjs` contra producción, 04/11/2026 13:58:29, 135 de 135, salida 0.
+
+- **«Filtro por etiquetas, por asignación, por canal y por fecha del último mensaje»:** visto por Marcos con sesión (canal, fecha, asignación y el estado vacío de etiquetas); pasos 2 a 5.
+- **«Filtro por tags: multi-select»:** paso 2, en un espacio fantasma. Nota: el espacio real no tiene etiquetas, y Marcos vio «Todavía no hay etiquetas.».
+- **«Filtro por asignación…»:** visto por Marcos con datos reales hacia las 15:00: un miembro y «Sin asignar», comprobados en la ficha. Para un Member, solo él: pasos 3 y 13.
+- **«Filtro por canal…»:** visto por Marcos («WhatsApp»); paso 4.
+- **«Filtro por fecha de último mensaje…»:** visto por Marcos «Hoy» (entre 10:42 y 10:57) y «Rango de fechas» del 01/11 al 03/11 (hacia las 15:00); paso 5.
+- **«Filtro por "teléfono sin resolver"…»:** visto por Marcos, también desde «Ver la cola» en Channels; paso 6.
+- **El control positivo de bordes del seguimiento, con el reloj a las 18:30 de Costa Rica:** pasos 7 a 10, el miércoles y el domingo, con el espacio en UTC como control. Es lo que el criterio pide.
+- **«Filtros combinables…»:** visto por Marcos «Filtros · 2», la dirección en otra pestaña y «Limpiar filtros»; pasos 11 y 12.
+- **«Búsqueda de texto dentro de los mensajes…»:** visto por Marcos (dos palabras de un mismo mensaje, 13:14); la equivalencia en el espacio real a las 12:42; pasos 15 y 16. Nota: unos 2,8 s de punta a punta; B queda pendiente con su señal.
+
+**No se tildaron:**
+- **Los otros tres criterios de seguimiento** (las cuatro opciones, sus definiciones y «hoy» en la zona del negocio): esperan al tramo C, porque ningún contacto real tiene seguimiento cargado.
+- **«Si el contacto tiene más de una conversación, el filtro muestra todas»:** espera el primer caso real (abajo).
+- **«La búsqueda y los filtros de la lista corren en el servidor…»:** espera el filtro de la ventana de Instagram, en S9 después de F40.
+- Los dos de la ventana de Instagram, en S9.
+
+**Excepción sobre un contacto real, del 04/11/2026.** En la prueba de «Asignación», hacia las 15:00, Marcos le asignó un vendedor desde la ficha a un contacto real, porque no había ninguno asignado. Leído en solo lectura por el CLI (`begin transaction read only`), a las 15:13:45, autorizado por Marcos, solo ids, el campo y la hora: `audit_log` `6545d42a-8460-4def-afa5-f10304dbebf4`, acción `contacto.asignado`, contacto `e3d081cc-ac20-407d-b3a5-b65e28cb56af`, campo `vendedor_id`, de vacío a `12073d6d-8094-4140-8e7f-3151eb2276fb`, por `9b341ca2-777f-481d-97f9-3e5f89877e6e` (el Owner), a las 14:57:02 de Costa Rica. Es la única fila de ese espacio entre las 14:00 y las 16:00. **Queda como está, sin revertir**, decidido por Marcos.
+
+**h, sin caso real, del 04/11/2026.** «marcos pitti» trae dos conversaciones de «Marcos Pitti music», pero la ficha de una muestra una sola (Instagram @poderosascomunidad): son dos contactos con el mismo nombre (visto por Marcos). Hoy no hay un contacto real con dos conversaciones. **Disparador para tildar h: el primero que aparezca.** Hasta entonces lo prueba solo el verificador (paso 7, S_HOY por Instagram y por WhatsApp).
+
+**Para el tramo C: desde la ficha no hay forma de volver a la bandeja como estaba** (visto por Marcos el 04/11/2026). La flecha de la ficha lleva a «Contactos»: `app/(dashboard)/dashboard/contacts/[contactId]/page.tsx:135-136`, `<Link href="/dashboard/contacts">` con `ArrowLeft` (verificado en el código). **Por qué el atrás del navegador vuelve sin la búsqueda**, leído en el código, sin cambiar nada:
+1. **Verificado:** la lista pone la búsqueda en la dirección con `window.history.replaceState(null, "", …)` (`components/inbox/conversation-list.tsx:150`), sin pedirle al servidor la página de esa dirección: la lista ya tiene los resultados.
+2. **Verificado:** Next.js 16.1.6 intercepta `replaceState` (`node_modules/next/dist/client/components/app-router.js:256-269`): copia su estado interno de la entrada actual (`__NA` y `__PRIVATE_NEXTJS_INTERNALS_TREE`, el árbol que se dibujó) y actualiza la dirección que ven `usePathname` y `useSearchParams` (`ACTION_RESTORE` con ese mismo árbol). No vuelve a pedir la página al servidor.
+3. **Verificado:** el atrás dispara `popstate`, y Next restaura esa entrada con el árbol guardado en ella (`dispatchTraverseAction`, mismo archivo, :272-288).
+4. **Verificado:** la lista no lee la dirección: no usa `useSearchParams`; la búsqueda, la pestaña y los filtros le llegan solo como props de la página del servidor (`busqueda`, `estado`, `filtros`).
+5. **Inferencia, no comprobada corriendo la app:** el árbol guardado en esa entrada es el de la primera vez que se abrió la bandeja, sin la búsqueda, porque el `replaceState` solo cambió la dirección. Al volver, Next dibuja esa página guardada; la lista se monta de nuevo (al ir a la ficha se desmontó y perdió su estado) y toma las props de entonces: la búsqueda vacía y la lista sin buscar, aunque la dirección diga `?q=`.
+
 ---
 
 ## Siguiente paso
