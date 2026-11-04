@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { PlatformIcon } from "@/components/platform-icon";
 import { SugerenciaUnion } from "@/components/inbox/sugerencia-union";
+import { SelectorDeSeguimiento } from "@/components/inbox/selector-seguimiento";
 import { enlaceAFicha } from "@/lib/ficha";
 import type { Database, Platform } from "@/lib/types/database";
 
@@ -24,7 +25,7 @@ type CustomFieldDef =
 type CustomFieldValue =
   Database["public"]["Tables"]["contact_custom_fields"]["Row"];
 
-interface ContactDetails {
+export interface ContactDetails {
   contact: Contact;
   tags: TagRow[];
   customFields: { definition: CustomFieldDef; value: string }[];
@@ -48,11 +49,17 @@ function formatDate(dateStr: string | null): string {
 export function ContactPanel({
   contactId,
   workspaceId,
+  zona = "America/Costa_Rica",
   onClose,
+  alGuardarSeguimiento,
 }: {
   contactId: string | null;
   workspaceId: string;
+  /** `workspaces.zona_horaria` (tramo C de S8): con la que se cuentan los días del seguimiento. */
+  zona?: string;
   onClose: () => void;
+  /** Después de guardar el próximo seguimiento: la bandeja vuelve a pedir la lista. */
+  alGuardarSeguimiento?: (fecha: string | null) => void;
 }) {
   const [loadedDetails, setDetails] = useState<ContactDetails | null>(null);
   const [loading, setLoading] = useState(false);
@@ -116,6 +123,24 @@ export function ContactPanel({
   const details =
     loadedDetails?.contact.id === contactId ? loadedDetails : null;
 
+  return <VistaDelPanel cargando={loading} details={details} onClose={onClose} zona={zona} alGuardarSeguimiento={alGuardarSeguimiento} />;
+}
+
+/** Lo que dibuja el panel, sin la carga: así se puede probar con datos fijos. */
+export function VistaDelPanel({
+  cargando,
+  details,
+  onClose,
+  zona = "America/Costa_Rica",
+  alGuardarSeguimiento,
+}: {
+  cargando: boolean;
+  details: ContactDetails | null;
+  onClose: () => void;
+  zona?: string;
+  alGuardarSeguimiento?: (fecha: string | null) => void;
+}) {
+  const loading = cargando;
   return (
     <div className="flex h-full w-80 flex-col border-l border-border bg-background">
       {/* Header */}
@@ -168,6 +193,18 @@ export function ContactPanel({
             >
               {details.contact.is_subscribed ? "Subscribed" : "Unsubscribed"}
             </span>
+          </div>
+
+          {/* F35, tramo C de S8: el próximo seguimiento, sin abrir la ficha. Con
+              `key`, el selector arranca de cero con cada contacto. */}
+          <div className="border-b border-border p-4">
+            <SelectorDeSeguimiento
+              key={details.contact.id}
+              contactoId={details.contact.id}
+              fecha={details.contact.next_followup_date}
+              zona={zona}
+              alGuardar={alGuardarSeguimiento}
+            />
           </div>
 
           {/* Details */}

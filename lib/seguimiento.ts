@@ -13,6 +13,7 @@
  *
  * Sin React ni nada de servidor: lo usan la ruta y el panel.
  */
+import { fechaSinHora } from "./ficha";
 export const DIAS_DE_SEGUIMIENTO = [3, 7, 14] as const;
 export type DiasDeSeguimiento = (typeof DIAS_DE_SEGUIMIENTO)[number];
 
@@ -34,3 +35,39 @@ export function sumarDias(fecha: string, dias: number): string {
 export function fechaEnDias(ahora: Date, zona: string, dias: number): string {
   return sumarDias(hoyEnZona(ahora, zona), dias);
 }
+
+/** Lo que se eligió en el selector: un plazo, una fecha («Otra fecha»), o vacío («Quitar»). */
+export type EleccionDeSeguimiento = { dias: DiasDeSeguimiento } | { fecha: string | null };
+export type ResultadoDeSeguimiento = { ok: true; fecha: string | null } | { ok: false };
+
+/**
+ * Guarda el próximo seguimiento por `PATCH /api/v1/contacts/[id]`, la misma
+ * ruta de «Editar datos» de la ficha: la seguridad por filas decide qué
+ * contacto se puede tocar, y queda en el historial. Un plazo viaja como número
+ * y lo cuenta el servidor. Solo es un guardado si la ruta devuelve la fecha
+ * que quedó.
+ *
+ * Pensada para usarse también desde «Cerrar» del tramo D (al cerrar con el
+ * seguimiento vencido o de hoy, se pide el próximo con el mismo selector).
+ */
+export async function guardarSeguimiento(contactoId: string, eleccion: EleccionDeSeguimiento): Promise<ResultadoDeSeguimiento> {
+  const cuerpo = "dias" in eleccion ? { seguimiento_en_dias: eleccion.dias } : { next_followup_date: eleccion.fecha };
+  try {
+    const res = await fetch(`/api/v1/contacts/${encodeURIComponent(contactoId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo),
+    });
+    const data = (await res.json().catch(() => null)) as { next_followup_date?: string | null } | null;
+    if (!res.ok || !data || !("next_followup_date" in data)) return { ok: false };
+    return { ok: true, fecha: data.next_followup_date ?? null };
+  } catch {
+    return { ok: false };
+  }
+}
+
+/** El aviso breve después de guardar, como en el prototipo. */
+export function avisoDeSeguimiento(fecha: string | null): string {
+  return fecha ? `Próximo seguimiento: ${fechaSinHora(fecha)}` : "Seguimiento quitado";
+}
+export const AVISO_DE_FALLA = "No se pudo guardar el próximo seguimiento.";

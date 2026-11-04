@@ -83,6 +83,7 @@ export function ConversationList({
   workspaceId,
   selectedId,
   onSelect,
+  volverAPedir = 0,
 }: {
   inicial: InicialDeLaLista;
   /** La pestaña que vino en la dirección (`?estado=`), ya aplicada por el servidor. */
@@ -96,6 +97,12 @@ export function ConversationList({
   workspaceId: string;
   selectedId: string | null;
   onSelect: (conversation: Conversation) => void;
+  /**
+   * Sube cuando algo cambió afuera de la lista (el próximo seguimiento, desde
+   * el panel): la primera página se vuelve a pedir con lo elegido ahora, aunque
+   * sea lo mismo que ya se ve (F35, tramo C de S8).
+   */
+  volverAPedir?: number;
 }) {
   const [conversations, setConversations] = useState(inicial.conversaciones);
   const [hayMas, setHayMas] = useState(inicial.hayMas);
@@ -221,6 +228,16 @@ export function ConversationList({
   }, [search, pedidos]);
 
   useEffect(() => () => pedidos.cancelar(), [pedidos]);
+
+  // Lo escrito ahora, para volver a pedir sin depender de cada tecla.
+  const buscadoAhora = useRef(search);
+  useEffect(() => {
+    buscadoAhora.current = search;
+  }, [search]);
+  useEffect(() => {
+    if (!volverAPedir) return;
+    pedidos.volverAPedir({ estado: estadoElegido.current, q: buscadoAhora.current.trim(), filtros: filtrosElegidos.current });
+  }, [volverAPedir, pedidos]);
 
   function elegirPestana(nuevo: EstadoDeBandeja) {
     if (nuevo === estado) return;

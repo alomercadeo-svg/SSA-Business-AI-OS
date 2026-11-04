@@ -25,6 +25,7 @@ export function InboxView({
   filtros = SIN_FILTROS,
   opcionesDeFiltros = SIN_OPCIONES,
   workspaceId,
+  zonaDelNegocio = "America/Costa_Rica",
   conversacionInicial = null,
 }: {
   /** La primera página de la lista, leída por el servidor (F35). */
@@ -38,6 +39,8 @@ export function InboxView({
   /** Lo que ofrece el panel de filtros. */
   opcionesDeFiltros?: OpcionesDeFiltros;
   workspaceId: string;
+  /** `workspaces.zona_horaria` (tramo C de S8): el «hoy» del selector de seguimiento. */
+  zonaDelNegocio?: string;
   /**
    * F30: la conversación que pidió la ficha (`?conversacion=`), ya leída por
    * el servidor con la seguridad por filas. Abre su hilo aunque no esté entre
@@ -58,6 +61,10 @@ export function InboxView({
   // no existía: el 403 caía en el mismo setMessages([]) que una conversación sin
   // mensajes, así que el hilo se renderizaba vacío y sin explicación.
   const [scopeError, setScopeError] = useState<string | null>(null);
+  // Sube cada vez que el panel guarda el próximo seguimiento: la lista se
+  // vuelve a pedir con la pestaña, la búsqueda y los filtros de ahora, así la
+  // conversación entra o sale del filtro sin recargar (F35, tramo C de S8).
+  const [listaDesactualizada, setListaDesactualizada] = useState(0);
 
   // Imports conversations that already exist in Zernio (e.g. from before the
   // webhook was registered), then refreshes the server-rendered list.
@@ -159,6 +166,7 @@ export function InboxView({
           workspaceId={workspaceId}
           selectedId={selected?.id ?? null}
           onSelect={handleSelect}
+          volverAPedir={listaDesactualizada}
         />
       </div>
 
@@ -244,7 +252,9 @@ export function InboxView({
         <ContactPanel
           contactId={selected.contact_id}
           workspaceId={workspaceId}
+          zona={zonaDelNegocio}
           onClose={() => setShowContactPanel(false)}
+          alGuardarSeguimiento={() => setListaDesactualizada((n) => n + 1)}
         />
       )}
     </div>

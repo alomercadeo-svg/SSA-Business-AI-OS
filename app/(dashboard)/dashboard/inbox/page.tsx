@@ -85,6 +85,7 @@ export default async function InboxPage({
           filtros={filtros}
           opcionesDeFiltros={opcionesDeFiltros}
           workspaceId={workspace.id}
+          zonaDelNegocio={workspace.zona_horaria}
           conversacionInicial={conversacionInicial}
         />
       </div>
