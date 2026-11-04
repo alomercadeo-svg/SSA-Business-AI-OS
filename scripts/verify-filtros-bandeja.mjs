@@ -35,6 +35,11 @@
  *   B03, B04, B05, B08, B09, BNULO: m, seguimientos con fecha fija, para los
  *          bordes con el reloj fijo
  * EN U: B03, B04, B05 y BNULO, iguales.
+ * EN O (el espacio de un tercer usuario, del retrabajo del 04/11/2026): una
+ *   conversación con la palabra en un mensaje.
+ * Y en E, para bandeja_busca_con_acceso (00045): D_VIVA y D_BORRADA (la misma
+ *   palabra en un mensaje; D_BORRADA marcada como eliminada), y CE, una
+ *   conversación viva cuyo contacto está eliminado.
  *
  * NINGUNA fila que el Member pueda ver lleva el id del Owner (ni setter, ni
  * vendedor, ni `assigned_to`), y el espacio E se renombra sin el nombre del
@@ -156,10 +161,12 @@ await correr(async () => {
   console.log(`App: ${APP_URL} · espacios fantasma nuevos`);
   const owner = await crearUsuario("filtros-owner");
   const member = await crearUsuario("filtros-member");
-  usuariosFantasma = [owner.id, member.id];
+  const tercero = await crearUsuario("filtros-tercero");
+  usuariosFantasma = [owner.id, member.id, tercero.id];
   const E = owner.espacio;
   const U = member.espacio;
-  espaciosFantasma = [E, U];
+  const O = tercero.espacio;
+  espaciosFantasma = [E, U, O];
   espacioDeLaCookie = E;
   await sumarAlEspacio(E, member, "member");
   console.log(`  E ${E.slice(0, 8)} (Costa Rica), U ${U.slice(0, 8)} (UTC), Owner ${owner.id.slice(0, 8)}, Member ${member.id.slice(0, 8)}`);
@@ -262,6 +269,29 @@ await correr(async () => {
       const c = await contacto(U, `u-${nombre.toLowerCase()}`, { setter_id: member.id, next_followup_date: fecha });
       bordesU[nombre] = await conv(U, c, igU, "instagram", hace(300));
     }
+    // La búsqueda con el acceso una vez por conversación (00045), llamada
+    // directo. Todo se escribe acá, antes de las lecturas.
+    const igO = await nuevoCanal(O, { platform: "instagram", provider: "zernio", late_account_id: `b8f${sufijo}o${Date.now()}`, username: `b8fcuentao${sufijo}` });
+    if (!igO) throw new Error("no se pudo crear el canal de O");
+    const O_C = await contacto(O, "otro-espacio", { setter_id: tercero.id });
+    const OTRO_ESPACIO = await conv(O, O_C, igO, "instagram", hace(500));
+    await mensaje(OTRO_ESPACIO, `otroespacio-${sufijo}`, "o");
+    const D_VIVA_C = await contacto(E, "d-viva", m);
+    const D_VIVA = await conv(E, D_VIVA_C, igE, "instagram", hace(510));
+    const D_BORRADA_C = await contacto(E, "d-borrada", m);
+    const D_BORRADA = await conv(E, D_BORRADA_C, igE, "instagram", hace(520));
+    // La palabra solo en los mensajes: no puede estar en el nombre de los
+    // contactos («B8F d-viva-…», «B8F d-borrada-…»), o el caso probaría el
+    // contacto y no el deleted_at de la conversación.
+    await mensaje(D_VIVA, `eliminadamsj-${sufijo}`, "dviva");
+    await mensaje(D_BORRADA, `eliminadamsj-${sufijo}`, "dborrada");
+    const CE_C = (await crearContacto(E, { display_name: `B8F contactoborrado-${sufijo}`, ...m })).id;
+    const CE = await conv(E, CE_C, igE, "instagram", hace(530));
+    await mensaje(CE, `mensajeenborrado-${sufijo}`, "ce");
+    const borrarConv = await admin(`conversations?id=eq.${D_BORRADA}`, { method: "PATCH", body: JSON.stringify({ deleted_at: new Date().toISOString() }) });
+    const borrarCont = await admin(`contacts?id=eq.${CE_C}`, { method: "PATCH", body: JSON.stringify({ deleted_at: new Date().toISOString() }) });
+    if (borrarConv.status >= 300 || borrarCont.status >= 300) throw new Error(`no se pudo marcar como eliminadas: HTTP ${borrarConv.status} / ${borrarCont.status}`);
+
     // Si algún disparador movió la hora del último mensaje, se vuelve a fijar.
     for (const [id, seg] of [[ETQ, 60], [AJENA, 30], [X, 90]]) {
       await admin(`conversations?id=eq.${id}`, { method: "PATCH", body: JSON.stringify({ last_message_at: hace(seg) }) });
@@ -415,8 +445,41 @@ await correr(async () => {
     check(tiene(xm, X), "X: el Member la encuentra por su mensaje (la conversación es suya por assigned_to)", det(xm));
     const xn = await ruta(member, `q=${encodeURIComponent(`x-${sufijo}`)}`);
     check(noTiene(xn, X), "X: por el nombre del contacto, el Member no la encuentra (la RLS le oculta el contacto)", det(xn));
+
+    titulo("bandeja_busca_con_acceso (00045), llamada directo con el token de cada uno, contra bandeja_busca de hoy");
+    // Cada caso: lo esperado, y que `bandeja_busca` (la de la 00044, con la
+    // seguridad por filas) diga lo mismo. Así se detecta una función que deja
+    // ver de más y una que restringe de más.
+    const nueva = async (u, conversacion, q) => (await rpcComo(u.token, "bandeja_busca_con_acceso", { p_conversacion: conversacion, p_busqueda: q })).data;
+    const vieja = async (u, conversacion, contactoId, q) => (await rpcComo(u.token, "bandeja_busca", { p_conversacion: conversacion, p_contacto: contactoId, p_busqueda: q })).data;
+    async function caso(desc, u, conversacion, contactoId, q, esperado) {
+      const n = await nueva(u, conversacion, q);
+      const v = await vieja(u, conversacion, contactoId, q);
+      return check(n === esperado && v === esperado, `${desc}: ${esperado ? "verdadero" : "falso"}, igual que bandeja_busca`, `nueva ${JSON.stringify(n)} · bandeja_busca ${JSON.stringify(v)}`);
+    }
+    const ajenaOk = await caso("ajena, el Owner (control positivo)", owner, AJENA, AJENA_C, `secreto-${sufijo}`, true);
+    if (!ajenaOk) noConcluyente("ajena, el Member: falso", "falló el control del Owner");
+    else await caso("ajena, el Member", member, AJENA, AJENA_C, `secreto-${sufijo}`, false);
+    const otroOk = await caso("de otro espacio, su dueño (control positivo)", tercero, OTRO_ESPACIO, O_C, `otroespacio-${sufijo}`, true);
+    if (!otroOk) noConcluyente("de otro espacio, el Member: falso", "falló el control de su dueño");
+    else await caso("de otro espacio, el Member", member, OTRO_ESPACIO, O_C, `otroespacio-${sufijo}`, false);
+    const vivaOk = await caso("la viva, el Member (control positivo)", member, D_VIVA, D_VIVA_C, `eliminadamsj-${sufijo}`, true);
+    if (!vivaOk) noConcluyente("la eliminada, el Member y el Owner: falso", "falló el control de la viva");
+    else {
+      await caso("la eliminada, el Member", member, D_BORRADA, D_BORRADA_C, `eliminadamsj-${sufijo}`, false);
+      await caso("la eliminada, el Owner", owner, D_BORRADA, D_BORRADA_C, `eliminadamsj-${sufijo}`, false);
+    }
+    const ceMsj = await caso("contacto eliminado, conversación viva, la palabra en un mensaje: el Member (control positivo)", member, CE, CE_C, `mensajeenborrado-${sufijo}`, true);
+    if (!ceMsj) noConcluyente("contacto eliminado, la palabra en el nombre: falso", "falló el control por mensaje");
+    else {
+      await caso("contacto eliminado, conversación viva, la palabra en el nombre: el Member", member, CE, CE_C, `contactoborrado-${sufijo}`, false);
+      await caso("contacto eliminado, conversación viva, la palabra en el nombre: el Owner", owner, CE, CE_C, `contactoborrado-${sufijo}`, false);
+    }
+    await caso("X, por su mensaje, el Member", member, X, X_C, `asignadamsj-${sufijo}`, true);
+    await caso("X, por el nombre del contacto, el Member", member, X, X_C, `x-${sufijo}`, false);
+    await caso("TANIA, palabra por palabra, el Member", member, TANIA, TANIA_C, `tania-${sufijo} robles-${sufijo}`, true);
   } finally {
-    const r = await admin(`contacts?workspace_id=in.(${E},${U})`, { method: "DELETE" });
+    const r = await admin(`contacts?workspace_id=in.(${E},${U},${O})`, { method: "DELETE" });
     check(r.status < 300, "se borran los contactos de los espacios fantasma", `HTTP ${r.status}`);
     limpiar.contactos.length = 0;
   }
