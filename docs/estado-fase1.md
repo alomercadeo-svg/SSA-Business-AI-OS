@@ -1985,6 +1985,23 @@ No dijo si cada búsqueda encontró lo que tenía que encontrar; su «7.» parec
 - **Despliegue:** suite 1108 de 1108, `typecheck` en cero, lint sin errores (45 avisos), build sin errores. `node scripts/verificar-despliegue.mjs`, **salida 0**: lectura previa a las 13:56:34 (build `BPV0cq80f6lPvROLpiZXf`), push `f32b36f..ff50a88`, el build pasó a `6NJ1WpL9zqdS7-Nnyk5Lm` a las 13:58:29, con `/login` en 200. Después, `verify-filtros-bandeja.mjs` desde las 13:58:29, **135 de 135, salida 0**, y `verify-bandeja.mjs` desde las 13:59:30, **43 de 43, salida 0**, sin tubería.
 - **Queda «salida 0, pantallas sin mirar»** hasta que Marcos mire: en «Network», que nunca haya dos `conversations?…` en curso a la vez mientras escribe; en «Timing», los números de `Server-Timing` de una búsqueda; y que un cambio de pestaña o de filtro con una búsqueda en curso puede tardar lo que tarde esa búsqueda (aceptado por él). **B sigue pendiente**: no se propone hasta tener esos números.
 
+**Lo que vio Marcos en su navegador, después de ese despliegue** (capturas recibidas en esta sesión; las horas de las capturas no se leyeron, la última llegó antes de las 14:16):
+- **Un solo pedido a la vez, visto:** escribiendo «catalina vasquez», la pestaña «Network» muestra **un solo** pedido `q=cat…` (2,35 s, 0,3 kB), donde antes eran cuatro de 4,22 a 6,18 s. Además, `q=` (sin búsqueda) 1,03 s y `q=tan…` («tania robles», encuentra a tania_roblesc) 2,51 s.
+- **Server-Timing llega hasta el navegador, visto:** Railway lo deja pasar. Para «tania robles»: `sesion_y_espacio` **518 ms**, `pagina` **1,65 s**, `cantidades` **1,66 s**, `total` **2,18 s**; «Waiting for server response» **2,50 s**; el pedido entero **2,52 s** (cola 4,55 ms, conexión 3,41 ms, envío 0,52 ms, descarga 7,42 ms).
+- **El cambio de pestaña con una búsqueda en curso** (puede tardar lo que tarde esa búsqueda, aceptado): no reportado.
+
+**En qué se van los ~2,5 s de «tania robles», con esos números:**
+
+| Parte | Tiempo | Cómo se sabe |
+|---|---|---|
+| Antes de la ruta: el viaje desde el navegador hasta Railway y de vuelta, Next, y el middleware con su `auth.getUser()` | unos 320 ms | **Medido por resta**, en el mismo pedido: 2,50 s de espera menos 2,18 s de `total`. Cuánto es cada pieza, no está medido |
+| La sesión y la membresía (`resolveWorkspace`) | 518 ms | **Medido.** Las dos juntas: no se separaron |
+| La página y las cantidades, en paralelo | 1,66 s (la más lenta de las dos) | **Medido.** 0,518 + 1,66 = 2,18 s: el `total` cuadra, y el paralelo funciona |
+| Bajar la respuesta | 7 ms | **Medido** |
+| La espera de las teclas, antes de que salga el pedido | 300 ms | **Verificado en el código**; no aparece en el navegador. Con ella, unos 2,8 s: coincide con los «como 3 segundos» de Marcos a ojo |
+
+**Dentro de los 1,66 s:** en la base, la página y las cantidades tardaron unos 1,0 s cada una solas y de 0,97 a 1,75 s juntas (medido a las 13:40). **Inferencia, no medida:** el resto sería el viaje de Railway (US West, según Marcos) a Supabase (`us-east-1`) y PostgREST. **Dentro de los 518 ms:** dos viajes en fila a Supabase, `auth.getUser()` y la consulta de la membresía; **inferencia:** la mayor parte serían esos viajes de oeste a este, no el trabajo de la base. **La parte más grande sigue siendo la búsqueda en la base** (B, pendiente); la segunda, la sesión.
+
 ---
 
 ## Siguiente paso
