@@ -1961,7 +1961,18 @@ La búsqueda pasa de **unos 3,1 s a unos 1,0 s por función** (medido), y con la
 
 **Lo que no se puede romper, después del despliegue:** `verify-filtros-bandeja.mjs` desde las 12:54:06, **135 de 135, salida 0**; `verify-bandeja.mjs` desde las 12:55:04, **43 de 43, salida 0**; `verify-ficha.mjs` desde las 12:55:23, **64 de 64, salida 0**; los tres leídos con `echo $?`, sin tubería, con la limpieza en cero. Nada llamó a Zernio, Evolution, Resend ni Meta. Lo único que escribió en producción fueron las dos migraciones y el verificador, en sus espacios fantasma.
 
-**Pantallas:** la ruta la usa la bandeja. Queda «salida 0, pantallas sin mirar» hasta que Marcos vuelva a probar la búsqueda («tania robles» y dos palabras de un mismo mensaje) y diga si la nota más rápida.
+**Pantallas:** la ruta la usa la bandeja. Quedaba «salida 0, pantallas sin mirar» hasta que Marcos volviera a probar la búsqueda («tania robles» y dos palabras de un mismo mensaje) y dijera si la notaba más rápida.
+
+**Despliegue de `8e41502`** (los docs de este tramo, que no podían figurar en sí mismos). `node scripts/verificar-despliegue.mjs`, **salida 0, leída con `echo $?`**: lectura previa a las 12:56:57 (build `eUJbAkUV8FRqfNtIaOyTS`), push `6fa6f23..8e41502`, el build pasó a `SkL_1ap4QvcKZqfOV91H2` a las 12:59:35, con `/login` en 200. Solo docs. De la salida del script, anotada en la memoria de Claude Code; en el repo no figuraba. Sin captura de Railway.
+
+**La búsqueda, probada por Marcos con sesión, recargando, el 04/11/2026 desde las 13:14** (sus palabras, contestadas a las 13:18; Claude Code no vio la pantalla). Las instrucciones eran: «tania robles» (paso 5), dos palabras de un mismo mensaje (paso 8) y «zqxw» (paso 9). Marcos contestó así, con su numeración:
+- «5. creo que fueron como 3 segundos, medidos "con la cabeza"»
+- «7. como tres segundos también»
+- «8.» (sin texto)
+- «9. "zqxw" , también como 3 segundos»
+- «Está mucho más rapido que en la mañana, pero ninguna de las búsquedas duró 1s, como dijiste»
+
+No dijo si cada búsqueda encontró lo que tenía que encontrar; su «7.» parece ser la de dos palabras, que en las instrucciones era el paso 8 (lectura de Claude Code, no confirmada). **Visto: más rápida que a la mañana. No visto: el «algo más de 1 s» que estimó Claude Code.** Esa estimación era solo de la función de cantidades en la base, más «la red» sin medir; Marcos midió a ojo unos 3 s de punta a punta. **La diferencia, unos 2 s, no está explicada ni medida.** Lo que la estimación dejó afuera, verificado en el código: los 300 ms que la lista espera después de la última tecla (`conversation-list.tsx`), la función de la página con la búsqueda (no medida; la ruta espera a la más lenta de las dos), el anidado de los contactos que pide la app, y la ruta de Next con su lectura de la sesión. Abierto, sin decidir: medir la ruta entera.
 
 ---
 
