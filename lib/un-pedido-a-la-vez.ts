@@ -20,6 +20,11 @@
  * Un cambio de pestaña o de filtro con una búsqueda en curso espera a que esa
  * búsqueda vuelva (aceptado por Marcos el 04/11/2026).
  *
+ * `volverAPedir` (F35, tramo C de S8) pide aunque lo pedido sea lo que ya se
+ * ve: después de guardar el próximo seguimiento, la lista tiene que volver a
+ * preguntarle al servidor. Si hay uno en curso, su respuesta puede ser de antes
+ * del cambio: se descarta, y sale uno solo cuando vuelve.
+ *
  * Sin React ni nada de servidor: la usa `components/inbox/conversation-list.tsx`.
  */
 export interface OpcionesDelPedido<T, R> {
@@ -37,6 +42,7 @@ export interface OpcionesDelPedido<T, R> {
 export interface UnPedidoALaVez<T> {
   escribir(args: T): void;
   pedirYa(args: T): void;
+  volverAPedir(args: T): void;
   /** Lo que se ve cambió por otro camino (por ejemplo, la página nueva del servidor). */
   seVe(args: T): void;
   cancelar(): void;
@@ -46,6 +52,8 @@ export function crearUnPedidoALaVez<T, R>(o: OpcionesDelPedido<T, R>): UnPedidoA
   let visto: T = o.inicial;
   let enCurso: T | null = null;
   let guardado: T | null = null;
+  // Lo guardado sale aunque sea igual a lo que está en curso (volverAPedir).
+  let forzar = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   const avisar = () => o.alCambiarOcupado?.(enCurso !== null || guardado !== null);
@@ -61,9 +69,11 @@ export function crearUnPedidoALaVez<T, R>(o: OpcionesDelPedido<T, R>): UnPedidoA
 
   function terminar(args: T, salioBien: boolean, usar: () => void) {
     const siguiente = guardado;
+    const repetir = forzar;
     guardado = null;
+    forzar = false;
     enCurso = null;
-    if (siguiente !== null && !o.igual(siguiente, args)) {
+    if (siguiente !== null && (repetir || !o.igual(siguiente, args))) {
       // La respuesta es vieja: se ignora, y sale uno solo con lo último.
       lanzar(siguiente);
       return;
@@ -95,6 +105,17 @@ export function crearUnPedidoALaVez<T, R>(o: OpcionesDelPedido<T, R>): UnPedidoA
       }, o.esperaMs);
     },
     pedirYa,
+    volverAPedir(args: T) {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      if (enCurso !== null) {
+        guardado = args;
+        forzar = true;
+        avisar();
+        return;
+      }
+      lanzar(args);
+    },
     seVe(args: T) {
       visto = args;
     },

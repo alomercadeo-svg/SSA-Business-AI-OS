@@ -134,3 +134,43 @@ describe("si el pedido falla", () => {
     expect(pedidos).toEqual(["ana", "ana"]);
   });
 });
+
+/**
+ * Volver a pedir lo mismo (F35, tramo C de S8): después de guardar el próximo
+ * seguimiento desde el panel, la lista se vuelve a pedir con la pestaña, la
+ * búsqueda y los filtros de ahora, para que la conversación entre o salga del
+ * filtro sin recargar. `pedirYa` no sirve: con lo mismo que ya se ve no pide
+ * nada, y si hay uno en curso usa su respuesta, que puede ser de antes del
+ * cambio.
+ */
+describe("volver a pedir lo mismo", () => {
+  it("con lo mismo que ya se ve y nada en curso, pide igual", async () => {
+    const a = armar();
+    a.c.volverAPedir({ q: "", estado: "open" });
+    await vi.advanceTimersByTimeAsync(2 * DURA);
+    expect(a.pedidos).toHaveLength(1);
+    expect(a.aplicados).toEqual([{ q: "", estado: "open" }]);
+  });
+
+  it("con uno en curso, su respuesta se descarta y sale uno solo después, de a uno", async () => {
+    const a = armar();
+    a.c.pedirYa({ q: "x", estado: "open" });
+    await vi.advanceTimersByTimeAsync(100);
+    a.c.volverAPedir({ q: "x", estado: "open" });
+    await vi.advanceTimersByTimeAsync(10 * DURA);
+    expect(a.pedidos).toHaveLength(2);
+    expect(a.aplicados).toHaveLength(1);
+    expect(a.maximo()).toBe(1);
+  });
+
+  it("si mientras tanto cambió lo pedido, sale uno solo con lo último (control)", async () => {
+    const a = armar();
+    a.c.pedirYa({ q: "x", estado: "open" });
+    await vi.advanceTimersByTimeAsync(100);
+    a.c.volverAPedir({ q: "x", estado: "open" });
+    a.c.pedirYa({ q: "y", estado: "open" });
+    await vi.advanceTimersByTimeAsync(10 * DURA);
+    expect(a.pedidos.map((p) => p.q)).toEqual(["x", "y"]);
+    expect(a.aplicados.map((p) => p.q)).toEqual(["y"]);
+  });
+});
