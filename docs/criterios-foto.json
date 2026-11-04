@@ -1905,7 +1905,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] La bandeja lee los mensajes de la base, no del proveedor"
+    "texto": "- [x] La bandeja lee los mensajes de la base, no del proveedor"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2085,7 +2085,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] La lista de conversaciones de la bandeja carga por páginas desde el servidor, ordenada por último mensaje, y deja seguir cargando hasta la más vieja. Muestra cuántas conversaciones hay en total, no solo las cargadas (agregado el 19/10/2026, decidido por Marcos; medido el 22/09/2026 en la nota de abajo)"
+    "texto": "- [x] La lista de conversaciones de la bandeja carga por páginas desde el servidor, ordenada por último mensaje, y deja seguir cargando hasta la más vieja. Muestra cuántas conversaciones hay en total, no solo las cargadas (agregado el 19/10/2026, decidido por Marcos; medido el 22/09/2026 en la nota de abajo)"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2103,7 +2103,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] El hilo de una conversación deja cargar los mensajes anteriores a los últimos 200, hasta el primero guardado (agregado el 19/10/2026; era el pendiente de F35 anotado el 08/10/2026 en MessageThread)"
+    "texto": "- [x] El hilo de una conversación deja cargar los mensajes anteriores a los últimos 200, hasta el primero guardado (agregado el 19/10/2026; era el pendiente de F35 anotado el 08/10/2026 en MessageThread)"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2112,7 +2112,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Control positivo: una conversación que está más abajo de las primeras 50 aparece al buscar por el nombre o el usuario del contacto y se abre, y en una conversación de más de 200 mensajes se llega al primero. Con el token de un Member, la búsqueda no devuelve conversaciones fuera de su alcance, y con el de un Owner sí (agregado el 19/10/2026)"
+    "texto": "- [x] Control positivo: una conversación que está más abajo de las primeras 50 aparece al buscar por el nombre o el usuario del contacto y se abre, y en una conversación de más de 200 mensajes se llega al primero. Con el token de un Member, la búsqueda no devuelve conversaciones fuera de su alcance, y con el de un Owner sí (agregado el 19/10/2026)"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2121,7 +2121,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] La bandeja tiene las pestañas «Abiertas» (la que se abre por defecto), «Cerradas» y «Todas», con la cantidad de cada una calculada en el servidor. No hay pestaña «Pospuestas»: para volver a un lead en una fecha se usa el próximo seguimiento (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
+    "texto": "- [x] La bandeja tiene las pestañas «Abiertas» (la que se abre por defecto), «Cerradas» y «Todas», con la cantidad de cada una calculada en el servidor. No hay pestaña «Pospuestas»: para volver a un lead en una fecha se usa el próximo seguimiento (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2175,7 +2175,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] En el panel del contacto de la bandeja, «Ver ficha completa» abre la ficha de ese contacto, y el nombre del contacto en el encabezado del hilo también. Si el teléfono está sin resolver, el panel muestra «Cargar teléfono en la ficha», que abre la ficha. (agregado el 03/11/2026, decidido por Marcos: con el número real vinculado, desde la bandeja no había forma de abrir la ficha; el prototipo aprobado lo tenía)"
+    "texto": "- [x] En el panel del contacto de la bandeja, «Ver ficha completa» abre la ficha de ese contacto, y el nombre del contacto en el encabezado del hilo también. Si el teléfono está sin resolver, el panel muestra «Cargar teléfono en la ficha», que abre la ficha. (agregado el 03/11/2026, decidido por Marcos: con el número real vinculado, desde la bandeja no había forma de abrir la ficha; el prototipo aprobado lo tenía)"
   },
   {
     "seccion": "F36: Respuestas rápidas",
