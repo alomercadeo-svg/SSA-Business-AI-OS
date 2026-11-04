@@ -49,7 +49,8 @@ describe("la búsqueda (c): corre en el servidor y vive en la dirección", () =>
   });
 
   it("el buscador dice por qué se busca", () => {
-    expect(dibujar({})).toContain('placeholder="Buscar por nombre, usuario, correo o teléfono"');
+    // Desde el tramo B (04/11/2026) también busca en los mensajes.
+    expect(dibujar({})).toContain('placeholder="Buscar por nombre, usuario, correo, teléfono o mensaje"');
   });
 
   it("lo que trajo el servidor no se vuelve a filtrar en el navegador: el servidor también busca por usuario y teléfono", () => {

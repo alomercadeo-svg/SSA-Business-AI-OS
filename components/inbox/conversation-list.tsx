@@ -301,7 +301,7 @@ export function ConversationList({
           )}
           <input
             type="text"
-            placeholder="Buscar por nombre, usuario, correo o teléfono"
+            placeholder="Buscar por nombre, usuario, correo, teléfono o mensaje"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"

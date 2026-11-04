@@ -9,7 +9,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * GET /api/v1/conversations (F35, tramo A de S8): la lista de la bandeja.
  *
  *   ?estado=open|closed|all  la pestaña (Abiertas por defecto)
- *   ?q=…                     la búsqueda (nombre, usuario, correo, teléfono)
+ *   ?q=…                     la búsqueda, palabra por palabra en el contacto, o en un mismo mensaje
  *   ?antesOrden=…&antesId=…  el cursor: la página siguiente a esa fila
  *   ?id=…                    una sola, si pasa los filtros (la pide Realtime)
  *   ?soloCantidades=1        solo las cantidades de las pestañas
