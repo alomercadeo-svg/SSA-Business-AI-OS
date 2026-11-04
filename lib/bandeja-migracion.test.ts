@@ -58,9 +58,12 @@ describe("la migración 00043 de la bandeja", () => {
     }
   });
 
-  it("va al final de ALL_MIGRATIONS.sql, con su encabezado", () => {
-    const bundle = readFileSync(join(DIR, "ALL_MIGRATIONS.sql"), "utf8").trimEnd();
-    expect(bundle.endsWith(sql().trim())).toBe(true);
-    expect(bundle).toContain("-- MIGRATION 43: BANDEJA SERVIDOR");
+  // Hasta el 04/11/2026 exigía que el bundle *terminara* con la 00043, y la
+  // 00044 lo dejaba en rojo. Ahora exige que esté entera, con su encabezado
+  // justo antes; que esté en orden lo controla `lib/platforms.test.ts`.
+  it("está en ALL_MIGRATIONS.sql, entera y con su encabezado", () => {
+    const bundle = readFileSync(join(DIR, "ALL_MIGRATIONS.sql"), "utf8");
+    const encabezado = "-- MIGRATION 43: BANDEJA SERVIDOR\n-- ============================================================\n";
+    expect(bundle).toContain(`${encabezado}${sql().trim()}`);
   });
 });

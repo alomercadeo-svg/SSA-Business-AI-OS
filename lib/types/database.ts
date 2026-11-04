@@ -1745,6 +1745,34 @@ export interface Database {
         Args: { p_contacto: string; p_busqueda: string };
         Returns: boolean;
       };
+      /** F35 (00044). Security invoker: una página de la bandeja con filtros; `p_id`, una sola. */
+      bandeja_pagina_filtros: {
+        Args: {
+          p_workspace: string;
+          p_estado: string;
+          p_filtros: Json;
+          p_antes_orden: string | null;
+          p_antes_id: string | null;
+          p_limite: number;
+          p_id: string | null;
+        };
+        Returns: Database["public"]["Tables"]["conversations"]["Row"][];
+      };
+      /** F35 (00044). Security invoker: las cantidades de las pestañas, con filtros. */
+      bandeja_cantidades_filtros: {
+        Args: { p_workspace: string; p_filtros: Json };
+        Returns: { abiertas: number; cerradas: number; todas: number }[];
+      };
+      /** F35 (00044). Security invoker: las conversaciones que pasan la búsqueda y los filtros. */
+      bandeja_filtrada: {
+        Args: { p_workspace: string; p_filtros: Json };
+        Returns: Database["public"]["Tables"]["conversations"]["Row"][];
+      };
+      /** F35 (00044). Security invoker: búsqueda palabra por palabra en el contacto, o en un mismo mensaje. */
+      bandeja_busca: {
+        Args: { p_conversacion: string | null; p_contacto: string | null; p_busqueda: string };
+        Returns: boolean;
+      };
       /** F26 (00031). Entrantes de WhatsApp desde una fecha, y cuántos sin teléfono (`@lid`). */
       contar_mensajes_sin_telefono: {
         Args: { p_workspace: string; p_desde: string };
