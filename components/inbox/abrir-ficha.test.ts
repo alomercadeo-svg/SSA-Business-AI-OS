@@ -7,23 +7,44 @@ import { renderToStaticMarkup } from "react-dom/server";
  * del contacto. Con el número real vinculado no había forma de hacerlo.
  */
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {} }) }));
-const { PieDelPanel } = await import("./contact-panel");
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: () => {} }),
+  usePathname: () => "/dashboard/inbox",
+  useSearchParams: () => new URLSearchParams(),
+}));
+const { PieDelPanel, VistaDelPanel } = await import("./contact-panel");
 const { MessageThread } = await import("./message-thread");
 
 const FICHA = 'href="/dashboard/contacts/ct-1"';
 
 describe("abrir la ficha desde la bandeja", () => {
+  // Cambiado en el tramo C de S8: «Ver ficha completa» subió del pie a quedar
+  // debajo del nombre (decidido por Marcos el 03/11/2026). Lo que se comprueba
+  // es lo mismo: el panel lo tiene y abre la ficha de ese contacto.
+  const panel = (telefonoResuelto: boolean) =>
+    renderToStaticMarkup(
+      createElement(VistaDelPanel, {
+        cargando: false,
+        onClose: () => {},
+        details: {
+          contact: { id: "ct-1", display_name: "Ana Pérez", email: null, avatar_url: null, is_subscribed: true, last_interaction_at: null, created_at: null, phone_resolved: telefonoResuelto, next_followup_date: null },
+          tags: [],
+          customFields: [],
+          channels: [],
+        } as never,
+      }),
+    );
+
   it("el panel tiene «Ver ficha completa», que abre la ficha de ese contacto", () => {
-    const html = renderToStaticMarkup(createElement(PieDelPanel, { contactoId: "ct-1", telefonoResuelto: true }));
+    const html = panel(true);
     expect(html).toMatch(new RegExp(`<a[^>]*${FICHA}[^>]*>Ver ficha completa</a>`));
     expect(html).not.toContain("Cargar teléfono en la ficha");
   });
 
   it("con el teléfono sin resolver, también «Cargar teléfono en la ficha», que abre la ficha", () => {
-    const html = renderToStaticMarkup(createElement(PieDelPanel, { contactoId: "ct-1", telefonoResuelto: false }));
-    expect(html).toMatch(new RegExp(`<a[^>]*${FICHA}[^>]*>Cargar teléfono en la ficha</a>`));
-    expect(html).toContain("Ver ficha completa");
+    const pie = renderToStaticMarkup(createElement(PieDelPanel, { contactoId: "ct-1", telefonoResuelto: false }));
+    expect(pie).toMatch(new RegExp(`<a[^>]*${FICHA}[^>]*>Cargar teléfono en la ficha</a>`));
+    expect(panel(false)).toContain("Ver ficha completa");
   });
 
   it("el nombre del contacto en el encabezado del hilo abre la ficha", () => {
