@@ -142,6 +142,19 @@ describe("GET /api/v1/conversations", () => {
     expect(h.cantidades).not.toHaveBeenCalled();
   });
 
+  it("Server-Timing: la primera página trae los cuatro pasos, solo con milisegundos (retrabajo, 04/11/2026)", async () => {
+    const res = await pedir("?q=ana");
+    const st = res.headers.get("Server-Timing") ?? "";
+    const pasos = st.split(",").map((p) => p.trim());
+    expect(pasos.map((p) => p.split(";")[0])).toEqual(["sesion_y_espacio", "pagina", "cantidades", "total"]);
+    for (const p of pasos) expect(p).toMatch(/^[a-z_]+;dur=\d+(\.\d+)?$/);
+  });
+
+  it("Server-Timing: con cursor, sin el paso de las cantidades", async () => {
+    const res = await pedir(`?antesOrden=2026-11-01T10:00:00Z&antesId=${UUID}`);
+    expect((res.headers.get("Server-Timing") ?? "").split(",").map((p) => p.trim().split(";")[0])).toEqual(["sesion_y_espacio", "pagina", "total"]);
+  });
+
   it("si la base falla, 500 sin el detalle", async () => {
     h.pagina.mockResolvedValue({ conversaciones: [], hayMas: false, error: "permission denied for function bandeja_pagina" });
     const res = await pedir();
