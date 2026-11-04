@@ -26,6 +26,7 @@ import {
   type OpcionesDeFiltros,
 } from "@/lib/filtros-bandeja";
 import { FiltrosBandeja } from "./filtros-bandeja";
+import { crearUnPedidoALaVez } from "@/lib/un-pedido-a-la-vez";
 
 type Conversation = ConversacionDeBandeja;
 
@@ -60,6 +61,12 @@ function direccionCon(estado: EstadoDeBandeja, busqueda: string, filtros: Filtro
   for (const [clave, valor] of parametrosDeFiltros(filtros)) url.searchParams.set(clave, valor);
   return `${url.pathname}${url.search}`;
 }
+
+/** Un pedido de la primera página de la lista: pestaña, búsqueda y filtros. */
+type PedidoDeLista = { estado: EstadoDeBandeja; q: string; filtros: FiltrosDeBandeja };
+type RespuestaDeLista = { conversaciones: Conversation[]; hayMas?: boolean; cantidades?: CantidadesDeBandeja | null };
+const mismoPedido = (a: PedidoDeLista, b: PedidoDeLista) =>
+  a.estado === b.estado && a.q === b.q && JSON.stringify(parametrosDeFiltros(a.filtros)) === JSON.stringify(parametrosDeFiltros(b.filtros));
 
 /** Los filtros como parámetros para la ruta de la lista (tramo B). */
 const conFiltros = (filtros: FiltrosDeBandeja) => {
@@ -101,19 +108,51 @@ export function ConversationList({
   // `search` es lo escrito; `buscada`, lo que ya respondió el servidor.
   const [search, setSearch] = useState(busqueda);
   const buscada = useRef(busqueda);
-  const pedidoDeBusqueda = useRef(0);
   const [buscando, setBuscando] = useState(false);
   const [estado, setEstado] = useState<EstadoDeBandeja>(estadoInicial);
   const estadoVigente = useRef(estadoInicial);
   // `filtros` es lo elegido; `filtrosVigentes`, lo que ya respondió el servidor.
   const [filtros, setFiltros] = useState<FiltrosDeBandeja>(filtrosIniciales);
   const filtrosVigentes = useRef(filtrosIniciales);
+  // Lo elegido en pantalla, aunque el servidor todavía no haya respondido:
+  // un pedido guardado tiene que salir con la pestaña y los filtros de ahora.
+  const estadoElegido = useRef(estadoInicial);
+  const filtrosElegidos = useRef(filtrosIniciales);
   // Relative timestamps depend on the client's clock/locale, which differ from the
   // server's during SSR and trigger a hydration mismatch (React #418, which crashes
   // the inbox in production). Defer time rendering until after mount so the server
   // and the first client render agree.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  // La primera página de una pestaña, una búsqueda y unos filtros, desde el
+  // servidor, de a un pedido por vez. `useState` con inicializador: se crea una
+  // sola vez; adentro solo usa `setState` y refs, que no cambian.
+  const [pedidos] = useState(() =>
+    crearUnPedidoALaVez<PedidoDeLista, RespuestaDeLista>({
+      esperaMs: 300,
+      inicial: { estado: estadoInicial, q: busqueda, filtros: filtrosIniciales },
+      igual: mismoPedido,
+      ejecutar: async (p) => {
+        const res = await fetch(`/api/v1/conversations?estado=${p.estado}&q=${encodeURIComponent(p.q)}${conFiltros(p.filtros)}`);
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !Array.isArray(data?.conversaciones)) throw new Error(String(res.status));
+        return data as RespuestaDeLista;
+      },
+      aplicar: (p, data) => {
+        buscada.current = p.q;
+        estadoVigente.current = p.estado;
+        filtrosVigentes.current = p.filtros;
+        setErrorAlCargar(null);
+        setConversations(data.conversaciones);
+        setHayMas(data.hayMas === true);
+        setCantidades(data.cantidades ?? null);
+        window.history.replaceState(null, "", direccionCon(p.estado, p.q, p.filtros));
+      },
+      alFallar: () => setErrorAlCargar("No se pudo cargar la bandeja. Probá de nuevo."),
+      alCambiarOcupado: setBuscando,
+    }),
+  );
 
   useEffect(() => {
     setConversations(inicial.conversaciones);
@@ -125,7 +164,10 @@ export function ConversationList({
     setEstado(estadoInicial);
     filtrosVigentes.current = filtrosIniciales;
     setFiltros(filtrosIniciales);
-  }, [inicial, busqueda, estadoInicial, filtrosIniciales]);
+    estadoElegido.current = estadoInicial;
+    filtrosElegidos.current = filtrosIniciales;
+    pedidos.seVe({ estado: estadoInicial, q: busqueda, filtros: filtrosIniciales });
+  }, [inicial, busqueda, estadoInicial, filtrosIniciales, pedidos]);
 
   // La lista como está ahora, para los avisos de Realtime: un actualizador de
   // `setConversations` corre más tarde, y lo que se decida adentro no se ve afuera.
@@ -170,48 +212,27 @@ export function ConversationList({
   }, []);
 
   // La búsqueda corre en el servidor, sobre todas las conversaciones que quien
-  // mira puede ver (F35), 300 ms después de la última tecla. Una respuesta
-  // vieja que llega tarde no pisa a la nueva.
-  // La primera página de una pestaña, una búsqueda y unos filtros, desde el servidor.
-  const recargar = useCallback(async (nuevoEstado: EstadoDeBandeja, q: string, nuevosFiltros: FiltrosDeBandeja) => {
-    const pedido = ++pedidoDeBusqueda.current;
-    setBuscando(true);
-    setErrorAlCargar(null);
-    try {
-      const res = await fetch(`/api/v1/conversations?estado=${nuevoEstado}&q=${encodeURIComponent(q)}${conFiltros(nuevosFiltros)}`);
-      const data = await res.json().catch(() => null);
-      if (pedido !== pedidoDeBusqueda.current) return;
-      if (!res.ok || !Array.isArray(data?.conversaciones)) throw new Error(String(res.status));
-      buscada.current = q;
-      estadoVigente.current = nuevoEstado;
-      filtrosVigentes.current = nuevosFiltros;
-      setConversations(data.conversaciones);
-      setHayMas(data.hayMas === true);
-      setCantidades(data.cantidades ?? null);
-      window.history.replaceState(null, "", direccionCon(nuevoEstado, q, nuevosFiltros));
-    } catch {
-      if (pedido === pedidoDeBusqueda.current) setErrorAlCargar("No se pudo cargar la bandeja. Probá de nuevo.");
-    } finally {
-      if (pedido === pedidoDeBusqueda.current) setBuscando(false);
-    }
-  }, []);
-
+  // mira puede ver (F35), 300 ms después de la última tecla. Un solo pedido en
+  // curso a la vez (retrabajo del 04/11/2026, lib/un-pedido-a-la-vez.ts):
+  // mientras uno está en curso no sale otro, y cuando vuelve, si lo pedido
+  // cambió, su respuesta se ignora y sale uno solo con lo último.
   useEffect(() => {
-    const q = search.trim();
-    if (q === buscada.current) return;
-    const espera = setTimeout(() => recargar(estadoVigente.current, q, filtrosVigentes.current), 300);
-    return () => clearTimeout(espera);
-  }, [search, recargar]);
+    pedidos.escribir({ estado: estadoElegido.current, q: search.trim(), filtros: filtrosElegidos.current });
+  }, [search, pedidos]);
+
+  useEffect(() => () => pedidos.cancelar(), [pedidos]);
 
   function elegirPestana(nuevo: EstadoDeBandeja) {
     if (nuevo === estado) return;
     setEstado(nuevo);
-    recargar(nuevo, search.trim(), filtrosVigentes.current);
+    estadoElegido.current = nuevo;
+    pedidos.pedirYa({ estado: nuevo, q: search.trim(), filtros: filtrosElegidos.current });
   }
 
   function cambiarFiltros(nuevos: FiltrosDeBandeja) {
     setFiltros(nuevos);
-    recargar(estadoVigente.current, search.trim(), nuevos);
+    filtrosElegidos.current = nuevos;
+    pedidos.pedirYa({ estado: estadoElegido.current, q: search.trim(), filtros: nuevos });
   }
 
   // Subscribe to conversation updates via Realtime
