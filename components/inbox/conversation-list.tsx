@@ -20,6 +20,8 @@ import {
   SIN_OPCIONES,
   hayFiltros,
   parametrosDeFiltros,
+  pedidoDeUna,
+  queHacerConElAviso,
   type FiltrosDeBandeja,
   type OpcionesDeFiltros,
 } from "@/lib/filtros-bandeja";
@@ -216,14 +218,16 @@ export function ConversationList({
   useEffect(() => {
     const supabase = createClient();
 
-    // Una conversación que no está cargada se pide sola, por la ruta de la
-    // lista: la seguridad por filas decide si la puede ver.
+    // Una conversación se pide sola, por la ruta de la lista, con la pestaña,
+    // la búsqueda y los filtros: la seguridad por filas decide si la puede ver,
+    // y la base, si cumple los filtros. Si no vuelve y estaba cargada, sale.
     async function traerUna(id: string) {
-      const res = await fetch(`/api/v1/conversations?estado=${estadoVigente.current}&q=${encodeURIComponent(buscada.current)}${conFiltros(filtrosVigentes.current)}&id=${id}`).catch(() => null);
-      const data = await res?.json().catch(() => null);
-      if (Array.isArray(data?.conversaciones) && data.conversaciones.length > 0) {
-        setConversations((prev) => fusionarDeBandeja(prev, data.conversaciones));
-      }
+      const res = await fetch(pedidoDeUna(estadoVigente.current, buscada.current, filtrosVigentes.current, id)).catch(() => null);
+      if (!res?.ok) return;
+      const data = await res.json().catch(() => null);
+      if (!Array.isArray(data?.conversaciones)) return;
+      if (data.conversaciones.length > 0) setConversations((prev) => fusionarDeBandeja(prev, data.conversaciones));
+      else if (cargadas.current.has(id)) setConversations((prev) => prev.filter((c) => c.id !== id));
     }
 
     const channel = supabase
@@ -239,21 +243,24 @@ export function ConversationList({
         async (payload) => {
           if (payload.eventType === "UPDATE") {
             const updated = payload.new as Database["public"]["Tables"]["conversations"]["Row"];
-            if (cargadas.current.has(updated.id)) {
-              const anterior = listaActual.current.find((c) => c.id === updated.id);
-              const sale = estadoVigente.current !== "all" && updated.status !== estadoVigente.current;
-              setConversations((prev) =>
-                // Si ya no es de esta pestaña (la cerraron o la reabrieron), sale.
-                sale
-                  ? prev.filter((c) => c.id !== updated.id)
-                  : fusionarDeBandeja(prev, prev.filter((c) => c.id === updated.id).map((c) => ({ ...c, ...updated })))
-              );
-              if (anterior && anterior.status !== updated.status) recontar();
+            const cargada = cargadas.current.has(updated.id);
+            const anterior = listaActual.current.find((c) => c.id === updated.id);
+            const decision = queHacerConElAviso({
+              cargada,
+              // Si ya no es de esta pestaña (la cerraron o la reabrieron), sale.
+              esDeOtraPestana: estadoVigente.current !== "all" && updated.status !== estadoVigente.current,
+              filtros: filtrosVigentes.current,
+            });
+            if (decision === "sacar") {
+              setConversations((prev) => prev.filter((c) => c.id !== updated.id));
+            } else if (decision === "fusionar") {
+              setConversations((prev) => fusionarDeBandeja(prev, prev.filter((c) => c.id === updated.id).map((c) => ({ ...c, ...updated }))));
             } else {
-              // Una que estaba más abajo de lo cargado y le llegó un mensaje.
+              // No estaba cargada (estaba más abajo y le llegó un mensaje), o
+              // hay filtros y puede haber dejado de cumplirlos.
               await traerUna(updated.id);
-              recontar();
             }
+            if (!cargada || decision === "pedir" || (anterior && anterior.status !== updated.status)) recontar();
           } else if (payload.eventType === "INSERT") {
             const inserted = payload.new as Database["public"]["Tables"]["conversations"]["Row"];
             await traerUna(inserted.id);

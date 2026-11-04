@@ -185,3 +185,24 @@ export function filtrosParaElRol(f: FiltrosDeBandeja, esManager: boolean, usuari
   if (esManager || !f.asignacion || f.asignacion === "sin" || f.asignacion === usuarioId.toLowerCase()) return f;
   return { ...f, asignacion: null };
 }
+
+export type DecisionDeRealtime = "pedir" | "fusionar" | "sacar";
+
+/**
+ * Qué hace la lista con un aviso de Realtime de una conversación (tramo B).
+ * Sin filtros, como en el tramo A: la que no estaba cargada se pide sola por
+ * la ruta (con la RLS); la cargada se fusiona, o sale si cambió de pestaña.
+ * Con filtros, también la cargada se vuelve a pedir con los mismos filtros: un
+ * mensaje nuevo puede hacer que deje de cumplirlos, y si no vuelve, sale.
+ */
+export function queHacerConElAviso(a: { cargada: boolean; esDeOtraPestana: boolean; filtros: FiltrosDeBandeja }): DecisionDeRealtime {
+  if (!a.cargada) return "pedir";
+  if (a.esDeOtraPestana) return "sacar";
+  return hayFiltros(a.filtros) ? "pedir" : "fusionar";
+}
+
+/** El pedido de una sola conversación a la ruta de la lista, con la pestaña, la búsqueda y los filtros. */
+export function pedidoDeUna(estado: string, busqueda: string, filtros: FiltrosDeBandeja, id: string): string {
+  const p = new URLSearchParams([["estado", estado], ["q", busqueda], ...parametrosDeFiltros(filtros), ["id", id]]);
+  return `/api/v1/conversations?${p.toString()}`;
+}
