@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { createClient } from "@/lib/supabase/server";
 
 /**
@@ -9,8 +10,8 @@ import type { createClient } from "@/lib/supabase/server";
  * Cuenta con `contar_mensajes_sin_telefono` (00031), los entrantes de WhatsApp
  * de los últimos 7 días. **Hasta F27 da 0 de 0:** los entrantes recién se
  * guardan con F27. «Ver la cola» lleva a la bandeja con el filtro «Teléfono sin
- * resolver», que es de F35: se suma cuando exista, porque un link a la bandeja
- * sin ese filtro mostraría otra cosa que lo que promete.
+ * resolver» activo (F35, sumado en el tramo B, el 04/11/2026, cuando el filtro
+ * empezó a existir).
  */
 const SIETE_DIAS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -44,6 +45,10 @@ export async function ContadorSinTelefono({
   return (
     <p className="border-b border-border px-8 py-2 text-sm text-muted-foreground">
       Mensajes que llegaron sin teléfono resuelto, últimos 7 días: <span className="font-medium text-foreground tabular-nums">{n} de {m}</span>
+      {" · "}
+      <Link href="/dashboard/inbox?telefono=sin-resolver" className="font-medium text-foreground underline-offset-2 hover:underline">
+        Ver la cola
+      </Link>
     </p>
   );
 }
