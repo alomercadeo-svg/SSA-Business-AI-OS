@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import {
   SIN_FILTROS,
   cuantosFiltros,
+  type FiltroDeVentana,
   type FiltrosDeBandeja,
   type OpcionesDeFiltros,
   type Plataforma,
@@ -17,14 +18,22 @@ import {
  * Decidido el 03/11/2026 (chat de revisión, con el prototipo aprobado): los
  * grupos en este orden, «Seguimiento», «Canal», «Asignación», «Etiquetas»,
  * «Fecha del último mensaje» y «Teléfono sin resolver», y «Limpiar filtros».
- * Sin el grupo de la ventana de Instagram hasta S9 (F40), y sin los atajos
- * «Seguimiento hoy» y «Vencidos» del prototipo: el plano no los pide.
+ * Sin los atajos «Seguimiento hoy» y «Vencidos» del prototipo: el plano no
+ * los pide. F40 (S9, tramo A): el grupo «Ventana de Instagram» va entre
+ * «Etiquetas» y «Fecha del último mensaje», como en el prototipo
+ * (prototipo-fase1.html:591), con una opción por vez, y solo si el espacio
+ * tiene Instagram: la ventana existe solo ahí.
  *
  * Un «Rango de fechas» filtra recién con las dos fechas; mientras falta una,
  * queda elegido en el panel pero no se manda.
  */
 
 const NOMBRE_DE_PLATAFORMA: Record<Plataforma, string> = { instagram: "Instagram", whatsapp: "WhatsApp" };
+const VENTANAS: Array<[FiltroDeVentana, string]> = [
+  ["abierta", "Abierta"],
+  ["por_vencer", "Vence en menos de 2 h"],
+  ["cerrada", "Cerrada"],
+];
 
 function Opcion({ elegida, onClick, children }: { elegida: boolean; onClick: () => void; children: string }) {
   return (
@@ -186,6 +195,16 @@ export function FiltrosBandeja({
               ))
             )}
           </Grupo>
+
+          {opciones.plataformas.includes("instagram") && (
+            <Grupo titulo="Ventana de Instagram">
+              {VENTANAS.map(([v, texto]) => (
+                <Opcion key={v} elegida={filtros.ventana === v} onClick={() => cambiar({ ventana: filtros.ventana === v ? null : v })}>
+                  {texto}
+                </Opcion>
+              ))}
+            </Grupo>
+          )}
 
           <Grupo titulo="Fecha del último mensaje">
             <Opcion elegida={filtros.ultimo === "hoy"} onClick={() => elegirUltimo("hoy")}>Hoy</Opcion>

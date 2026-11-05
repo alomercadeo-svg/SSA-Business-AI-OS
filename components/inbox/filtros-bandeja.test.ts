@@ -54,14 +54,15 @@ describe("el botón «Filtros»", () => {
 describe("el panel", () => {
   it("los grupos, en el orden decidido, y «Limpiar filtros» al final", () => {
     const t = textoPlano(dibujar());
-    const orden = ["Seguimiento", "Canal", "Asignación", "Etiquetas", "Fecha del último mensaje", "Teléfono sin resolver", "Limpiar filtros"].map((g) => t.indexOf(`|${g}|`));
+    const orden = ["Seguimiento", "Canal", "Asignación", "Etiquetas", "Ventana de Instagram", "Fecha del último mensaje", "Teléfono sin resolver", "Limpiar filtros"].map((g) => t.indexOf(`|${g}|`));
     expect(orden.every((i) => i >= 0)).toBe(true);
     expect([...orden].sort((a, b) => a - b)).toEqual(orden);
   });
 
-  it("sin el grupo de la ventana de Instagram (S9) ni los atajos del prototipo", () => {
+  it("F40: el grupo «Ventana de Instagram» con «Abierta», «Vence en menos de 2 h» y «Cerrada» (prototipo-fase1.html:591), sin los atajos del prototipo", () => {
     const html = dibujar();
-    expect(html).not.toContain("Ventana");
+    const t = textoPlano(html);
+    for (const o of ["Ventana de Instagram", "Abierta", "Vence en menos de 2 h", "Cerrada"]) expect(t).toContain(`|${o}|`);
     expect(html).not.toContain("Seguimiento hoy");
     expect(html).not.toContain("Vencidos");
   });
@@ -99,5 +100,19 @@ describe("el panel", () => {
     const html = dibujar({ seguimiento: { tipo: "rango", desde: "2026-11-04", hasta: "2026-11-06" } });
     expect(html).toMatch(/<input[^>]*type="date"[^>]*value="2026-11-04"/);
     expect(html).toMatch(/<input[^>]*type="date"[^>]*value="2026-11-06"/);
+  });
+});
+
+describe("F40: el grupo de la ventana", () => {
+  it("la elegida queda marcada; se elige una por vez", () => {
+    const html = dibujar({ ventana: "por_vencer" });
+    expect(html).toMatch(/<button[^>]*aria-pressed="true"[^>]*>Vence en menos de 2 h<\/button>/);
+    expect(html).not.toMatch(/<button[^>]*aria-pressed="true"[^>]*>Abierta<\/button>/);
+  });
+  it("sin Instagram entre los canales del espacio, el grupo no aparece", () => {
+    const html = renderToStaticMarkup(
+      createElement(FiltrosBandeja, { filtros: SIN_FILTROS, opciones: { ...OPCIONES, plataformas: ["whatsapp"] }, onCambiar: () => {}, abiertoAlInicio: true } as never),
+    );
+    expect(html).not.toContain("Ventana de Instagram");
   });
 });

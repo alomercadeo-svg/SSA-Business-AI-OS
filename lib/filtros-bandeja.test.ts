@@ -44,6 +44,7 @@ describe("filtrosDeLaDireccion", () => {
       ultimo: "7",
       telefonoSinResolver: true,
       seguimiento: "semana",
+      ventana: null,
     });
   });
 
@@ -145,5 +146,29 @@ describe("filtrosParaElRol: «Asignación» de un Member", () => {
 
   it("Owner y Admin filtran por cualquiera", () => {
     expect(filtrosParaElRol(con({ asignacion: OTRO }), true, YO).asignacion).toBe(OTRO);
+  });
+});
+
+describe("F40: el filtro de la ventana de Instagram (F35)", () => {
+  it("la dirección lee ventana=abierta, por-vencer y cerrada; lo demás se descarta", () => {
+    expect(filtrosDeLaDireccion({ ventana: "abierta" }).ventana).toBe("abierta");
+    expect(filtrosDeLaDireccion({ ventana: "por-vencer" }).ventana).toBe("por_vencer");
+    expect(filtrosDeLaDireccion({ ventana: "cerrada" }).ventana).toBe("cerrada");
+    expect(filtrosDeLaDireccion({ ventana: "por_vencer" }).ventana).toBeNull();
+    expect(filtrosDeLaDireccion({ ventana: "x" }).ventana).toBeNull();
+  });
+  it("vuelve a la dirección con el guion, y cuenta uno en «Filtros · N»", () => {
+    expect(parametrosDeFiltros(con({ ventana: "por_vencer" }))).toEqual([["ventana", "por-vencer"]]);
+    expect(cuantosFiltros(con({ ventana: "cerrada" }))).toBe(1);
+    expect(cuantosFiltros(con({ ventana: "cerrada", canal: ["instagram"] }))).toBe(2);
+  });
+  it("va a la base como la clave `ventana` del jsonb, con guion bajo", () => {
+    expect(filtrosParaLaBase(con({ ventana: "por_vencer" }), "")).toEqual({ q: "", ventana: "por_vencer" });
+    expect(filtrosParaLaBase(con({ ventana: "abierta" }), "ana")).toEqual({ q: "ana", ventana: "abierta" });
+  });
+  it("ida y vuelta por la dirección", () => {
+    for (const v of ["abierta", "por_vencer", "cerrada"] as const) {
+      expect(filtrosDeLaDireccion(new URLSearchParams(parametrosDeFiltros(con({ ventana: v })))).ventana).toBe(v);
+    }
   });
 });

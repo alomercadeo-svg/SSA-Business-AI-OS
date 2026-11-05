@@ -21,6 +21,8 @@ export const PLATAFORMAS: readonly Plataforma[] = ["instagram", "whatsapp"];
 export type RangoDeFechas = { desde: string; hasta: string };
 export type FechaDelUltimo = "hoy" | "7" | "30" | ({ tipo: "rango" } & RangoDeFechas);
 export type Seguimiento = "hoy" | "semana" | "vencido" | ({ tipo: "rango" } & RangoDeFechas);
+/** F40: la ventana de Instagram. En la dirección, «por-vencer»; en la base, «por_vencer». */
+export type FiltroDeVentana = "abierta" | "por_vencer" | "cerrada";
 
 export type FiltrosDeBandeja = {
   /** Ids de etiqueta: el contacto tiene cualquiera de estas. */
@@ -31,6 +33,8 @@ export type FiltrosDeBandeja = {
   ultimo: null | FechaDelUltimo;
   telefonoSinResolver: boolean;
   seguimiento: null | Seguimiento;
+  /** F40: solo Instagram, que es donde la ventana existe (00048). */
+  ventana: null | FiltroDeVentana;
 };
 
 /** Lo que el panel ofrece, leído en el servidor (`inbox/page.tsx`). */
@@ -51,6 +55,7 @@ export const SIN_FILTROS: FiltrosDeBandeja = {
   ultimo: null,
   telefonoSinResolver: false,
   seguimiento: null,
+  ventana: null,
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -102,6 +107,9 @@ export function filtrosDeLaDireccion(p: Entrada): FiltrosDeBandeja {
     seguimiento = r ? { tipo: "rango", ...r } : null;
   }
 
+  const v = leer(p, "ventana");
+  const ventana: FiltrosDeBandeja["ventana"] = v === "abierta" || v === "cerrada" ? v : v === "por-vencer" ? "por_vencer" : null;
+
   return {
     etiquetas,
     asignacion: asig === "sin" ? "sin" : UUID.test(asig) ? asig.toLowerCase() : null,
@@ -109,6 +117,7 @@ export function filtrosDeLaDireccion(p: Entrada): FiltrosDeBandeja {
     ultimo,
     telefonoSinResolver: leer(p, "telefono") === "sin-resolver",
     seguimiento,
+    ventana,
   };
 }
 
@@ -127,6 +136,7 @@ export function parametrosDeFiltros(f: FiltrosDeBandeja): Array<[string, string]
     if (typeof f.seguimiento === "string") out.push(["seguimiento", f.seguimiento]);
     else out.push(["seguimiento", "rango"], ["seguimiento_desde", f.seguimiento.desde], ["seguimiento_hasta", f.seguimiento.hasta]);
   }
+  if (f.ventana) out.push(["ventana", f.ventana === "por_vencer" ? "por-vencer" : f.ventana]);
   return out;
 }
 
@@ -142,6 +152,7 @@ export const CLAVES_DE_FILTROS = [
   "seguimiento",
   "seguimiento_desde",
   "seguimiento_hasta",
+  "ventana",
 ] as const;
 
 /** Cuántos grupos tienen algo elegido: el «Filtros · N». La fecha cuenta. */
@@ -152,13 +163,14 @@ export function cuantosFiltros(f: FiltrosDeBandeja): number {
     (f.asignacion ? 1 : 0) +
     (f.etiquetas.length ? 1 : 0) +
     (f.ultimo ? 1 : 0) +
-    (f.telefonoSinResolver ? 1 : 0)
+    (f.telefonoSinResolver ? 1 : 0) +
+    (f.ventana ? 1 : 0)
   );
 }
 
 export const hayFiltros = (f: FiltrosDeBandeja) => cuantosFiltros(f) > 0;
 
-/** El jsonb que lee `bandeja_filtrada` (00044). Nunca lleva `ahora`. */
+/** El jsonb que lee `bandeja_filtrada` (00044; la ventana, 00048). Nunca lleva `ahora`. */
 export function filtrosParaLaBase(f: FiltrosDeBandeja, busqueda: string): Record<string, unknown> {
   const out: Record<string, unknown> = { q: busqueda };
   if (f.etiquetas.length) out.etiquetas = f.etiquetas;
@@ -173,6 +185,7 @@ export function filtrosParaLaBase(f: FiltrosDeBandeja, busqueda: string): Record
     if (typeof f.seguimiento === "string") out.seguimiento = f.seguimiento;
     else Object.assign(out, { seguimiento: "rango", seguimiento_desde: f.seguimiento.desde, seguimiento_hasta: f.seguimiento.hasta });
   }
+  if (f.ventana) out.ventana = f.ventana;
   return out;
 }
 
