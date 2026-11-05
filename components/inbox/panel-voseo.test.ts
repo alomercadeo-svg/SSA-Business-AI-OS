@@ -60,9 +60,13 @@ describe("el panel en voseo", () => {
     expect(html).toContain(horaDelNegocio("2026-10-01T15:00:00Z"));
   });
 
-  it("sin nombre y dado de baja", () => {
+  // Cambiado el 05/11/2026 (F43, D6 del chat de Marcos): sin nombre pero con
+  // usuario (el canal de Instagram de este panel tiene «ana.perez») se ve
+  // «@usuario»; «Sin nombre» queda para el que no tiene ni nombre ni usuario
+  // (components/inbox/nombre-visible-bandeja.test.ts y lib/nombre-visible.test.ts).
+  it("sin nombre, con usuario, y dado de baja", () => {
     const html = panel({ display_name: null, is_subscribed: false });
-    expect(html).toContain("Sin nombre");
+    expect(html).toContain(">@ana.perez<");
     expect(html).toContain("Dado de baja");
   });
 

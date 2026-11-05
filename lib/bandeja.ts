@@ -15,6 +15,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "./types/database";
 import { SIN_FILTROS, filtrosParaLaBase, type FiltrosDeBandeja } from "./filtros-bandeja";
+import type { CanalParaElNombre } from "./nombre-visible";
 
 export const CONVERSACIONES_POR_PAGINA = 50;
 /** Lo buscado se corta acá: más largo no identifica mejor a nadie. */
@@ -35,8 +36,14 @@ export interface CantidadesDeBandeja {
   todas: number;
 }
 
+/**
+ * Los canales del contacto viajan con él (F43): sin sus identificadores de
+ * remitente no se puede decidir el nombre que se muestra (lib/nombre-visible.ts).
+ */
+export const SELECCION_DE_BANDEJA = "*, contacts(*, contact_channels(platform_sender_id, platform_username))";
+
 export type ConversacionDeBandeja = Database["public"]["Tables"]["conversations"]["Row"] & {
-  contacts: Database["public"]["Tables"]["contacts"]["Row"] | null;
+  contacts: (Database["public"]["Tables"]["contacts"]["Row"] & { contact_channels?: CanalParaElNombre[] }) | null;
 };
 
 type Cliente = SupabaseClient<Database>;
@@ -89,7 +96,7 @@ export async function leerPaginaDeBandeja(supabase: Cliente, workspaceId: string
       p_limite: CONVERSACIONES_POR_PAGINA + 1,
       p_id: pedido.id ?? null,
     })
-    .select("*, contacts(*)")
+    .select(SELECCION_DE_BANDEJA)
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false });
   if (error) return { conversaciones: [], hayMas: false, error: error.message };

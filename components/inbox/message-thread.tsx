@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { PlatformIcon } from "@/components/platform-icon";
 import type { Database } from "@/lib/types/database";
 import { MarcaDeVentana } from "@/components/inbox/marca-ventana";
+import { inicialDe, nombreDeConversacion } from "@/lib/nombre-visible";
 import { BloqueVentanaCerrada } from "@/components/inbox/ventana-cerrada";
 import { AVISO_VENTANA_CERRADA, estadoDeVentana, textoDeVence } from "@/lib/ventana-instagram";
 
@@ -444,7 +445,7 @@ export function MessageThread({
               />
             ) : (
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium">
-                {conversation.contacts?.display_name?.[0]?.toUpperCase() ?? "?"}
+                {inicialDe(nombreDeConversacion(conversation))}
               </div>
             )}
             <div className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-background bg-background">
@@ -460,14 +461,14 @@ export function MessageThread({
             {conversation.contact_id ? (
               <Link
                 href={enlaceAFicha(conversation.contact_id, volverALaBandeja)}
-                title={conversation.contacts?.display_name ?? "Sin nombre"}
+                title={nombreDeConversacion(conversation)}
                 className="line-clamp-2 break-words text-sm font-medium hover:underline"
               >
-                {conversation.contacts?.display_name ?? "Sin nombre"}
+                {nombreDeConversacion(conversation)}
               </Link>
             ) : (
-              <p title={conversation.contacts?.display_name ?? "Sin nombre"} className="line-clamp-2 break-words text-sm font-medium">
-                {conversation.contacts?.display_name ?? "Sin nombre"}
+              <p title={nombreDeConversacion(conversation)} className="line-clamp-2 break-words text-sm font-medium">
+                {nombreDeConversacion(conversation)}
               </p>
             )}
           </div>

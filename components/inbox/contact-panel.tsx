@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { PlatformIcon } from "@/components/platform-icon";
 import { SugerenciaUnion } from "@/components/inbox/sugerencia-union";
+import { inicialDe, nombreVisible } from "@/lib/nombre-visible";
 import { SelectorDeSeguimiento } from "@/components/inbox/selector-seguimiento";
 import { enlaceAFicha, horaDelNegocio } from "@/lib/ficha";
 import { nombreDePlataforma } from "@/lib/nombre-de-plataforma";
@@ -33,6 +34,7 @@ export interface ContactDetails {
   channels: {
     platform: Platform;
     platform_username: string | null;
+    platform_sender_id: string;
   }[];
 }
 
@@ -82,7 +84,7 @@ export function ContactPanel({
           .eq("contact_id", contactId!),
         supabase
           .from("contact_channels")
-          .select("platform_username, channels(platform)")
+          .select("platform_username, platform_sender_id, channels(platform)")
           .eq("contact_id", contactId!),
       ]);
 
@@ -101,6 +103,7 @@ export function ContactPanel({
         const channels = (channelsRes.data ?? []).map((cc) => ({
           platform: (cc.channels as unknown as { platform: Platform }).platform,
           platform_username: cc.platform_username,
+          platform_sender_id: cc.platform_sender_id,
         }));
 
         setDetails({
@@ -176,11 +179,11 @@ export function VistaDelPanel({
                     className="h-16 w-16 rounded-full object-cover"
                   />
                 ) : (
-                  details.contact.display_name?.[0]?.toUpperCase() ?? "?"
+                  inicialDe(nombreVisible(details.contact, details.channels))
                 )}
               </div>
               <p className="mt-3 text-sm font-semibold hover:underline">
-                {details.contact.display_name ?? "Sin nombre"}
+                {nombreVisible(details.contact, details.channels)}
               </p>
             </Link>
             <Link

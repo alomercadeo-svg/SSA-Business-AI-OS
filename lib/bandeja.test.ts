@@ -55,7 +55,7 @@ describe("leerPaginaDeBandeja: el pedido a la base", () => {
     const [p] = pedidos;
     expect(p.metodo).toBe("POST");
     expect(p.url.pathname).toBe("/rest/v1/rpc/bandeja_pagina_filtros");
-    expect(p.url.searchParams.get("select")).toBe("*,contacts(*)");
+    expect(p.url.searchParams.get("select")).toBe("*,contacts(*,contact_channels(platform_sender_id,platform_username))");
     expect(p.url.searchParams.get("order")).toBe("last_message_at.desc.nullslast,id.desc");
     expect(p.cuerpo).toEqual({
       p_workspace: "ws-1",

@@ -28,6 +28,7 @@ import { FiltrosBandeja } from "./filtros-bandeja";
 import { MarcaDeVentana } from "./marca-ventana";
 import { crearUnPedidoALaVez } from "@/lib/un-pedido-a-la-vez";
 import { direccionDeLaBandeja } from "@/lib/direccion-bandeja";
+import { inicialDe, nombreDeConversacion } from "@/lib/nombre-visible";
 
 type Conversation = ConversacionDeBandeja;
 
@@ -410,7 +411,7 @@ export function ConversationList({
                   />
                 ) : (
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-medium">
-                    {conversation.contacts?.display_name?.[0]?.toUpperCase() ?? "?"}
+                    {inicialDe(nombreDeConversacion(conversation))}
                   </div>
                 )}
                 <div className="absolute -bottom-0.5 -right-0.5 flex h-4.5 w-4.5 items-center justify-center rounded-full border-2 border-background bg-background">
@@ -426,7 +427,7 @@ export function ConversationList({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between">
                   <p className="truncate text-sm font-medium">
-                    {conversation.contacts?.display_name ?? "Sin nombre"}
+                    {nombreDeConversacion(conversation)}
                   </p>
                   <span
                     suppressHydrationWarning

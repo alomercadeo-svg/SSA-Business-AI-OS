@@ -17,6 +17,7 @@
 import { revalidatePath } from "next/cache";
 import { getWorkspaceOrNull, esManager } from "@/lib/workspace";
 import { motivoTelefonoInvalido, normalizarTelefono } from "@/lib/telefono";
+import { nombreVisible } from "@/lib/nombre-visible";
 
 export interface ResumenContacto {
   id: string;
@@ -57,7 +58,7 @@ async function resumen(supabase: Contexto["supabase"], id: string): Promise<Resu
   if (!c) return undefined;
   return {
     id: c.id,
-    nombre: c.display_name ?? "Sin nombre",
+    nombre: nombreVisible(c, canales),
     telefono: c.phone,
     correo: c.email,
     canales: (canales ?? []).map((x) => {

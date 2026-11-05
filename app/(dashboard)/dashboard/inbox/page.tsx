@@ -2,7 +2,7 @@ import { getWorkspace, esManager } from "@/lib/workspace";
 import { InboxView } from "./inbox-view";
 import { AvisoSesionWhatsapp } from "@/components/inbox/aviso-sesion-whatsapp";
 import { COLUMNAS_DEL_AVISO, type CanalDeSesion } from "@/lib/sesion-whatsapp-pantalla";
-import { busquedaDeBandeja, estadoDeBandeja, leerCantidades, leerPaginaDeBandeja } from "@/lib/bandeja";
+import { SELECCION_DE_BANDEJA, busquedaDeBandeja, estadoDeBandeja, leerCantidades, leerPaginaDeBandeja } from "@/lib/bandeja";
 import { PLATAFORMAS, filtrosDeLaDireccion, filtrosParaElRol, type OpcionesDeFiltros } from "@/lib/filtros-bandeja";
 import { miembrosParaLaBandeja } from "@/lib/miembros-bandeja";
 
@@ -57,7 +57,7 @@ export default async function InboxPage({
     if (!conversacionInicial) {
       const { data } = await supabase
         .from("conversations")
-        .select("*, contacts(*)")
+        .select(SELECCION_DE_BANDEJA)
         .eq("id", pedida)
         .eq("workspace_id", workspace.id)
         .maybeSingle();
