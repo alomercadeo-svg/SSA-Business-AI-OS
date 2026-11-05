@@ -7,7 +7,9 @@ import { cambiaDeDia, horaDelMensaje, separadorDeDia } from "@/lib/fechas-bandej
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { enlaceAFicha } from "@/lib/ficha";
-import { Send, Paperclip, Bot, User, MessageSquare, CheckCircle, RotateCcw, Loader2, History } from "lucide-react";
+import { Send, Paperclip, Bot, User, MessageSquare, Loader2, History } from "lucide-react";
+import { VistaDelEstado } from "@/components/inbox/estado-conversacion";
+import { AVISO_DE_FALLA_DE_ESTADO } from "@/lib/estado-conversacion";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { PlatformIcon } from "@/components/platform-icon";
@@ -176,6 +178,7 @@ export function MessageThread({
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState<string | null>(null);
+  const [avisoDeEstado, setAvisoDeEstado] = useState<{ texto: string; error: boolean } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -189,9 +192,10 @@ export function MessageThread({
         .update({ status })
         .eq("id", conversation.id);
       if (error) throw error;
+      setAvisoDeEstado(null);
       router.refresh();
     } catch {
-      alert(`Failed to update conversation status`);
+      setAvisoDeEstado({ texto: AVISO_DE_FALLA_DE_ESTADO, error: true });
     } finally {
       setStatusUpdating(null);
     }
@@ -405,47 +409,17 @@ export function MessageThread({
         </div>
 
         <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-[10px] font-medium capitalize",
-              conversation.status === "open"
-                ? "bg-green-100 text-green-700"
-                : conversation.status === "snoozed"
-                ? "bg-yellow-100 text-yellow-700"
-                : "bg-muted text-muted-foreground"
-            )}
-          >
-            {conversation.status}
-          </span>
           {conversation.is_automation_paused && (
             <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-medium text-orange-700">
               Automatización en pausa
             </span>
           )}
-          <div className="flex items-center gap-1">
-            {conversation.status !== "closed" && (
-              <button
-                onClick={() => updateConversationStatus("closed")}
-                disabled={!!statusUpdating}
-                title="Close conversation"
-                aria-label="Close conversation"
-                className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors disabled:opacity-50"
-              >
-                {statusUpdating === "closed" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5" />}
-              </button>
-            )}
-            {conversation.status !== "open" && (
-              <button
-                onClick={() => updateConversationStatus("open")}
-                disabled={!!statusUpdating}
-                title="Reopen conversation"
-                aria-label="Reopen conversation"
-                className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors disabled:opacity-50"
-              >
-                {statusUpdating === "open" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
-              </button>
-            )}
-          </div>
+          <VistaDelEstado
+            estado={conversation.status}
+            ocupado={!!statusUpdating}
+            aviso={avisoDeEstado}
+            onCambiar={() => updateConversationStatus(conversation.status === "closed" ? "open" : "closed")}
+          />
         </div>
       </div>
 
