@@ -1,19 +1,21 @@
 import { esManager, getWorkspace } from "@/lib/workspace";
-import { filtroDeAsignacion, type FiltroDeAsignacion } from "@/lib/asignacion";
-import { miembrosDelEspacio } from "@/lib/miembros";
+import { miembrosParaLaBandeja } from "@/lib/miembros-bandeja";
+import { filtrosDeContactos, filtrosDeContactosParaElRol, leerContactos, paginaDeContactos } from "@/lib/contactos";
 import { ContactsView } from "./contacts-view";
 import { ContactosEliminados } from "@/components/contacts/contactos-eliminados";
 
-/** El tope del fork. Paginar la lista no es de F41: ver la nota de F35 en el plano. */
-const TOPE = 100;
+type Parametros = Record<string, string | string[] | undefined>;
 
-export default async function ContactsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ setter?: string | string[]; vendedor?: string | string[]; vista?: string; eliminado?: string }>;
-}) {
-  const { workspace, supabase, role } = await getWorkspace();
+/**
+ * La lista de Contactos (F43, tramo B de S9): la primera página, la cantidad
+ * y el total, desde el servidor, con la búsqueda, los filtros y la página de
+ * la dirección. Hasta el 05/11/2026 traía los primeros 100 y buscaba en el
+ * navegador. Lo demás lo pide la vista a `GET /api/v1/contacts`.
+ */
+export default async function ContactsPage({ searchParams }: { searchParams: Promise<Parametros> }) {
+  const { workspace, supabase, role, user } = await getWorkspace();
   const params = await searchParams;
+  const manager = esManager(role);
 
   // F30: la vista «Eliminados». `contactos_eliminados` aplica el alcance de
   // quien mira (un Member ve solo sus leads); la lista de abajo ya no los
@@ -22,45 +24,27 @@ export default async function ContactsPage({
     const { data, error } = await supabase.rpc("contactos_eliminados", { p_workspace: workspace.id });
     // Un error no se muestra como «no hay eliminados»: la pantalla de error lo dice.
     if (error) throw new Error("No se pudieron leer los contactos eliminados.");
-    return <ContactosEliminados filas={data ?? []} puedeRestaurar={esManager(role)} />;
+    return <ContactosEliminados filas={data ?? []} puedeRestaurar={manager} />;
   }
 
-  const filtros = { setter: filtroDeAsignacion(params.setter), vendedor: filtroDeAsignacion(params.vendedor) };
-
-  // F41: el filtro por setter y vendedor corre acá, antes del tope, y el total
-  // se cuenta en la base (dentro de lo que la RLS le deja ver a quien mira).
-  let query = supabase
-    .from("contacts")
-    .select("*, contact_tags(tag_id, tags(*))", { count: "exact" })
-    .eq("workspace_id", workspace.id);
-  const aplicar = (columna: "setter_id" | "vendedor_id", f: FiltroDeAsignacion) => {
-    if (f.tipo === "sin") query = query.is(columna, null);
-    if (f.tipo === "persona") query = query.eq(columna, f.id);
-  };
-  aplicar("setter_id", filtros.setter);
-  aplicar("vendedor_id", filtros.vendedor);
-
-  const [contactsRes, tagsRes, miembros] = await Promise.all([
-    query.order("last_interaction_at", { ascending: false, nullsFirst: false }).limit(TOPE),
-    supabase
-      .from("tags")
-      .select("*")
-      .eq("workspace_id", workspace.id)
-      .order("name"),
-    miembrosDelEspacio(workspace.id),
+  const filtros = filtrosDeContactosParaElRol(filtrosDeContactos(params), manager, user.id);
+  const [lista, tagsRes, miembros] = await Promise.all([
+    leerContactos(supabase, workspace.id, filtros, paginaDeContactos(params.pagina)),
+    supabase.from("tags").select("*").eq("workspace_id", workspace.id).order("name"),
+    // F43 (pendiente de S8): a un Member, solo él mismo; no se lee el equipo con la clave de servicio.
+    miembrosParaLaBandeja(role, user, workspace.id),
   ]);
+  if (lista.error) throw new Error("No se pudieron leer los contactos.");
 
-  const contacts = contactsRes.data ?? [];
   return (
     <ContactsView
-      contacts={contacts}
-      total={contactsRes.count ?? contacts.length}
+      inicial={{ contactos: lista.contactos, cantidad: lista.cantidad, total: lista.total, pagina: lista.pagina, paginas: lista.paginas }}
+      filtros={filtros}
       tags={tagsRes.data ?? []}
-      workspaceId={workspace.id}
       miembros={miembros}
+      equipoCompleto={manager}
+      ahora={new Date().toISOString()}
       recienEliminado={params.eliminado === "1"}
-      filtroSetter={filtros.setter.tipo === "persona" ? filtros.setter.id : filtros.setter.tipo}
-      filtroVendedor={filtros.vendedor.tipo === "persona" ? filtros.vendedor.id : filtros.vendedor.tipo}
     />
   );
 }

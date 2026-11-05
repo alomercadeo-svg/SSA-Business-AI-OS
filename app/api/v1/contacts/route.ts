@@ -1,59 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { esManager, getWorkspaceOrNull } from "@/lib/workspace";
+import { filtrosDeContactos, filtrosDeContactosParaElRol, leerContactos, paginaDeContactos } from "@/lib/contactos";
+
+/**
+ * GET /api/v1/contacts (F43, tramo B de S9): la lista de Contactos.
+ *
+ *   ?q=…                     la búsqueda, palabra por palabra, sin tildes
+ *   ?seguimiento=hoy|semana|vencido, ?etapa=…, ?setter=…, ?vendedor=…, ?etiqueta=…
+ *                            los filtros de la fila (lib/contactos.ts). Lo que
+ *                            no se entiende se descarta. Un Member con el id
+ *                            de otro en setter o vendedor: se ignora.
+ *   ?pagina=N                la página, desde 1
+ *
+ * Reemplaza el GET del fork, que nadie llamaba (verificado el 05/11/2026),
+ * tomaba la primera membresía y no el espacio elegido, y filtraba la etiqueta
+ * en memoria.
+ *
+ * Lee con el cliente del usuario y las funciones `security invoker` de la
+ * 00049: la seguridad por filas decide qué contactos ve cada uno.
+ *
+ * Server-Timing, como la ruta de la bandeja: `sesion_y_espacio`, `lista` (la
+ * página y las cantidades, a la vez) y `total`, en milisegundos y sin datos.
+ */
+const ms = (desde: number) => (performance.now() - desde).toFixed(1);
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const inicio = performance.now();
+  const contexto = await getWorkspaceOrNull();
+  const tSesion = ms(inicio);
+  if (!contexto) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { supabase, workspace, role, user } = contexto;
 
-  const { data: membership } = await supabase
-    .from("workspace_members")
-    .select("workspace_id")
-    .eq("user_id", user.id)
-    .limit(1)
-    .single();
-
-  if (!membership) return NextResponse.json({ error: "No workspace" }, { status: 404 });
-
-  const searchParams = request.nextUrl.searchParams;
-  const search = searchParams.get("search");
-  const tag = searchParams.get("tag");
-  const subscribed = searchParams.get("subscribed");
-  const limit = parseInt(searchParams.get("limit") || "50", 10);
-  const offset = parseInt(searchParams.get("offset") || "0", 10);
-
-  let query = supabase
-    .from("contacts")
-    .select("*, contact_tags(tag_id, tags(id, name, color)), contact_channels(platform_sender_id, channel_id, channels(platform))", { count: "exact" })
-    .eq("workspace_id", membership.workspace_id)
-    .order("last_interaction_at", { ascending: false })
-    .range(offset, offset + limit - 1);
-
-  if (search) {
-    query = query.or(`display_name.ilike.%${search}%,email.ilike.%${search}%`);
+  const p = request.nextUrl.searchParams;
+  const filtros = filtrosDeContactosParaElRol(filtrosDeContactos(p), esManager(role), user.id);
+  const desde = performance.now();
+  const lista = await leerContactos(supabase, workspace.id, filtros, paginaDeContactos(p.get("pagina") ?? undefined));
+  const tLista = ms(desde);
+  if (lista.error) {
+    console.error("[contacts] no se pudo leer la lista:", lista.error);
+    return NextResponse.json({ error: "No se pudieron leer los contactos" }, { status: 500 });
   }
-
-  if (subscribed === "true") {
-    query = query.eq("is_subscribed", true);
-  } else if (subscribed === "false") {
-    query = query.eq("is_subscribed", false);
-  }
-
-  const { data: contacts, error, count } = await query;
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // Filter by tag in-memory (Supabase doesn't easily filter through join)
-  let filtered = contacts || [];
-  if (tag) {
-    filtered = filtered.filter((c) =>
-      (c.contact_tags as Array<{ tags: { name: string } | null }>)?.some(
-        (ct) => ct.tags?.name === tag
-      )
-    );
-  }
-
-  return NextResponse.json({ contacts: filtered, total: count });
+  const res = NextResponse.json({ contactos: lista.contactos, cantidad: lista.cantidad, total: lista.total, pagina: lista.pagina, paginas: lista.paginas });
+  res.headers.set("Server-Timing", `sesion_y_espacio;dur=${tSesion}, lista;dur=${tLista}, total;dur=${ms(inicio)}`);
+  return res;
 }
