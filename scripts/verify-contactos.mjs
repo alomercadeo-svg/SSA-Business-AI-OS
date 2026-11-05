@@ -265,7 +265,20 @@ await correr(async () => {
     await lista(owner, "Owner", `etapa=${encodeURIComponent("3. Respondió")}`, [N.etapa3], [N.etapa14]);
     await lista(owner, "Owner", `etiqueta=${T1}`, [N.etiqueta], [`b9c-r0-${sufijo}`]);
     await lista(owner, "Owner", `setter=${member.id}`, [N.delMember], [N.setterOwner]);
-    await lista(owner, "Owner", "setter=sin", [N.sinSetter], [N.setterOwner, N.delMember]);
+    // Los sin setter son 97: no entran en una página (cambio del 05/11/2026,
+    // con el OK de Marcos; en el rojo pasaba por la lista vieja de 100). Se
+    // recorren todas las páginas y se comprueba sobre todas juntas.
+    {
+      const p1sin = await pagina(owner, "/dashboard/contacts?setter=sin");
+      const m = p1sin.html.match(/>Página 1 de (\d+)</);
+      let html = p1sin.html;
+      for (let n = 2; m && n <= Number(m[1]); n++) html += (await pagina(owner, `/dashboard/contacts?setter=sin&pagina=${n}`)).html;
+      const ok = check(!!m && visible(html, N.sinSetter), `Owner, ?setter=sin, todas las páginas (${m?.[1] ?? "?"}): llega ${N.sinSetter} (presencia)`);
+      for (const n of [N.setterOwner, N.delMember]) {
+        if (!ok) noConcluyente(`Owner, ?setter=sin, todas las páginas: no llega ${n}`, "falló la presencia");
+        else check(!visible(html, n), `Owner, ?setter=sin, todas las páginas: no llega ${n}`);
+      }
+    }
     await lista(owner, "Owner", `vendedor=${owner.id}`, [N.vend], [`b9c-r0-${sufijo}`]);
     await lista(owner, "Owner", `seguimiento=hoy&${q("b9c hoy")}`, [N.hoy], [N.ayer]);
 
