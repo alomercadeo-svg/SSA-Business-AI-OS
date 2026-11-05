@@ -2350,6 +2350,28 @@ Tildado por Marcos el 05/11/2026: «Una conversación cerrada se reabre sola…�
 
 **Suma: 1 min** (de 12:07 a 12:08, segundos truncados, hasta este registro). Contra la estimación de 20, por debajo. El despliegue va después de este commit, con `verificar-despliegue.mjs`, y sube también los seis commits de la mañana; como toca una pantalla, queda «salida 0, pantallas sin mirar» hasta que Marcos lo confirme. Un commit no puede registrar su propio despliegue: se anota en la apertura siguiente.
 
+**Despliegue de `aafba1d`** (los ocho commits del 05/11 hasta el tramo 7). `node scripts/verificar-despliegue.mjs`, **salida 0, leída con `echo $?`**: lectura previa a las 12:09:00 (build `2oBGjvaqOJx2U84uMIodE`, el que dejó `6a6c23a`), push `6a6c23a..aafba1d`, el build pasó a `QM049VN1Vm_2e1YgTvtKr` a las 12:10:35, con `/login` en 200. **Toca una pantalla: queda «salida 0, pantallas sin mirar».** Marcos vio solo «Abierta» en sus capturas, y en una de ellas encontró el desborde del encabezado con un nombre largo (tramo 8, abajo). Mira las dos pantallas juntas después del despliegue del tramo 8.
+
+### S8, tramo 8 (retrabajo de F35): el encabezado del hilo con un nombre largo
+
+**05/11/2026, desde las 12:30** (hora de Costa Rica, la del mensaje de aprobación de Marcos; `TZ=America/Costa_Rica date`), **revisión liviana**: solo clases del encabezado de `components/inbox/message-thread.tsx` y su test. Lo encontró Marcos en una captura de la bandeja: con «The Consultour ® Consultorías turísticas», el nombre ocupaba tres líneas y se salía del encabezado. El plan fue antes de la hora de inicio, fuera de la medición. Estimación: 15 minutos más la espera del despliegue.
+
+**La causa**, verificada en el código: el encabezado tiene alto fijo (`h-14`) y el bloque del nombre no podía achicarse ni cortaba el texto (sin `min-w-0` ni `truncate`). Viene del fork (`44a6fba`); el tramo 7 no tocó esa estructura. Que el desborde ya pasaba antes del tramo 7 es inferencia: no se vio en pantalla antes.
+
+**El cambio**, `86dce8f`: el grupo del avatar y el nombre puede achicarse (`min-w-0 flex-1`, el avatar con `shrink-0`); el nombre se corta en una línea con «…» (`block truncate`, o `truncate` cuando no hay contacto) y queda completo en el `title`; el grupo del estado y el botón no se achica (`shrink-0`). El enlace a la ficha y los textos no cambian.
+
+| Comprobación nueva (`components/inbox/estado-hilo.test.ts`) | En rojo |
+|---|---|
+| el nombre se corta en una línea y queda completo en el title | vista en rojo, por su motivo: «expected [ 'text-sm', 'font-medium', …(1) ] to include 'truncate'» |
+| el grupo del nombre puede achicarse | vista en rojo, por su motivo: «expected [ 'flex', 'items-center', 'gap-3' ] to include 'min-w-0'» |
+| el grupo del estado no se achica | vista en rojo, por su motivo: «expected [ 'flex', 'items-center', 'gap-2' ] to include 'shrink-0'» |
+
+Las tres miran clases, no el dibujo: que el corte se vea bien lo confirma la pantalla.
+
+**Antes de commitear:** los tests del encabezado y las dos guardias de frontera, 18 de 18, salida 0; `npm test`, **1220 de 1220, salida 0**; `npm run typecheck`, **salida 0**; `npm run lint`, **salida 0**, 0 errores y 45 avisos, los mismos. Cada salida, leída con `echo $?`, sin tuberías. No se miró en el navegador: la mira Marcos.
+
+**Suma: 1 min** (de 12:30 a 12:31, segundos truncados, hasta este registro). Contra la estimación de 15, por debajo. El despliegue va después de este commit; como toca una pantalla, queda «salida 0, pantallas sin mirar» hasta que Marcos mire el encabezado de los tramos 7 y 8 juntos. Un commit no puede registrar su propio despliegue: se anota en la apertura siguiente.
+
 ---
 
 ## Siguiente paso
