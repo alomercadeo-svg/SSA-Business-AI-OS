@@ -1787,6 +1787,21 @@ export interface Database {
         Args: { p_conversacion: string; p_busqueda: string };
         Returns: boolean;
       };
+      /** F43 (00049). Security invoker: los contactos que pasan la búsqueda y los filtros de la fila. */
+      contactos_filtrados: {
+        Args: { p_workspace: string; p_filtros: Json };
+        Returns: Database["public"]["Tables"]["contacts"]["Row"][];
+      };
+      /** F43 (00049). Security invoker: una página numerada de contactos_filtrados. */
+      contactos_pagina: {
+        Args: { p_workspace: string; p_filtros: Json; p_pagina: number; p_por_pagina: number };
+        Returns: Database["public"]["Tables"]["contacts"]["Row"][];
+      };
+      /** F43 (00049). Security invoker: cuántos pasan contactos_filtrados. */
+      contactos_cantidad: {
+        Args: { p_workspace: string; p_filtros: Json };
+        Returns: number;
+      };
       /** F26 (00031). Entrantes de WhatsApp desde una fecha, y cuántos sin teléfono (`@lid`). */
       contar_mensajes_sin_telefono: {
         Args: { p_workspace: string; p_desde: string };
