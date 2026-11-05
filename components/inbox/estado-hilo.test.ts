@@ -120,3 +120,48 @@ describe("el estado del encabezado es texto y hay un solo botón", () => {
     }
   });
 });
+
+/**
+ * S8, tramo 8: con un nombre largo, el encabezado (alto fijo, h-14) no se
+ * desborda. El nombre se corta en una línea con «…» y queda completo en el
+ * `title`; el grupo del nombre puede achicarse y el del estado no. Miran las
+ * clases, no el dibujo: que el corte se vea bien lo confirma la pantalla.
+ */
+const NOMBRE_LARGO = "The Consultour ® Consultorías turísticas de prueba con un nombre muy largo";
+const hiloLargo = () =>
+  sinSeparadores(
+    renderToStaticMarkup(
+      createElement(MessageThread, {
+        conversation: { ...conversacion("open"), contacts: { id: "ct1", display_name: NOMBRE_LARGO, avatar_url: null } } as never,
+        messages: [],
+      }),
+    ),
+  );
+const clasesDe = (m: RegExpMatchArray | null) => (m ? m[1].split(/\s+/) : []);
+
+describe("el encabezado con un nombre largo no se desborda", () => {
+  it("el nombre se corta en una línea y queda completo en el title", () => {
+    const h = hiloLargo();
+    const m = h.match(new RegExp(`<a [^>]*class="([^"]*)"[^>]*>${NOMBRE_LARGO}</a>`));
+    expect(m, "el enlace del nombre").not.toBeNull();
+    expect(clasesDe(m)).toContain("truncate");
+    expect(m![0]).toContain(`title="${NOMBRE_LARGO}"`);
+  });
+
+  it("el grupo del nombre puede achicarse", () => {
+    const h = hiloLargo();
+    const grupo = h.match(/<div class="flex h-14[^"]*"><div class="([^"]*)">/);
+    expect(grupo, "el grupo de la izquierda").not.toBeNull();
+    expect(clasesDe(grupo)).toContain("min-w-0");
+    const contenedor = h.match(new RegExp(`<div class="([^"]*)"><a [^>]*>${NOMBRE_LARGO}</a>`));
+    expect(contenedor, "el contenedor del nombre").not.toBeNull();
+    expect(clasesDe(contenedor)).toContain("min-w-0");
+  });
+
+  it("el grupo del estado no se achica", () => {
+    const h = hiloLargo();
+    const grupo = h.match(/<div class="([^"]*)"><div class="flex items-center gap-2"><span[^>]*>Abierta</);
+    expect(grupo, "el grupo de la derecha").not.toBeNull();
+    expect(clasesDe(grupo)).toContain("shrink-0");
+  });
+});

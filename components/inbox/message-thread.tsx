@@ -401,9 +401,10 @@ export function MessageThread({
   return (
     <div className="flex h-full flex-col bg-background">
       {/* Header */}
-      <div className="flex h-14 items-center justify-between border-b border-border px-4">
-        <div className="flex items-center gap-3">
-          <div className="relative">
+      {/* Alto fijo: el nombre se corta en una línea y el estado no se achica (S8, tramo 8). */}
+      <div className="flex h-14 items-center justify-between gap-3 border-b border-border px-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="relative shrink-0">
             {conversation.contacts?.avatar_url ? (
               <img
                 src={conversation.contacts.avatar_url}
@@ -423,19 +424,25 @@ export function MessageThread({
               />
             </div>
           </div>
-          <div>
+          <div className="min-w-0">
             {/* F35, criterio 31: el nombre abre la ficha del contacto. */}
             {conversation.contact_id ? (
-              <Link href={enlaceAFicha(conversation.contact_id, volverALaBandeja)} className="text-sm font-medium hover:underline">
+              <Link
+                href={enlaceAFicha(conversation.contact_id, volverALaBandeja)}
+                title={conversation.contacts?.display_name ?? "Sin nombre"}
+                className="block truncate text-sm font-medium hover:underline"
+              >
                 {conversation.contacts?.display_name ?? "Sin nombre"}
               </Link>
             ) : (
-              <p className="text-sm font-medium">{conversation.contacts?.display_name ?? "Sin nombre"}</p>
+              <p title={conversation.contacts?.display_name ?? "Sin nombre"} className="truncate text-sm font-medium">
+                {conversation.contacts?.display_name ?? "Sin nombre"}
+              </p>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {conversation.is_automation_paused && (
             <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-medium text-orange-700">
               Automatización en pausa
