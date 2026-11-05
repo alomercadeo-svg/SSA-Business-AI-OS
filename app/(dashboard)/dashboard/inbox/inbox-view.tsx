@@ -67,6 +67,9 @@ export function InboxView({
   // vuelve a pedir con la pestaña, la búsqueda y los filtros de ahora, así la
   // conversación entra o sale del filtro sin recargar (F35, tramo C de S8).
   const [listaDesactualizada, setListaDesactualizada] = useState(0);
+  // Sube cuando el pedido del seguimiento al cerrar (tramo D) guarda una
+  // fecha: el panel se vuelve a montar y lee la nueva.
+  const [versionDelPanel, setVersionDelPanel] = useState(0);
 
   // Imports conversations that already exist in Zernio (e.g. from before the
   // webhook was registered), then refreshes the server-rendered list.
@@ -273,6 +276,11 @@ export function InboxView({
               hayAnteriores={hayAnteriores}
               historial={historial}
               volverALaBandeja={volver}
+              zona={zonaDelNegocio}
+              alGuardarSeguimiento={() => {
+                setVersionDelPanel((n) => n + 1);
+                setListaDesactualizada((n) => n + 1);
+              }}
             />
           )}
         </div>
@@ -281,6 +289,7 @@ export function InboxView({
       {/* Right panel: Contact info */}
       {showContactPanel && selected?.contact_id && (
         <ContactPanel
+          key={`${selected.contact_id}-${versionDelPanel}`}
           contactId={selected.contact_id}
           workspaceId={workspaceId}
           zona={zonaDelNegocio}

@@ -9,8 +9,10 @@ import {
   avisoDeSeguimiento,
   guardarSeguimiento,
   hoyEnZona,
+  sumarDias,
   type EleccionDeSeguimiento,
 } from "@/lib/seguimiento";
+import { PEDIDO_DE_SEGUIMIENTO } from "@/lib/estado-conversacion";
 
 /**
  * El selector de próximo seguimiento (F35, tramo C de S8): «En 3 días», «En 7
@@ -28,12 +30,15 @@ export function SelectorDeSeguimiento({
   fecha: fechaInicial,
   zona,
   alGuardar,
+  desdeManana = false,
 }: {
   contactoId: string;
   fecha: string | null;
   /** `workspaces.zona_horaria`: la misma zona con la que el servidor cuenta los días. */
   zona: string;
   alGuardar?: (fecha: string | null) => void;
+  /** En el bloque de «Cerrar» (tramo D), «Otra fecha» empieza mañana: con hoy, la ruta volvería a pedir. */
+  desdeManana?: boolean;
 }) {
   const [fecha, setFecha] = useState(fechaInicial);
   const [otraAbierta, setOtraAbierta] = useState(false);
@@ -53,7 +58,7 @@ export function SelectorDeSeguimiento({
 
   let minimo = "";
   try {
-    minimo = hoyEnZona(new Date(), zona);
+    minimo = minimoDelSelector(new Date(), zona, desdeManana);
   } catch {
     minimo = "";
   }
@@ -77,7 +82,7 @@ export function SelectorDeSeguimiento({
 
   function guardarOtra() {
     if (!valorOtra) return avisar("Elegí una fecha", true);
-    if (minimo && valorOtra < minimo) return avisar("Elegí una fecha de hoy en adelante.", true);
+    if (minimo && valorOtra < minimo) return avisar(desdeManana ? "Elegí una fecha de mañana en adelante." : "Elegí una fecha de hoy en adelante.", true);
     void elegir({ fecha: valorOtra });
   }
 
@@ -150,7 +155,11 @@ export function VistaDelSelector({
             value={valorOtra}
             onChange={(e) => onCambiarOtra?.(e.target.value)}
             aria-label="Fecha de seguimiento"
-            className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+            // El ícono del calendario lo dibuja el navegador según `color-scheme`:
+            // sin declararlo, en modo nocturno quedaba oscuro sobre fondo oscuro
+            // (visto por Marcos el 04/11/2026). La app pone el modo con la clase
+            // `dark` en <html> (app/layout.tsx).
+            className="rounded-md border border-input bg-background px-2 py-1 text-sm [color-scheme:light] [.dark_&]:[color-scheme:dark]"
           />
           <button
             type="button"
@@ -167,6 +176,43 @@ export function VistaDelSelector({
           {aviso.texto}
         </p>
       )}
+    </div>
+  );
+}
+
+
+/** El primer día que ofrece «Otra fecha»: hoy en la zona del negocio, o mañana en el bloque de cerrar. */
+export function minimoDelSelector(ahora: Date, zona: string, desdeManana: boolean): string {
+  const hoy = hoyEnZona(ahora, zona);
+  return desdeManana ? sumarDias(hoy, 1) : hoy;
+}
+
+/**
+ * El pedido del próximo seguimiento al cerrar (F35, tramo D de S8): debajo del
+ * encabezado del hilo, sin abrir ninguna ventana. Elegir una opción (también
+ * «Quitar») guarda el seguimiento y `onElegido` vuelve a pedir el cierre;
+ * «Cancelar» no cambia nada.
+ */
+export function BloqueDePedido({
+  contactoId,
+  fecha,
+  zona,
+  onElegido,
+  onCancelar,
+}: {
+  contactoId: string;
+  fecha: string | null;
+  zona: string;
+  onElegido: (fecha: string | null) => void;
+  onCancelar: () => void;
+}) {
+  return (
+    <div className="border-b border-border bg-amber-50 px-4 py-3 dark:bg-amber-950/40">
+      <p className="mb-2 text-sm font-medium">{PEDIDO_DE_SEGUIMIENTO}</p>
+      <SelectorDeSeguimiento contactoId={contactoId} fecha={fecha} zona={zona} alGuardar={onElegido} desdeManana />
+      <button type="button" onClick={onCancelar} className="mt-2 rounded-md border border-border px-2.5 py-1 text-xs font-medium hover:bg-muted">
+        Cancelar
+      </button>
     </div>
   );
 }

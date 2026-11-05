@@ -8,9 +8,9 @@ import Link from "next/link";
 import { enlaceAFicha } from "@/lib/ficha";
 import { Send, Paperclip, Bot, User, MessageSquare, Loader2, History } from "lucide-react";
 import { VistaDelEstado } from "@/components/inbox/estado-conversacion";
+import { BloqueDePedido } from "@/components/inbox/selector-seguimiento";
 import {
   AVISO_DE_FALLA_DE_ESTADO,
-  PEDIDO_DE_SEGUIMIENTO,
   avisoDeCambio,
   cambiarEstadoDeConversacion,
   type EstadoDeConversacion,
@@ -157,6 +157,8 @@ export function MessageThread({
   hayAnteriores = false,
   historial = null,
   volverALaBandeja = null,
+  zona = "America/Costa_Rica",
+  alGuardarSeguimiento,
 }: {
   conversation: Conversation | null;
   messages: Message[];
@@ -170,6 +172,10 @@ export function MessageThread({
   historial?: EstadoDelHistorial | null;
   /** La dirección de la bandeja, para que la ficha vuelva a ella como estaba (tramo C de S8). */
   volverALaBandeja?: string | null;
+  /** `workspaces.zona_horaria`, para el selector del pedido al cerrar (tramo D). */
+  zona?: string;
+  /** Al guardar el seguimiento desde el pedido al cerrar: el panel y la lista se vuelven a pedir. */
+  alGuardarSeguimiento?: () => void;
 }) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   // F35: los anteriores a los últimos 200, hasta el primero guardado.
@@ -183,6 +189,8 @@ export function MessageThread({
   const [sending, setSending] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState<string | null>(null);
   const [avisoDeEstado, setAvisoDeEstado] = useState<{ texto: string; error: boolean } | null>(null);
+  // F35, tramo D: el seguimiento era de hoy o venció, y la ruta pide el próximo antes de cerrar.
+  const [pedido, setPedido] = useState<{ fecha: string | null } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -194,6 +202,7 @@ export function MessageThread({
   useEffect(() => {
     setEstadoActual(conversation?.status ?? "open");
     setAvisoDeEstado(null);
+    setPedido(null);
   }, [conversation?.id, conversation?.status]);
 
   const updateConversationStatus = useCallback(async (status: EstadoDeConversacion) => {
@@ -202,10 +211,13 @@ export function MessageThread({
     const r = await cambiarEstadoDeConversacion(conversation.id, status);
     setStatusUpdating(null);
     if (r.tipo === "cambiado") {
+      setPedido(null);
       setEstadoActual(r.estado);
       setAvisoDeEstado({ texto: avisoDeCambio(r.estado), error: false });
     } else if (r.tipo === "pide_seguimiento") {
-      setAvisoDeEstado({ texto: PEDIDO_DE_SEGUIMIENTO, error: true });
+      // No se cierra todavía: debajo del encabezado aparece el selector.
+      setAvisoDeEstado(null);
+      setPedido({ fecha: r.fecha });
     } else {
       // Queda como estaba: no se tocó `estadoActual`.
       setAvisoDeEstado({ texto: AVISO_DE_FALLA_DE_ESTADO, error: true });
@@ -437,6 +449,22 @@ export function MessageThread({
           />
         </div>
       </div>
+
+      {pedido && conversation.contact_id && (
+        <BloqueDePedido
+          contactoId={conversation.contact_id}
+          fecha={pedido.fecha}
+          zona={zona}
+          // Elegir una opción guarda el seguimiento; después se vuelve a pedir
+          // el cierre. En este bloque «Otra fecha» empieza mañana (desdeManana).
+          onElegido={() => {
+            alGuardarSeguimiento?.();
+            setPedido(null);
+            void updateConversationStatus("closed");
+          }}
+          onCancelar={() => setPedido(null)}
+        />
+      )}
 
       {/* Messages */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4">
