@@ -1155,7 +1155,7 @@ El argumento decisivo es la asimetría del error: **dejar afuera es irreversible
 
 - [ ] Campos `window_expires_at` y `window_source` agregados a `conversations`
 - [ ] `window_expires_at` se recalcula con cada mensaje entrante: 24 horas desde el mensaje
-- [ ] En la bandeja, cada conversación muestra un indicador del estado de la ventana: abierta con el tiempo restante, o cerrada
+- [ ] En la lista de la bandeja, una conversación de Instagram muestra «Ventana cerrada» (prototipo-fase1.html:456 y :607) o, cuando faltan menos de 2 horas, el aviso de que vence («Vence en 1 h 20 min», o «Vence en 45 min» con menos de una hora; prototipo-fase1.html:458 y :608), y nada con más de 2 horas. En el encabezado del hilo muestra siempre el estado: «Ventana abierta · quedan N h» (prototipo-fase1.html:459 y :667), el aviso de que vence, o «Ventana cerrada» (reescrito el 05/11/2026, decidido por Marcos)
 - [ ] La ficha del contacto muestra cada conversación de Instagram con su propio estado de ventana (devuelto el 23/09/2026, auditoría #56b y #64b)
 - [ ] Con la ventana abierta, el campo de respuesta acepta texto libre normalmente
 - [ ] Con la ventana cerrada, el campo se deshabilita y el mensaje dice «Pasaron 24 horas desde el último mensaje: escribile desde la app de Instagram». Motivo: la ventana limita los envíos por la API, no los que se hacen desde la app, y lo que se escribe desde la app llega a la bandeja por el echo (medido el 21/09/2026).

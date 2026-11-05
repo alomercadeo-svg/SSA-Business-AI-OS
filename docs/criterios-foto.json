@@ -2481,7 +2481,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F40: Ventana de conversación de Instagram"
     ],
-    "texto": "- [ ] En la bandeja, cada conversación muestra un indicador del estado de la ventana: abierta con el tiempo restante, o cerrada"
+    "texto": "- [ ] En la lista de la bandeja, una conversación de Instagram muestra «Ventana cerrada» (prototipo-fase1.html:456 y :607) o, cuando faltan menos de 2 horas, el aviso de que vence («Vence en 1 h 20 min», o «Vence en 45 min» con menos de una hora; prototipo-fase1.html:458 y :608), y nada con más de 2 horas. En el encabezado del hilo muestra siempre el estado: «Ventana abierta · quedan N h» (prototipo-fase1.html:459 y :667), el aviso de que vence, o «Ventana cerrada» (reescrito el 05/11/2026, decidido por Marcos)"
   },
   {
     "seccion": "F40: Ventana de conversación de Instagram",
