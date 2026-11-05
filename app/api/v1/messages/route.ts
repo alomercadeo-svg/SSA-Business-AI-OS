@@ -6,6 +6,7 @@ import { messagePreview } from "@/lib/message-preview";
 import { registrarFalloDeZernio } from "@/lib/integraciones-estado";
 import { guardarEnvioDeLaBandeja } from "@/lib/mensajes-guardado";
 import { BUCKET_DE_ADJUNTOS } from "@/lib/adjuntos";
+import { AVISO_VENTANA_CERRADA, esRechazoPorVentana, reglaDeVentana } from "@/lib/ventana-instagram";
 
 /** Cuántos mensajes trae el hilo de una vez: los más recientes. */
 export const MENSAJES_POR_HILO = 200;
@@ -171,7 +172,7 @@ export async function POST(request: NextRequest) {
   // Get conversation with channel info
   const { data: conversation } = await supabase
     .from("conversations")
-    .select("*, channels(late_account_id)")
+    .select("*, channels(late_account_id, provider)")
     .eq("id", conversationId)
     .maybeSingle();
 
@@ -186,6 +187,16 @@ export async function POST(request: NextRequest) {
       },
       { status: 403 }
     );
+  }
+
+  // F40: la ventana de Instagram se valida ANTES de intentar el envío. Con la
+  // ventana cerrada (o sin ningún mensaje del lead), 409 y no se llama al
+  // proveedor. WhatsApp por Evolution no tiene ventana (lib/ventana-instagram.ts).
+  const proveedor = (conversation.channels as { provider?: string } | null)?.provider;
+  const regla = reglaDeVentana(proveedor, conversation.platform);
+  const vence = conversation.window_expires_at ? new Date(conversation.window_expires_at).getTime() : NaN;
+  if (regla && !(Number.isFinite(vence) && vence > Date.now())) {
+    return NextResponse.json({ code: "ventana_cerrada", error: AVISO_VENTANA_CERRADA }, { status: 409 });
   }
 
   if (!conversation.late_conversation_id) {
@@ -283,13 +294,15 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Failed to send message via Zernio API:", error);
+    // F40: un rechazo por la ventana vencida (la ventana se cerró entre la
+    // comprobación y el envío) es un 409 claro, y no marca la integración.
+    if (esRechazoPorVentana(error)) {
+      return NextResponse.json({ code: "ventana_cerrada", error: AVISO_VENTANA_CERRADA }, { status: 409 });
+    }
     // F24: si fue por credenciales o conexión, la pantalla de integraciones se
     // entera. Con el cliente de servicio, porque el que responde puede ser un
     // Member, que no puede escribir en integration_configs.
     await registrarFalloDeZernio(await createServiceClient(), conversation.workspace_id, error);
-    return NextResponse.json(
-      { error: `Failed to send message: ${error}` },
-      { status: 500 }
-    );
+    return NextResponse.json({ code: "proveedor", error: "No se envió: Instagram rechazó el mensaje." }, { status: 502 });
   }
 }

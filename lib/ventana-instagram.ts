@@ -119,3 +119,29 @@ export function textoDeVentana(e: EstadoDeVentana | null, lugar: "lista" | "enca
 /** El aviso cuando el envío se rechaza por la ventana (D5, prototipo-fase1.html:1015). */
 export const AVISO_VENTANA_CERRADA =
   "No se envió: la ventana de 24 horas se cerró mientras escribías. Escribile desde la app de Instagram.";
+
+/**
+ * Si un rechazo del proveedor es por la ventana vencida.
+ *
+ * **No verificado.** No hay ninguna muestra real de cómo llega por Zernio el
+ * rechazo de Meta por ventana vencida. Se busca el código de Meta para «fuera
+ * de la ventana permitida» (subcódigo 2018278, mensaje «outside of allowed
+ * window»): es suposición, de lo que se sabe de la API de Meta, no de su
+ * documentación ni de una respuesta real. Lo que protege de verdad es la
+ * comprobación previa de la ruta. Importa por otra cosa: un rechazo por
+ * ventana no tiene que marcar la clave de Zernio como caída
+ * (lib/integraciones-estado.ts:54-55 y :71 lo harían con un 401 o un 403).
+ */
+export function esRechazoPorVentana(e: unknown): boolean {
+  const partes: string[] = [String(e)];
+  const o = e as { message?: unknown; body?: unknown; error?: unknown } | null;
+  for (const v of [o?.message, o?.body, o?.error]) {
+    if (v === undefined || v === null) continue;
+    try {
+      partes.push(typeof v === "string" ? v : JSON.stringify(v));
+    } catch {
+      /* no se puede leer: no es de ventana */
+    }
+  }
+  return /2018278|outside of (the )?allowed window/i.test(partes.join(" "));
+}

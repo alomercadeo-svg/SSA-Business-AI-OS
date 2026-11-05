@@ -25,6 +25,8 @@ const h = vi.hoisted(() => ({
   /** F35: el filtro del cursor y el orden que pidió la ruta. */
   or: null as string | null,
   ordenes: [] as Array<[string, unknown]>,
+  /** F40: campos de la conversación que cambia cada test (plataforma, canal, ventana). */
+  conv: {} as Record<string, unknown>,
 }));
 
 function supabaseFalso(rol: "usuario" | "servicio" = "usuario") {
@@ -69,6 +71,7 @@ function supabaseFalso(rol: "usuario" | "servicio" = "usuario") {
                   late_conversation_id: "zc-1",
                   channels: { late_account_id: "acc-1", is_active: h.canalActivo },
                   historial_estado: h.historialEstado,
+                  ...h.conv,
                 },
               }
             : { data: { platform_sender_id: "lead-ig-1" } },
@@ -91,7 +94,8 @@ vi.mock("@/lib/vault", () => ({ getZernioApiKey: async () => "zk" }));
 vi.mock("@/lib/zernio-client", () => ({
   createZernioClient: () => ({ messages: { sendInboxMessage: h.sendInboxMessage } }),
 }));
-vi.mock("@/lib/integraciones-estado", () => ({ registrarFalloDeZernio: vi.fn() }));
+const registrarFalloDeZernio = vi.fn();
+vi.mock("@/lib/integraciones-estado", () => ({ registrarFalloDeZernio: (...a: unknown[]) => registrarFalloDeZernio(...a) }));
 
 const { GET, POST, MENSAJES_POR_HILO } = await import("./route");
 
@@ -103,6 +107,8 @@ const pedido = (cuerpo: unknown) =>
   }) as unknown as NextRequest;
 
 beforeEach(() => {
+  h.conv = {};
+  registrarFalloDeZernio.mockReset();
   h.upserts.length = 0;
   h.sendInboxMessage.mockReset();
   h.sendInboxMessage.mockResolvedValue({ data: { data: { messageId: "pmid-enviado" } } });
@@ -132,7 +138,7 @@ describe("POST /api/v1/messages guarda lo enviado (F27)", () => {
   it("si Zernio rechaza el envío, no guarda nada", async () => {
     h.sendInboxMessage.mockRejectedValue(new Error("403"));
     const res = await POST(pedido({ conversationId: "conv-1", text: "hola" }));
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(502);
     expect(h.upserts).toEqual([]);
   });
 });
@@ -315,5 +321,66 @@ describe("GET /api/v1/messages: los anteriores (F35)", () => {
     expect((await leer(`&antesAt=ayer&antesId=${ID}`)).status).toBe(400);
     expect((await leer("&antesAt=2026-10-02T10:00:00Z&antesId=x),id.gt.(0")).status).toBe(400);
     expect(h.or).toBeNull();
+  });
+});
+
+describe("POST /api/v1/messages: la ventana de Instagram (F40)", () => {
+  const instagram = (vence: string | null) => ({
+    platform: "instagram",
+    window_expires_at: vence,
+    channels: { late_account_id: "acc-1", is_active: true, provider: "zernio" },
+  });
+  const enUnaHora = () => new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const haceUnaHora = () => new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+  it("con la ventana cerrada: 409 ventana_cerrada con el aviso, sin llamar al proveedor y sin guardar nada", async () => {
+    h.conv = instagram(haceUnaHora());
+    const res = await POST(pedido({ conversationId: "conv-1", text: "hola" }));
+    expect(res.status).toBe(409);
+    await expect(res.json()).resolves.toEqual({
+      code: "ventana_cerrada",
+      error: "No se envió: la ventana de 24 horas se cerró mientras escribías. Escribile desde la app de Instagram.",
+    });
+    expect(h.sendInboxMessage).not.toHaveBeenCalled();
+    expect(h.upserts).toEqual([]);
+  });
+
+  it("sin ningún mensaje del lead (ventana en null): 409, sin llamar al proveedor", async () => {
+    h.conv = instagram(null);
+    const res = await POST(pedido({ conversationId: "conv-1", text: "hola" }));
+    expect(res.status).toBe(409);
+    expect(h.sendInboxMessage).not.toHaveBeenCalled();
+  });
+
+  it("control positivo: con la ventana abierta, se envía", async () => {
+    h.conv = instagram(enUnaHora());
+    const res = await POST(pedido({ conversationId: "conv-1", text: "hola" }));
+    expect(res.status).toBe(201);
+    expect(h.sendInboxMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("WhatsApp por Evolution no tiene ventana: no se corta por eso", async () => {
+    h.conv = { platform: "whatsapp", window_expires_at: null, channels: { late_account_id: "acc-1", is_active: true, provider: "evolution" } };
+    const res = await POST(pedido({ conversationId: "conv-1", text: "hola" }));
+    expect(res.status).not.toBe(409);
+  });
+
+  it("si el proveedor lo rechaza por la ventana: 409 ventana_cerrada, y la integración NO se marca como caída", async () => {
+    h.conv = instagram(enUnaHora());
+    h.sendInboxMessage.mockRejectedValue(Object.assign(new Error("(#10) This message is sent outside of allowed window."), { statusCode: 403 }));
+    const res = await POST(pedido({ conversationId: "conv-1", text: "hola" }));
+    expect(res.status).toBe(409);
+    await expect(res.json()).resolves.toMatchObject({ code: "ventana_cerrada" });
+    expect(registrarFalloDeZernio).not.toHaveBeenCalled();
+    expect(h.upserts).toEqual([]);
+  });
+
+  it("cualquier otro rechazo: 502 con un texto en castellano, y la integración se entera", async () => {
+    h.conv = instagram(enUnaHora());
+    h.sendInboxMessage.mockRejectedValue(Object.assign(new Error("Unauthorized"), { statusCode: 401 }));
+    const res = await POST(pedido({ conversationId: "conv-1", text: "hola" }));
+    expect(res.status).toBe(502);
+    await expect(res.json()).resolves.toEqual({ code: "proveedor", error: "No se envió: Instagram rechazó el mensaje." });
+    expect(registrarFalloDeZernio).toHaveBeenCalledTimes(1);
   });
 });
