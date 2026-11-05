@@ -2332,6 +2332,24 @@ Fuera de la medición: es la apertura, no es S9. `commits-sin-subir.mjs`, «Sin 
 
 Tildado por Marcos el 05/11/2026: «Una conversación cerrada se reabre sola…». F35, 27 de 31. El avance del bloque sigue en 16 de 28.
 
+### S8, tramo 7 (retrabajo de F35): el estado del encabezado del hilo como texto
+
+**05/11/2026, desde las 12:07** (hora de Costa Rica, la del mensaje de aprobación de Marcos; `TZ=America/Costa_Rica date`), **revisión liviana**: solo un componente de pantalla y su test; no toca la base, la seguridad por filas, secretos, servicios externos, receptores, tareas, Realtime ni rutas. Es la tarea chica pendiente del 04/11 (en «S8, tramo 5», arriba). El plan fue antes de la hora de inicio, fuera de la medición. Estimación: 20 minutos.
+
+**Decisión de pantalla del chat de Marcos, del 05/11/2026, que Marcos puede vetar:** el estado («Abierta» o «Cerrada») queda como texto sin recuadro, aunque el encabezado del hilo del prototipo (`docs/diseno/prototipo-fase1.html:667-669`) no muestra el estado: solo el botón `close-conv`. Motivo: ya construido y decidido el 04/11; el estado se lee de un vistazo y el botón dice lo que se puede hacer; el plano no lo pide ni lo prohíbe, y el `CLAUDE.md` dice que el prototipo no se copia como estructura.
+
+**El cambio**, `acf27ec`: en `components/inbox/estado-conversacion.tsx`, el `<span>` del estado pierde `rounded-full`, `px-2 py-0.5` y el fondo (`bg-green-100` o `bg-muted`), y queda en `text-xs font-medium`, verde si está abierta (`text-green-700`, con `dark:text-green-400`) y gris si está cerrada. El botón, los textos y el comportamiento de «Cerrar» y «Reabrir» (el pedido del próximo seguimiento, el 409) no cambian. La etiqueta «Automatización en pausa» (`message-thread.tsx:440`) tiene recuadro y se dejó: no es el estado.
+
+| Comprobación nueva (`components/inbox/estado-hilo.test.ts`) | En rojo |
+|---|---|
+| el estado no tiene recuadro: ni redondeo, ni fondo, ni relleno | vista en rojo, por su motivo: «Abierta: expected 'rounded-full px-2 py-0.5 text-[10px] …' not to match /(^\|\s)(rounded\|bg-\|px-\|py-\|border)/» |
+| el estado no es un botón | no vista en rojo: ya era un `<span>` |
+| hay un solo botón, «Cerrar» o «Reabrir», según corresponda | no vista en rojo: ya era así |
+
+**Antes de commitear:** los tests del encabezado y las dos guardias de frontera (`app/frontera-cliente.test.ts`, `app/frontera-servidor.test.ts`), 15 de 15, salida 0; `npm test`, **1217 de 1217, salida 0**; `npm run typecheck`, **salida 0**; `npm run lint`, **salida 0**, 0 errores y 45 avisos, los mismos de antes. Cada salida, leída con `echo $?`, sin tuberías. **No se miró en el navegador:** la bandeja necesita sesión y datos de producción; la mira Marcos.
+
+**Suma: 1 min** (de 12:07 a 12:08, segundos truncados, hasta este registro). Contra la estimación de 20, por debajo. El despliegue va después de este commit, con `verificar-despliegue.mjs`, y sube también los seis commits de la mañana; como toca una pantalla, queda «salida 0, pantallas sin mirar» hasta que Marcos lo confirme. Un commit no puede registrar su propio despliegue: se anota en la apertura siguiente.
+
 ---
 
 ## Siguiente paso
