@@ -2197,6 +2197,20 @@ En su chat de revisión. Fuera de la medición. Cada una está marcada `[x]` en 
 
 **Excepción sobre un contacto real, del 04/11/2026: @theconsultour** (decidida por Marcos el 04/11): queda como contacto para siempre en el espacio real, para el control positivo de «nace cerrada». La lectura previa (que no es contacto en ningún canal del espacio) y la prueba quedan pendientes de su OK y de su prueba en pantalla.
 
+**Tres filas nuevas del historial de «Marcos Pitti music»** (excepción sobre un contacto real, la misma de «S8, tramo 4»): las pruebas de Marcos de la zona horaria, después de las 18:00. Leídas en la base a las 18:42:20 de Costa Rica, a pedido de Marcos, por el CLI dentro de `begin transaction read only`; solo ids, la acción, el campo y la hora. Las tres son de `f2747f9b-6801-41be-9311-356e46159e49`, `contacto.editado`:
+- `efbb6fb3-6d8c-4305-baba-a9334b3fc23f`, a las 18:18:18: `next_followup_date` de vacío a `2026-11-04` («Otra fecha» con hoy).
+- `11084c81-7449-4d52-a802-23080446bc28`, a las 18:19:41: de `2026-11-04` a `2026-11-07` («En 3 días», contado desde el 04/11 aunque en UTC ya era el 05/11).
+- `32758363-5f82-4cf3-b6c6-ef077d0c9ed3`, a las 18:20:25: de `2026-11-07` a vacío («Quitar»).
+
+Quedan como están: el historial no se borra nunca.
+
+### Las tildes de la zona horaria, decididas por Marcos el 04/11/2026
+
+En su chat de revisión, después del tramo D. Fuera de la medición. **Condición de Marcos, cumplida:** la fila de «Otra fecha» con el 04/11 (18:18:18) y la de «En 3 días» con el 07/11 (18:19:41) son posteriores a las 18:00:00 de Costa Rica. Cada una está marcada `[x]` en el plano y registrada como reescrita en `docs/criterios-bajas.json`, con su motivo. Foto de criterios regenerada: 344 líneas, 2 apariciones nuevas. **F35 queda en 22 de 31** (20 de los tramos A, B y C, y estas 2) **y no completa;** lo que se tilde del tramo D se suma después.
+
+- **«Los días se cuentan desde hoy en la zona horaria del negocio»** (el selector): con datos reales, después de las 18:00 de Costa Rica, cuando en UTC ya era el 05/11, «En 3 días» dio 7 nov y no 8 nov (`11084c81`, 18:19:41). Además, Vitest con el reloj fijo y `verify-seguimiento-bandeja.mjs`, el paso en Kiritimati (16:09:57).
+- **«"Hoy" se calcula en la zona horaria del negocio»** (el filtro): con datos reales, después de las 18:00 de Costa Rica, «Vence hoy» mostró la conversación con fecha 04/11 (`efbb6fb3`, 18:18:18). Además, `verify-filtros-bandeja.mjs`, el control de bordes (13:58:29), y `verify-seguimiento-bandeja.mjs` en Kiritimati (16:09:57).
+
 **Para mirar, del 04/11/2026:** **un `git stash list` se coló otra vez hoy (es la segunda)**, en el comando que corrió los tests de Evolution de este tramo, cuando la regla era no usar `git stash` ni `git stash list`. Es de solo lectura: no se guardó ni se trajo nada. Y el mensaje de `653212d` dice «5 de 5» tests del hilo en rojo, cuando son 1 por su motivo y 4 de carga (arriba).
 
 ---

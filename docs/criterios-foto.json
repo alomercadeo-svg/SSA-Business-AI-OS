@@ -2004,7 +2004,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] «Hoy» se calcula en la zona horaria del negocio (America/Costa_Rica), no en UTC."
+    "texto": "- [x] «Hoy» se calcula en la zona horaria del negocio (America/Costa_Rica), no en UTC."
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2058,7 +2058,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Los días se cuentan desde hoy en la zona horaria del negocio (America/Costa_Rica)."
+    "texto": "- [x] Los días se cuentan desde hoy en la zona horaria del negocio (America/Costa_Rica)."
   },
   {
     "seccion": "F35: Bandeja y filtros",

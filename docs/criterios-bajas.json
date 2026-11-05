@@ -1082,5 +1082,19 @@
     "nuevo": "- [x] «Vence hoy»: fecha igual a hoy. «Vence esta semana»: desde hoy hasta el domingo de esta semana, inclusive; no incluye los vencidos. «Vencido»: fecha anterior a hoy. «Rango de fechas»: entre dos fechas elegidas, inclusive. Los contactos sin fecha no aparecen en ninguna opción. La semana va de lunes a domingo (supuesto ajustable).",
     "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Visto por Marcos con datos reales el 04/11/2026: «Vence hoy», «Vence esta semana» y «Rango de fechas», y las cuatro sin la conversación después de «Quitar»; «los contactos sin fecha no aparecen en ninguna opción», visto después de «Quitar». Nota: «Vencido» con datos reales solo se vio sin coincidencias, porque no hay contactos con fecha pasada y «Otra fecha» no las ofrece; con presencia, en verify-filtros-bandeja.mjs (04/11/2026 13:58:29, pasos 7 a 10) y verify-seguimiento-bandeja.mjs (04/11/2026 16:09:57).",
     "fecha": "2026-11-04"
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-04",
+    "texto": "- [ ] Los días se cuentan desde hoy en la zona horaria del negocio (America/Costa_Rica).",
+    "nuevo": "- [x] Los días se cuentan desde hoy en la zona horaria del negocio (America/Costa_Rica).",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Con datos reales, después de las 18:00 de Costa Rica, cuando en UTC ya era el 05/11: «En 3 días» desde el panel de la bandeja dio 7 nov y no 8 nov (Marcos; audit_log 11084c81-7449-4d52-a802-23080446bc28, contacto.editado de «Marcos Pitti music», next_followup_date de 2026-11-04 a 2026-11-07, 04/11/2026 18:19:41 de Costa Rica). Además, Vitest con el reloj fijo (lib/seguimiento.test.ts) y verify-seguimiento-bandeja.mjs, el paso en Kiritimati (04/11/2026 16:09:57; y 18:39:13, 51 de 51)."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-04",
+    "texto": "- [ ] «Hoy» se calcula en la zona horaria del negocio (America/Costa_Rica), no en UTC.",
+    "nuevo": "- [x] «Hoy» se calcula en la zona horaria del negocio (America/Costa_Rica), no en UTC.",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Con datos reales, después de las 18:00 de Costa Rica, cuando en UTC ya era el 05/11: «Vence hoy» mostró la conversación con fecha 04/11 (Marcos; audit_log efbb6fb3-6d8c-4305-baba-a9334b3fc23f, «Otra fecha», contacto.editado de «Marcos Pitti music», next_followup_date de vacío a 2026-11-04, 04/11/2026 18:18:18 de Costa Rica). Además, verify-filtros-bandeja.mjs, el control de bordes (04/11/2026 13:58:29; y 18:39:55, 135 de 135), y verify-seguimiento-bandeja.mjs en Kiritimati (04/11/2026 16:09:57; y 18:39:13)."
   }
 ]
