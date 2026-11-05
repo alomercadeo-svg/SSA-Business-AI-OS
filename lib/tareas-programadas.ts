@@ -31,6 +31,14 @@
  * `sesion_whatsapp:<espacio>`, y solo avanza si todos los canales del espacio
  * se leyeron y se guardaron (`lib/chequeo-sesion-whatsapp.ts`). La pantalla de
  * canales muestra la fecha de verificación de cada canal (`session_checked_at`).
+ *
+ * LA REAPERTURA EL DÍA DEL SEGUIMIENTO (F35, tramo D de S8) corre por espacio,
+ * después del chequeo de sesión, en su propio `try/catch`, con la misma forma:
+ * llama a `reabrir_por_seguimiento` (00047) con el reloj de la corrida, y si
+ * falla no toca las otras marcas ni cuenta como falla de la corrida. Su marca
+ * es `reapertura_seguimiento:<espacio>`, y Vigilancia de canales la muestra, en
+ * rojo a los 30 minutos: si se muere en silencio, los leads quedan escondidos
+ * en «Cerradas».
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { revisarSilencio, type Auditar, type Notificar } from "./vigilancia-canales";
@@ -49,6 +57,18 @@ export function claveDeVigilancia(workspaceId: string): string {
   return `vigilancia_canales:${workspaceId}`;
 }
 
+/** F35, tramo D: la marca de la reapertura el día del seguimiento. */
+export function claveDeReapertura(workspaceId: string): string {
+  return `reapertura_seguimiento:${workspaceId}`;
+}
+
+/** La de producción: `reabrir_por_seguimiento` (00047), con el reloj de la corrida. Tira si la base falla. */
+export async function reabrirPorSeguimiento(servicio: SupabaseClient, workspaceId: string, ahora: Date): Promise<{ reabiertas: number }> {
+  const { data, error } = await servicio.rpc("reabrir_por_seguimiento", { p_workspace: workspaceId, p_ahora: ahora.toISOString() });
+  if (error) throw new Error(`reabrir_por_seguimiento: ${error.message}`);
+  return { reabiertas: Array.isArray(data) ? data.length : 0 };
+}
+
 export interface Dependencias {
   notificar: Notificar;
   auditar: Auditar;
@@ -62,6 +82,8 @@ export interface Dependencias {
   purgar?: (servicio: SupabaseClient, workspaceId: string, ahora: Date) => Promise<ResumenDePurga>;
   /** F32. Si falta, la corrida no chequea la sesión de WhatsApp. */
   chequearSesion?: (servicio: SupabaseClient, workspaceId: string, ahora: Date) => Promise<ResumenDeSesion>;
+  /** F35, tramo D. Si falta, la corrida no reabre. */
+  reabrir?: (servicio: SupabaseClient, workspaceId: string, ahora: Date) => Promise<{ reabiertas: number }>;
 }
 
 /** Las de producción. Se cargan al usarlas, para que los tests no las arrastren. */
@@ -101,6 +123,7 @@ async function dependenciasReales(): Promise<Dependencias> {
         leerOwnerJid: async (instancia, token) => (evolution.url ? tieneOwnerJid(instancia, token, evolution) : false),
         notificar: (t, o) => notificarSesionWhatsapp(t, { servicio: o.servicio as never }),
       }),
+    reabrir: reabrirPorSeguimiento,
   };
 }
 
@@ -115,6 +138,8 @@ export interface ResumenDeCorrida {
   purgas?: { ok: number; fallo: number };
   /** F32: cuántos espacios chequearon la sesión de WhatsApp, cuántos fallaron. */
   sesiones?: { ok: number; fallo: number };
+  /** F35, tramo D: cuántos espacios corrieron la reapertura, cuántos fallaron. */
+  reaperturas?: { ok: number; fallo: number };
 }
 
 export async function correrTareas({
@@ -130,7 +155,7 @@ export async function correrTareas({
   const { data: espacios, error } = await servicio.from("workspaces").select("id, zona_horaria, horario_atencion");
   if (error) throw new Error(`workspaces: ${error.message}`);
 
-  const resumen: ResumenDeCorrida = { espacios: 0, fallidas: 0, ocupadas: 0, purgas: { ok: 0, fallo: 0 }, sesiones: { ok: 0, fallo: 0 } };
+  const resumen: ResumenDeCorrida = { espacios: 0, fallidas: 0, ocupadas: 0, purgas: { ok: 0, fallo: 0 }, sesiones: { ok: 0, fallo: 0 }, reaperturas: { ok: 0, fallo: 0 } };
   for (const e of (espacios ?? []) as Array<{ id: string; zona_horaria: string; horario_atencion: unknown }>) {
     resumen.espacios += 1;
     const r = await vigilarEspacio(servicio, e, ahora, d);
@@ -142,6 +167,9 @@ export async function correrTareas({
     const s = await correrChequeoDeSesion(servicio, e.id, ahora, d);
     if (s === "ok") resumen.sesiones!.ok += 1;
     if (s === "fallo") resumen.sesiones!.fallo += 1;
+    const ra = await correrReapertura(servicio, e.id, ahora, d);
+    if (ra === "ok") resumen.reaperturas!.ok += 1;
+    if (ra === "fallo") resumen.reaperturas!.fallo += 1;
   }
   resumen.adjuntos = await correrReintentoDeAdjuntos(servicio, ahora, d);
   return resumen;
@@ -219,6 +247,48 @@ async function correrChequeoDeSesion(
     const resumen = await d.chequearSesion(servicio, workspaceId, ahora);
     const errores = resumen.canales.filter((c) => c.error).map((c) => `${c.id}: ${c.error}`);
     if (errores.length > 0) throw new Error(errores.join("; "));
+    const fin = new Date().toISOString();
+    await servicio
+      .from("tareas_estado")
+      .update({ ocupada_hasta: null, ultimo_ok_at: fin, ultimo_error: null, resultado: { ...resumen, terminada_at: fin }, updated_at: fin })
+      .eq("clave", clave);
+    return "ok";
+  } catch (err) {
+    const motivo = err instanceof Error ? err.message : "error";
+    console.error(`[tareas] ${clave}:`, motivo);
+    try {
+      await servicio
+        .from("tareas_estado")
+        .update({ ocupada_hasta: null, ultimo_error: motivo, updated_at: new Date().toISOString() })
+        .eq("clave", clave);
+    } catch {
+      // Ya quedó en el log.
+    }
+    return "fallo";
+  }
+}
+
+/**
+ * F35, tramo D. Nunca tira: un fallo queda en su fila de `tareas_estado` y en
+ * el log, y no cuenta como falla de la corrida.
+ */
+async function correrReapertura(
+  servicio: SupabaseClient,
+  workspaceId: string,
+  ahora: Date,
+  d: Dependencias,
+): Promise<"ok" | "fallo" | "ocupada" | "sin_correr"> {
+  if (!d.reabrir) return "sin_correr";
+  const clave = claveDeReapertura(workspaceId);
+  try {
+    const { data: tomada, error } = await servicio.rpc("reservar_tarea", {
+      p_clave: clave,
+      p_workspace_id: workspaceId,
+      p_minutos: MINUTOS_DE_RESERVA,
+    });
+    if (error) throw new Error(`reservar_tarea: ${error.message}`);
+    if (tomada !== true) return "ocupada";
+    const resumen = await d.reabrir(servicio, workspaceId, ahora);
     const fin = new Date().toISOString();
     await servicio
       .from("tareas_estado")

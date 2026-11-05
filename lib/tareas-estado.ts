@@ -88,3 +88,24 @@ export function textoDeLaPurga(
     error: vencida ? (fila?.ultimo_error ?? null) : null,
   };
 }
+
+/**
+ * F35, tramo D de S8. La marca visible de la reapertura el día del seguimiento
+ * (fila `reapertura_seguimiento:<espacio>`), en rojo a los `MINUTOS_PARA_VENCER`.
+ * Si deja de correr, una conversación cerrada no vuelve a «Abiertas» el día de
+ * su seguimiento, sin que nadie lo vea: esto lo hace visible (§14).
+ */
+export function textoDeLaReapertura(
+  fila: (FilaDeTarea & { ultimo_error?: string | null }) | null | undefined,
+  ahora: Date = new Date(),
+): { titulo: string; vencida: boolean; error: string | null } {
+  const marca = marcaVisible(fila);
+  const vencida = marcaVencida(fila, ahora);
+  return {
+    titulo: marca
+      ? `Última reapertura por seguimiento: ${haceCuanto(marca, ahora)}`
+      : "La reapertura por seguimiento todavía no corrió nunca.",
+    vencida,
+    error: vencida ? (fila?.ultimo_error ?? null) : null,
+  };
+}

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { correrTareas, claveDeVigilancia, CLAVE_DE_REINTENTO_DE_ADJUNTOS } from "./tareas-programadas";
-import { marcaVisible, marcaVencida, textoDeLaPurga } from "./tareas-estado";
+import { correrTareas, claveDeVigilancia, CLAVE_DE_REINTENTO_DE_ADJUNTOS, claveDeReapertura, reabrirPorSeguimiento } from "./tareas-programadas";
+import { marcaVisible, marcaVencida, textoDeLaPurga, textoDeLaReapertura } from "./tareas-estado";
 import { claveDePurga } from "./purga";
 import { claveDeChequeoDeSesion } from "./chequeo-sesion-whatsapp";
 import { HORARIO_POR_DEFECTO } from "./horas-habiles";
@@ -301,5 +301,71 @@ describe("el chequeo de la sesión de WhatsApp (F32)", () => {
     const fila = tareas.get(claveDeChequeoDeSesion("ws-1"))!;
     expect(marcaVisible(fila)).toBeNull();
     expect(fila.ultimo_error).toMatch(/c-wa: channels: x/);
+  });
+});
+
+describe("la reapertura el día del seguimiento (F35, tramo D de S8)", () => {
+  const ESPACIO_2 = { ...ESPACIO, id: "ws-2" };
+
+  it("corre por espacio con el reloj de la corrida, escribe su marca y guarda cuántas reabrió (control positivo)", async () => {
+    const { servicio, tareas } = baseFalsa([ESPACIO]);
+    const ahora = new Date("2026-11-05T14:00:00Z");
+    const reabrir = vi.fn(async () => ({ reabiertas: 2 }));
+    const r = await correrTareas({ servicio: servicio as never, ahora, deps: { ...deps, reabrir } as never });
+    expect(reabrir).toHaveBeenCalledWith(servicio, "ws-1", ahora);
+    expect(r.reaperturas).toEqual({ ok: 1, fallo: 0 });
+    const fila = tareas.get(claveDeReapertura("ws-1"))!;
+    expect(marcaVisible(fila)).not.toBeNull();
+    expect(fila.ocupada_hasta).toBeNull();
+    expect(fila.resultado).toMatchObject({ reabiertas: 2 });
+  });
+
+  it("si falla en un espacio, no mueve su marca, no frena al otro ni cuenta como falla de la corrida", async () => {
+    const { servicio, tareas } = baseFalsa([ESPACIO, ESPACIO_2]);
+    const r = await correrTareas({
+      servicio: servicio as never,
+      ahora: new Date(),
+      deps: {
+        ...deps,
+        reabrir: async (_s: unknown, ws: string) => {
+          if (ws === "ws-1") throw new Error("reabrir_por_seguimiento: se cayó");
+          return { reabiertas: 0 };
+        },
+      } as never,
+    });
+    expect(r.fallidas).toBe(0);
+    expect(r.reaperturas).toEqual({ ok: 1, fallo: 1 });
+    expect(tareas.get(claveDeReapertura("ws-1"))!.ultimo_error).toBe("reabrir_por_seguimiento: se cayó");
+    expect(marcaVisible(tareas.get(claveDeReapertura("ws-1")))).toBeNull();
+    expect(marcaVisible(tareas.get(claveDeReapertura("ws-2")))).not.toBeNull();
+  });
+
+  it("la de producción llama a reabrir_por_seguimiento con el espacio y el reloj, y cuenta lo que devolvió", async () => {
+    const rpc = vi.fn(async () => ({ data: [{ id: "c1" }, { id: "c2" }], error: null }));
+    const ahora = new Date("2026-11-05T14:00:00Z");
+    expect(await reabrirPorSeguimiento({ rpc } as never, "ws-1", ahora)).toEqual({ reabiertas: 2 });
+    expect(rpc).toHaveBeenCalledWith("reabrir_por_seguimiento", { p_workspace: "ws-1", p_ahora: ahora.toISOString() });
+    const conError = { rpc: async () => ({ data: null, error: { message: "x" } }) };
+    await expect(reabrirPorSeguimiento(conError as never, "ws-1", ahora)).rejects.toThrow(/reabrir_por_seguimiento: x/);
+  });
+
+  it("la marca visible: «Última reapertura por seguimiento», en rojo a los 30 minutos", () => {
+    const ahora = new Date("2026-11-05T14:00:00Z");
+    expect(textoDeLaReapertura(null, ahora)).toEqual({ titulo: "La reapertura por seguimiento todavía no corrió nunca.", vencida: true, error: null });
+    const fresca = textoDeLaReapertura({ ultimo_ok_at: "2026-11-05T13:55:00Z" }, ahora);
+    expect(fresca.titulo).toMatch(/^Última reapertura por seguimiento: /);
+    expect(fresca.vencida).toBe(false);
+    expect(textoDeLaReapertura({ ultimo_ok_at: "2026-11-05T13:20:00Z", ultimo_error: "x" }, ahora)).toMatchObject({ vencida: true, error: "x" });
+  });
+});
+
+describe("la marca de la reapertura en Vigilancia de canales", () => {
+  it("la pantalla lee su fila y muestra su texto", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const fuente = readFileSync(join(process.cwd(), "app/(dashboard)/dashboard/settings/vigilancia/page.tsx"), "utf8");
+    expect(fuente).toMatch(/\.eq\("clave", claveDeReapertura\(workspace\.id\)\)/);
+    expect(fuente).toContain("textoDeLaReapertura(");
+    expect(fuente).toContain("{reaperturaTexto.titulo}");
   });
 });

@@ -3,9 +3,9 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { hasWorkspaceSecret, SECRET_NAMES } from "@/lib/vault";
 import { SettingsTabs } from "@/components/settings/settings-tabs";
 import { etiquetaDeCanal } from "@/lib/auditoria";
-import { haceCuanto, marcaVencida, marcaVisible, textoDeLaPurga, textoDelReintento } from "@/lib/tareas-estado";
+import { haceCuanto, marcaVencida, marcaVisible, textoDeLaPurga, textoDeLaReapertura, textoDelReintento } from "@/lib/tareas-estado";
 import { claveDePurga } from "@/lib/purga";
-import { CLAVE_DE_REINTENTO_DE_ADJUNTOS, claveDeVigilancia } from "@/lib/tareas-programadas";
+import { CLAVE_DE_REINTENTO_DE_ADJUNTOS, claveDeReapertura, claveDeVigilancia } from "@/lib/tareas-programadas";
 import { textoDeSuscripcion, type ResultadoSuscripcion } from "@/lib/vigilancia-suscripcion";
 import { cn } from "@/lib/utils";
 import { UmbralCanal } from "./umbral-canal";
@@ -35,7 +35,7 @@ export default async function VigilanciaPage() {
   const { workspace, supabase } = await getWorkspaceAsManager();
   const servicio = await createServiceClient();
 
-  const [{ data: canales, error }, { data: tarea }, tieneZernio, { data: reintento }, { data: purga }] = await Promise.all([
+  const [{ data: canales, error }, { data: tarea }, tieneZernio, { data: reintento }, { data: purga }, { data: reapertura }] = await Promise.all([
     supabase
       .from("channels")
       .select("id, platform, username, display_name, instance_name, is_active, last_inbound_at, umbral_silencio_horas")
@@ -57,6 +57,12 @@ export default async function VigilanciaPage() {
       .select("ultima_ejecucion_at, ultimo_ok_at, ultimo_error")
       .eq("clave", claveDePurga(workspace.id))
       .maybeSingle(),
+    // F35, tramo D: la reapertura el día del seguimiento.
+    servicio
+      .from("tareas_estado")
+      .select("ultima_ejecucion_at, ultimo_ok_at, ultimo_error")
+      .eq("clave", claveDeReapertura(workspace.id))
+      .maybeSingle(),
   ]);
 
   if (error) {
@@ -73,6 +79,7 @@ export default async function VigilanciaPage() {
   const leida = suscripcion && suscripcion !== "sin_clave" && !suscripcion.error ? suscripcion : null;
   const adjuntos = textoDelReintento(reintento, ahora);
   const purgaTexto = textoDeLaPurga(purga, ahora);
+  const reaperturaTexto = textoDeLaReapertura(reapertura, ahora);
 
   return (
     <div className="flex h-full flex-col">
@@ -193,6 +200,21 @@ export default async function VigilanciaPage() {
               Corre una vez por día y borra definitivamente lo que lleva más de 30 días eliminado. Si esta hora deja de avanzar, lo eliminado no se borra nunca.
             </p>
             {purgaTexto.error && <p className="text-xs">La última corrida falló: {purgaTexto.error}</p>}
+          </div>
+
+          <div
+            className={cn(
+              "space-y-1 rounded-lg border px-4 py-3 text-sm",
+              reaperturaTexto.vencida
+                ? "border-red-300 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100"
+                : "border-border bg-muted/30",
+            )}
+          >
+            <p className="font-medium">{reaperturaTexto.titulo}</p>
+            <p className={reaperturaTexto.vencida ? "" : "text-muted-foreground"}>
+              Cada 10 minutos vuelve a abrir las conversaciones cerradas cuyo próximo seguimiento es de hoy o ya venció. Si esta hora deja de avanzar, esas conversaciones se quedan en «Cerradas».
+            </p>
+            {reaperturaTexto.error && <p className="text-xs">La última corrida falló: {reaperturaTexto.error}</p>}
           </div>
         </div>
       </div>
