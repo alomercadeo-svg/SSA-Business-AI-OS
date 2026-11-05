@@ -2302,6 +2302,34 @@ Fuera de la medición: es la apertura, no es S9. `commits-sin-subir.mjs`, «Sin 
 
 **Decidido por Marcos el 05/11/2026: el criterio «Una conversación cerrada se reabre sola…» se tilda cuando un paso del verificador pruebe que la reapertura por seguimiento reabre todas las conversaciones del contacto. F35 sigue en 26 de 31.**
 
+### S8, tramo 6 (retrabajo de F35): la reapertura por seguimiento reabre todas las del contacto
+
+**05/11/2026, desde las 11:11** (hora de Costa Rica, la del mensaje de aprobación de Marcos; `TZ=America/Costa_Rica date`), revisión completa (el verificador escribe en producción, en espacios de prueba). Plan aprobado por Marcos con tres condiciones: el orden respecto de `fE2`, la limpieza ante fallos y frenar a los 45 minutos. Estimación: 30 minutos. El plan fue antes de la hora de inicio, fuera de la medición. Un solo archivo: `scripts/verify-estados-bandeja.mjs`, `c6e26dc`. No se tocó la función de producción.
+
+**Las dos condiciones, contestadas antes de escribir código:**
+- **`fE2`** se crea en el paso de Kiritimati (línea 438 antes del cambio), en el espacio de prueba de Costa Rica, con seguimiento D+1, cerrada al nacer (`conSeguimiento`, líneas 401-410). Antes de ese paso no existe, así que el paso nuevo, puesto antes, no la toca. Revisado además todo lo cerrado en ese espacio al llegar al paso nuevo: la del Member (`mIg`, seguimiento nulo), la de D en Realtime y la de WhatsApp de C (contactos creados por los receptores, sin seguimiento; inferencia, no leído), la del seguimiento nulo y la eliminada. A tiene seguimiento real de mañana (líneas 380-381), pero queda abierta al final de la ruta (línea 392); si el paso «el Member no cierra una ajena» fallara, quedaría cerrada y el paso nuevo también daría rojo.
+- **La limpieza ante fallos:** `correr` (`scripts/lib-verificador.mjs:197-204`) envuelve todo en `try`/`finally` con `limpiarTodo()`, y `principal` tiene su propio `finally` (línea 448 antes del cambio) que borra los contactos de los dos espacios de prueba. El recuento corre después, aunque haya fallos.
+
+**El paso nuevo**, en la fase del reloj fijo, antes del de Kiritimati: «reabrir_por_seguimiento: un contacto con dos conversaciones las reabre las dos». Un contacto con una conversación cerrada por Instagram y otra por WhatsApp, seguimiento en D+2; otro igual, en D+3 (D es hoy más 30 días: la tarea real no los toca en el medio). La función con el reloj en D+2 a las 08:00 de Costa Rica.
+
+**Corrida roja**, de 11:13:02 a 11:14:15, **salida 1, leída con `echo $?`**, con un cambio temporal: la conversación de WhatsApp del contacto de D+2 preparada eliminada (`deleted_at`), un caso que la función deja cerrado (`00047:37`). **97 pasaron, 2 fallaron**, por su motivo: «el día D+2 a las 08:00, devuelve exactamente las dos del contacto de D+2» (devolvió una) y «la de WhatsApp del contacto de D+2 también quedó abierta (todas las del contacto)». Recuento final en cero en todo (espacios, contactos, conversaciones, canales, `tareas_estado`, `webhook_events` de Zernio y de Evolution, Vault, los tres usuarios); `audit_log` de los espacios de prueba, 3 filas, que no se borran. **No es un rojo del sistema:** la función ya reabría todas y no se tocó; lo que se vio en rojo es el paso contra un dato que la función tiene que dejar cerrado.
+
+**Corrida verde**, sacado el cambio temporal, de 11:14:30 a 11:15:32, **salida 0, leída con `echo $?`**: **99 de 99** (las 92 de antes y las 7 nuevas), sin fallos ni no concluyentes. Recuento final en cero en todo; `audit_log`, 3 filas.
+
+| Comprobación nueva | En rojo |
+|---|---|
+| las cuatro existen y están cerradas (preparación, leída) | no vista en rojo |
+| la función responde | no vista en rojo |
+| el día D+2 a las 08:00, devuelve exactamente las dos del contacto de D+2 | vista en rojo |
+| la de Instagram del contacto de D+2 quedó abierta | no vista en rojo |
+| la de WhatsApp del contacto de D+2 también quedó abierta (todas las del contacto) | vista en rojo |
+| ninguna del contacto de D+3 está en lo devuelto | no vista en rojo |
+| las dos del contacto de D+3 siguen cerradas | no vista en rojo |
+
+**Antes de commitear:** suite 1214 de 1214, `typecheck` en cero, lint del archivo sin errores ni avisos, cada uno con su salida leída directo. **No se corrió** la fase de la tarea real (`--tarea`): no cambió. **Lo que escribió en producción:** solo los espacios de prueba del verificador, en las dos corridas, borrados al final. El espacio real no se leyó ni se tocó: la función recibe el id del espacio de prueba (`00047:35`) y el paso exige que lo devuelto sea exactamente lo que creó. Nada llamó a Zernio, Evolution, Resend ni Meta.
+
+**Suma: 5 min** (de 11:11 a 11:16, segundos truncados, hasta este registro). Contra la estimación de 30, por debajo; no se llegó al freno de los 45. La tilde de «Una conversación cerrada se reabre sola…» la decide Marcos después de ver la corrida verde: F35 sigue en 26 de 31.
+
 ---
 
 ## Siguiente paso
