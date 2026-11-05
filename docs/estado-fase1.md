@@ -2276,6 +2276,32 @@ Fuera de la medición: es la apertura, no es S9. `commits-sin-subir.mjs`, «Sin 
 - **De dónde sale el prefijo `e8f4f678`:** de esta misma página, «Las conversaciones sin ningún mensaje del lead…», en «S8, tramo 5» (línea 2185 al escribir esto): «En el espacio `e8f4f678` («Ale Admin's Workspace», que es el de @alomercadeo y también el de @poderosascomunidad)».
 - **455 abiertas y 320 cerradas, contra el recuento de anoche.** En la base, a las 18:57:43 del 04/11: **Abiertas 454, Cerradas 319, Todas 773** («Recuento», línea 2188 al escribir esto). Después, en la bandeja de Marcos (no en la base), la conversación de @theconsultour nació cerrada (319 a 320) y pasó a abierta (454 a 455) (línea 2208): quedaría 455 y 319, **774**. Cerrar «Marcos Pitti music» hacia las 19:31 y su reapertura sola no cambian la suma. **Hoy dan 775: la suma no da igual, hay una conversación cerrada más** que lo anotado no explica. No se leyó nada más de la base para explicarlo.
 
+**Lo que escribe el negocio, sobre las 319 de ManyChat, y la conversación que sobra.** Una sola consulta por el CLI (`npx supabase db query --linked`), dentro de `begin transaction read only`, autorizada por Marcos, solo cantidades (ningún id en la salida). Las 319 ids las copió de `docs/cierre-manychat-2026-11-04.json` un script del scratchpad, dentro de la consulta. La corrió Marcos en su terminal. **Entre las 16:51:40 y las 16:51:54 UTC** (`date -u` antes y después; `leido_utc` 16:51:41), **salida 0**, leída con `echo $?`. Huella de la consulta: md5 `3ec2a3b4725bab99a2a3433a87b6019f`; del archivo de ids, `4bb458e7cb88bbdbf7e3024598612d56`. **La consulta corrió sin la revisión previa del chat de Marcos que pedía el plan.** Las horas son `created_at`, la del guardado en la base; el hueco de 00:57:31 a 00:57:34 UTC queda afuera de c) y d).
+
+| Letra | Dato | Valor | Columna |
+|---|---|---|---|
+| — | Transacción de solo lectura | `on` | `solo_lectura` |
+| a | Ids en el archivo / encontradas | 319 / 319 | `a_ids_archivo`, `a_ids_encontradas` |
+| b | Cerradas ahora | 319 | `b_cerradas_ahora` |
+| c | Control positivo: con mensajes del negocio antes de las 00:57:31 UTC | 319 | `c_control_negocio_antes` |
+| d | Con mensajes del negocio desde las 00:57:34 UTC | 0 | `d_negocio_desde` |
+| e | De esas, sin mensajes del lead | 0 | `e_negocio_sin_lead` |
+| f | De esas, siguen cerradas | 0 | `f_siguen_cerradas` |
+| g | Con mensajes del lead desde las 00:57:34 UTC / abiertas | 0 / 0 | `g_lead_desde`, `g_lead_desde_abiertas` |
+| h | Nuevas en `e8f4f678`, no eliminadas, desde las 01:25 UTC: total / abiertas / cerradas | 1 / 0 / 1 | `h_nuevas_total`, `h_nuevas_abiertas`, `h_nuevas_cerradas` |
+| h | Nuevas con mensajes del lead / solo con mensajes del negocio | 0 / 1 | `h_nuevas_con_lead`, `h_nuevas_solo_negocio` |
+
+- **Cómo se leyó:** a en 319 y 319; el control positivo c en 319, mayor que cero. **d en 0: todavía no hay caso real** de «lo que escribe el negocio no la reabre»; esa parte queda solo con el verificador. e no es mayor que f (las dos en 0): nada se reabrió sin mensaje del lead. g en 0: ningún lead les escribió desde el cierre.
+- **La que sobra (h):** una conversación nacida después de las 01:25 UTC, cerrada y solo con mensajes del negocio. Que sea la que explica 775 contra 774 es inferencia: el 774 sale de la bandeja de Marcos, no de la base. Es otro caso de «nace cerrada», no de «el negocio no la reabre»: nunca estuvo abierta.
+
+**Qué prueba el verificador de las otras dos partes del criterio** (leído en `scripts/verify-estados-bandeja.mjs`, sin correrlo):
+- **«Lo que escribe el negocio no la reabre»:** «Instagram: otro mensaje del negocio no la abre» (línea 219, sobre una que nació cerrada); «Instagram: cerrada, un mensaje del negocio no la abre» (líneas 246-252: la cierra, manda un mensaje del negocio, «sigue cerrada»); «WhatsApp: cerrada, ni fromMe, ni send.message, ni el historial la abren» (línea 291 en adelante).
+- **«Si el contacto tiene más de una conversación, se reabren todas», cuando escribe el lead:** «Un contacto con conversación por Instagram y por WhatsApp: escribe por Instagram y se abren las dos» (líneas 254-269, «la de WhatsApp también se abrió (todas las del contacto)»).
+- **Lo mismo para la reapertura por seguimiento: no hay paso del verificador ni test.** El paso del reloj fijo (líneas 398-436) y el de la tarea real (línea 475) arman un contacto por conversación, y los tests de la 00047 (`lib/reapertura-seguimiento-migracion.test.ts`) miran el texto de la migración. Que las reabre todas sale solo de leer la función (`00047_reapertura_seguimiento.sql:32-41`).
+- **No se leyó si hay algún contacto real con dos conversaciones.**
+
+**Decidido por Marcos el 05/11/2026: el criterio «Una conversación cerrada se reabre sola…» se tilda cuando un paso del verificador pruebe que la reapertura por seguimiento reabre todas las conversaciones del contacto. F35 sigue en 26 de 31.**
+
 ---
 
 ## Siguiente paso
