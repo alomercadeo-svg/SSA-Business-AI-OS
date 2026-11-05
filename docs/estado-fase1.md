@@ -2394,6 +2394,14 @@ Las dos de las columnas miran la fuente, no el dibujo: las columnas están en co
 
 **Suma: 1 min** (de 12:42 a 12:43, segundos truncados, hasta este registro). Contra la estimación de 15, por debajo. El despliegue va después de este commit; como toca pantallas, los tramos 7, 8 y 9 quedan «salida 0, pantallas sin mirar» hasta que Marcos los mire juntos. Un commit no puede registrar su propio despliegue: se anota en la apertura siguiente.
 
+**Despliegue de `8fea3d5`** (el tramo 9; subió también `ca7deea`). `node scripts/verificar-despliegue.mjs`, **salida 0, leída con `echo $?`**: lectura previa a las 12:43:35 (build `Pi7wlRRJwSEg3ztV0uXlr`, el que dejó `7e91d6c`), push `7e91d6c..8fea3d5` a las 12:43:37 según `.git/logs/refs/remotes/origin/bloque-1-foundation`, el build pasó a `20Cfk2RR8U7sC4sWIxrrW` a las 12:45:10, con `/login` en 200. **Identificado por título**, con la captura de Railway que Marcos mandó a su chat, leída el 05/11 a las 12:52: ACTIVE «docs: S8, tramo 9 (retrabajo de F35), medido: 1 min, el nombre largo ...» (cortado así en pantalla), «8 minutes ago via GitHub», «Deployment successful», `node@24.22.1`, «US West», «1 Replica». Es compatible con el push de las 12:43:37; no lo prueba. **`aafba1d` y `7e91d6c` quedan «sin identificar por título».**
+
+**Las pantallas, vistas por Marcos el 05/11/2026, con sesión y recargando, sobre el build de `8fea3d5`:**
+- **Captura de las 12:49**, «The Consultour ® Consultorías turísticas» en «Abiertas»: el nombre en dos filas, cortado con «…»; «Abierta» en verde, como texto sin recuadro, al lado del único botón, «Cerrar»; «Datos del contacto» con su ancho completo. Visto.
+- **Dicho por Marcos a las 12:52:** una conversación de «Cerradas» muestra «Cerrada» en gris y un solo botón, «Reabrir». Visto.
+- **El modo oscuro no se miró.**
+- Con eso, **los tramos 7, 8 y 9 pasan de «salida 0, pantallas sin mirar» a «pantallas vistas por Marcos»**. Los despliegues de `aafba1d` y `7e91d6c` no se miraron por separado: los reemplazó `8fea3d5` antes de mirar.
+
 ---
 
 ## Siguiente paso
