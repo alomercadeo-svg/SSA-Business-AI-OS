@@ -2245,6 +2245,37 @@ Fuera de la medición: es la apertura, no es S9. `commits-sin-subir.mjs`, «Sin 
 - **Despliegue de `6a6c23a`** (las tildes del tramo D, 26 de 31). `verificar-despliegue.mjs`, **salida 0**: lectura previa a las 19:37:23 (build `hyCi079_NxcH1Q5qCO5Au`), push `7825722..6a6c23a`, el build pasó a `2oBGjvaqOJx2U84uMIodE` a las 19:39:08, con `/login` en 200. Solo docs. **Identificado por título**, con la captura de Railway que Marcos mandó a su chat, leída el 04/11 a las 19:48: ACTIVE «docs: las tildes de F35 del tramo D, decididas por Marcos el 04/11/20...» (cortado así en pantalla), «10 minutes ago via GitHub», «Deployment successful», `node@24.22.1`, «US West». Es compatible con el push de las 19:37:25; no lo prueba.
 - Las horas de push coinciden con `.git/logs/refs/remotes/origin/bloque-1-foundation` (`7825722` a las 19:00:34, `6a6c23a` a las 19:37:25). Los identificadores de build y la salida 0 vienen solo de la memoria de Claude Code; en el repo no figuraban (un commit no puede registrar su propio despliegue).
 
+**La reapertura sola de «Marcos Pitti music», con datos reales** (el disparador de «S8, tramo 5», arriba; excepción sobre un contacto real, la misma del 04/11). Revisión completa. Una sola consulta por el CLI (`npx supabase db query --linked`), dentro de `begin transaction read only`, autorizada por Marcos, solo ids, fechas, estados y cantidades. La corrió Marcos en su terminal: la lectura de producción de Claude Code la frenó el control de permisos antes de ejecutarse. **Entre las 16:36:12 y las 16:36:30 UTC** (`date -u` antes y después; `leido_utc` 16:36:13), **salida 0**, leída con `echo $?`.
+
+| Dato | Valor | Columna |
+|---|---|---|
+| Transacción de solo lectura | `on` | `solo_lectura` |
+| El disparador que mueve `updated_at` existe y está habilitado | verdadero | `disparador_updated_at` |
+| Conversaciones encontradas | 1 | `conversaciones_encontradas` |
+| Es el espacio real (`e8f4f678`) | verdadero | `es_el_espacio_real` |
+| Id de la conversación | `c6628c4e-8b62-4c45-a94f-93954b2a25a9` | `conversacion_id` |
+| Estado | `open` | `estado` |
+| Última modificación | 2026-11-05 06:01:42 UTC | `modificada_at` |
+| Próximo seguimiento | 2026-11-05 | `proximo_seguimiento` |
+| Mensajes del lead desde 01:30 UTC | 0 | `lead_desde` |
+| Control positivo: mensajes del lead antes de las 01:30 UTC | 17 | `lead_antes_control` |
+| Mensajes del negocio desde 01:30 UTC | 0 | `negocio_desde` |
+| Tarea: última ejecución | 16:31:33 UTC | `ultima_ejecucion_at` |
+| Tarea: último OK | 16:31:34 UTC | `ultimo_ok_at` |
+| Tarea: ocupada | no (vacío) | `ocupada_hasta` |
+| Tarea: última corrida | `reabiertas: 0`, terminó a las 16:31:34 | `resultado` |
+| Tarea: error | no | `hay_error` |
+| Abiertas en el espacio | 455 | `abiertas` |
+| Cerradas en el espacio | 320 | `cerradas` |
+
+- **Cómo se leyó:** abierta, cero mensajes del lead desde las 01:30 UTC con el control positivo en 17, y `modificada_at` a las 06:01:42 UTC (00:01:42 en Costa Rica), dentro de la ventana de 06:00 a 06:15 que fijó Marcos para la primera corrida del día: **compatible con la reapertura sola**. No cae entre las 16:15 y las 16:25 UTC, la ventana en la que Marcos pudo haber abierto la conversación para llegar a la ficha (no dijo por dónde entró).
+- **La base no distingue la tarea de un clic en «Reabrir»:** las dos hacen el mismo `update` de `status` (`supabase/migrations/00047_reapertura_seguimiento.sql:32-41` y `app/api/v1/conversations/[id]/route.ts:85`), el mismo disparador mueve `updated_at` (`00001_initial_schema.sql:293`), ninguna deja fila en `audit_log` (`route.ts:25-26`), y `tareas_estado` guarda solo la última corrida (`lib/tareas-programadas.ts:293-296`). Se atribuye a la tarea por la hora y por el dato de Marcos, abajo.
+- **Dato de Marcos**, dicho en su chat a las 10:19 de Costa Rica: nadie tocó esa conversación desde la noche del 04/11.
+- **Lo que Marcos vio en la ficha hoy a las 10:20:** el último mensaje, «Reabriendo», del 04/11 a las 19:10; el seguimiento pasado a 2026-11-05 a las 19:31; la conversación «Abierta».
+- **Si abrir una conversación en la bandeja escribe en `conversations`** (verificado en el código): solo si los no leídos de la copia del navegador son más de cero; entonces escribe `unread_count: 0` (`app/(dashboard)/dashboard/inbox/inbox-view.tsx:176-181`). **Con los no leídos en cero, no escribe**: no hay `update`, así que el disparador no mueve `updated_at`. El pedido de mensajes que hace al abrir (`GET`, `app/api/v1/messages/route.ts:47-124`) solo lee. Que la copia del navegador pueda estar desactualizada respecto de la base es inferencia, no verificada; `unread_count` no se leyó.
+- **De dónde sale el prefijo `e8f4f678`:** de esta misma página, «Las conversaciones sin ningún mensaje del lead…», en «S8, tramo 5» (línea 2185 al escribir esto): «En el espacio `e8f4f678` («Ale Admin's Workspace», que es el de @alomercadeo y también el de @poderosascomunidad)».
+- **455 abiertas y 320 cerradas, contra el recuento de anoche.** En la base, a las 18:57:43 del 04/11: **Abiertas 454, Cerradas 319, Todas 773** («Recuento», línea 2188 al escribir esto). Después, en la bandeja de Marcos (no en la base), la conversación de @theconsultour nació cerrada (319 a 320) y pasó a abierta (454 a 455) (línea 2208): quedaría 455 y 319, **774**. Cerrar «Marcos Pitti music» hacia las 19:31 y su reapertura sola no cambian la suma. **Hoy dan 775: la suma no da igual, hay una conversación cerrada más** que lo anotado no explica. No se leyó nada más de la base para explicarlo.
+
 ---
 
 ## Siguiente paso
