@@ -4,16 +4,21 @@ import { avisoDelHistorial, type EstadoDelHistorial } from "@/lib/historial-avis
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { refrescarHilo, sumarAnteriores } from "@/lib/hilo";
 import { cambiaDeDia, horaDelMensaje, separadorDeDia } from "@/lib/fechas-bandeja";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { enlaceAFicha } from "@/lib/ficha";
 import { Send, Paperclip, Bot, User, MessageSquare, Loader2, History } from "lucide-react";
 import { VistaDelEstado } from "@/components/inbox/estado-conversacion";
-import { AVISO_DE_FALLA_DE_ESTADO } from "@/lib/estado-conversacion";
+import {
+  AVISO_DE_FALLA_DE_ESTADO,
+  PEDIDO_DE_SEGUIMIENTO,
+  avisoDeCambio,
+  cambiarEstadoDeConversacion,
+  type EstadoDeConversacion,
+} from "@/lib/estado-conversacion";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { PlatformIcon } from "@/components/platform-icon";
-import type { Database, ConversationStatus } from "@/lib/types/database";
+import type { Database } from "@/lib/types/database";
 
 /**
  * La fila que devuelve `GET /api/v1/messages`. F28: `archivo` trae la
@@ -166,7 +171,6 @@ export function MessageThread({
   /** La dirección de la bandeja, para que la ficha vuelva a ella como estaba (tramo C de S8). */
   volverALaBandeja?: string | null;
 }) {
-  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   // F35: los anteriores a los últimos 200, hasta el primero guardado.
   const [hayMasAnteriores, setHayMasAnteriores] = useState(hayAnteriores);
@@ -183,23 +187,30 @@ export function MessageThread({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const updateConversationStatus = useCallback(async (status: ConversationStatus) => {
+  // El estado que se ve: el de la conversación elegida, y después el que
+  // devuelve la ruta o llega por Realtime. La conversación elegida es una foto
+  // que guarda la bandeja y no se entera sola de los cambios.
+  const [estadoActual, setEstadoActual] = useState<string>(conversation?.status ?? "open");
+  useEffect(() => {
+    setEstadoActual(conversation?.status ?? "open");
+    setAvisoDeEstado(null);
+  }, [conversation?.id, conversation?.status]);
+
+  const updateConversationStatus = useCallback(async (status: EstadoDeConversacion) => {
     if (!conversation || statusUpdating) return;
     setStatusUpdating(status);
-    try {
-      const { error } = await createClient()
-        .from("conversations")
-        .update({ status })
-        .eq("id", conversation.id);
-      if (error) throw error;
-      setAvisoDeEstado(null);
-      router.refresh();
-    } catch {
+    const r = await cambiarEstadoDeConversacion(conversation.id, status);
+    setStatusUpdating(null);
+    if (r.tipo === "cambiado") {
+      setEstadoActual(r.estado);
+      setAvisoDeEstado({ texto: avisoDeCambio(r.estado), error: false });
+    } else if (r.tipo === "pide_seguimiento") {
+      setAvisoDeEstado({ texto: PEDIDO_DE_SEGUIMIENTO, error: true });
+    } else {
+      // Queda como estaba: no se tocó `estadoActual`.
       setAvisoDeEstado({ texto: AVISO_DE_FALLA_DE_ESTADO, error: true });
-    } finally {
-      setStatusUpdating(null);
     }
-  }, [conversation, statusUpdating, router]);
+  }, [conversation, statusUpdating]);
 
   const autoResize = useCallback(() => {
     const el = textareaRef.current;
@@ -266,7 +277,11 @@ export function MessageThread({
           table: "conversations",
           filter: `id=eq.${conversation.id}`,
         },
-        async () => {
+        async (payload) => {
+          // F35, tramo D: si la cerraron o la reabrieron (el lead escribió, la
+          // tarea del seguimiento, otra pestaña), el encabezado lo muestra.
+          const nuevo = (payload.new as { status?: string } | null)?.status;
+          if (nuevo === "open" || nuevo === "closed") setEstadoActual(nuevo);
           try {
             const res = await fetch(
               `/api/v1/messages?conversationId=${conversation.id}`
@@ -415,10 +430,10 @@ export function MessageThread({
             </span>
           )}
           <VistaDelEstado
-            estado={conversation.status}
+            estado={estadoActual}
             ocupado={!!statusUpdating}
             aviso={avisoDeEstado}
-            onCambiar={() => updateConversationStatus(conversation.status === "closed" ? "open" : "closed")}
+            onCambiar={() => updateConversationStatus(estadoActual === "closed" ? "open" : "closed")}
           />
         </div>
       </div>

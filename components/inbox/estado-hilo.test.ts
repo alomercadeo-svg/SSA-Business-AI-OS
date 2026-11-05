@@ -49,3 +49,35 @@ describe("el estado en el encabezado del hilo", () => {
     expect(fuente).not.toContain("Failed to update conversation status");
   });
 });
+
+const modulo = await import("@/lib/estado-conversacion");
+
+describe("cerrar y reabrir: los avisos y lo que se hace con la respuesta", () => {
+  it("los avisos del plano", () => {
+    expect(modulo.avisoDeCambio("closed")).toBe("Conversación cerrada");
+    expect(modulo.avisoDeCambio("open")).toBe("Conversación reabierta");
+    expect(modulo.AVISO_DE_FALLA_DE_ESTADO).toBe("No se pudo cambiar el estado de la conversación.");
+  });
+
+  it("200 es un cambio, con el estado que devolvió el servidor", () => {
+    expect(modulo.resultadoDelCambio(200, { status: "closed" })).toEqual({ tipo: "cambiado", estado: "closed" });
+  });
+
+  it("409 con pide_seguimiento pide el próximo, con la fecha", () => {
+    expect(modulo.resultadoDelCambio(409, { code: "pide_seguimiento", fecha: "2026-11-04" })).toEqual({ tipo: "pide_seguimiento", fecha: "2026-11-04" });
+  });
+
+  it("cualquier otra cosa es una falla, y el estado queda como estaba", () => {
+    expect(modulo.resultadoDelCambio(500, null)).toEqual({ tipo: "fallo" });
+    expect(modulo.resultadoDelCambio(404, { error: "x" })).toEqual({ tipo: "fallo" });
+    expect(modulo.resultadoDelCambio(200, { status: "snoozed" })).toEqual({ tipo: "fallo" });
+    expect(modulo.resultadoDelCambio(409, { code: "otra" })).toEqual({ tipo: "fallo" });
+  });
+
+  it("el hilo cambia el estado por la ruta, no desde el navegador, y sigue el estado que llega por Realtime", () => {
+    const fuente = readFileSync(join(process.cwd(), "components/inbox/message-thread.tsx"), "utf8");
+    expect(fuente).toContain("cambiarEstadoDeConversacion(");
+    expect(fuente).not.toMatch(/\.update\(\{\s*status\s*\}\)/);
+    expect(fuente).toMatch(/payload\.new[^;]*status/);
+  });
+});
