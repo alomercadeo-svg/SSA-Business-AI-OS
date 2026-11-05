@@ -2402,11 +2402,170 @@ Las dos de las columnas miran la fuente, no el dibujo: las columnas están en co
 - **El modo oscuro no se miró.**
 - Con eso, **los tramos 7, 8 y 9 pasan de «salida 0, pantallas sin mirar» a «pantallas vistas por Marcos»**. Los despliegues de `aafba1d` y `7e91d6c` no se miraron por separado: los reemplazó `8fea3d5` antes de mirar.
 
+## S9, tramo A: la ventana de conversación de Instagram (F40) y los tres de F35 que la esperan (Bloque 4, medido)
+
+**05/11/2026, desde las 13:47** (hora de Costa Rica, la del mensaje de aprobación de Marcos, sin segundos), revisión completa (la 00048, el receptor de Zernio, el envío y escrituras en producción: el relleno y el verificador). El plan, la lectura de solo cantidades y la pregunta del choque entre el prototipo y el plano fueron antes, fuera de la medición. Estimación del plan: 235 min. **Suma: 67 min** (de 13:47 a 14:56, hasta este registro, menos la espera de Railway, de 14:23:45 a 14:25:31, 1 min 46 s, que no se cuenta; segundos truncados). Tres pausas de Marcos, todas de menos de 15 min, se cuentan: el «dale» de R1 (la pregunta, después de las 13:57:01; R1 corrió a las 14:10:22), la de la comprobación del verificador (de las 14:26:42 a antes de las 14:40:32) y las dos de R2 (antes de las 14:50:57). Contra la estimación, **muy por debajo**, como los tramos de S8: el dato se anota, no se explica. No se llegó a ningún freno del 50 %.
+
+**Antes del plan, fuera de la medición:**
+- **El choque entre el prototipo y el plano, decidido por Marcos:** la lista sigue al prototipo y el criterio se reescribe (ítem 0, abajo).
+- **La lectura de solo cantidades**, autorizada por Marcos y corrida por él en su terminal, de 19:26:16 a 19:26:18 UTC, con md5 `e262123b…`, `solo_lectura` en `on` y salida 0. Volvió una sola fila, la del espacio real `e8f4f678`: no hay conversaciones en otros espacios.
+  - Instagram: 771 vivas, 0 eliminadas; **452 con al menos un mensaje del lead**.
+  - 3 abiertas, 0 por vencer y 0 con hora del lead en el futuro.
+  - WhatsApp: 4. Total: 775.
+  - Mensajes del lead de Instagram en las últimas 24 h: 3.
+
+**Las decisiones de pantalla y de diseño (D1 a D12), tomadas por el chat de Marcos; Marcos las puede vetar:**
+- **D1.** Con menos de una hora, «Vence en 45 min»; con una hora o más, «Vence en 1 h 20 min».
+- **D2.** `window_source` en `'mensaje'` y `'ctwa'`; el segundo, reservado para el plan B.
+- **D3.** La ventana va en una tabla en el código, por proveedor y plataforma, sin columna. `channels` guarda el proveedor (`provider`, `00022:26` y `:31-32`).
+- **D4.** Con menos de 2 h, la línea «Vence en … Después, solo desde la app de Instagram.».
+- **D5.** El texto del 409, de `prototipo-fase1.html:1015`.
+- **D6.** Cualquier otro rechazo: «No se envió: Instagram rechazó el mensaje.».
+- **D7.** Teléfono sin resolver: «El teléfono está sin resolver: cargalo en la ficha para seguir por WhatsApp.», con el enlace a la ficha.
+- **D8.** «Abierta» incluye las que vencen en menos de 2 h.
+- **D9.** La prueba real del rechazo por ventana no se hace en este tramo.
+- **D10.** Con más de una conversación de WhatsApp, se abre la del último mensaje más reciente.
+- **D11.** Al cerrarse la ventana, el texto escrito queda guardado.
+- **D12.** En la lista, «Ventana cerrada» en gris y discreto, y «Vence en…» en ámbar.
+- **La respuesta privada a un comentario:** el criterio queda abierto, para un tramo propio de S9 (abajo).
+
+**Lo hecho, por ítem, con sus commits:**
+- **0. El criterio reescrito**, `7ff0a5c`.
+  - En `docs/requerimientos-fase1.md:1158` (F40; el de F6c, del plan B, no se tocó), con los textos del prototipo (`prototipo-fase1.html:456`, `:458`, `:459`, `:607`, `:608` y `:667`).
+  - Registrado como reescrito en `docs/criterios-bajas.json`, con el motivo de Marcos.
+  - Foto: 344 líneas. `npm test`, 1222 de 1222, salida 0.
+- **1. El verificador**, `scripts/verify-ventana-instagram.mjs`, `0c2be8d`; los pasos de pantalla, en `5f84610`; la comprobación sacada, en `6a507bd` (abajo, en «El verificador, sus corridas»).
+- **2. La 00048**, `281ba8f`:
+  - las columnas `window_expires_at` y `window_source`, con el `check` en un bloque `do` con su control previo;
+  - `bandeja_filtrada` con `create or replace`, la misma firma, `security invoker`, y la clave `ventana` del jsonb con su condición, solo Instagram, con el reloj `ahora`;
+  - sin relleno ni políticas;
+  - su test, el bundle, §14c (48 migraciones) y los tipos.
+- **3. R1 del relleno** (abajo).
+- **4. El receptor de Zernio y la importación**, `78b0c54`. `lib/ventana-instagram.ts` tiene la tabla de D3, `venceEn` (24 h desde la hora de Meta, nunca desde el futuro) y `moverVentana` (solo adelanta).
+  - El receptor la llama solo con el mensaje del lead, después de guardarlo y antes del acuse (`app/api/webhooks/late/route.ts`, en el bloque de `alEscribirElLead`). El echo no la mueve.
+  - La importación del historial la abre con el mensaje del lead más nuevo que trae.
+- **5. El filtro**, `ed32076`: `ventana=abierta|por-vencer|cerrada` en la dirección, la clave `ventana` del jsonb y «Filtros · N». El grupo «Ventana de Instagram» va entre «Etiquetas» y «Fecha del último mensaje», como en el prototipo (`:591`), y aparece solo si el espacio tiene Instagram.
+- **6. El envío**, `5ff9dbf`.
+  - Después del alcance, si el canal tiene ventana y está cerrada (o nunca escribió el lead), 409 `ventana_cerrada` sin llamar al proveedor.
+  - Si el proveedor lo rechaza por ventana, también 409, y la integración no se marca. **La detección del rechazo no está verificada:** no hay muestra real; busca el subcódigo 2018278 de Meta, que es suposición.
+  - Cualquier otro rechazo: 502 (D6), y la integración se entera como antes.
+- **7. La pantalla**, `e5bf008`:
+  - la marca de la lista (D12);
+  - el encabezado del hilo;
+  - el campo: abierto, por vencer (D4) o cerrado, con el bloque de §11 y sus cuatro casos;
+  - el 409 en el hilo (D5, D11);
+  - un solo reloj, `useAhora`, cada 30 s, en `inbox-view.tsx`; el hilo toma la ventana nueva del `UPDATE` de Realtime que ya escuchaba;
+  - la ficha: cada conversación de Instagram con su ventana, con la hora del pedido.
+- **8. El cierre** (abajo).
+
+**El push de la 00048**, con el OK adelantado de Marcos y cada condición, en hora de Costa Rica:
+
+| Paso | Hora | Resultado |
+|---|---|---|
+| `--dry-run` | 13:54:05 | Listaba solo `00048_ventana_instagram.sql`. **La salida se leyó con `${pipestatus[1]}`, a través de una tubería** (dio 0), cuando la regla es `echo $?` sin tuberías. Lo que pide la condición está en su salida visible |
+| Suite y `typecheck`, antes | antes de las 13:54 | 1231 de 1231, salida 0; `typecheck`, salida 0 |
+| Huella, antes | 13:54:17 | md5 de `pg_get_functiondef` de diez funciones |
+| `npx supabase db push` | 13:54:38 a 13:54:41 | Salida 0 |
+| Huella, después | 13:54:53 | Las nueve que no cambian, iguales (`bandeja_coincide`, `bandeja_pagina`, `bandeja_cantidades`, `bandeja_busca`, `bandeja_pagina_filtros`, `bandeja_cantidades_filtros`, `bandeja_busca_con_acceso`, `reabrir_por_seguimiento` e `increment_unread`). Solo cambió `bandeja_filtrada` (`05399a96` → `44f79810`) |
+| Catálogo | 13:54:53 a 13:54:56 | `bandeja_filtrada`: `invoker`, `authenticated` sí, `anon` no, una sola versión. Columnas `window_expires_at timestamptz` y `window_source text`. `check` con `'mensaje'` y `'ctwa'` |
+| Antes de las 18:15 | — | Sí |
+| Con el código viejo | 13:55:04, 13:55:26, 13:56:25 | `verify-bandeja` 43 de 43, `verify-filtros-bandeja` 135 de 135 y `verify-ficha` 64 de 64, los tres con salida 0 |
+
+**La guardia de `b067da0`:** la 00048 no toca políticas, así que no se dispara. Su test («no dispara la guardia») **no se vio en rojo**: el archivo nombra `bandeja_busca_con_acceso` en el comentario de la función (copiado de la 00046), y esa mención satisface la guardia aunque la migración tocara una política. Lo que atrapa una política es el test «solo esas sentencias», visto en rojo con una política agregada.
+
+**El relleno.** Lo corrió Claude Code por el CLI (`npx supabase db query --linked`), que entra como `postgres`, con el «dale» de Marcos dado en esta sesión. Marcos y Alejandra cerraron antes sus pestañas de la bandeja.
+- **R1**, de 20:10:22 a 20:10:26 UTC (14:10 de Costa Rica), md5 `bb4b8075a5b74f39ab6d0f90d45f22b0`, salida 0. Las cuatro condiciones de frenado van adentro de la sentencia. `r1_resultado` devolvió `tocadas` 452, `n_nuevas` 0, `con_hora_futura` 0 y `no_instagram` 0, con `leido_utc` 20:10:24.448464.
+- **El recuento**, en solo lectura, de 20:10:38 a 20:10:40 UTC, md5 `39570a7594c6e94c19ca7e32d1269095`, salida 0. Dio `solo_lectura` on, `ig_con_ventana` 452, `ig_con_lead_distinta` 0, `ig_sin_lead_con_ventana` 0, `no_ig_con_ventana` 0 e `ig_abiertas_ahora` 3.
+- **El mismo recuento, después del despliegue**, de 20:25:49 a 20:25:51 UTC (14:25:49 de Costa Rica, 18 s después del despliegue de las 14:25:31): los mismos valores.
+- **Por qué igual se corrió R2: el recuento y R1 no usan la misma comparación.**
+  - En `r1-relleno.sql` es `where m.conversation_id = cv.id and cv.platform = 'instagram' and m.ultimo <= now() and cv.window_expires_at is distinct from greatest(coalesce(cv.window_expires_at, '-infinity'::timestamptz), m.ultimo + interval '24 hours')`.
+  - En `r1-recuento.sql` es `count(*) filter (where cv.platform = 'instagram' and m.ultimo is not null and cv.window_expires_at is distinct from m.ultimo + interval '24 hours')`.
+  - El recuento compara contra `m.ultimo + 24 h` a secas, sin `greatest` y sin `m.ultimo <= now()`. Que su 0 implicara un 0 de R2 era inferencia. La condición de Marcos era la expresión literal, así que R2 se corrió con su «dale».
+- **R2**, de 20:50:57 a 20:50:59 UTC, md5 `1e12cfe3b0eb78efc0d696569bf03746`, salida 0. Es la sentencia de R1 con el tope cambiado: frena con más de 10 filas. `r2_resultado` devolvió `tocadas` 0, `n_nuevas` 1, `con_hora_futura` 0 y `no_instagram` 0.
+- **El recuento después de R2**, de 20:51:11 a 20:51:13 UTC, salida 0: `ig_con_ventana` 453, `ig_con_lead_distinta` 0, `ig_sin_lead_con_ventana` 0, `no_ig_con_ventana` 0, `ig_abiertas_ahora` 4.
+- **La 453 es inferencia, no leída:** una conversación de Instagram cuyo primer mensaje del lead llegó después de la lectura (es la `n_nuevas` de R2). Tiene su ventana igual a «último del lead + 24 h» y no la tocaron ni R1 ni R2. La escribió el receptor nuevo, después de que el recuento de las 20:25:49 diera 0. No se leyó su id.
+- **Efecto colateral:** las 452 filas de R1 movieron su `updated_at` (`set_updated_at`, `00001:293`). Son conversaciones del espacio real; ningún contacto se tocó.
+
+**Tests vistos en rojo antes del cambio, por ítem:**
+- **0.** No hay test nuevo: es el plano. La foto y `npm test`, en verde.
+- **2.** El del bundle (antes de sumarla) y «solo esas sentencias»: este encontró dos `;` dentro de los comentarios de la migración, que partían las sentencias, y se corrigieron. Con mutaciones, restauradas y comparadas con `cmp`: `if not exists`, el control del `check`, un `update` (dos tests), `definer` y la condición de `por_vencer`. «No dispara la guardia» **no se vio en rojo** (arriba).
+- **4.**
+  - La pieza: 14 de 17 contra un esqueleto. Los 3 de «sin ventana» **no**: el esqueleto ya devolvía `null`.
+  - El receptor: 1, el de presencia, contra el de hoy. Los dos de ausencia **no**.
+  - La importación: 1. El de ausencia **no**.
+  - **Se cambió la base simulada de la importación** (suma `or` y los dos campos).
+- **5.**
+  - `lib/filtros-bandeja`: 4 de 4.
+  - El panel: 3; «sin Instagram, el grupo no aparece» **no**.
+  - **Se cambiaron tres tests existentes:** «lee los seis grupos» suma `ventana: null`; el orden del panel suma el grupo; el de «sin el grupo de la ventana (S9)» pasa a exigirlo.
+- **6.** 5 de 6 contra la ruta de hoy; el control positivo (ventana abierta, 201) pasa con la de hoy, como tiene que pasar. **Se cambió un test existente:** «si Zernio rechaza el envío» pasa de 500 a 502.
+- **7.**
+  - 12 de 18 de `ventana-pantalla.test.ts`; los 6 que pasaron son de ausencia o de control.
+  - Uno de los 12 (el botón de WhatsApp) siguió en rojo por un error del propio test, que no dejaba pasar el ícono dentro del enlace. Se corrigió la expresión; sigue exigiendo el enlace, su dirección y el texto.
+  - **Se cambiaron dos tests existentes:** `estado-hilo` admite la marca de la ventana delante del estado (`prototipo-fase1.html:667`), y `textos-voseo` le pone una ventana abierta a su conversación de Instagram.
+  - La ficha no tiene test de Vitest: la mira el verificador.
+
+**El verificador, sus corridas** (todas con la salida leída con `echo $?`, sin tuberías, y con la limpieza en cero; quedan 3 filas de `audit_log` sin espacio, como siempre, por F31):
+
+| Corrida | Hora (Costa Rica) | Resultado |
+|---|---|---|
+| Rojo, antes de construir | 13:50:27 a 13:51:07 | 27 pasaron, 28 fallaron, 4 no concluyentes, salida 1. Fallaron por su motivo: la fila sin las columnas, el filtro ignorado, el envío que pasa de largo hasta el 400 de la clave |
+| Rojo con los pasos de pantalla, después del push y antes de desplegar | 14:21:41 a 14:22:19 | 42, 18, 4, salida 1. Los cinco pasos nuevos, por su motivo. Las cantidades con «cerrada» dan 4 y no 2 porque cuentan las dos conversaciones que el paso R crea por el receptor viejo, sin ventana |
+| Después del despliegue | 14:26:00 a 14:26:42 | 63 de 64, salida 1: falló solo «el panel tiene el grupo «Ventana de Instagram»» |
+| Verde | 14:40:32 a 14:41:10 | **63 de 63, salida 0** |
+
+**La comprobación sacada, con el OK de Marcos:** la comprobación «el panel tiene el grupo «Ventana de Instagram»» no podía pasar nunca, tampoco en el rojo, porque el panel de filtros arranca cerrado y no se dibuja en el HTML del servidor (filtros-bandeja.tsx:87 y :95); se saca porque nunca probó nada, no porque haya fallado. El grupo lo cubren filtros-bandeja.test.ts y la mirada de Marcos en pantalla. Ningún otro paso cambió. Los pasos de pantalla se sumaron después del primer rojo: contra `0c2be8d`, el archivo solo suma líneas.
+
+**Lo que no se puede romper, después del despliegue.** Los cinco con la salida leída con `echo $?`, sin tuberías, y la limpieza en cero:
+- `verify-bandeja`, de 14:41:24 a 14:41:50: **43 de 43**.
+- `verify-filtros-bandeja`, de 14:41:50 a 14:42:49: **135 de 135**.
+- `verify-seguimiento-bandeja`, de 14:42:49 a 14:43:23: **51 de 51**.
+- `verify-estados-bandeja`, de 14:43:23 a 14:44:28: **99 de 99**.
+- `verify-ficha`, de 14:44:28 a 14:44:51: **64 de 64**.
+
+Y lo demás:
+- Las dos guardias de frontera y la guardia de políticas, en `npm test`.
+- Un pedido a la vez y `Server-Timing`: no se tocaron.
+- Realtime con el alcance del Member: no cambió ninguna política. El hilo lee la ventana del mismo `UPDATE` que ya pasaba por la seguridad por filas, y la lista sigue pidiendo la fila por la ruta.
+- Nada llamó a Zernio, Evolution, Resend ni Meta.
+- Lo que escribió en producción: la 00048, R1 (452 conversaciones del espacio real), R2 (0) y el verificador, en sus espacios fantasma.
+
+**Antes de subir:** suite 1283 de 1283, `typecheck` en cero, lint sin errores (45 avisos, los mismos) y `next build` sin errores (14:23:10 a 14:23:19), cada uno con su salida leída directo.
+
+**Despliegue:** `node scripts/verificar-despliegue.mjs`, **salida 0, leída con `echo $?`**. Lectura previa a las 14:23:45 (build `20Cfk2RR8U7sC4sWIxrrW`), push `8fea3d5..5f84610`; el build pasó a `xbJkDjBroplMU1byRFkSZ` a las 14:25:31, con `/login` en 200. **Toca pantallas: queda «salida 0, pantallas sin mirar».** El commit activo en Railway no está identificado: falta la captura.
+
+**Lo que no entra en este tramo:**
+- **La respuesta privada a un comentario** (F40, `:1166`): el criterio queda abierto, para un tramo propio de S9. La lectura de `comment_logs` se pide aparte, más adelante.
+  - Lo verificado en el código: `comment_logs` existe (`00004:11-36`), y el receptor guarda cada comentario aunque no coincida con un disparador (`comment-processor.ts:116-118`).
+  - Lo que falta: `comment_logs.created_at` es la hora de proceso, no la del comentario; ninguna columna registra la respuesta privada (`dm_sent` queda en `true` aunque el envío falle, `engine.ts:967-976`); la respuesta privada solo existe desde los flujos; y la bandeja no tiene conversaciones de tipo comentario.
+- **D9:** la prueba real del rechazo por ventana no se hizo.
+- **Con el filtro de ventana elegido, la lista no se entera sola de que una ventana venció:** el tiempo pasa sin que cambie ninguna fila, así que Realtime no avisa. Lo ve en su próximo pedido. La marca y el campo sí cambian solos, con el reloj.
+
+**Para mirar, del 05/11/2026:**
+- La salida del `--dry-run` se leyó a través de una tubería (`${pipestatus[1]}`).
+- El mensaje del commit de los pasos de pantalla citaba un hash inventado («1b3c…») en vez de `0c2be8d`. Se corrigió con `--amend` antes de subir.
+- La guardia de políticas se satisface con nombrar la función en un comentario.
+
+**Lo que mira Marcos, con sesión y recargando:**
+1. **La lista:** «Ventana cerrada» en gris en las de Instagram cerradas, nada en las de WhatsApp.
+2. **«Vence en…» y el filtro «Vence en menos de 2 h», con datos reales:** con la conversación de @theconsultour en @poderosascomunidad, desde las 17:21 de Costa Rica. Su ventana se cerraría hacia las 19:21, por la respuesta del lead del 04/11 a las 19:21; es inferencia, no leída. Si el tramo termina antes, Marcos lo mira a esa hora.
+3. **El encabezado abierto:** Marcos escribe a @poderosascomunidad desde @marcospittimusic (nunca desde @theconsultour), y aparece «Ventana abierta · quedan 23 h».
+4. **El control positivo del envío:** en esa conversación, contesta desde la bandeja y el mensaje llega a @marcospittimusic. Es una llamada real a Zernio, solo entre las cuentas de prueba.
+5. **El campo con la ventana cerrada:** el bloque, en una conversación real cerrada, y cuál de los textos de abajo aparece.
+6. **El filtro:** «Abierta», «Vence en menos de 2 h» y «Cerrada», sin WhatsApp, y la dirección.
+7. **La ficha:** de un contacto de Instagram, con la ventana de cada conversación.
+8. **«Escribir por WhatsApp» con datos reales:** solo si hay un contacto real con Instagram cerrada y conversación de WhatsApp. Para saberlo hace falta una lectura de solo cantidades, que se pide aparte.
+
+**Criterios que quedan para que Marcos decida (no se tildó nada):**
+- **F40:** los campos; el recálculo; el indicador (reescrito); la ficha; abierta acepta texto; cerrada se deshabilita con el texto; el botón de WhatsApp; el texto del teléfono sin conversación; su control positivo; el error claro; el control positivo del envío; los campos en WhatsApp. No queda la respuesta privada a un comentario.
+- **F35:** los dos filtros de ventana y «La búsqueda y los filtros de la lista corren en el servidor…».
+
+
 ---
 
 ## Siguiente paso
 
-**Desde el 4 de noviembre de 2026, a las 18:58: el tramo D de S8 quedó hecho y desplegado**; Marcos miró las pantallas y F35 quedó en 26 de 31 (en «S8, tramo 5», arriba). Lo próximo: el 05/11, mirar si la tarea reabrió «Marcos Pitti music» el día de su seguimiento (el disparador de la reapertura sola), y la tarea chica del encabezado del hilo. **Antes decía:** «**Desde el 4 de noviembre de 2026, a las 16:12: lo próximo es S8, tramo D**: cerrar y reabrir, la reapertura sola, el pedido del próximo seguimiento al cerrar (con el selector del tramo C), los no leídos y las 315 conversaciones de ManyChat. El tramo C quedó hecho y desplegado, con «salida 0, pantallas sin mirar» hasta que Marcos mire la bandeja y la ficha (en «S8, tramo 4», arriba).» **Lo que seguía en ese párrafo, antes:** «Desde el 4 de noviembre de 2026, a las 10:38: lo próximo es S8, tramo C, el selector de próximo seguimiento en el panel, con el panel en voseo. El tramo B quedó hecho y desplegado, con «salida 0, pantallas sin mirar» hasta que Marcos mire la bandeja y Canales (en «S8, tramo 2», arriba).» **Lo que seguía en ese párrafo, antes:** «Desde el 3 de noviembre de 2026, a las 17:34: lo próximo es S8, tramo B, los filtros de la bandeja.» **Lo que seguía en ese párrafo:** El tramo A quedó hecho y desplegado, con «salida 0, pantallas sin mirar» hasta que Marcos mire la bandeja (en «S8, tramo 1», arriba). **Antes decía:** lo próximo es S8, tramo A, la lista y la búsqueda en el servidor, con el criterio 31 de F35 (el detalle de los cuatro tramos, en la tabla del Bloque 4, abajo). El prompt se arma en el chat de revisión de Marcos. Ya se hizo lo que este archivo daba por pendiente antes de S8: el número quedó vinculado, la clave de Resend cargada en el espacio real y S7 cerrada en tres tramos, el tercero con la 00042 (en «Después del tramo 3 de S7» y «S7, tramo 3», arriba). Lo que sigue en esta sección es de antes y queda como estaba.
+**Desde el 5 de noviembre de 2026, a las 14:56: el tramo A de S9 (F40, la ventana de Instagram, y los tres de F35 que la esperaban) quedó hecho y desplegado, con «salida 0, pantallas sin mirar»** hasta que Marcos mire la bandeja y la ficha (en «S9, tramo A», arriba; «Vence en…» con datos reales, desde las 17:21). La respuesta privada a un comentario queda para un tramo propio de S9. Lo que sigue en este párrafo es de antes. **Desde el 4 de noviembre de 2026, a las 18:58: el tramo D de S8 quedó hecho y desplegado**; Marcos miró las pantallas y F35 quedó en 26 de 31 (en «S8, tramo 5», arriba). Lo próximo: el 05/11, mirar si la tarea reabrió «Marcos Pitti music» el día de su seguimiento (el disparador de la reapertura sola), y la tarea chica del encabezado del hilo. **Antes decía:** «**Desde el 4 de noviembre de 2026, a las 16:12: lo próximo es S8, tramo D**: cerrar y reabrir, la reapertura sola, el pedido del próximo seguimiento al cerrar (con el selector del tramo C), los no leídos y las 315 conversaciones de ManyChat. El tramo C quedó hecho y desplegado, con «salida 0, pantallas sin mirar» hasta que Marcos mire la bandeja y la ficha (en «S8, tramo 4», arriba).» **Lo que seguía en ese párrafo, antes:** «Desde el 4 de noviembre de 2026, a las 10:38: lo próximo es S8, tramo C, el selector de próximo seguimiento en el panel, con el panel en voseo. El tramo B quedó hecho y desplegado, con «salida 0, pantallas sin mirar» hasta que Marcos mire la bandeja y Canales (en «S8, tramo 2», arriba).» **Lo que seguía en ese párrafo, antes:** «Desde el 3 de noviembre de 2026, a las 17:34: lo próximo es S8, tramo B, los filtros de la bandeja.» **Lo que seguía en ese párrafo:** El tramo A quedó hecho y desplegado, con «salida 0, pantallas sin mirar» hasta que Marcos mire la bandeja (en «S8, tramo 1», arriba). **Antes decía:** lo próximo es S8, tramo A, la lista y la búsqueda en el servidor, con el criterio 31 de F35 (el detalle de los cuatro tramos, en la tabla del Bloque 4, abajo). El prompt se arma en el chat de revisión de Marcos. Ya se hizo lo que este archivo daba por pendiente antes de S8: el número quedó vinculado, la clave de Resend cargada en el espacio real y S7 cerrada en tres tramos, el tercero con la 00042 (en «Después del tramo 3 de S7» y «S7, tramo 3», arriba). Lo que sigue en esta sección es de antes y queda como estaba.
 
 **`docs/purga-y-reconexion-instagram.md` está cerrado**, desde el 22 de septiembre de 2026, con el despliegue verificado. Railway despliega `bloque-1-foundation` con despliegue automático al subir, verificado ese día en la interfaz. El último despliegue verificado es `d3eb410`, el 23 de septiembre de 2026, con la tarjeta ACTIVE en "Deployment successful" (captura de Marcos).
 
@@ -2485,7 +2644,7 @@ Sin fecha: el Flujo 4 del plano, la conexión en vivo de WhatsApp. Espera el nú
 |---|---|---|---|---|---|
 | S7 | F32 | 9 | 144 a 261 | Tramo 1: 02/11/2026 18:11 a 02/11/2026 19:48, con tres cortes que no se cuentan, las esperas de Railway de 18:51 a 18:55, de 19:11 a 19:14 y de 19:35 a 19:38. Hora de Costa Rica. Suma del tramo 1: 88 min (1 h 28 min). Tramo 2, retrabajo de F32 (los tests no vistos en rojo): 03/11/2026 11:20 a 03/11/2026 11:49, sin cortes. Suma del tramo 2: 28 min. Tramo 3, retrabajo de F32 (el agotado que se perdía, con la 00042): 03/11/2026 15:06 a 03/11/2026 15:54, sin cortes. Suma del tramo 3: 47 min. Suma de la sesión: 163 min (2 h 43 min), dentro del rango. Actualizado el 03/11/2026: decía 116 min (1 h 56 min), por debajo del rango; antes, 88 min. F32 completa, 9 de 9 (tildes del 03/11/2026, decididas por Marcos). Actualizado el 03/11/2026: decía «F32 construida, 4 de 9; 2, 4, 5, 6 y 7 pendientes de la vinculación del número» | 02/11/2026 y 03/11/2026 |
 | S8 | F35 | 31. Actualizado el 03/11/2026: decía 30; criterio agregado después de cerrada la línea de base, por un hallazgo con el número real, decidido por Marcos | 496 a 899. Actualizado el 03/11/2026: decía 480 a 870; criterio agregado después de cerrada la línea de base, por un hallazgo con el número real, decidido por Marcos | Tramo 1 (tramo A): 03/11/2026 17:11 a 03/11/2026 17:34, con un corte que no se cuenta, la espera de Railway de 17:31 a 17:34. Hora de Costa Rica. Suma del tramo 1: 19 min. El tramo A quedó entero (detalle en «S8, tramo 1», arriba); F35 sin tildes nuevas hasta que Marcos decida. Tramo 2 (tramo B): 04/11/2026 10:05 a 04/11/2026 10:38, con dos cortes que no se cuentan, la apertura (ítem 0) de 10:05 a 10:06 y la espera de Railway de 10:30 a 10:33. Hora de Costa Rica. Suma del tramo 2: 29 min. El tramo B quedó entero menos los dos criterios de la ventana de Instagram, que van en S9 después de F40 (detalle en «S8, tramo 2», arriba). Tramo 3 (retrabajo de la búsqueda): 04/11/2026 11:52 a 04/11/2026 12:55, con dos cortes que no se cuentan, una pausa de Marcos de 11:56 a 12:13 y la espera de Railway de 12:46 a 12:50. Hora de Costa Rica. Suma del tramo 3: al menos 52 min, que incluye dos partes posteriores: el análisis desde las 13:40 (el final del análisis no se leyó) y un pedido a la vez, de 13:53 a 13:59, con la espera de Railway de 13:56 a 13:58, que no se cuenta. Actualizado el 04/11/2026: decía 43 min; no sumaba esas dos partes (detalle en «S8, tramo 3», arriba). Tramo 4 (tramo C): 04/11/2026 15:50 a 04/11/2026 16:12, con un corte que no se cuenta, la espera de Railway de 16:05 a 16:09. Hora de Costa Rica. Suma del tramo 4: 18 min (detalle en «S8, tramo 4», arriba). Tramo 5 (tramo D): 04/11/2026 18:10 a 04/11/2026 18:58, con un corte que no se cuenta, la espera de Railway de 18:34 a 18:37. Hora de Costa Rica. Suma del tramo 5: 44 min (detalle en «S8, tramo 5», arriba) | 04/11/2026 |
-| S9 | F40, F36, F43, F44 | 28 | 448 a 812 | | |
+| S9 | F40, F36, F43, F44 | 28 | 448 a 812 | Tramo A (F40 y los tres de F35 que la esperaban): 05/11/2026 13:47 a 05/11/2026 14:56, con un corte que no se cuenta, la espera de Railway de 14:23 a 14:25. Hora de Costa Rica. Suma del tramo A: 67 min (detalle en «S9, tramo A», arriba) | |
 | S10 | F34, F42, F33 | 25 | 400 a 725 | | |
 | S11 | F37, F38 | 25 | 400 a 725 | | |
 | **Bloque** | | **118**. Actualizado el 03/11/2026: decía 117; criterio agregado después de cerrada la línea de base, por un hallazgo con el número real, decidido por Marcos | **1888 a 3422** (31 a 57 h). Actualizado el 03/11/2026: decía 1872 a 3393; criterio agregado después de cerrada la línea de base, por un hallazgo con el número real, decidido por Marcos | | |
