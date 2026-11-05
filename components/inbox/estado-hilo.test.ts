@@ -81,3 +81,42 @@ describe("cerrar y reabrir: los avisos y lo que se hace con la respuesta", () =>
     expect(fuente).toMatch(/payload\.new[^;]*status/);
   });
 });
+
+/**
+ * S8, tramo 7: el estado se lee como texto, sin el recuadro que lo hacía
+ * parecer un botón, y el único botón es «Cerrar» o «Reabrir». Decidido el
+ * 05/11/2026 (texto sin recuadro, aunque el prototipo no muestra el estado).
+ */
+const { VistaDelEstado } = await import("./estado-conversacion");
+const vista = (estado: string) => sinSeparadores(renderToStaticMarkup(createElement(VistaDelEstado, { estado })));
+const casos = [
+  { estado: "open", texto: "Abierta", boton: "Cerrar" },
+  { estado: "closed", texto: "Cerrada", boton: "Reabrir" },
+];
+
+describe("el estado del encabezado es texto y hay un solo botón", () => {
+  it("el estado no tiene recuadro: ni redondeo, ni fondo, ni relleno", () => {
+    for (const c of casos) {
+      const m = vista(c.estado).match(new RegExp(`<(\\w+)([^>]*)>${c.texto}<`));
+      expect(m, c.texto).not.toBeNull();
+      const clases = m![2].match(/class="([^"]*)"/)?.[1] ?? "";
+      expect(clases, c.texto).not.toMatch(/(^|\s)(rounded|bg-|px-|py-|border)/);
+    }
+  });
+
+  it("el estado no es un botón", () => {
+    for (const c of casos) {
+      const h = vista(c.estado);
+      expect(h).toContain(`>${c.texto}<`);
+      expect(h).not.toMatch(new RegExp(`<button[^>]*>[^<]*${c.texto}`));
+    }
+  });
+
+  it("hay un solo botón, «Cerrar» o «Reabrir», según corresponda", () => {
+    for (const c of casos) {
+      const botones = vista(c.estado).match(/<button[^>]*>.*?<\/button>/g) ?? [];
+      expect(botones).toHaveLength(1);
+      expect(botones[0]).toMatch(new RegExp(`>${c.boton}</button>$`));
+    }
+  });
+});
