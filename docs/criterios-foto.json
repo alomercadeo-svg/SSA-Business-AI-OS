@@ -1959,7 +1959,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Filtro por estado de ventana solo para Instagram, que es donde la ventana existe"
+    "texto": "- [x] Filtro por estado de ventana solo para Instagram, que es donde la ventana existe"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -1968,7 +1968,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Filtro por estado de ventana de Instagram: abierta, cerrada, o por vencer en menos de 2 horas (devuelto el 23/09/2026, auditoría #80b)"
+    "texto": "- [x] Filtro por estado de ventana de Instagram: abierta, cerrada, o por vencer en menos de 2 horas (devuelto el 23/09/2026, auditoría #80b)"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2094,7 +2094,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] La búsqueda y los filtros de la lista corren en el servidor, sobre todas las conversaciones del alcance de quien mira, no sobre las ya cargadas en el navegador (agregado el 19/10/2026)"
+    "texto": "- [x] La búsqueda y los filtros de la lista corren en el servidor, sobre todas las conversaciones del alcance de quien mira, no sobre las ya cargadas en el navegador (agregado el 19/10/2026)"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2463,7 +2463,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F40: Ventana de conversación de Instagram"
     ],
-    "texto": "- [ ] Campos `window_expires_at` y `window_source` agregados a `conversations`"
+    "texto": "- [x] Campos `window_expires_at` y `window_source` agregados a `conversations`"
   },
   {
     "seccion": "F40: Ventana de conversación de Instagram",
@@ -2472,7 +2472,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F40: Ventana de conversación de Instagram"
     ],
-    "texto": "- [ ] `window_expires_at` se recalcula con cada mensaje entrante: 24 horas desde el mensaje"
+    "texto": "- [x] `window_expires_at` se recalcula con cada mensaje entrante: 24 horas desde el mensaje"
   },
   {
     "seccion": "F40: Ventana de conversación de Instagram",
@@ -2481,7 +2481,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F40: Ventana de conversación de Instagram"
     ],
-    "texto": "- [ ] En la lista de la bandeja, una conversación de Instagram muestra «Ventana cerrada» (prototipo-fase1.html:456 y :607) o, cuando faltan menos de 2 horas, el aviso de que vence («Vence en 1 h 20 min», o «Vence en 45 min» con menos de una hora; prototipo-fase1.html:458 y :608), y nada con más de 2 horas. En el encabezado del hilo muestra siempre el estado: «Ventana abierta · quedan N h» (prototipo-fase1.html:459 y :667), el aviso de que vence, o «Ventana cerrada» (reescrito el 05/11/2026, decidido por Marcos)"
+    "texto": "- [x] En la lista de la bandeja, una conversación de Instagram muestra «Ventana cerrada» (prototipo-fase1.html:456 y :607) o, cuando faltan menos de 2 horas, el aviso de que vence («Vence en 1 h 20 min», o «Vence en 45 min» con menos de una hora; prototipo-fase1.html:458 y :608), y nada con más de 2 horas. En el encabezado del hilo muestra siempre el estado: «Ventana abierta · quedan N h» (prototipo-fase1.html:459 y :667), el aviso de que vence, o «Ventana cerrada» (reescrito el 05/11/2026, decidido por Marcos)"
   },
   {
     "seccion": "F40: Ventana de conversación de Instagram",
@@ -2490,7 +2490,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F40: Ventana de conversación de Instagram"
     ],
-    "texto": "- [ ] La ficha del contacto muestra cada conversación de Instagram con su propio estado de ventana (devuelto el 23/09/2026, auditoría #56b y #64b)"
+    "texto": "- [x] La ficha del contacto muestra cada conversación de Instagram con su propio estado de ventana (devuelto el 23/09/2026, auditoría #56b y #64b)"
   },
   {
     "seccion": "F40: Ventana de conversación de Instagram",
@@ -2499,7 +2499,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F40: Ventana de conversación de Instagram"
     ],
-    "texto": "- [ ] Con la ventana abierta, el campo de respuesta acepta texto libre normalmente"
+    "texto": "- [x] Con la ventana abierta, el campo de respuesta acepta texto libre normalmente"
   },
   {
     "seccion": "F40: Ventana de conversación de Instagram",
@@ -2508,7 +2508,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F40: Ventana de conversación de Instagram"
     ],
-    "texto": "- [ ] Con la ventana cerrada, el campo se deshabilita y el mensaje dice «Pasaron 24 horas desde el último mensaje: escribile desde la app de Instagram». Motivo: la ventana limita los envíos por la API, no los que se hacen desde la app, y lo que se escribe desde la app llega a la bandeja por el echo (medido el 21/09/2026)."
+    "texto": "- [x] Con la ventana cerrada, el campo se deshabilita y el mensaje dice «Pasaron 24 horas desde el último mensaje: escribile desde la app de Instagram». Motivo: la ventana limita los envíos por la API, no los que se hacen desde la app, y lo que se escribe desde la app llega a la bandeja por el echo (medido el 21/09/2026)."
   },
   {
     "seccion": "F40: Ventana de conversación de Instagram",
@@ -2562,7 +2562,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F40: Ventana de conversación de Instagram"
     ],
-    "texto": "- [ ] **Control positivo:** con una conversación cuya ventana está abierta, el envío funciona. Probar solo el bloqueo no distingue entre estar bien implementado y estar todo deshabilitado"
+    "texto": "- [x] **Control positivo:** con una conversación cuya ventana está abierta, el envío funciona. Probar solo el bloqueo no distingue entre estar bien implementado y estar todo deshabilitado"
   },
   {
     "seccion": "F40: Ventana de conversación de Instagram",
@@ -2571,7 +2571,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F40: Ventana de conversación de Instagram"
     ],
-    "texto": "- [ ] Los campos se agregan igual para WhatsApp aunque no se usen, porque son los mismos que necesita el plan B. Ver el apéndice del plan B"
+    "texto": "- [x] Los campos se agregan igual para WhatsApp aunque no se usen, porque son los mismos que necesita el plan B. Ver el apéndice del plan B"
   },
   {
     "seccion": "F42: Respuesta por WhatsApp desde la bandeja",
@@ -2670,7 +2670,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F43: Lista de contactos completa"
     ],
-    "texto": "- [ ] La lista de Contactos carga por páginas desde el servidor, ordenada por interacción más reciente, y muestra el total de contactos del alcance de quien mira, no solo los de la página."
+    "texto": "- [x] La lista de Contactos carga por páginas desde el servidor, ordenada por interacción más reciente, y muestra el total de contactos del alcance de quien mira, no solo los de la página."
   },
   {
     "seccion": "F43: Lista de contactos completa",
@@ -2679,7 +2679,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F43: Lista de contactos completa"
     ],
-    "texto": "- [ ] El buscador busca en el servidor por nombre, teléfono, correo y usuario de Instagram, sobre todos los contactos del alcance de quien mira. Los filtros de la fila (seguimiento, etapa, setter, vendedor y etiqueta) también corren en el servidor."
+    "texto": "- [x] El buscador busca en el servidor por nombre, teléfono, correo y usuario de Instagram, sobre todos los contactos del alcance de quien mira. Los filtros de la fila (seguimiento, etapa, setter, vendedor y etiqueta) también corren en el servidor."
   },
   {
     "seccion": "F43: Lista de contactos completa",
@@ -2688,7 +2688,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F43: Lista de contactos completa"
     ],
-    "texto": "- [ ] La navegación es por páginas numeradas, con «Página N de M»."
+    "texto": "- [x] La navegación es por páginas numeradas, con «Página N de M»."
   },
   {
     "seccion": "F43: Lista de contactos completa",
@@ -2697,7 +2697,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F43: Lista de contactos completa"
     ],
-    "texto": "- [ ] Control positivo: un contacto que está más allá de los primeros 100 aparece al buscarlo y se abre. Con el token de un Member, la búsqueda no devuelve contactos fuera de su alcance, y con el de un Owner sí."
+    "texto": "- [x] Control positivo: un contacto que está más allá de los primeros 100 aparece al buscarlo y se abre. Con el token de un Member, la búsqueda no devuelve contactos fuera de su alcance, y con el de un Owner sí."
   },
   {
     "seccion": "F43: Lista de contactos completa",
@@ -2706,7 +2706,16 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F43: Lista de contactos completa"
     ],
-    "texto": "- [ ] Un contacto sin nombre ni usuario se muestra como «Sin nombre» en la bandeja, en Contactos y en la ficha, en vez de su identificador de remitente. El identificador queda en la ficha como dato secundario. Incluye los contactos que hoy tienen el identificador como nombre (95 de 743 en @alomercadeo el 02/11/2026) (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
+    "texto": "- [x] Un contacto sin nombre ni usuario se muestra como «Sin nombre» en la bandeja, en Contactos y en la ficha, en vez de su identificador de remitente. El identificador queda en la ficha como dato secundario. Incluye los contactos que hoy tienen el identificador como nombre (95 de 743 en @alomercadeo el 02/11/2026) (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
+  },
+  {
+    "seccion": "F43: Lista de contactos completa",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F43: Lista de contactos completa"
+    ],
+    "texto": "- [ ] Un filtro deja afuera de la lista de Contactos a los contactos que nunca escribieron: sin ningún mensaje del lead en ninguna de sus conversaciones. Control positivo: con el filtro, un contacto que escribió aparece y uno que nunca escribió no; sin el filtro, aparecen los dos (agregado el 05/11/2026, decidido por Marcos: los contactos que deja la bienvenida de ManyChat sin que la persona escriba llenan la lista de «Sin nombre»)."
   },
   {
     "seccion": "F44: Contenido del hilo: compartidos, historias y fotos",

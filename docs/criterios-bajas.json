@@ -1138,5 +1138,117 @@
     "texto": "- [ ] En la bandeja, cada conversación muestra un indicador del estado de la ventana: abierta con el tiempo restante, o cerrada",
     "nuevo": "- [ ] En la lista de la bandeja, una conversación de Instagram muestra «Ventana cerrada» (prototipo-fase1.html:456 y :607) o, cuando faltan menos de 2 horas, el aviso de que vence («Vence en 1 h 20 min», o «Vence en 45 min» con menos de una hora; prototipo-fase1.html:458 y :608), y nada con más de 2 horas. En el encabezado del hilo muestra siempre el estado: «Ventana abierta · quedan N h» (prototipo-fase1.html:459 y :667), el aviso de que vence, o «Ventana cerrada» (reescrito el 05/11/2026, decidido por Marcos)",
     "motivo": "Reescrito por decisión de Marcos el 05/11/2026: una marca en cada fila de Instagram es ruido en una lista de cientos de conversaciones; la lista marca solo lo que pide atención, con el mismo corte de 2 horas que el filtro «por vencer», como el prototipo aprobado por la clienta el 06/10/2026 (prototipo-fase1.html:456, :458, :459, :607, :608 y :667). El tiempo restante completo queda en el encabezado del hilo."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-05",
+    "texto": "- [ ] Filtro por estado de ventana solo para Instagram, que es donde la ventana existe",
+    "nuevo": "- [x] Filtro por estado de ventana solo para Instagram, que es donde la ventana existe",
+    "motivo": "Tildado por Marcos el 05/11/2026. Con datos reales, después del despliegue de 5f84610: con «Canal → WhatsApp» y «Abierta», 0 conversaciones, y las de WhatsApp sin marca de ventana (capturas de Marcos desde las 15:00). Verificador: verify-ventana-instagram.mjs, 63 de 63, entre las 16:28 y las 16:31 del 05/11."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-05",
+    "texto": "- [ ] Filtro por estado de ventana de Instagram: abierta, cerrada, o por vencer en menos de 2 horas (devuelto el 23/09/2026, auditoría #80b)",
+    "nuevo": "- [x] Filtro por estado de ventana de Instagram: abierta, cerrada, o por vencer en menos de 2 horas (devuelto el 23/09/2026, auditoría #80b)",
+    "motivo": "Tildado por Marcos el 05/11/2026. Con datos reales: «Abierta», 4 de 4 (desde las 15:00); «Cerrada», con sus cantidades; «Vence en menos de 2 h», 1 de 1, The Consultour, a las 17:26 del 05/11. Verificador: verify-ventana-instagram.mjs, 63 de 63, entre las 16:28 y las 16:31 del 05/11, con el reloj fijo."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-05",
+    "texto": "- [ ] La búsqueda y los filtros de la lista corren en el servidor, sobre todas las conversaciones del alcance de quien mira, no sobre las ya cargadas en el navegador (agregado el 19/10/2026)",
+    "nuevo": "- [x] La búsqueda y los filtros de la lista corren en el servidor, sobre todas las conversaciones del alcance de quien mira, no sobre las ya cargadas en el navegador (agregado el 19/10/2026)",
+    "motivo": "Tildado por Marcos el 05/11/2026. Todos los filtros de la lista, incluido el de la ventana, corren en bandeja_filtrada, y la búsqueda en bandeja_busca_con_acceso (00045). Verificadores del 05/11, entre las 16:28 y las 16:31, con el Member y el Owner: verify-filtros-bandeja 135 de 135 y verify-ventana-instagram 63 de 63. Visto con datos reales en el tramo B de S8 y el tramo A de S9."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-05",
+    "texto": "- [ ] Campos `window_expires_at` y `window_source` agregados a `conversations`",
+    "nuevo": "- [x] Campos `window_expires_at` y `window_source` agregados a `conversations`",
+    "motivo": "Tildado por Marcos el 05/11/2026. La 00048 (281ba8f), aplicada a las 13:54:41 del 05/11; el catálogo, a las 13:54:53, muestra window_expires_at timestamptz y window_source text en conversations."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-05",
+    "texto": "- [ ] `window_expires_at` se recalcula con cada mensaje entrante: 24 horas desde el mensaje",
+    "nuevo": "- [x] `window_expires_at` se recalcula con cada mensaje entrante: 24 horas desde el mensaje",
+    "motivo": "Tildado por Marcos el 05/11/2026. Con datos reales: a las 15:30, un mensaje de @marcospittimusic a @poderosascomunidad pasó el encabezado a «Ventana abierta · quedan 23 h». Verificador: verify-ventana-instagram.mjs, 63 de 63, entre las 16:28 y las 16:31 del 05/11: 24 h desde la hora de Meta, el echo no la mueve y un mensaje viejo no la atrasa."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-05",
+    "texto": "- [ ] En la lista de la bandeja, una conversación de Instagram muestra «Ventana cerrada» (prototipo-fase1.html:456 y :607) o, cuando faltan menos de 2 horas, el aviso de que vence («Vence en 1 h 20 min», o «Vence en 45 min» con menos de una hora; prototipo-fase1.html:458 y :608), y nada con más de 2 horas. En el encabezado del hilo muestra siempre el estado: «Ventana abierta · quedan N h» (prototipo-fase1.html:459 y :667), el aviso de que vence, o «Ventana cerrada» (reescrito el 05/11/2026, decidido por Marcos)",
+    "nuevo": "- [x] En la lista de la bandeja, una conversación de Instagram muestra «Ventana cerrada» (prototipo-fase1.html:456 y :607) o, cuando faltan menos de 2 horas, el aviso de que vence («Vence en 1 h 20 min», o «Vence en 45 min» con menos de una hora; prototipo-fase1.html:458 y :608), y nada con más de 2 horas. En el encabezado del hilo muestra siempre el estado: «Ventana abierta · quedan N h» (prototipo-fase1.html:459 y :667), el aviso de que vence, o «Ventana cerrada» (reescrito el 05/11/2026, decidido por Marcos)",
+    "motivo": "Tildado por Marcos el 05/11/2026. Con datos reales: en la lista, «Ventana cerrada» en gris y «Vence en 1 h 55 min» en ámbar (The Consultour, 17:26); en el encabezado, «Ventana abierta · quedan 4 h» y después «3 h», y «Vence en 1 h 55 min» a las 17:26."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-05",
+    "texto": "- [ ] La ficha del contacto muestra cada conversación de Instagram con su propio estado de ventana (devuelto el 23/09/2026, auditoría #56b y #64b)",
+    "nuevo": "- [x] La ficha del contacto muestra cada conversación de Instagram con su propio estado de ventana (devuelto el 23/09/2026, auditoría #56b y #64b)",
+    "motivo": "Tildado por Marcos el 05/11/2026. Con datos reales: la ficha de Marcos Pitti music, con «Ventana abierta · quedan 3 h» (desde las 15:00), y la de un contacto «Sin nombre» de @alomercadeo, con «Ventana cerrada» (17:10)."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-05",
+    "texto": "- [ ] Con la ventana abierta, el campo de respuesta acepta texto libre normalmente",
+    "nuevo": "- [x] Con la ventana abierta, el campo de respuesta acepta texto libre normalmente",
+    "motivo": "Tildado por Marcos el 05/11/2026. Con datos reales: a las 15:30, Marcos contestó desde la bandeja en la conversación de @poderosascomunidad con la ventana abierta."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-05",
+    "texto": "- [ ] Con la ventana cerrada, el campo se deshabilita y el mensaje dice «Pasaron 24 horas desde el último mensaje: escribile desde la app de Instagram». Motivo: la ventana limita los envíos por la API, no los que se hacen desde la app, y lo que se escribe desde la app llega a la bandeja por el echo (medido el 21/09/2026).",
+    "nuevo": "- [x] Con la ventana cerrada, el campo se deshabilita y el mensaje dice «Pasaron 24 horas desde el último mensaje: escribile desde la app de Instagram». Motivo: la ventana limita los envíos por la API, no los que se hacen desde la app, y lo que se escribe desde la app llega a la bandeja por el echo (medido el 21/09/2026).",
+    "motivo": "Tildado por Marcos el 05/11/2026. Con datos reales: Diana Arias y Marcos Pitti music del 16/10, con el campo reemplazado por «Pasaron 24 horas desde el último mensaje: escribile desde la app de Instagram.» (capturas desde las 15:00)."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-05",
+    "texto": "- [ ] **Control positivo:** con una conversación cuya ventana está abierta, el envío funciona. Probar solo el bloqueo no distingue entre estar bien implementado y estar todo deshabilitado",
+    "nuevo": "- [x] **Control positivo:** con una conversación cuya ventana está abierta, el envío funciona. Probar solo el bloqueo no distingue entre estar bien implementado y estar todo deshabilitado",
+    "motivo": "Tildado por Marcos el 05/11/2026, con nota. A las 15:30, con la ventana abierta, Marcos contestó desde la bandeja y, según Marcos, el mensaje llegó a @marcospittimusic; la captura es de antes del envío y no lo muestra. Solo entre las cuentas de prueba. El bloqueo con la ventana cerrada, en el verificador (409 sin llamar a Zernio)."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-05",
+    "texto": "- [ ] Los campos se agregan igual para WhatsApp aunque no se usen, porque son los mismos que necesita el plan B. Ver el apéndice del plan B",
+    "nuevo": "- [x] Los campos se agregan igual para WhatsApp aunque no se usen, porque son los mismos que necesita el plan B. Ver el apéndice del plan B",
+    "motivo": "Tildado por Marcos el 05/11/2026. La 00048 agrega las columnas a todas las conversaciones; el recuento de las 20:51:11 UTC del 05/11 dio 0 conversaciones de WhatsApp con ventana; en pantalla, WhatsApp sin marca de ventana y con el campo habilitado."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-05",
+    "texto": "- [ ] La lista de Contactos carga por páginas desde el servidor, ordenada por interacción más reciente, y muestra el total de contactos del alcance de quien mira, no solo los de la página.",
+    "nuevo": "- [x] La lista de Contactos carga por páginas desde el servidor, ordenada por interacción más reciente, y muestra el total de contactos del alcance de quien mira, no solo los de la página.",
+    "motivo": "Tildado por Marcos el 05/11/2026. Con datos reales: «776 contactos» y «Página 1 de 16», ordenada por la interacción más reciente (17:02). Verificador: verify-contactos.mjs, 101 de 101, a las 16:48:58 del 05/11."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-05",
+    "texto": "- [ ] El buscador busca en el servidor por nombre, teléfono, correo y usuario de Instagram, sobre todos los contactos del alcance de quien mira. Los filtros de la fila (seguimiento, etapa, setter, vendedor y etiqueta) también corren en el servidor.",
+    "nuevo": "- [x] El buscador busca en el servidor por nombre, teléfono, correo y usuario de Instagram, sobre todos los contactos del alcance de quien mira. Los filtros de la fila (seguimiento, etapa, setter, vendedor y etiqueta) también corren en el servidor.",
+    "motivo": "Tildado por Marcos el 05/11/2026, con nota. Con datos reales: «chavarria», sin tilde, trajo 4 de 776 (17:04); los filtros de la fila, vistos funcionar por Marcos (17:08, dicho, sin una captura de cada uno). Por teléfono, correo y usuario, y cada filtro con presencia y ausencia, en verify-contactos.mjs, 101 de 101, a las 16:48:58 del 05/11."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-05",
+    "texto": "- [ ] La navegación es por páginas numeradas, con «Página N de M».",
+    "nuevo": "- [x] La navegación es por páginas numeradas, con «Página N de M».",
+    "motivo": "Tildado por Marcos el 05/11/2026. Con datos reales: «Página 1 de 16», «← Anterior», «1 2 3 … 16» y «Siguiente →» (17:02); Marcos fue a la página 3 y abrió un contacto."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-05",
+    "texto": "- [ ] Control positivo: un contacto que está más allá de los primeros 100 aparece al buscarlo y se abre. Con el token de un Member, la búsqueda no devuelve contactos fuera de su alcance, y con el de un Owner sí.",
+    "nuevo": "- [x] Control positivo: un contacto que está más allá de los primeros 100 aparece al buscarlo y se abre. Con el token de un Member, la búsqueda no devuelve contactos fuera de su alcance, y con el de un Owner sí.",
+    "motivo": "Tildado por Marcos el 05/11/2026. Con datos reales: la página 3, más allá de los 100, y un contacto abierto (17:02). Con los tokens del Member y del Owner, en verify-contactos.mjs, 101 de 101, a las 16:48:58 del 05/11, que es lo que pide el criterio."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-05",
+    "texto": "- [ ] Un contacto sin nombre ni usuario se muestra como «Sin nombre» en la bandeja, en Contactos y en la ficha, en vez de su identificador de remitente. El identificador queda en la ficha como dato secundario. Incluye los contactos que hoy tienen el identificador como nombre (95 de 743 en @alomercadeo el 02/11/2026) (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)",
+    "nuevo": "- [x] Un contacto sin nombre ni usuario se muestra como «Sin nombre» en la bandeja, en Contactos y en la ficha, en vez de su identificador de remitente. El identificador queda en la ficha como dato secundario. Incluye los contactos que hoy tienen el identificador como nombre (95 de 743 en @alomercadeo el 02/11/2026) (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)",
+    "motivo": "Tildado por Marcos el 05/11/2026. Con datos reales: «Sin nombre» en Contactos (17:02), en la ficha con «Instagram: sin usuario · identificador …» en gris (17:10), y en la pestaña «Cerradas» de la bandeja (dicho por Marcos al decidir la tilde). Sin escribir en ningún contacto real: se decide al mostrar, en lib/nombre-visible.ts."
   }
 ]
