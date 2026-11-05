@@ -434,6 +434,32 @@ async function principal() {
     const comoOwner = await rpcComo(owner.token, "reabrir_por_seguimiento", { p_workspace: espacio, p_ahora: enCostaRica(D1, "08:00") });
     check(comoOwner.status >= 400, "un usuario no la puede llamar: es solo del servidor", `HTTP ${comoOwner.status}`);
 
+    // Va antes de Kiritimati a propósito: acá no queda en el espacio ninguna
+    // cerrada con seguimiento <= D+2 (f1 ya se abrió; la del seguimiento nulo y
+    // la eliminada no cuentan; A quedó abierta en la ruta), así que lo devuelto
+    // tiene que ser exactamente lo de este paso. fE2 se crea después.
+    titulo("reabrir_por_seguimiento: un contacto con dos conversaciones las reabre las dos");
+    const D2 = masDias(D, 2);
+    const D3 = masDias(D, 3);
+    const dosConversaciones = async (nombre, fecha, tel) => {
+      const c = (await crearContacto(espacio, { display_name: `d-estados-${nombre}-${sufijo}`, next_followup_date: fecha })).id;
+      await admin("contact_channels", { method: "POST", body: JSON.stringify({ contact_id: c, channel_id: canalIg, platform_sender_id: `ig${nombre}${sufijo}`, raw_jid: `ig${nombre}${sufijo}` }) });
+      await admin("contact_channels", { method: "POST", body: JSON.stringify({ contact_id: c, channel_id: canalWa, platform_sender_id: `${tel}@s.whatsapp.net`, raw_jid: `${tel}@s.whatsapp.net` }) });
+      return { ig: await convNueva(canalIg, "instagram", c), wa: await convNueva(canalWa, "whatsapp", c) };
+    };
+    const h2 = await dosConversaciones("H2", D2, `50683${base}`);
+    const m2 = await dosConversaciones("M2", D3, `50684${base}`);
+    const prepDos = await Promise.all([h2.ig, h2.wa, m2.ig, m2.wa].map(conversacion));
+    check(prepDos.every((c) => c?.status === "closed"), "las cuatro existen y están cerradas (preparación, leída)");
+    const rDos = await rpcAdmin("reabrir_por_seguimiento", { p_workspace: espacio, p_ahora: enCostaRica(D2, "08:00") });
+    const idsDos = idsDe(rDos);
+    check(rDos.status === 200 && Array.isArray(rDos.data), "la función responde", `HTTP ${rDos.status}`);
+    check(rDos.status === 200 && idsDos.length === 2 && idsDos.includes(h2.ig) && idsDos.includes(h2.wa), "el día D+2 a las 08:00, devuelve exactamente las dos del contacto de D+2", JSON.stringify(idsDos));
+    check((await conversacion(h2.ig))?.status === "open", "la de Instagram del contacto de D+2 quedó abierta");
+    check((await conversacion(h2.wa))?.status === "open", "la de WhatsApp del contacto de D+2 también quedó abierta (todas las del contacto)");
+    check(!idsDos.includes(m2.ig) && !idsDos.includes(m2.wa), "ninguna del contacto de D+3 está en lo devuelto", JSON.stringify(idsDos));
+    check((await Promise.all([m2.ig, m2.wa].map(conversacion))).every((c) => c?.status === "closed"), "las dos del contacto de D+3 siguen cerradas");
+
     titulo("reabrir_por_seguimiento: la zona del espacio (Kiritimati, 20 horas adelante)");
     const fE2 = await conSeguimiento("FE2", D1);
     check((await conversacion(fE2))?.status === "closed" && (await conversacion(fOtro))?.status === "closed", "la de Costa Rica y la de Kiritimati, cerradas (preparación, leída)");
