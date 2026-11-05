@@ -2330,6 +2330,8 @@ Fuera de la medición: es la apertura, no es S9. `commits-sin-subir.mjs`, «Sin 
 
 **Suma: 5 min** (de 11:11 a 11:16, segundos truncados, hasta este registro). Contra la estimación de 30, por debajo; no se llegó al freno de los 45. La tilde de «Una conversación cerrada se reabre sola…» la decide Marcos después de ver la corrida verde: F35 sigue en 26 de 31.
 
+Tildado por Marcos el 05/11/2026: «Una conversación cerrada se reabre sola…». F35, 27 de 31. El avance del bloque sigue en 16 de 28.
+
 ---
 
 ## Siguiente paso

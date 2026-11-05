@@ -2139,7 +2139,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Una conversación cerrada se reabre sola cuando el lead vuelve a escribir, y el día de su próximo seguimiento, en la zona horaria del negocio. Lo que escribe el negocio no la reabre. Si el contacto tiene más de una conversación, se reabren todas. Control positivo: con el reloj fijado, una conversación cerrada con seguimiento para mañana aparece mañana en «Abiertas» sin que nadie la toque, y una cerrada a la que el lead le escribe aparece en «Abiertas» sin recargar (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
+    "texto": "- [x] Una conversación cerrada se reabre sola cuando el lead vuelve a escribir, y el día de su próximo seguimiento, en la zona horaria del negocio. Lo que escribe el negocio no la reabre. Si el contacto tiene más de una conversación, se reabren todas. Control positivo: con el reloj fijado, una conversación cerrada con seguimiento para mañana aparece mañana en «Abiertas» sin que nadie la toque, y una cerrada a la que el lead le escribe aparece en «Abiertas» sin recargar (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
   },
   {
     "seccion": "F35: Bandeja y filtros",
