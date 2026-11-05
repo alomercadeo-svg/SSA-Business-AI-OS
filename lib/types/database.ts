@@ -923,6 +923,9 @@ export interface Database {
           updated_at: string;
           /** F30 (00038). Eliminar marca la fecha; la seguridad por filas la oculta. */
           deleted_at: string | null;
+          /** F40 (00048): hasta cuándo Meta deja enviarle al lead por Instagram. */
+          window_expires_at: string | null;
+          window_source: string | null;
         };
         Insert: {
           id?: string;
@@ -943,6 +946,9 @@ export interface Database {
           updated_at?: string;
           /** F30 (00038). Eliminar marca la fecha; la seguridad por filas la oculta. */
           deleted_at?: string | null;
+          /** F40 (00048): hasta cuándo Meta deja enviarle al lead por Instagram. */
+          window_expires_at?: string | null;
+          window_source?: string | null;
         };
         Update: {
           late_conversation_id?: string | null;
@@ -957,6 +963,9 @@ export interface Database {
           updated_at?: string;
           /** F30 (00038). Eliminar marca la fecha; la seguridad por filas la oculta. */
           deleted_at?: string | null;
+          /** F40 (00048): hasta cuándo Meta deja enviarle al lead por Instagram. */
+          window_expires_at?: string | null;
+          window_source?: string | null;
         };
         Relationships: [
           {
