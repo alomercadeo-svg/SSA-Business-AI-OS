@@ -2130,7 +2130,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] En el hilo, «Cerrar» y «Reabrir», con los avisos «Conversación cerrada» y «Conversación reabierta» (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
+    "texto": "- [x] En el hilo, «Cerrar» y «Reabrir», con los avisos «Conversación cerrada» y «Conversación reabierta» (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2148,7 +2148,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Al cerrar una conversación cuyo próximo seguimiento es hoy o ya venció, antes de cerrarla se pide el próximo, con el mismo selector («En 3 días», «En 7 días», «En 14 días», «Otra fecha», «Quitar») (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
+    "texto": "- [x] Al cerrar una conversación cuyo próximo seguimiento es hoy o ya venció, antes de cerrarla se pide el próximo, con el mismo selector («En 3 días», «En 7 días», «En 14 días», «Otra fecha», «Quitar») (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2157,7 +2157,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] El contador de no leídos de cada conversación suma uno por cada mensaje del lead y vuelve a cero al abrir la conversación (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos; viene del grupo B de la revisión de errores del 20/10/2026)"
+    "texto": "- [x] El contador de no leídos de cada conversación suma uno por cada mensaje del lead y vuelve a cero al abrir la conversación (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos; viene del grupo B de la revisión de errores del 20/10/2026)"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2166,7 +2166,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] Una conversación que nace de un mensaje del negocio, sin ningún mensaje del lead, se crea cerrada, y se reabre con las reglas de los otros criterios de F35: cuando el lead escribe, o el día de su próximo seguimiento. Las conversaciones que hoy existen sin ningún mensaje del lead (315 de 761 en @alomercadeo el 02/11/2026) pasan a cerradas una sola vez, mostrando antes la cantidad y los id cortos. Control positivo: un mensaje desde @poderosascomunidad a una cuenta que no está en la base crea la conversación en «Cerradas», y cuando esa cuenta contesta aparece en «Abiertas» sin recargar (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
+    "texto": "- [x] Una conversación que nace de un mensaje del negocio, sin ningún mensaje del lead, se crea cerrada, y se reabre con las reglas de los otros criterios de F35: cuando el lead escribe, o el día de su próximo seguimiento. Las conversaciones que hoy existen sin ningún mensaje del lead (315 de 761 en @alomercadeo el 02/11/2026) pasan a cerradas una sola vez, mostrando antes la cantidad y los id cortos. Control positivo: un mensaje desde @poderosascomunidad a una cuenta que no está en la base crea la conversación en «Cerradas», y cuando esa cuenta contesta aparece en «Abiertas» sin recargar (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)"
   },
   {
     "seccion": "F35: Bandeja y filtros",

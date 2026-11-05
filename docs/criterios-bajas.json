@@ -1096,5 +1096,33 @@
     "texto": "- [ ] «Hoy» se calcula en la zona horaria del negocio (America/Costa_Rica), no en UTC.",
     "nuevo": "- [x] «Hoy» se calcula en la zona horaria del negocio (America/Costa_Rica), no en UTC.",
     "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Con datos reales, después de las 18:00 de Costa Rica, cuando en UTC ya era el 05/11: «Vence hoy» mostró la conversación con fecha 04/11 (Marcos; audit_log efbb6fb3-6d8c-4305-baba-a9334b3fc23f, «Otra fecha», contacto.editado de «Marcos Pitti music», next_followup_date de vacío a 2026-11-04, 04/11/2026 18:18:18 de Costa Rica). Además, verify-filtros-bandeja.mjs, el control de bordes (04/11/2026 13:58:29; y 18:39:55, 135 de 135), y verify-seguimiento-bandeja.mjs en Kiritimati (04/11/2026 16:09:57; y 18:39:13)."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-04",
+    "texto": "- [ ] En el hilo, «Cerrar» y «Reabrir», con los avisos «Conversación cerrada» y «Conversación reabierta» (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)",
+    "nuevo": "- [x] En el hilo, «Cerrar» y «Reabrir», con los avisos «Conversación cerrada» y «Conversación reabierta» (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Visto por Marcos con sesión el 04/11/2026 hacia las 19:10, sobre «Marcos Pitti music» de @poderosascomunidad: «Cerrar» mostró «Conversación cerrada» y la conversación pasó a «Cerradas»; «Reabrir» mostró «Conversación reabierta». verify-estados-bandeja.mjs, 04/11/2026 18:38:00, 92 de 92 (la ruta, con Owner y Member)."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-04",
+    "texto": "- [ ] Al cerrar una conversación cuyo próximo seguimiento es hoy o ya venció, antes de cerrarla se pide el próximo, con el mismo selector («En 3 días», «En 7 días», «En 14 días», «Otra fecha», «Quitar») (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)",
+    "nuevo": "- [x] Al cerrar una conversación cuyo próximo seguimiento es hoy o ya venció, antes de cerrarla se pide el próximo, con el mismo selector («En 3 días», «En 7 días», «En 14 días», «Otra fecha», «Quitar») (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Visto por Marcos: con el seguimiento de hoy, «Cerrar» mostró «Antes de cerrar, elegí el próximo seguimiento.»; «Cancelar» no cambió nada; «En 3 días» la cerró y el panel mostró la fecha nueva. verify-estados-bandeja.mjs, 04/11/2026 18:38:00 (el 409 de la ruta)."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-04",
+    "texto": "- [ ] El contador de no leídos de cada conversación suma uno por cada mensaje del lead y vuelve a cero al abrir la conversación (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos; viene del grupo B de la revisión de errores del 20/10/2026)",
+    "nuevo": "- [x] El contador de no leídos de cada conversación suma uno por cada mensaje del lead y vuelve a cero al abrir la conversación (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos; viene del grupo B de la revisión de errores del 20/10/2026)",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Visto por Marcos con datos reales: un mensaje desde su Instagram personal la pasó a «Abiertas» sin recargar, con 1 de no leídos; al abrirla, 0. verify-estados-bandeja.mjs, 04/11/2026 18:38:00: 1, 2, 3 en Instagram y en WhatsApp; en su rojo (18:17:50), 2, 2, 2."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-04",
+    "texto": "- [ ] Una conversación que nace de un mensaje del negocio, sin ningún mensaje del lead, se crea cerrada, y se reabre con las reglas de los otros criterios de F35: cuando el lead escribe, o el día de su próximo seguimiento. Las conversaciones que hoy existen sin ningún mensaje del lead (315 de 761 en @alomercadeo el 02/11/2026) pasan a cerradas una sola vez, mostrando antes la cantidad y los id cortos. Control positivo: un mensaje desde @poderosascomunidad a una cuenta que no está en la base crea la conversación en «Cerradas», y cuando esa cuenta contesta aparece en «Abiertas» sin recargar (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)",
+    "nuevo": "- [x] Una conversación que nace de un mensaje del negocio, sin ningún mensaje del lead, se crea cerrada, y se reabre con las reglas de los otros criterios de F35: cuando el lead escribe, o el día de su próximo seguimiento. Las conversaciones que hoy existen sin ningún mensaje del lead (315 de 761 en @alomercadeo el 02/11/2026) pasan a cerradas una sola vez, mostrando antes la cantidad y los id cortos. Control positivo: un mensaje desde @poderosascomunidad a una cuenta que no está en la base crea la conversación en «Cerradas», y cuando esa cuenta contesta aparece en «Abiertas» sin recargar (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)",
+    "motivo": "Tildado el 04/11/2026, decidido por Marcos en su chat de revisión. Las 319 sin mensajes del lead (318 de @alomercadeo y 1 de WhatsApp), mostradas antes con su cantidad y sus ids, cerradas de 18:57:31 a 18:57:33, con el recuento en 0 a las 18:57:43 (docs/cierre-manychat-2026-11-04.json). Control positivo con datos reales: el mensaje de Marcos desde @poderosascomunidad a @theconsultour, a las 19:19, creó la conversación en «Cerradas» (319 a 320), y la respuesta de @theconsultour, a las 19:21, la pasó a «Abiertas» sin recargar (454 a 455). Confirmado en la base con la lectura de solo lectura de las 19:28:58: la conversación cbe5f226-32bb-4e5e-ba7b-6d2c58e6ff6f se creó a las 19:19:33 con un mensaje del negocio de las 19:19:24, sin ningún mensaje anterior; el único mensaje del lead es de las 19:21:30, y hoy está abierta. La base no guarda el historial del estado (cambiar el estado no deja fila en audit_log), así que «cerrada entre las 19:19 y las 19:21» no lo confirma la lectura: lo muestran las capturas de Marcos y verify-estados-bandeja.mjs (04/11/2026 18:38:00); registrada igual por decisión de Marcos («1», 04/11/2026)."
   }
 ]
