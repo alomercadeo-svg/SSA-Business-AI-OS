@@ -14,6 +14,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Miembro } from "@/lib/miembros";
+import { etiquetaDeMiembro } from "@/lib/etiqueta-miembro";
 
 type Campo = "setter_id" | "vendedor_id";
 const SIN_ASIGNAR = "";
@@ -23,11 +24,14 @@ export function AsignacionContacto({
   setterId,
   vendedorId,
   miembros,
+  equipoCompleto = true,
 }: {
   contactoId: string;
   setterId: string | null;
   vendedorId: string | null;
   miembros: Miembro[];
+  /** Owner y Admin reciben el equipo entero; un Member, solo a sí mismo (F43, D9). */
+  equipoCompleto?: boolean;
 }) {
   const router = useRouter();
   const [valores, setValores] = useState<Record<Campo, string | null>>({ setter_id: setterId, vendedor_id: vendedorId });
@@ -64,7 +68,7 @@ export function AsignacionContacto({
 
   // Un id asignado que ya no es del equipo se muestra igual, para no mentir.
   const opciones = (actual: string | null) =>
-    actual && !miembros.some((m) => m.id === actual) ? [...miembros, { id: actual, etiqueta: "Ya no está en el equipo" }] : miembros;
+    actual && !miembros.some((m) => m.id === actual) ? [...miembros, { id: actual, etiqueta: etiquetaDeMiembro(actual, miembros, equipoCompleto) }] : miembros;
 
   const desplegable = (campo: Campo, etiqueta: string, ayuda: string) => (
     <label className="flex flex-col gap-1 text-sm">

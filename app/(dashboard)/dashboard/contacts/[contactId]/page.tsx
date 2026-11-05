@@ -9,7 +9,9 @@ import { AsignacionContacto } from "@/components/contacts/asignacion-contacto";
 import { EliminarContacto } from "@/components/contacts/eliminar-contacto";
 import { EditarContacto } from "@/components/contacts/editar-contacto";
 import { NotasContacto, type NotaDeFicha } from "@/components/contacts/notas-contacto";
-import { miembrosDelEspacio } from "@/lib/miembros";
+import { miembrosParaLaBandeja } from "@/lib/miembros-bandeja";
+import { etiquetaDeMiembro } from "@/lib/etiqueta-miembro";
+import { inicialDe, nombreVisible } from "@/lib/nombre-visible";
 import { etiquetaDeCanal, nombreDePlataforma, textoDeEvento } from "@/lib/auditoria";
 import type { Atribucion } from "@/lib/atribucion";
 import {
@@ -80,7 +82,8 @@ export default async function ContactDetailPage({
       .eq("entity_id", contactId)
       .order("created_at", { ascending: false })
       .limit(50),
-    miembrosDelEspacio(workspace.id),
+    // F43 (pendiente de S8): a un Member, solo él mismo; no se lee el equipo con la clave de servicio.
+    miembrosParaLaBandeja(role, user, workspace.id),
   ]);
 
   if (!contactRes.data) {
@@ -127,8 +130,9 @@ export default async function ContactDetailPage({
     .map((ct: { tags: unknown }) => ct.tags)
     .filter(Boolean) as { id: string; name: string; color: string | null }[];
   const atribucion = (contact.attribution ?? {}) as Atribucion;
-  const nombreDe = (id: string | null) => (id ? (miembros.find((m) => m.id === id)?.etiqueta ?? "Ya no está en el equipo") : "Sin asignar");
-  const nombre = contact.display_name ?? "Sin nombre";
+  const nombreDe = (id: string | null) => etiquetaDeMiembro(id, miembros, manager);
+  // F43: el identificador de remitente como nombre se muestra «Sin nombre» o «@usuario».
+  const nombre = nombreVisible(contact, canales);
 
   const dato = (titulo: string, valor: React.ReactNode) => (
     <div className="grid grid-cols-[10rem_1fr] gap-2 py-1.5 text-sm">
@@ -151,7 +155,7 @@ export default async function ContactDetailPage({
         <section className="min-w-0 space-y-5" aria-label="Datos del contacto">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xl font-semibold text-primary">
-              {nombre.charAt(0).toUpperCase()}
+              {inicialDe(nombre)}
             </div>
             <div className="min-w-0">
               <h1 className="truncate text-2xl font-bold">{nombre}</h1>
@@ -204,6 +208,8 @@ export default async function ContactDetailPage({
                     return (
                       <li key={cc.id}>
                         {nombreDePlataforma(ch?.platform)}: {cc.platform_username ? `@${cc.platform_username}` : <span className="text-muted-foreground">sin usuario</span>}
+                        {/* F43 (D8): el identificador de remitente, como dato secundario. */}
+                        <span className="text-xs text-muted-foreground"> · identificador {cc.platform_sender_id}</span>
                       </li>
                     );
                   })}
@@ -266,6 +272,7 @@ export default async function ContactDetailPage({
                   setterId={contact.setter_id}
                   vendedorId={contact.vendedor_id}
                   miembros={miembros}
+                  equipoCompleto={manager}
                 />
               }
             />
