@@ -297,7 +297,12 @@ async function principal() {
     presenciaYAusencia(await rutaLista(owner, espacio, "ventana=por-vencer"), "ruta, «por vencer», Owner", [par(POR_VENCER)], [par(ABIERTA), par(CERRADA), par(NULA), par(WA)]);
     const pg = await pagina(owner, espacio, "/dashboard/inbox?estado=all&ventana=cerrada");
     check(pg.status === 200 && pg.html.includes("Filtros · 1"), "con ?ventana=cerrada, el botón dice «Filtros · 1»", `HTTP ${pg.status}`);
-    check(pg.html.includes("Ventana de Instagram"), "el panel tiene el grupo «Ventana de Instagram»");
+    // Sacada el 05/11/2026, con el OK de Marcos: la comprobación «el panel tiene
+    // el grupo «Ventana de Instagram»» no podía pasar nunca, tampoco en el rojo,
+    // porque el panel de filtros arranca cerrado y no se dibuja en el HTML del
+    // servidor (components/inbox/filtros-bandeja.tsx:87 y :95). Se saca porque
+    // nunca probó nada, no porque haya fallado. El grupo lo cubren
+    // components/inbox/filtros-bandeja.test.ts y la mirada de Marcos en pantalla.
 
     titulo("La pantalla: la marca de la lista y la ficha, en el HTML del servidor");
     const lst = await pagina(owner, espacio, "/dashboard/inbox?estado=all");
