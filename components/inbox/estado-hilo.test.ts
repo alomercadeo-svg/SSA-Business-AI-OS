@@ -140,11 +140,14 @@ const hiloLargo = () =>
 const clasesDe = (m: RegExpMatchArray | null) => (m ? m[1].split(/\s+/) : []);
 
 describe("el encabezado con un nombre largo no se desborda", () => {
-  it("el nombre se corta en una línea y queda completo en el title", () => {
+  // Reescrito en el tramo 9: antes exigía el corte en una sola línea
+  // («truncate»); Marcos pidió dos filas (05/11/2026).
+  it("el nombre ocupa hasta dos filas y queda completo en el title", () => {
     const h = hiloLargo();
     const m = h.match(new RegExp(`<a [^>]*class="([^"]*)"[^>]*>${NOMBRE_LARGO}</a>`));
     expect(m, "el enlace del nombre").not.toBeNull();
-    expect(clasesDe(m)).toContain("truncate");
+    expect(clasesDe(m)).toContain("line-clamp-2");
+    expect(clasesDe(m)).not.toContain("truncate");
     expect(m![0]).toContain(`title="${NOMBRE_LARGO}"`);
   });
 
@@ -163,5 +166,33 @@ describe("el encabezado con un nombre largo no se desborda", () => {
     const grupo = h.match(/<div class="([^"]*)"><div class="flex items-center gap-2"><span[^>]*>Abierta</);
     expect(grupo, "el grupo de la derecha").not.toBeNull();
     expect(clasesDe(grupo)).toContain("shrink-0");
+  });
+});
+
+/**
+ * S8, tramo 9: el nombre largo no puede ensanchar la columna del chat ni
+ * achicar «Datos del contacto». Una columna flexible sin `min-w-0` no queda más
+ * angosta que su contenido, y el panel, sin `shrink-0`, era el que cedía. Se
+ * mira la fuente: las columnas están en componentes con datos y efectos.
+ */
+const clasesDelBloque = (archivo: string, despuesDe: string) => {
+  const fuente = readFileSync(join(process.cwd(), archivo), "utf8");
+  const i = fuente.indexOf(despuesDe);
+  expect(i, despuesDe).toBeGreaterThanOrEqual(0);
+  const m = fuente.slice(i).match(/<div className="([^"]*)"/);
+  return m ? m[1].split(/\s+/) : [];
+};
+
+describe("las columnas de la bandeja con un nombre largo", () => {
+  it("la columna del chat puede achicarse", () => {
+    const clases = clasesDelBloque("app/(dashboard)/dashboard/inbox/inbox-view.tsx", "{/* Center panel: Message thread */}");
+    expect(clases).toContain("flex-1");
+    expect(clases).toContain("min-w-0");
+  });
+
+  it("el panel «Datos del contacto» no se achica", () => {
+    const clases = clasesDelBloque("components/inbox/contact-panel.tsx", "const loading = cargando;");
+    expect(clases).toContain("w-80");
+    expect(clases).toContain("shrink-0");
   });
 });

@@ -401,7 +401,7 @@ export function MessageThread({
   return (
     <div className="flex h-full flex-col bg-background">
       {/* Header */}
-      {/* Alto fijo: el nombre se corta en una línea y el estado no se achica (S8, tramo 8). */}
+      {/* Alto fijo: el nombre ocupa hasta dos filas y el estado no se achica (S8, tramos 8 y 9). */}
       <div className="flex h-14 items-center justify-between gap-3 border-b border-border px-4">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <div className="relative shrink-0">
@@ -430,12 +430,12 @@ export function MessageThread({
               <Link
                 href={enlaceAFicha(conversation.contact_id, volverALaBandeja)}
                 title={conversation.contacts?.display_name ?? "Sin nombre"}
-                className="block truncate text-sm font-medium hover:underline"
+                className="line-clamp-2 break-words text-sm font-medium hover:underline"
               >
                 {conversation.contacts?.display_name ?? "Sin nombre"}
               </Link>
             ) : (
-              <p title={conversation.contacts?.display_name ?? "Sin nombre"} className="truncate text-sm font-medium">
+              <p title={conversation.contacts?.display_name ?? "Sin nombre"} className="line-clamp-2 break-words text-sm font-medium">
                 {conversation.contacts?.display_name ?? "Sin nombre"}
               </p>
             )}

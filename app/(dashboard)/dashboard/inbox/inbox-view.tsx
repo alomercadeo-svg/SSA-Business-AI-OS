@@ -203,7 +203,8 @@ export function InboxView({
       </div>
 
       {/* Center panel: Message thread */}
-      <div className="flex min-h-0 flex-1 flex-col">
+      {/* min-w-0: un nombre largo no ensancha la columna (S8, tramo 9). */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Toggle contact panel button */}
         {selected && !showContactPanel && (
           <div className="flex shrink-0 justify-end border-b border-border px-2 py-1">
