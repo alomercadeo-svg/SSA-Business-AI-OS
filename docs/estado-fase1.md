@@ -2372,6 +2372,28 @@ Las tres miran clases, no el dibujo: que el corte se vea bien lo confirma la pan
 
 **Suma: 1 min** (de 12:30 a 12:31, segundos truncados, hasta este registro). Contra la estimación de 15, por debajo. El despliegue va después de este commit; como toca una pantalla, queda «salida 0, pantallas sin mirar» hasta que Marcos mire el encabezado de los tramos 7 y 8 juntos. Un commit no puede registrar su propio despliegue: se anota en la apertura siguiente.
 
+**Despliegue de `7e91d6c`** (el tramo 8). `node scripts/verificar-despliegue.mjs`, **salida 0, leída con `echo $?`**: lectura previa a las 12:31:30 (build `QM049VN1Vm_2e1YgTvtKr`, el que dejó `aafba1d`), push `aafba1d..7e91d6c`, el build pasó a `Pi7wlRRJwSEg3ztV0uXlr` a las 12:34:07, con `/login` en 200. **Toca una pantalla: queda «salida 0, pantallas sin mirar».** Marcos lo miró y encontró que el corte no funcionaba: el nombre largo ensanchaba la columna del chat y achicaba «Datos del contacto» (tramo 9, abajo).
+
+### S8, tramo 9 (retrabajo de F35): el nombre largo en dos filas, sin mover las columnas
+
+**05/11/2026, desde las 12:42** (hora de Costa Rica, la del mensaje de aprobación de Marcos; `TZ=America/Costa_Rica date`), **revisión liviana**: solo clases de pantalla de la bandeja y sus tests. Lo encontró Marcos en una captura después del despliegue del tramo 8. El plan fue antes de la hora de inicio, fuera de la medición. Estimación: 15 minutos más la espera del despliegue.
+
+**La causa**, verificada en el código: la columna del chat (`app/(dashboard)/dashboard/inbox/inbox-view.tsx`, el bloque «Center panel») no tenía `min-w-0`, y una columna flexible sin eso no queda más angosta que su contenido: el nombre la ensanchaba y el corte del tramo 8 nunca se aplicaba. El panel «Datos del contacto» (`components/inbox/contact-panel.tsx`) tenía ancho fijo (`w-80`) pero sin `shrink-0`: era el que cedía. **Los tests del tramo 8 miraron solo el encabezado, no la columna que lo contiene**: por eso dieron verde con el problema adentro.
+
+**El cambio**, `ca7deea`: la columna del chat con `min-w-0`; el panel con `shrink-0`, como ya tenía la lista de la izquierda; el nombre, de una línea (`truncate`) a **hasta dos filas** (`line-clamp-2 break-words`), como propuso Marcos, con el nombre completo en el `title`. Dos filas de `text-sm` (40 px) entran en el encabezado (`h-14`, 56 px). `line-clamp-2` viene en Tailwind 4.1.18 (`node_modules/tailwindcss/dist/lib.js`) y la app ya lo usa en otras pantallas. **Ajustar el ancho de las columnas a mano**, la otra propuesta de Marcos, no se hizo: es una función nueva que el plano no pide.
+
+| Comprobación (`components/inbox/estado-hilo.test.ts`) | En rojo |
+|---|---|
+| la columna del chat puede achicarse (nueva) | vista en rojo, por su motivo: «expected [ 'flex', 'min-h-0', 'flex-1', …(1) ] to include 'min-w-0'» |
+| el panel «Datos del contacto» no se achica (nueva) | vista en rojo, por su motivo: «expected [ 'flex', 'h-full', 'w-80', …(4) ] to include 'shrink-0'» |
+| el nombre ocupa hasta dos filas y queda completo en el title (**reescrita**: la del tramo 8 exigía `truncate`) | vista en rojo, por su motivo: «expected [ Array(5) ] to include 'line-clamp-2'» |
+
+Las dos de las columnas miran la fuente, no el dibujo: las columnas están en componentes con datos y efectos. Que se vea bien lo confirma la pantalla.
+
+**Antes de commitear:** los tests del encabezado y las dos guardias de frontera, 20 de 20, salida 0; `npm test`, **1222 de 1222, salida 0**; `npm run typecheck`, **salida 0**; `npm run lint`, **salida 0**, 0 errores y 45 avisos, los mismos. Cada salida, leída con `echo $?`, sin tuberías. No se miró en el navegador: la mira Marcos.
+
+**Suma: 1 min** (de 12:42 a 12:43, segundos truncados, hasta este registro). Contra la estimación de 15, por debajo. El despliegue va después de este commit; como toca pantallas, los tramos 7, 8 y 9 quedan «salida 0, pantallas sin mirar» hasta que Marcos los mire juntos. Un commit no puede registrar su propio despliegue: se anota en la apertura siguiente.
+
 ---
 
 ## Siguiente paso
