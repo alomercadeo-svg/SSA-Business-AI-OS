@@ -21,6 +21,10 @@
  *      cerrada), con el reloj fijo, como el Owner y como el Member, más las
  *      cantidades, la ruta de la lista y la página («Filtros · 1»). WhatsApp no
  *      aparece en ninguna opción.
+ *   P  La pantalla, en el HTML del servidor: la lista marca «Ventana cerrada» y
+ *      el aviso de que vence; la ficha muestra la ventana de cada conversación
+ *      de Instagram, y ninguna en la de WhatsApp. (Agregado después del primer
+ *      rojo, antes de desplegar: se ve en rojo contra la pantalla de hoy.)
  *   E  El envío (`POST /api/v1/messages`): con la ventana cerrada, 409
  *      `ventana_cerrada` sin llegar al proveedor; control positivo: con la
  *      ventana abierta pasa la comprobación y se corta en la clave que falta
@@ -294,6 +298,18 @@ async function principal() {
     const pg = await pagina(owner, espacio, "/dashboard/inbox?estado=all&ventana=cerrada");
     check(pg.status === 200 && pg.html.includes("Filtros · 1"), "con ?ventana=cerrada, el botón dice «Filtros · 1»", `HTTP ${pg.status}`);
     check(pg.html.includes("Ventana de Instagram"), "el panel tiene el grupo «Ventana de Instagram»");
+
+    titulo("La pantalla: la marca de la lista y la ficha, en el HTML del servidor");
+    const lst = await pagina(owner, espacio, "/dashboard/inbox?estado=all");
+    check(lst.status === 200 && lst.html.includes("Ventana cerrada"), "la lista marca «Ventana cerrada» (CERRADA y NULA)", `HTTP ${lst.status}`);
+    check(/Vence en (1 h|\d+ min)</.test(lst.html), "la lista marca el aviso de que vence (POR_VENCER)");
+    const fC = await pagina(owner, espacio, `/dashboard/contacts/${CERRADA.contacto}`);
+    check(fC.status === 200 && fC.html.includes("Ventana cerrada"), "la ficha de CERRADA muestra «Ventana cerrada» en su conversación de Instagram", `HTTP ${fC.status}`);
+    const fA = await pagina(owner, espacio, `/dashboard/contacts/${ABIERTA.contacto}`);
+    check(fA.status === 200 && /Ventana abierta · quedan \d+ h/.test(fA.html), "la ficha de ABIERTA muestra «Ventana abierta · quedan N h»", `HTTP ${fA.status}`);
+    const fW = await pagina(owner, espacio, `/dashboard/contacts/${WA.contacto}`);
+    if (fA.status === 200 && /Ventana abierta/.test(fA.html)) check(fW.status === 200 && !fW.html.includes("Ventana"), "la ficha de WA no muestra ventana", `HTTP ${fW.status}`);
+    else noConcluyente("la ficha de WA no muestra ventana", "la ficha todavía no muestra ninguna ventana (presencia)");
 
     // ── E: el envío ─────────────────────────────────────────────────────────
     titulo("El envío desde la bandeja, como el Owner");
