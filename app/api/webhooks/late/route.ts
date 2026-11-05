@@ -9,6 +9,7 @@ import { processComment } from "@/lib/comment-processor";
 import type { Database } from "@/lib/types/database";
 import { messagePreview } from "@/lib/message-preview";
 import { guardarMensajes } from "@/lib/mensajes-guardado";
+import { alEscribirElLead, conversacionDelMensaje } from "@/lib/estado-por-mensaje";
 import { contactoDelAviso, esSaliente, mensajeDelAviso, type AvisoDeMensajeZernio } from "@/lib/zernio-aviso";
 import { rellenarPerfilSiFalta } from "@/lib/relleno-perfil";
 import { claveDeImportacion } from "@/lib/importacion-historial";
@@ -330,32 +331,15 @@ async function guardarAviso(
   if (!contact) throw new Error("no se pudo crear el contacto");
 
   const preview = messagePreview(payload.message.text);
-  const { data: conversation } = await supabase
-    .from("conversations")
-    .upsert(
-      {
-        workspace_id: channel.workspace_id,
-        channel_id: channel.id,
-        contact_id: contact.contactId,
-        platform: channel.platform,
-        late_conversation_id: payload.conversation.id,
-        status: "open",
-        last_message_at: ahora,
-        last_message_preview: preview,
-        // Un saliente no deja nada sin leer.
-        ...(saliente ? {} : { unread_count: 1 }),
-      },
-      { onConflict: "channel_id,contact_id" }
-    )
-    .select("id, is_automation_paused")
-    .single();
-  if (!conversation) throw new Error("no se pudo guardar la conversación");
-
-  if (contact.existed && !saliente) {
-    await supabase
-      .rpc("increment_unread", { conv_id: conversation.id, preview })
-      .then(() => {});
-  }
+  // F35, tramo D: la que nace de un mensaje del negocio nace cerrada, y un
+  // mensaje no le cambia el estado ni los no leídos a una que existe
+  // (lib/estado-por-mensaje.ts). Lo del lead va después de guardar el mensaje.
+  const conversation = await conversacionDelMensaje<{ id: string; is_automation_paused: boolean | null }>(supabase, {
+    claves: { workspace_id: channel.workspace_id, channel_id: channel.id, contact_id: contact.contactId, platform: channel.platform },
+    delLead: !saliente,
+    cambios: { late_conversation_id: payload.conversation.id, last_message_at: ahora, last_message_preview: preview },
+    columnas: "id, is_automation_paused",
+  });
 
   // Un lead que no conocíamos, DESPUÉS de una importación completa del
   // historial, es una conversación nueva: todo su historial es lo que entra
@@ -379,10 +363,19 @@ async function guardarAviso(
   }
 
   const mensaje = mensajeDelAviso(aviso, conversation.id, lead.senderId);
-  const { error } = await guardarMensajes(supabase, [mensaje], { marcarDescarga: true });
+  const { error, nuevos } = await guardarMensajes(supabase, [mensaje], { marcarDescarga: true, contarNuevos: !saliente });
   if (error) throw new Error(`messages: ${error.message}`);
 
   if (!saliente) {
+    // Suma uno si el mensaje es nuevo, y abre todas las conversaciones
+    // cerradas del contacto. Antes del acuse: si falla, el proveedor reintenta.
+    await alEscribirElLead(supabase, {
+      conversationId: conversation.id,
+      workspaceId: channel.workspace_id,
+      contactId: contact.contactId,
+      preview,
+      nuevo: (nuevos ?? 0) > 0,
+    });
     await supabase.from("channels").update({ last_inbound_at: ahora }).eq("id", channel.id);
   }
 

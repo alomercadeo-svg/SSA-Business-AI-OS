@@ -57,6 +57,7 @@ import { buscarEntreCanales, sugerirUnion, vincularCanal } from "./entre-canales
 import { messagePreview } from "./message-preview";
 import { aplicarToque, toqueDe } from "./atribucion";
 import { guardarMensajes, type MensajeParaGuardar, type TipoDeMensaje } from "./mensajes-guardado";
+import { alEscribirElLead, conversacionDelMensaje } from "./estado-por-mensaje";
 import { seDescarga } from "./adjuntos";
 
 export interface MensajeEvolution {
@@ -311,40 +312,43 @@ export async function guardarMensajesDeEvolution(
     }
 
     const preview = messagePreview(fila.text ?? (fila.messageType !== "texto" ? `[${fila.messageType}]` : null));
-    const { data: conv } = await supabase
-      .from("conversations")
-      .upsert(
-        {
-          workspace_id: canal.workspace_id,
-          channel_id: canal.id,
-          contact_id: contactId,
-          platform: canal.platform,
-          status: "open",
-          last_message_at: fila.createdAt,
-          last_message_preview: preview,
-          // WhatsApp no tiene importación del historial (§4.7: el número es
-          // nuevo): lo que hay es lo que entra. La bandeja no tiene que
-          // mostrarle el aviso de «historial sin importar».
-          historial_estado: "completo",
-          ...(entrante && !historial ? { unread_count: 1 } : {}),
-        },
-        { onConflict: "channel_id,contact_id" },
-      )
-      .select("id")
-      .single();
-    const conversationId = (conv as { id?: string } | null)?.id;
-    if (!conversationId) throw new Error("no se pudo guardar la conversación");
-    if (existia && entrante && !historial) {
-      await supabase.rpc("increment_unread", { conv_id: conversationId, preview });
-    }
+    // F35, tramo D (lib/estado-por-mensaje.ts): nace cerrada si la abre un
+    // mensaje del negocio, y un mensaje no le cambia el estado ni los no
+    // leídos a una que existe. En el historial (`messages.set`), una nueva
+    // toma el estado según quién escribió ese mensaje.
+    const { id: conversationId } = await conversacionDelMensaje(supabase, {
+      claves: { workspace_id: canal.workspace_id, channel_id: canal.id, contact_id: contactId!, platform: canal.platform },
+      delLead: entrante,
+      cambios: {
+        last_message_at: fila.createdAt,
+        last_message_preview: preview,
+        // WhatsApp no tiene importación del historial (§4.7: el número es
+        // nuevo): lo que hay es lo que entra. La bandeja no tiene que
+        // mostrarle el aviso de «historial sin importar».
+        historial_estado: "completo",
+      },
+      columnas: "id",
+    });
 
     const { tipoOriginal, ...mensaje } = fila;
     // F28: solo lo que entra en vivo. El historial no se marca, igual que la
     // importación de Instagram; lo propio y `send.message` son salientes.
     const marcar = enVivo && seDescarga(mensaje);
-    const { error } = await guardarMensajes(supabase, [{ ...mensaje, conversationId }], { marcarDescarga: marcar });
+    const delLeadEnVivo = entrante && !historial;
+    const { error, nuevos } = await guardarMensajes(supabase, [{ ...mensaje, conversationId }], { marcarDescarga: marcar, contarNuevos: delLeadEnVivo });
     if (error) throw new Error(`messages: ${error.message}`);
     guardados++;
+    // El lead escribiendo ahora: suma uno si el mensaje es nuevo, y abre todas
+    // sus conversaciones cerradas. El historial no es nadie escribiendo ahora.
+    if (delLeadEnVivo) {
+      await alEscribirElLead(supabase, {
+        conversationId,
+        workspaceId: canal.workspace_id,
+        contactId: contactId!,
+        preview,
+        nuevo: (nuevos ?? 0) > 0,
+      });
+    }
 
     if (marcar) {
       const { data: guardado, error: errId } = await supabase

@@ -99,12 +99,22 @@ function fila(m: MensajeParaGuardar, opciones: { marcarDescarga?: boolean } = {}
 export async function guardarMensajes(
   supabase: SupabaseClient,
   mensajes: readonly MensajeParaGuardar[],
-  opciones: { marcarDescarga?: boolean } = {},
-): Promise<{ error: { message: string; code?: string } | null }> {
-  if (mensajes.length === 0) return { error: null };
-  const { error } = await supabase
+  opciones: { marcarDescarga?: boolean; contarNuevos?: boolean } = {},
+): Promise<{ error: { message: string; code?: string } | null; nuevos?: number }> {
+  if (mensajes.length === 0) return { error: null, nuevos: 0 };
+  const alta = supabase
     .from("messages")
     .upsert(mensajes.map((m) => fila(m, opciones)), { onConflict: CONFLICTO_DE_MENSAJE, ignoreDuplicates: true });
+  // F35, tramo D: los receptores necesitan saber si el mensaje era nuevo, para
+  // sumar un no leído una sola vez. Con `ignoreDuplicates` la base devuelve
+  // solo las filas que insertó (el mismo patrón de lib/inbox-sync.ts:389-412);
+  // lo comprueba contra la base real scripts/verify-estados-bandeja.mjs,
+  // reenviando el mismo mensaje.
+  if (opciones.contarNuevos) {
+    const { data, error } = await alta.select("id");
+    return { error: error ? { message: error.message, code: error.code } : null, nuevos: (data ?? []).length };
+  }
+  const { error } = await alta;
   return { error: error ? { message: error.message, code: error.code } : null };
 }
 

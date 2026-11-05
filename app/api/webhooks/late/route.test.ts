@@ -39,6 +39,11 @@ const { pendientes, estado } = vi.hoisted(() => ({
     escrituras: [] as Array<{ tabla: string; tipo: string; valores?: unknown; opciones?: unknown }>,
     falloAlGuardar: false,
     importacionOk: null as string | null,
+    // F35, tramo D: si la conversación ya existía (el alta sin pisar no
+    // devuelve fila) y si el mensaje era nuevo (la base devuelve su id).
+    conversacionExiste: false,
+    mensajeNuevo: true,
+    rpcs: [] as Array<{ fn: string; args: unknown }>,
   },
 }));
 
@@ -95,18 +100,26 @@ vi.mock("@/lib/comment-processor", () => ({
  */
 function crearSupabaseFalso() {
   const constructor = (tabla: string) => {
+    let ultimaOp = "select";
+    const filtros: Array<[string, unknown]> = [];
     const cadena = {
       select: () => cadena,
-      eq: () => cadena,
+      eq: (c: string, v: unknown) => (filtros.push([c, v]), cadena),
       upsert: (valores: unknown, opciones?: unknown) => {
+        ultimaOp = (opciones as { ignoreDuplicates?: boolean } | undefined)?.ignoreDuplicates ? "alta" : "upsert";
         estado.escrituras.push({ tabla, tipo: "upsert", valores, opciones });
         if (tabla === "messages") {
-          return Promise.resolve({ error: estado.falloAlGuardar ? { message: "falla simulada" } : null });
+          const r = Promise.resolve({
+            error: estado.falloAlGuardar ? { message: "falla simulada" } : null,
+            data: estado.mensajeNuevo ? [{ id: "msg-local-1" }] : [],
+          });
+          return Object.assign(r, { select: () => r });
         }
         return cadena;
       },
       update: (valores: unknown) => {
-        estado.escrituras.push({ tabla, tipo: "update", valores });
+        ultimaOp = "update";
+        estado.escrituras.push({ tabla, tipo: "update", valores, filtros } as never);
         return cadena;
       },
       delete: () => {
@@ -115,8 +128,8 @@ function crearSupabaseFalso() {
       },
       is: () => cadena,
       or: () => cadena,
-      single: async () => resolver(tabla, "single"),
-      maybeSingle: async () => resolver(tabla, "maybeSingle"),
+      single: async () => resolver(tabla, "single", ultimaOp),
+      maybeSingle: async () => resolver(tabla, "maybeSingle", ultimaOp),
       insert: async (fila: Record<string, unknown>) => {
         if (tabla === "webhook_events") {
           const id = String(fila.event_id);
@@ -133,7 +146,7 @@ function crearSupabaseFalso() {
     return cadena;
   };
 
-  const resolver = (tabla: string, terminador: string) => {
+  const resolver = (tabla: string, terminador: string, ultimaOp = "select") => {
     if (tabla === "channels" && terminador === "single") {
       return { data: estado.channel, error: null };
     }
@@ -144,6 +157,8 @@ function crearSupabaseFalso() {
       return { data: { webhook_secret: estado.workspaceSecret, global_keywords: [] }, error: null };
     }
     if (tabla === "conversations") {
+      // El alta sin pisar (`ignoreDuplicates`) no devuelve fila si ya existía.
+      if (ultimaOp === "alta" && estado.conversacionExiste) return { data: null, error: null };
       return { data: { id: "conv-1", is_automation_paused: false }, error: null };
     }
     if (tabla === "messages" && terminador === "maybeSingle") {
@@ -157,7 +172,10 @@ function crearSupabaseFalso() {
 
   return {
     from: constructor,
-    rpc: () => ({ then: (fn: () => void) => Promise.resolve().then(fn) }),
+    rpc: (fn: string, args: unknown) => {
+      estado.rpcs.push({ fn, args });
+      return Promise.resolve({ data: null, error: null });
+    },
   };
 }
 
@@ -271,6 +289,9 @@ beforeEach(() => {
   estado.escrituras = [];
   estado.falloAlGuardar = false;
   estado.importacionOk = null;
+  estado.conversacionExiste = false;
+  estado.mensajeNuevo = true;
+  estado.rpcs = [];
   upsertContactForSender.mockReset();
   descargarAdjunto.mockClear();
   upsertContactForSender.mockResolvedValue({ contactId: "contact-1", existed: false });
@@ -604,7 +625,12 @@ describe("F27: el receptor guarda los mensajes", () => {
   it("antes de la primera importación, la conversación de un lead nuevo queda pendiente (la trae la importación)", async () => {
     const body = avisoReal(recibidoReal);
     await POST(pedido(body, { "x-late-signature": firmar(body) }));
-    expect(estado.escrituras.some((e) => e.tabla === "conversations" && e.tipo === "update")).toBe(false);
+    // Cambiado en el tramo D de S8: decía «ningún update de conversations»;
+    // ahora el mensaje del lead abre las del contacto con otro update, así que
+    // se mira lo que el test quería: que nadie marque el historial.
+    expect(
+      estado.escrituras.some((e) => e.tabla === "conversations" && e.tipo === "update" && "historial_estado" in (e.valores as object)),
+    ).toBe(false);
   });
 });
 
@@ -676,5 +702,71 @@ describe("F28: la descarga del adjunto", () => {
     expect(fila).toMatchObject({ direction: "outbound", message_type: "imagen" });
     expect(fila).not.toHaveProperty("media_intentos");
     expect(descargarAdjunto).not.toHaveBeenCalled();
+  });
+});
+
+describe("F35, tramo D: el estado de la conversación y los no leídos", () => {
+  const enviar = async (direccion: "incoming" | "outgoing", id = "evt-d1") => {
+    const body = eventoMensaje({ plataforma: "instagram", id, direccion });
+    const res = await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    expect(res.status).toBe(200);
+  };
+  const escriturasDeConversaciones = () => estado.escrituras.filter((e) => e.tabla === "conversations");
+  const aperturas = () =>
+    escriturasDeConversaciones().filter((e) => e.tipo === "update" && (e.valores as Record<string, unknown>).status === "open");
+  const incrementos = () => estado.rpcs.filter((r) => r.fn === "increment_unread");
+
+  it("un mensaje del negocio crea la conversación cerrada y sin no leídos, con un alta que no pisa la que ya existe", async () => {
+    await enviar("outgoing");
+    const alta = escriturasDeConversaciones().find((e) => e.tipo === "upsert");
+    expect(alta?.valores).toMatchObject({ status: "closed", unread_count: 0 });
+    expect(alta?.opciones).toMatchObject({ onConflict: "channel_id,contact_id", ignoreDuplicates: true });
+  });
+
+  it("un mensaje del negocio a una conversación que ya existe no le cambia el estado ni los no leídos", async () => {
+    estado.conversacionExiste = true;
+    upsertContactForSender.mockResolvedValue({ contactId: "contact-1", existed: true });
+    await enviar("outgoing");
+    const quePisan = escriturasDeConversaciones().filter((x) => x.tipo === "update" || !(x.opciones as { ignoreDuplicates?: boolean })?.ignoreDuplicates);
+    expect(quePisan.length).toBeGreaterThan(0);
+    for (const e of quePisan) {
+      expect(e.valores).not.toHaveProperty("status");
+      expect(e.valores).not.toHaveProperty("unread_count");
+    }
+    expect(incrementos()).toEqual([]);
+    expect(aperturas()).toEqual([]);
+  });
+
+  it("un mensaje del lead a una conversación que ya existe suma uno, sin pisar los no leídos que tenía", async () => {
+    estado.conversacionExiste = true;
+    upsertContactForSender.mockResolvedValue({ contactId: "contact-1", existed: true });
+    await enviar("incoming");
+    for (const e of escriturasDeConversaciones().filter((x) => x.tipo === "update" || !(x.opciones as { ignoreDuplicates?: boolean })?.ignoreDuplicates)) {
+      expect(e.valores).not.toHaveProperty("unread_count");
+    }
+    expect(incrementos()).toHaveLength(1);
+  });
+
+  it("un mensaje del lead abre todas las conversaciones cerradas del contacto en el espacio, sin las eliminadas", async () => {
+    upsertContactForSender.mockResolvedValue({ contactId: "contact-1", existed: true });
+    await enviar("incoming");
+    expect(aperturas()).toHaveLength(1);
+    const filtros = (aperturas()[0] as unknown as { filtros: Array<[string, unknown]> }).filtros;
+    expect(filtros).toEqual(expect.arrayContaining([["workspace_id", "ws-1"], ["contact_id", "contact-1"], ["status", "closed"]]));
+  });
+
+  it("el mismo mensaje otra vez (la base no lo inserta) no suma, pero igual abre: un reintento no deja al lead escondido", async () => {
+    estado.mensajeNuevo = false;
+    upsertContactForSender.mockResolvedValue({ contactId: "contact-1", existed: true });
+    await enviar("incoming");
+    expect(incrementos()).toEqual([]);
+    expect(aperturas()).toHaveLength(1);
+  });
+
+  it("un lead nuevo: la conversación nace abierta, con 0, y el mensaje suma uno", async () => {
+    await enviar("incoming");
+    const alta = escriturasDeConversaciones().find((e) => e.tipo === "upsert");
+    expect(alta?.valores).toMatchObject({ status: "open", unread_count: 0 });
+    expect(incrementos()).toHaveLength(1);
   });
 });

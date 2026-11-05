@@ -19,6 +19,9 @@ const h = vi.hoisted(() => ({
   ops: [] as Array<{ tabla: string; op: string; valores?: any; filtros: Array<[string, unknown]> }>,
   rpcs: [] as Array<{ fn: string; args: any }>,
   upsertContactForSender: vi.fn(),
+  // F35, tramo D: si el alta sin pisar crea la conversación, y si la base insertó el mensaje.
+  conversacionNueva: true,
+  mensajeNuevo: true,
 }));
 
 vi.mock("./inbox-sync", () => ({ upsertContactForSender: h.upsertContactForSender }));
@@ -33,17 +36,25 @@ function supabaseFalso() {
         update: (v: any) => ((op.op = "update"), (op.valores = v), h.ops.push(op), cadena),
         insert: (v: any) => ((op.op = "insert"), (op.valores = v), h.ops.push(op), Promise.resolve({ error: null })),
         or: () => cadena,
+        is: (c: string, v: unknown) => (op.filtros.push([c, v]), cadena),
         limit: async () => ({ data: [], error: null }),
         upsert: (v: any, o: any) => {
           op.op = "upsert";
           op.valores = v;
           (op as any).opciones = o;
           h.ops.push(op);
-          if (tabla === "messages") return Promise.resolve({ error: null });
+          if (tabla === "messages") {
+            const r = Promise.resolve({ error: null, data: h.mensajeNuevo ? [{ id: "msg-nuevo" }] : [] });
+            return Object.assign(r, { select: () => r });
+          }
           return cadena;
         },
         single: async () => ({ data: tabla === "conversations" ? { id: "conv-1" } : null, error: null }),
         maybeSingle: async () => {
+          if (tabla === "conversations") {
+            const alta = op.op === "upsert" && (op as any).opciones?.ignoreDuplicates;
+            return { data: alta && h.conversacionNueva ? { id: "conv-1" } : null, error: null };
+          }
           if (tabla === "contact_channels") {
             const [col, valor] = op.filtros.find(([c]) => c !== "channel_id") ?? [];
             const mapa = col === "raw_jid" ? h.porRawJid : h.porSender;
@@ -103,6 +114,8 @@ beforeEach(() => {
   h.reconciliacion = { resultado: "resuelto" };
   h.ops.length = 0;
   h.rpcs.length = 0;
+  h.conversacionNueva = true;
+  h.mensajeNuevo = true;
   h.upsertContactForSender.mockReset();
   h.upsertContactForSender.mockImplementation(async ({ senderId }: { senderId: string }) => {
     h.porSender.set(senderId, `ct-${senderId}`);
@@ -412,5 +425,60 @@ describe("los adjuntos de WhatsApp (F28)", () => {
     for (const m of mensajesGuardados()) expect(m).not.toHaveProperty("media_intentos");
     expect(porBajar()).toHaveLength(0);
     expect([r1, r2, r3, r4].flatMap((r) => r.porBajar)).toEqual([]);
+  });
+});
+
+describe("F35, tramo D: el estado de la conversación y los no leídos", () => {
+  const conv = () => h.ops.filter((o) => o.tabla === "conversations");
+  const alta = () => conv().find((o) => o.op === "upsert");
+  const quePisan = () => conv().filter((o) => o.op === "update" || (o.op === "upsert" && !(o as any).opciones?.ignoreDuplicates));
+  const aperturas = () => conv().filter((o) => o.op === "update" && o.valores?.status === "open");
+  const incrementos = () => h.rpcs.filter((r) => r.fn === "increment_unread");
+  const conocido = () => {
+    h.porSender.set(`${TEL}@s.whatsapp.net`, "ct-conocido");
+    h.conversacionNueva = false;
+  };
+
+  it("un mensaje del negocio desde el teléfono (fromMe) crea la conversación cerrada, con 0, sin pisar una que exista", async () => {
+    await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "messages.upsert", [aviso({ key: { fromMe: true } })]);
+    expect(alta()?.valores).toMatchObject({ status: "closed", unread_count: 0 });
+    expect((alta() as any)?.opciones).toMatchObject({ onConflict: "channel_id,contact_id", ignoreDuplicates: true });
+  });
+
+  it("un mensaje del lead de un contacto conocido suma uno y abre todas sus conversaciones cerradas, sin pisar estado ni no leídos", async () => {
+    conocido();
+    await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "messages.upsert", [aviso()]);
+    expect(quePisan().length).toBeGreaterThan(0);
+    for (const o of quePisan().filter((x) => x.valores?.status !== "open" || x.filtros.length < 3)) {
+      expect(o.valores).not.toHaveProperty("unread_count");
+      expect(o.valores).not.toHaveProperty("status");
+    }
+    expect(incrementos()).toHaveLength(1);
+    expect(aperturas()).toHaveLength(1);
+    expect(aperturas()[0].filtros).toEqual(expect.arrayContaining([["workspace_id", "ws-1"], ["contact_id", "ct-conocido"], ["status", "closed"]]));
+  });
+
+  it("el mismo mensaje otra vez (la base no lo inserta) no suma, pero igual abre", async () => {
+    conocido();
+    h.mensajeNuevo = false;
+    await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "messages.upsert", [aviso()]);
+    expect(incrementos()).toEqual([]);
+    expect(aperturas()).toHaveLength(1);
+  });
+
+  it("ni el historial (messages.set), ni send.message, ni fromMe abren ni suman", async () => {
+    for (const [evento, m] of [
+      ["messages.set", aviso()],
+      ["send.message", aviso({ key: { fromMe: true, id: "3EB0SEND" } })],
+      ["messages.upsert", aviso({ key: { fromMe: true, id: "3EB0PROPIO" } })],
+    ] as const) {
+      h.ops.length = 0;
+      h.rpcs.length = 0;
+      conocido();
+      await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, evento, [m]);
+      expect(incrementos(), evento).toEqual([]);
+      expect(aperturas(), evento).toEqual([]);
+      for (const o of quePisan()) expect(o.valores, evento).not.toHaveProperty("status");
+    }
   });
 });
