@@ -18,6 +18,8 @@ type Conv = {
   historial_estado: string;
   last_message_at?: string | null;
   last_message_preview?: string | null;
+  window_expires_at?: string | null;
+  window_source?: string | null;
 };
 
 function baseFalsa(convs: Conv[]) {
@@ -31,6 +33,7 @@ function baseFalsa(convs: Conv[]) {
         eq: (c: string, v: unknown) => (filtros.push(["eq", c, v]), cadena),
         in: (c: string, v: unknown) => (filtros.push(["in", c, v]), cadena),
         not: () => cadena,
+        or: () => cadena,
         update: (v: Record<string, unknown>) => ((actualizacion = v), cadena),
         upsert: (filas: Record<string, unknown>[], opciones: { ignoreDuplicates?: boolean }) => {
           for (const f of filas) {
@@ -207,5 +210,24 @@ describe("importación de mensajes (F27)", () => {
     expect(c.last_message_at).toBe("2026-10-08T21:00:00.000Z");
     expect(c.last_message_preview).toBe("reciente");
   });
-});
 
+  it("F40: en Instagram, el mensaje del lead más nuevo que se importa abre la ventana (24 h desde su hora); los del negocio no cuentan", async () => {
+    const c = conv("a");
+    const { supabase } = baseFalsa([c]);
+    const delLead = { ...msg("m1"), createdAt: "2026-09-01T10:00:00.000Z" };
+    const delNegocio = { ...msg("m2"), direction: "outgoing", createdAt: "2026-09-03T10:00:00.000Z" };
+    const { zernio } = zernioCon({ "z-a": [{ messages: [delNegocio, delLead], hasMore: false }] });
+    await importarMensajes({ supabase: supabase as never, zernio, channels: [canal] });
+    expect(c.window_expires_at).toBe("2026-09-02T10:00:00.000Z");
+    expect(c.window_source).toBe("mensaje");
+  });
+
+  it("F40: sin ningún mensaje del lead importado, la ventana no se toca", async () => {
+    const c = conv("a");
+    const { supabase } = baseFalsa([c]);
+    const delNegocio = { ...msg("m2"), direction: "outgoing", createdAt: "2026-09-03T10:00:00.000Z" };
+    const { zernio } = zernioCon({ "z-a": [{ messages: [delNegocio], hasMore: false }] });
+    await importarMensajes({ supabase: supabase as never, zernio, channels: [canal] });
+    expect(c.window_expires_at).toBeUndefined();
+  });
+});

@@ -10,6 +10,7 @@ import type { Database } from "@/lib/types/database";
 import { messagePreview } from "@/lib/message-preview";
 import { guardarMensajes } from "@/lib/mensajes-guardado";
 import { alEscribirElLead, conversacionDelMensaje } from "@/lib/estado-por-mensaje";
+import { moverVentana, reglaDeVentana, venceEn } from "@/lib/ventana-instagram";
 import { contactoDelAviso, esSaliente, mensajeDelAviso, type AvisoDeMensajeZernio } from "@/lib/zernio-aviso";
 import { rellenarPerfilSiFalta } from "@/lib/relleno-perfil";
 import { claveDeImportacion } from "@/lib/importacion-historial";
@@ -376,6 +377,17 @@ async function guardarAviso(
       preview,
       nuevo: (nuevos ?? 0) > 0,
     });
+    // F40: la ventana de Instagram, 24 horas desde la hora de Meta del mensaje
+    // (`sentAt`), no desde la recepción. Solo la mueve el lead, y solo adelanta
+    // (lib/ventana-instagram.ts). Antes del acuse: si falla, el proveedor
+    // reintenta. Va aunque el mensaje sea repetido: da lo mismo y no atrasa.
+    const regla = reglaDeVentana(channel.provider, channel.platform);
+    if (regla) {
+      await moverVentana(supabase, {
+        conversationId: conversation.id,
+        vence: venceEn(mensaje.createdAt, new Date(), regla.horas),
+      });
+    }
     await supabase.from("channels").update({ last_inbound_at: ahora }).eq("id", channel.id);
   }
 

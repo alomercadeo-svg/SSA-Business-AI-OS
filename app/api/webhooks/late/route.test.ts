@@ -770,3 +770,36 @@ describe("F35, tramo D: el estado de la conversación y los no leídos", () => {
     expect(incrementos()).toHaveLength(1);
   });
 });
+
+describe("F40: la ventana de Instagram", () => {
+  const ventanas = () =>
+    estado.escrituras.filter(
+      (e) => e.tabla === "conversations" && e.tipo === "update" && "window_expires_at" in ((e.valores as Record<string, unknown>) ?? {}),
+    );
+  const enviarCon = async (direccion: "incoming" | "outgoing", sentAt: string, plataforma: "instagram" | "whatsapp" = "instagram") => {
+    const body = JSON.stringify({ ...JSON.parse(eventoMensaje({ plataforma, direccion })), message: { ...JSON.parse(eventoMensaje({ plataforma, direccion })).message, sentAt } });
+    const res = await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    expect(res.status).toBe(200);
+  };
+
+  it("un mensaje del lead de Instagram la pone en 24 horas desde la hora de Meta (sentAt), con 'mensaje', en su conversación", async () => {
+    estado.channel = { ...estado.channel, provider: "zernio" };
+    await enviarCon("incoming", "2026-11-05T19:00:00.000Z");
+    expect(ventanas()).toHaveLength(1);
+    const v = ventanas()[0] as unknown as { valores: Record<string, unknown>; filtros: Array<[string, unknown]> };
+    expect(v.valores).toEqual({ window_expires_at: "2026-11-06T19:00:00.000Z", window_source: "mensaje" });
+    expect(v.filtros).toEqual(expect.arrayContaining([["id", "conv-1"]]));
+  });
+
+  it("un mensaje del negocio (el echo) no la mueve", async () => {
+    estado.channel = { ...estado.channel, provider: "zernio" };
+    await enviarCon("outgoing", "2026-11-05T19:00:00.000Z");
+    expect(ventanas()).toEqual([]);
+  });
+
+  it("un canal sin ventana en la tabla (WhatsApp por Evolution) no la mueve", async () => {
+    estado.channel = { ...estado.channel, provider: "evolution", platform: "whatsapp" };
+    await enviarCon("incoming", "2026-11-05T19:00:00.000Z", "whatsapp");
+    expect(ventanas()).toEqual([]);
+  });
+});

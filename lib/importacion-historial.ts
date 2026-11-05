@@ -37,6 +37,7 @@ import { mapearMensajesDeZernio, TAMANO_DE_PAGINA, type ClienteDeMensajes } from
 import { guardarMensajes, tipoPorAdjuntos, type AdjuntoCrudo } from "./mensajes-guardado";
 import type { BackfillChannel } from "./inbox-sync";
 import { messagePreview } from "./message-preview";
+import { moverVentana, reglaDeVentana, venceEn } from "./ventana-instagram";
 
 export const TOPE_DE_PAGINAS_POR_CONVERSACION = 50;
 export const MINUTOS_DE_RESERVA = 30;
@@ -110,6 +111,8 @@ export async function importarMensajes({
       // preview de la conversación. Nunca se atrasan: el receptor puede tener
       // uno más reciente que lo que devuelve el listado.
       let masNuevo: { at: string; texto: string | null } | null = null;
+      // F40: el mensaje del lead más nuevo que se importa abre la ventana.
+      let leadMasNuevo: string | null = null;
       try {
         for (let pagina = 0; pagina < TOPE_DE_PAGINAS_POR_CONVERSACION; pagina++) {
           const res = await conReintento(
@@ -151,6 +154,9 @@ export async function importarMensajes({
             if (!masNuevo || new Date(m.created_at).getTime() > new Date(masNuevo.at).getTime()) {
               masNuevo = { at: m.created_at, texto: m.text };
             }
+            if (m.direction === "inbound" && (!leadMasNuevo || new Date(m.created_at).getTime() > new Date(leadMasNuevo).getTime())) {
+              leadMasNuevo = m.created_at;
+            }
           }
 
           const pag = res.data?.pagination;
@@ -173,6 +179,12 @@ export async function importarMensajes({
               : {}),
           })
           .eq("id", conv.id);
+        // F40: un mensaje del lead que el receptor perdió y la importación
+        // recupera también abre la ventana. Solo adelanta (lib/ventana-instagram.ts).
+        const regla = reglaDeVentana("zernio", canal.platform);
+        if (regla && leadMasNuevo) {
+          await moverVentana(supabase, { conversationId: conv.id, vence: venceEn(leadMasNuevo, new Date(), regla.horas) });
+        }
         if (terminada) r.completas++;
         else r.incompletas++;
       } catch (err) {
