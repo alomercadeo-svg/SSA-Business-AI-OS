@@ -2237,6 +2237,14 @@ En su chat de revisión, después del tramo D. Fuera de la medición. **Condici�
 
 **Para mirar, del 04/11/2026:** **una lectura de nombres sumada sin autorización a las 19:05**: Marcos autorizó contar contactos y `contact_channels` con el usuario `theconsultour`, y la consulta sumó por su cuenta «contactos cuyo nombre contiene theconsultour» (dio 1). Debió pedirse antes, aunque fuera una cantidad. **Un `git stash list` se coló otra vez hoy (es la segunda)**, en el comando que corrió los tests de Evolution de este tramo, cuando la regla era no usar `git stash` ni `git stash list`. Es de solo lectura: no se guardó ni se trajo nada. Y el mensaje de `653212d` dice «5 de 5» tests del hilo en rojo, cuando son 1 por su motivo y 4 de carga (arriba).
 
+### Apertura del 05/11/2026
+
+Fuera de la medición: es la apertura, no es S9. `commits-sin-subir.mjs`, «Sin commits sin subir contra origin/bloque-1-foundation.», salida 0; el último es `6a6c23a`, sin nada posterior, árbol limpio.
+
+- **Despliegue de `7825722`** (las tildes de la zona horaria, 22 de 31; subió también `13f3bb5`). `verificar-despliegue.mjs`, **salida 0, leída con `echo $?`**: lectura previa a las 19:00:32 (build `FHu6jtP3HIJ_KVJQ8HwIC`), push `fbc9241..7825722`, el build pasó a `hyCi079_NxcH1Q5qCO5Au` a las 19:02:29, con `/login` en 200. Solo docs. **Sin identificar por título**: lo reemplazó el siguiente antes de la captura.
+- **Despliegue de `6a6c23a`** (las tildes del tramo D, 26 de 31). `verificar-despliegue.mjs`, **salida 0**: lectura previa a las 19:37:23 (build `hyCi079_NxcH1Q5qCO5Au`), push `7825722..6a6c23a`, el build pasó a `2oBGjvaqOJx2U84uMIodE` a las 19:39:08, con `/login` en 200. Solo docs. **Identificado por título**, con la captura de Railway que Marcos mandó a su chat, leída el 04/11 a las 19:48: ACTIVE «docs: las tildes de F35 del tramo D, decididas por Marcos el 04/11/20...» (cortado así en pantalla), «10 minutes ago via GitHub», «Deployment successful», `node@24.22.1`, «US West». Es compatible con el push de las 19:37:25; no lo prueba.
+- Las horas de push coinciden con `.git/logs/refs/remotes/origin/bloque-1-foundation` (`7825722` a las 19:00:34, `6a6c23a` a las 19:37:25). Los identificadores de build y la salida 0 vienen solo de la memoria de Claude Code; en el repo no figuraban (un commit no puede registrar su propio despliegue).
+
 ---
 
 ## Siguiente paso
