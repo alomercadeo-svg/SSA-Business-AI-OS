@@ -163,7 +163,8 @@ describe("el encabezado con un nombre largo no se desborda", () => {
 
   it("el grupo del estado no se achica", () => {
     const h = hiloLargo();
-    const grupo = h.match(/<div class="([^"]*)"><div class="flex items-center gap-2"><span[^>]*>Abierta</);
+    // F40: delante del estado puede ir la marca de la ventana de Instagram (prototipo-fase1.html:667).
+    const grupo = h.match(/<div class="([^"]*)">(?:<span[^>]*>[^<]*<\/span>)?<div class="flex items-center gap-2"><span[^>]*>Abierta</);
     expect(grupo, "el grupo de la derecha").not.toBeNull();
     expect(clasesDe(grupo)).toContain("shrink-0");
   });

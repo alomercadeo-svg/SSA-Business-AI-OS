@@ -23,6 +23,8 @@ const conversacion = {
   id: "c1", workspace_id: "ws-1", contact_id: "ct1", channel_id: "ch-1", platform: "instagram", status: "open",
   last_message_at: "2026-11-03T12:00:00Z", last_message_preview: null, unread_count: 0, created_at: "2026-11-01T12:00:00Z",
   is_automation_paused: true, contacts: { id: "ct1", display_name: null, avatar_url: null },
+  // F40: con la ventana abierta, para que se vea el campo de escribir (cerrada, lo reemplaza el bloque).
+  window_expires_at: "2099-01-01T00:00:00Z",
 };
 
 describe("la lista", () => {

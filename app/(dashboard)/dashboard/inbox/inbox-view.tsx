@@ -7,6 +7,7 @@ import { ConversationList, type InicialDeLaLista } from "@/components/inbox/conv
 import type { EstadoDeBandeja } from "@/lib/bandeja";
 import { SIN_FILTROS, SIN_OPCIONES, hayFiltros, type FiltrosDeBandeja, type OpcionesDeFiltros } from "@/lib/filtros-bandeja";
 import { MessageThread } from "@/components/inbox/message-thread";
+import { useAhora } from "@/components/inbox/use-ahora";
 import type { EstadoDelHistorial } from "@/lib/historial-aviso";
 import { ContactPanel } from "@/components/inbox/contact-panel";
 import { createClient } from "@/lib/supabase/client";
@@ -52,6 +53,8 @@ export function InboxView({
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Conversation | null>(conversacionInicial);
+  // F40: un solo reloj para la ventana de Instagram de la lista y del hilo.
+  const ahora = useAhora();
   const [messages, setMessages] = useState<Message[]>([]);
   const [hayAnteriores, setHayAnteriores] = useState(false);
   const [historial, setHistorial] = useState<EstadoDelHistorial | null>(null);
@@ -199,6 +202,7 @@ export function InboxView({
           selectedId={selected?.id ?? null}
           onSelect={handleSelect}
           volverAPedir={listaDesactualizada}
+          ahora={ahora}
         />
       </div>
 
@@ -278,6 +282,7 @@ export function InboxView({
               historial={historial}
               volverALaBandeja={volver}
               zona={zonaDelNegocio}
+              ahora={ahora}
               alGuardarSeguimiento={() => {
                 setVersionDelPanel((n) => n + 1);
                 setListaDesactualizada((n) => n + 1);

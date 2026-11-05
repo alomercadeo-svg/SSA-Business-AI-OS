@@ -73,6 +73,14 @@ export async function moverVentana(
 
 // ── Para la pantalla ─────────────────────────────────────────────────────────
 
+/**
+ * La hora del pedido, para una página del servidor (la ficha): se dibuja una
+ * vez por pedido, sin reloj en vivo. En la bandeja, la hora la da `useAhora`.
+ */
+export function ahoraDelPedido(): number {
+  return Date.now();
+}
+
 export type EstadoDeVentana =
   | { estado: "abierta"; restanteMs: number }
   | { estado: "por_vencer"; restanteMs: number }

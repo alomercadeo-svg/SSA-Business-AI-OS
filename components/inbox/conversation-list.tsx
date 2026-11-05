@@ -25,6 +25,7 @@ import {
   type OpcionesDeFiltros,
 } from "@/lib/filtros-bandeja";
 import { FiltrosBandeja } from "./filtros-bandeja";
+import { MarcaDeVentana } from "./marca-ventana";
 import { crearUnPedidoALaVez } from "@/lib/un-pedido-a-la-vez";
 import { direccionDeLaBandeja } from "@/lib/direccion-bandeja";
 
@@ -76,6 +77,7 @@ export function ConversationList({
   selectedId,
   onSelect,
   volverAPedir = 0,
+  ahora,
 }: {
   inicial: InicialDeLaLista;
   /** La pestaña que vino en la dirección (`?estado=`), ya aplicada por el servidor. */
@@ -95,7 +97,10 @@ export function ConversationList({
    * sea lo mismo que ya se ve (F35, tramo C de S8).
    */
   volverAPedir?: number;
+  /** F40: la hora del reloj de la bandeja (`useAhora`), para la ventana de Instagram. */
+  ahora?: number;
 }) {
+  const ahoraMs = ahora ?? Date.now();
   const [conversations, setConversations] = useState(inicial.conversaciones);
   const [hayMas, setHayMas] = useState(inicial.hayMas);
   const [cantidades, setCantidades] = useState(inicial.cantidades);
@@ -440,6 +445,8 @@ export function ConversationList({
                     </span>
                   )}
                 </div>
+                {/* F40: solo lo que pide atención (el criterio reescrito y D12). */}
+                <MarcaDeVentana conversacion={conversation} ahora={ahoraMs} lugar="lista" />
               </div>
             </button>
           ))

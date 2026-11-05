@@ -54,6 +54,9 @@ export interface ConversacionDeFicha {
   status: string | null;
   last_message_at: string | null;
   last_message_preview: string | null;
+  /** F40 (00048): la plataforma y la ventana de Instagram de la conversación. */
+  platform?: string | null;
+  window_expires_at?: string | null;
   channels: CanalDeConversacion | null;
 }
 

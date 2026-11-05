@@ -19,6 +19,9 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { PlatformIcon } from "@/components/platform-icon";
 import type { Database } from "@/lib/types/database";
+import { MarcaDeVentana } from "@/components/inbox/marca-ventana";
+import { BloqueVentanaCerrada } from "@/components/inbox/ventana-cerrada";
+import { AVISO_VENTANA_CERRADA, estadoDeVentana, textoDeVence } from "@/lib/ventana-instagram";
 
 /**
  * La fila que devuelve `GET /api/v1/messages`. F28: `archivo` trae la
@@ -159,6 +162,7 @@ export function MessageThread({
   volverALaBandeja = null,
   zona = "America/Costa_Rica",
   alGuardarSeguimiento,
+  ahora,
 }: {
   conversation: Conversation | null;
   messages: Message[];
@@ -176,7 +180,10 @@ export function MessageThread({
   zona?: string;
   /** Al guardar el seguimiento desde el pedido al cerrar: el panel y la lista se vuelven a pedir. */
   alGuardarSeguimiento?: () => void;
+  /** F40: la hora del reloj de la bandeja (`useAhora`), para la ventana de Instagram. */
+  ahora?: number;
 }) {
+  const ahoraMs = ahora ?? Date.now();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   // F35: los anteriores a los últimos 200, hasta el primero guardado.
   const [hayMasAnteriores, setHayMasAnteriores] = useState(hayAnteriores);
@@ -204,6 +211,17 @@ export function MessageThread({
     setAvisoDeEstado(null);
     setPedido(null);
   }, [conversation?.id, conversation?.status]);
+
+  // F40: la ventana de Instagram que se ve. La de la conversación elegida, y
+  // después la que llega por Realtime (el lead escribió) o la del envío
+  // rechazado por la ventana (409), que la da por cerrada.
+  const [ventanaActual, setVentanaActual] = useState<string | null>(conversation?.window_expires_at ?? null);
+  const [avisoDeEnvio, setAvisoDeEnvio] = useState<string | null>(null);
+  useEffect(() => {
+    setVentanaActual(conversation?.window_expires_at ?? null);
+    setAvisoDeEnvio(null);
+  }, [conversation?.id, conversation?.window_expires_at]);
+  const ventana = conversation ? estadoDeVentana({ platform: conversation.platform, window_expires_at: ventanaActual }, ahoraMs) : null;
 
   const updateConversationStatus = useCallback(async (status: EstadoDeConversacion) => {
     if (!conversation || statusUpdating) return;
@@ -294,6 +312,9 @@ export function MessageThread({
           // tarea del seguimiento, otra pestaña), el encabezado lo muestra.
           const nuevo = (payload.new as { status?: string } | null)?.status;
           if (nuevo === "open" || nuevo === "closed") setEstadoActual(nuevo);
+          // F40: el lead escribió y la ventana se movió.
+          const fila = payload.new as { window_expires_at?: string | null } | null;
+          if (fila && "window_expires_at" in fila) setVentanaActual(fila.window_expires_at ?? null);
           try {
             const res = await fetch(
               `/api/v1/messages?conversationId=${conversation.id}`
@@ -362,8 +383,18 @@ export function MessageThread({
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
+        // F40: rechazado por la ventana. El campo pasa al bloque de la ventana
+        // cerrada, y el texto escrito queda guardado (D11).
+        if (errorData?.code === "ventana_cerrada") {
+          setVentanaActual(null);
+          setInput(text);
+          setAvisoDeEnvio(errorData.error || AVISO_VENTANA_CERRADA);
+        } else {
+          setAvisoDeEnvio(errorData?.error || "No se envió.");
+        }
         throw new Error(errorData.error || `Send failed (${res.status})`);
       }
+      setAvisoDeEnvio(null);
 
       const confirmedMessage: Message = await res.json();
 
@@ -448,6 +479,7 @@ export function MessageThread({
               Automatización en pausa
             </span>
           )}
+          <MarcaDeVentana conversacion={{ platform: conversation.platform, window_expires_at: ventanaActual }} ahora={ahoraMs} lugar="encabezado" />
           <VistaDelEstado
             estado={estadoActual}
             ocupado={!!statusUpdating}
@@ -521,6 +553,22 @@ export function MessageThread({
 
       {/* Composer */}
       <div className="border-t border-border p-4">
+        {avisoDeEnvio && (
+          <p role="alert" className="mx-auto mb-2 max-w-2xl text-xs text-destructive">
+            {avisoDeEnvio}
+          </p>
+        )}
+        {ventana?.estado === "cerrada" ? (
+          <div className="mx-auto max-w-2xl">
+            <BloqueVentanaCerrada
+              volver={volverALaBandeja}
+              contactoId={conversation.contact_id}
+              telefono={conversation.contacts?.phone ?? null}
+              telefonoResuelto={conversation.contacts?.phone_resolved !== false}
+            />
+          </div>
+        ) : (
+        <>
         <div className="mx-auto flex max-w-2xl items-end gap-2">
           <div className="flex-1">
             <textarea
@@ -556,6 +604,13 @@ export function MessageThread({
             <Send className="h-4 w-4" />
           </button>
         </div>
+        {ventana?.estado === "por_vencer" && (
+          <p suppressHydrationWarning className="mx-auto mt-1.5 max-w-2xl text-[11px] text-amber-700 dark:text-amber-400">
+            {textoDeVence(ventana.restanteMs)}. Después, solo desde la app de Instagram.
+          </p>
+        )}
+        </>
+        )}
       </div>
     </div>
   );

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { esManager, getWorkspace } from "@/lib/workspace";
 import { ArrowLeft } from "lucide-react";
 import { PlatformIcon } from "@/components/platform-icon";
+import { MarcaDeVentana } from "@/components/inbox/marca-ventana";
+import { ahoraDelPedido } from "@/lib/ventana-instagram";
 import { TelefonoSinResolver } from "@/components/contacts/telefono-sin-resolver";
 import { AsignacionContacto } from "@/components/contacts/asignacion-contacto";
 import { EliminarContacto } from "@/components/contacts/eliminar-contacto";
@@ -59,7 +61,7 @@ export default async function ContactDetailPage({
       .eq("contact_id", contactId),
     supabase
       .from("conversations")
-      .select("id, channel_id, status, last_message_at, last_message_preview, channels(id, platform, username, display_name, instance_name)")
+      .select("id, channel_id, status, platform, window_expires_at, last_message_at, last_message_preview, channels(id, platform, username, display_name, instance_name)")
       .eq("contact_id", contactId)
       .eq("workspace_id", workspace.id),
     supabase
@@ -97,6 +99,8 @@ export default async function ContactDetailPage({
 
   const contact = contactRes.data;
   const canales = channelsRes.data ?? [];
+  // F40: la ventana de cada conversación de Instagram, con la hora del pedido.
+  const ahora = ahoraDelPedido();
   const grupos = agruparPorCanal((conversationsRes.data ?? []) as unknown as ConversacionDeFicha[], etiquetaDeCanal);
   // El tipo del último mensaje de cada conversación: para un resumen vacío
   // (un video, una foto sin texto). Una consulta por conversación; un contacto
@@ -296,7 +300,11 @@ export default async function ContactDetailPage({
                           className="block rounded-lg border border-border p-3 transition-colors hover:bg-accent/50"
                         >
                           <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                            <span>{conv.status === "closed" ? "Cerrada" : conv.status === "snoozed" ? "Pospuesta" : "Abierta"}</span>
+                            <span className="flex items-center gap-2">
+                              {conv.status === "closed" ? "Cerrada" : conv.status === "snoozed" ? "Pospuesta" : "Abierta"}
+                              {/* F40: cada conversación de Instagram, con su propia ventana. */}
+                              <MarcaDeVentana conversacion={{ platform: conv.platform ?? conv.channels?.platform ?? null, window_expires_at: conv.window_expires_at ?? null }} ahora={ahora} lugar="encabezado" />
+                            </span>
                             <span>{horaDelNegocio(conv.last_message_at)}</span>
                           </div>
                           <p className="mt-0.5 truncate text-sm">{resumenDeConversacion(conv.last_message_preview, tipos.get(conv.id))}</p>
