@@ -2534,6 +2534,23 @@ Y lo demás:
 
 **Despliegue:** `node scripts/verificar-despliegue.mjs`, **salida 0, leída con `echo $?`**. Lectura previa a las 14:23:45 (build `20Cfk2RR8U7sC4sWIxrrW`), push `8fea3d5..5f84610`; el build pasó a `xbJkDjBroplMU1byRFkSZ` a las 14:25:31, con `/login` en 200. **Toca pantallas: queda «salida 0, pantallas sin mirar».** El commit activo en Railway no está identificado: falta la captura.
 
+**Las pantallas, vistas por Marcos con sesión el 05/11/2026, después del despliegue** (capturas recibidas en esta sesión, desde las 15:00 de Costa Rica; Claude Code no vio las pantallas). Con esto, el despliegue de `5f84610` pasa de «salida 0, pantallas sin mirar» a «pantallas vistas por Marcos, menos «Vence en…»», que se mira desde las 17:21.
+- **La lista:** las cuatro de arriba sin marca (Natalia Montero 14:44, Roxana Chavarría Gallegos 11:43, The Consultour y Marcos Pitti music), y «Ventana cerrada» en gris en las demás de Instagram. Coincide con el recuento de las 20:51 UTC (4 abiertas); que sean esas cuatro es inferencia, sin leer sus ids.
+- **El encabezado:**
+  - Marcos Pitti music: «Ventana abierta · quedan 4 h» y, más tarde, «quedan 3 h». El reloj avanza.
+  - The Consultour: «quedan 3 h», con la última interacción el 04/11 a las 19:21. Vence hacia las 19:21.
+- **El filtro:**
+  - «Abierta»: 4 de 4, con «Filtros · 1».
+  - «Cerrada»: «Abiertas 449», «Cerradas 319», «Todas 768». 768 + 4 = 772 de Instagram, y 776 en la bandeja con las 4 de WhatsApp.
+  - «Vence en menos de 2 h»: «0 de 0» y «Ninguna conversación con estos filtros».
+  - «Canal → WhatsApp» con «Abierta»: 0, con «Filtros · 2».
+- **El bloque de la ventana cerrada:** Diana Arias y Marcos Pitti music del 16/10 (la otra cuenta), con los dos textos de §11 y «No tiene teléfono cargado. Si te lo pasa, podés seguir por WhatsApp.». Los otros tres casos (el botón, el texto de F40 y D7) no se vieron con datos reales.
+- **WhatsApp:** Marcos Pitti por WhatsApp, sin ventana en el encabezado y con el campo habilitado; la lista filtrada por WhatsApp, sin marcas.
+- **La ficha:** Marcos Pitti music, la conversación de @poderosascomunidad con «Abierta» y «Ventana abierta · quedan 3 h». La ficha con la ventana cerrada no se miró en pantalla; la cubre el verificador.
+- **El control positivo del envío:** a las 15:30, Marcos escribió «330» desde @marcospittimusic a @poderosascomunidad. El encabezado pasó a «Ventana abierta · quedan 23 h» y la conversación subió a la lista con «15:30» (captura). Contestó desde la bandeja y, según Marcos, el mensaje le llegó a @marcospittimusic («recibido»). La captura es anterior al envío y no lo muestra. Las dos cuentas son las de prueba; no se escribió a ningún lead.
+- **«Escribir por WhatsApp» con datos reales:** no hay ningún contacto real con las dos conversaciones; las tres cuentas de Marcos son contactos separados, como en S8 («h, sin caso real»). **Propuesto:** el botón y su control positivo esperan el primer caso real, y no se unen contactos para probarlo (unir es una escritura en producción que deja historial para siempre). La búsqueda de esa conversación de WhatsApp corre en el navegador: la prueban Vitest y la seguridad por filas, no el verificador.
+- **Falta:** «Vence en…» con The Consultour, desde las 17:21 (la lista, el encabezado, la línea debajo del campo y el filtro). El modo oscuro no se miró.
+
 **Lo que no entra en este tramo:**
 - **La respuesta privada a un comentario** (F40, `:1166`): el criterio queda abierto, para un tramo propio de S9. La lectura de `comment_logs` se pide aparte, más adelante.
   - Lo verificado en el código: `comment_logs` existe (`00004:11-36`), y el receptor guarda cada comentario aunque no coincida con un disparador (`comment-processor.ts:116-118`).
