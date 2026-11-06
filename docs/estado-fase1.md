@@ -3242,7 +3242,16 @@ Esa es la hora de «pantallas vistas» de los ítems 3a, 4, 5 y 6. Las tildes no
 
 **Un error de la sesión:** a las 16:00, en medio de un comando, corrió `git stash list`, que la sección 8 prohíbe. Es de solo lectura y no cambió nada, pero rompe la regla: no tenía ningún motivo para correrlo.
 
-### Plan maestro, ítem 8: No contactar (F34, y su parte de F31) (Bloque 4, medido, sin subir)
+### Plan maestro, tercer retrabajo del ítem 4 (Bloque 4, medido, sin subir)
+
+**06/11/2026, de 17:57 a 17:59** (hora de Costa Rica; fin de la construcción, 17:59). Liviana. Commits `086010d` y `f55de20`. Pedido por Marcos a las 17:4x, después de mirar el segundo retrabajo.
+
+- **a.** Menos espacio entre el nombre y la línea de la ventana en el teléfono (decisión de la revisión, vetable): el encabezado pasa de `gap-1.5 py-2` a `gap-0.5 py-1.5`. Desde `md`, igual.
+- **b.** La foto del contacto en el encabezado del chat abre la ficha, como el nombre y como en el panel desde S8 (`aria-label="Abrir la ficha del contacto"`, con la misma vuelta a la bandeja). Sin contacto, la foto queda como estaba.
+- **Tests:** 1 nuevo (b), **visto en rojo**. **Un test del segundo retrabajo cambió** (a): exigía la clase exacta del encabezado; ahora exige la nueva, con la misma estructura de dos filas. `npm test` 1485 de 1485, `typecheck` sin errores, `lint` sin errores (las 2 advertencias del archivo ya estaban).
+- **Sin subir.** Regla de Marcos: se sube solo si da el tiempo antes de las 18:40 y después de que mire lo del ítem 8; si no, mañana.
+
+### Plan maestro, ítem 8: No contactar (F34, y su parte de F31) (Bloque 4, medido, subido)
 
 **06/11/2026, desde las 17:16** (hora de Costa Rica). Completa. Estimación vieja 180 min, nueva 75 (reestimación en el plan maestro). **Fin de la construcción: 17:25** (commits `ad7baa0` y `450f5a0`). Sin subir: espera dos cosas de Marcos (abajo).
 
