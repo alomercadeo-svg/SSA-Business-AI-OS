@@ -3242,6 +3242,26 @@ Esa es la hora de «pantallas vistas» de los ítems 3a, 4, 5 y 6. Las tildes no
 
 **Un error de la sesión:** a las 16:00, en medio de un comando, corrió `git stash list`, que la sección 8 prohíbe. Es de solo lectura y no cambió nada, pero rompe la regla: no tenía ningún motivo para correrlo.
 
+### Lo que miró Marcos del retrabajo del ítem 4, el 06/11/2026 de 16:56 a 17:05
+
+Esa es la hora de «pantallas vistas» del retrabajo. **Bien:** 2 (abre en el último mensaje), 3 (la foto entra en la pantalla, la «X» a la vista, cierra con «X» y con el gesto), 5 (la ficha), 6 (Contactos en tarjetas) y 7 (la computadora, sin cambios). **Falla, como segundo retrabajo** (abajo): el encabezado del chat y la vuelta del panel. Ninguna tilde de F35 (teléfono) todavía; la del criterio 4 de F44 la propone Marcos al cierre.
+
+### Plan maestro, segundo retrabajo del ítem 4 (Bloque 4, medido)
+
+**06/11/2026, de 17:08 a 17:12** (hora de Costa Rica; fin de la construcción, 17:12). Liviana. Commit `2cd905e`. El ítem 8 se dejó a un lado para hacerlo primero (sección 5: lo que Marcos reporta roto pasa primero); del 8 no se había escrito nada.
+
+- **a. El encabezado del chat** (decisión de pantalla de la revisión, vetable): en el teléfono, dos filas; arriba el avatar y el nombre, hasta dos líneas; abajo, alineados con el nombre, la ventana, la pausa de automatización si la hay, el estado y «Cerrar», que bajan de línea si no entran (`flex-wrap`). Desde `md`, la fila de alto fijo de siempre.
+- **b. Volver del panel.** **Por qué el chat no quedaba al final: no lo encontré en el código, y no lo pude reproducir sin un iPhone.** El panel tapa el hilo sin ocultarlo (`lib/columnas-bandeja.ts:31-34`). **El cambio, que vale para cualquier causa:** al abrir «Datos del contacto» en el teléfono, el hilo guarda su lugar («al final» o «a tantos píxeles del final», `lugarDelHilo`); al volver, lo repone un cuadro después (`scrollParaVolver`, `lib/pantalla-telefono.ts`). Si estaba al final, vuelve al final aunque hayan llegado mensajes.
+- **Tests nuevos: 5. Vistos en rojo por su motivo: 4.** **No visto en rojo: 1**, el control de que nunca da un lugar negativo (el esqueleto ya devolvía 0). **Un test viejo cambió:** el de S8, tramo 8 (`components/inbox/estado-hilo.test.ts:155`), buscaba la clase `flex h-14` del encabezado y falló con el cambio; ahora busca el encabezado de dos filas (`flex flex-col … md:h-14`). Sigue exigiendo lo mismo, que el grupo del nombre pueda achicarse, así que no se ablandó. `npm test` 1468 de 1468, `typecheck` sin errores, `lint` sin errores (las 3 advertencias de los archivos tocados ya estaban).
+
+### La alerta de silencio de WhatsApp `alomercadeo-ventas` (06/11/2026)
+
+Marcos la vio en Canales: «Un canal pasó su límite de horas sin recibir mensajes», WhatsApp `alomercadeo-ventas`, 9,4 de 8 horas hábiles, desde las 15:41. Es esperable: el número no está publicado.
+
+- **Si mandó correo, y a quiénes. Verificado en el código, sin leer la base:** la revisión de silencio manda el correo **solo cuando la condición se abre** (`lib/vigilancia-canales.ts:12-16` y `:89-102`, que llama a `notificarAlerta`). `notificarAlerta` (`lib/correo.ts:403-430`) se lo manda a **Owner y Admin del espacio** (`destinatariosManagers`, `lib/correo.ts:56-72`), sin las direcciones de prueba (`:446`), con un techo de **un correo por tipo de aviso por hora** (`reservar_correo_aviso`, `:463-473`). El asunto es el mismo texto de la alerta (`:342`). **Si de verdad salió no lo sé:** depende de que Resend esté configurado y de que el envío no haya fallado, y eso está en `email_log`, que no leí. Se ve en Configuración › Correos enviados.
+- **Cómo dejarlo sin vigilar desde la pantalla (para Marcos):** Configuración › **Vigilancia de canales**; en la fila del canal, la columna «Límite de silencio» tiene el campo «Límite de silencio en horas hábiles» (vacío muestra «Sin vigilar»); **borrar el número** y apretar **«Guardar»**, que aparece solo cuando el valor cambió (`app/(dashboard)/dashboard/settings/vigilancia/umbral-canal.tsx:29-50`). Vacío es «sin vigilar» (`lib/actions/vigilancia.ts:21-28`). Solo Owner y Admin. **Según el código** (`lib/vigilancia-canales.ts:17-18`), la alerta se cierra sola en la próxima revisión si ningún otro canal vigilado está pasado de su límite; no lo corrí.
+- **Decidido por Marcos el 06/11/2026: `alomercadeo-ventas`, sin vigilar hasta que se publique el número; al publicarlo, volver a vigilar.** No se escribió nada en producción: el cambio lo hace Marcos desde la pantalla.
+
 ### Plan maestro, ítem 3b: el reel nuevo (F44, criterio 2) (lectura hecha)
 
 - Marcos mandó el reel a las 15:40. **Lectura autorizada** por el CLI, dentro de `begin transaction read only`, en el espacio real (`e8f4f678`), solo los entrantes del canal `poderosascomunidad` entre las 21:40:00 y las 21:41:00 UTC.
