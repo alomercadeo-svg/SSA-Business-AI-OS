@@ -2984,6 +2984,11 @@ El cierre siempre entra. A la hora de aviso: npm test en verde, subida con verif
 
 **Propuesta de tilde, para Marcos:** F44, criterio 4 («Tocar una foto del hilo la abre a pantalla completa…»), cuando Marcos vea los tres puntos de arriba. Prueba: los tests de esta tabla, corridos a las 09:44 del 06/11, y su mirada.
 
+**Lo que vio Marcos el 06/11 a la mañana, recargando, sobre el build de `f728cb1`:**
+- **En la computadora:** la foto de WhatsApp cerró con «X» y quedó en la misma conversación; también cerró con Escape. La foto de Instagram de c6628c4e (17:37) cerró con «X» y con Escape.
+- **En el teléfono (10:24) no se pudo probar:** el menú lateral ocupa toda la pantalla y no se oculta, igual que el 05/11. **El gesto de volver se prueba con el ítem 4, y la tilde del criterio 4 de F44 espera a eso, porque el criterio lo pide** (decidido por Marcos).
+- Con eso, el despliegue de `f728cb1` pasa a «pantallas vistas por Marcos en la computadora; el teléfono, con el ítem 4».
+
 ### Plan maestro, ítem 3a: el enlace de una publicación compartida (F44, criterio 1) (Bloque 4, medido, a medias)
 
 **06/11/2026, desde las 09:48** (hora de Costa Rica). Revisión completa (lectura de producción y posible cambio de criterio). Estimación: 40 min. **Quedó esperando a Marcos a las 09:49**, en el paso 4 (abrir el enlace armado).
