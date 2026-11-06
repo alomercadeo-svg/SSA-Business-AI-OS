@@ -2831,7 +2831,7 @@ Cada ítem: tests nuevos vistos en rojo antes del cambio, `npm test` + `npm run 
   - Lo que faltaba de lo que vio Marcos a las 18:50 del 05/11, de lo que decidió a las 19:00 y a las 19:05, y el dato de Alejandra del 05/11 a las 19:46.
   - El criterio nuevo de F35 (`requerimientos-fase1.md:1025`), aprobado tal cual por Marcos el 06/11 en la revisión; y la confirmación, leída en `docs/plano-criterios.test.ts`, de que un agregado no necesita registro en `criterios-bajas.json`.
   - El pendiente de 1a y 1b, en este estado y en §15 del plano (abajo, «Salió del plan»).
-- [ ] **Ítem 2: la «X» de la foto de WhatsApp (F44, criterio 4).** Va primero: es un error en producción. Liviana. 25 min.
+- [x] **Ítem 2: la «X» de la foto de WhatsApp (F44, criterio 4).** Va primero: es un error en producción. Liviana. 25 min. **Hecho:** `f728cb1`, desplegado, «salida 0, pantallas sin mirar» (en «Plan maestro, ítem 2», abajo).
   - Diagnóstico, verificado en el código: el botón «X» y el fondo del visor tienen los dos `onClick={onCerrar}` (`components/inbox/visor-foto.tsx:46` y `:51`), y el clic del botón sube al fondo, así que `history.back()` corre dos veces (`lib/visor-foto.ts:28`); Escape lo llama una sola vez (`:22`). La segunda vuelta atrás sale de la bandeja a la entrada anterior del historial. El `replaceState` (`inbox-view.tsx:103`, `conversation-list.tsx:155`) explica adónde vuelve, no por qué vuelve dos veces. Por qué en Instagram no se vio es inferencia.
   - El cambio: `cerrar()` vuelve atrás una sola vez aunque se llame dos, y el botón corta la propagación. Tests: «cerrar dos veces vuelve atrás una sola vez», «el botón X no sube al fondo»; control: Escape y el gesto de volver siguen cerrando.
   - Pantallas: la foto de WhatsApp y la de Instagram, con «X», Escape y el gesto de volver, en la computadora y en el teléfono.
@@ -2952,6 +2952,37 @@ verify-bandeja (43), verify-filtros-bandeja (135), verify-seguimiento-bandeja (5
 #### 10. Cierre del día
 
 El cierre siempre entra. A la hora de aviso: npm test en verde, subida con verificar-despliegue.mjs, y en el estado el avance del plan maestro, el ítem a medias (en qué paso quedó), lo que espera algo mío (pantallas, tildes, capturas, datos, OK de push), la medición del día por categoría y, si no se subió, por qué y qué condición lo destraba.
+
+### Plan maestro, ítem 2: la «X» del visor de fotos (F44, criterio 4) (Bloque 4, medido)
+
+**06/11/2026, desde las 09:43** (hora de Costa Rica, sin segundos; prompt, plan y aprobación: los comunes del plan maestro). Revisión liviana: un componente, su lógica y sus tests. Estimación: 25 min. **Fin de la construcción: 09:44** (commit). **Suma: 2 min** (de 09:43 a 09:48, menos la espera de Railway, de 09:44:41 a 09:47:38, que no se cuenta). Por debajo de la estimación; no se llegó al freno del 50 %.
+
+**La causa, verificada en el código:** el botón «X» y el fondo del visor tenían los dos `onClick={onCerrar}` (`components/inbox/visor-foto.tsx`), y el clic del botón subía al fondo: `history.back()` corría dos veces (`lib/visor-foto.ts`). Escape lo llamaba una sola vez. La segunda vuelta atrás salía de la bandeja a la entrada anterior del historial; el `replaceState` de la bandeja no suma entradas, por eso esa entrada era la de la prueba de las 17:26. Por qué con la foto de Instagram no se vio es inferencia: depende de qué había antes en el historial de esa pestaña.
+
+**El cambio**, `f728cb1`: `conectarVisor` vuelve atrás una sola vez por apertura (y nunca después de que el gesto de volver ya lo cerró), y el botón «X» corta la propagación.
+
+| Comprobación nueva | En rojo |
+|---|---|
+| `lib/visor-foto.test.ts`: cerrar dos veces antes de que llegue el `popstate` vuelve atrás una sola vez | vista en rojo, por su motivo: «expected "spy" to be called 1 times, but got 2 times» |
+| Escape y después «X», antes del `popstate`: una sola vuelta | vista en rojo, por su motivo (2 veces) |
+| cerrado con el gesto de volver, un «X» tardío no vuelve atrás | vista en rojo, por su motivo: «expected "spy" to not be called at all, but actually been called 1 times» |
+| `components/inbox/visor-foto.test.ts`: tocar «X» cierra una sola vez, no sube al fondo | vista en rojo, por su motivo (2 veces) |
+| control: tocar el fondo, fuera de la foto, también cierra, una vez | no vista en rojo: es el control, en verde antes y después |
+
+**4 de 5 vistos en rojo.** La ventana falsa nueva demora el `popstate`, como el navegador real; la de los tests de antes lo disparaba en el mismo instante, y por eso no veía el error. Los tests prueban la lógica y el árbol del componente, **no el navegador**: que el clic real ya no saque de la bandeja lo confirma la pantalla.
+
+**Antes de subir:** `npm test`, 1368 de 1368, salida 0; `npm run typecheck`, salida 0; `npm run lint`, salida 0 (0 errores, 45 avisos, los mismos). Cada salida leída con `echo $?`, sin tuberías.
+
+**Despliegue:** `node scripts/verificar-despliegue.mjs`, **salida 0, leída con `echo $?`**: lectura previa a las 09:44:41 (build `yTQ9r659N0ar2S8F6DBeK`), push `5af1cdd..f728cb1` (subió también `a295607` y `c40eb8b`), el build pasó a `ZwAql7yLxr6bBRhAVFirO` a las 09:47:38, con `/login` en 200. **Toca una pantalla: queda «salida 0, pantallas sin mirar».** El commit activo en Railway no está identificado por título.
+
+**Después del despliegue:** `verify-contenido-hilo`, **18 de 18, salida 0**, limpieza en cero (1 fila de `audit_log` sin espacio, como siempre). Los demás de la sección 9 no se corrieron: el cambio es del navegador y no toca nada de lo que miden.
+
+**Lo que mira Marcos, recargando:**
+1. La foto de WhatsApp: tocarla y cerrar con «X»: tiene que quedar en la misma conversación.
+2. La misma foto, con Escape (computadora) y con el gesto de volver (teléfono).
+3. La foto de Instagram de c6628c4e (17:37), con «X», Escape y el gesto de volver.
+
+**Propuesta de tilde, para Marcos:** F44, criterio 4 («Tocar una foto del hilo la abre a pantalla completa…»), cuando Marcos vea los tres puntos de arriba. Prueba: los tests de esta tabla, corridos a las 09:44 del 06/11, y su mirada.
 
 ---
 
