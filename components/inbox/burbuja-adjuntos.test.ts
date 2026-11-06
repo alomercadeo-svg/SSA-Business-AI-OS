@@ -80,11 +80,19 @@ describe("la foto a pantalla completa (F44, criterio 4)", () => {
 describe("los compartidos en el hilo (F44, criterios 1 y 2)", () => {
   const ENLACE = "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=1&signature=PRUEBA";
 
-  it("una publicación compartida dice «Compartió una publicación», con «Ver en Instagram», en vez de «Adjunto»", () => {
+  it("una publicación compartida dice «Compartió una publicación» con su título, sin botón, en vez de «Adjunto» (reescrito el 06/11/2026)", () => {
+    const h = html({ message_type: "otro", media_status: "pendiente", attachments: [{ type: "share", compartido: "publicacion", titulo: "Mi viaje a Monteverde" }] });
+    expect(h).toContain("Compartió una publicación");
+    expect(h).toContain("Mi viaje a Monteverde");
+    expect(h).not.toContain("Ver en Instagram");
+    expect(h).not.toContain("Adjunto");
+  });
+
+  it("una publicación no muestra botón aunque le llegue un enlace", () => {
     const h = html({ message_type: "otro", media_status: "pendiente", attachments: [{ type: "share", compartido: "publicacion", enlace: ENLACE }] });
     expect(h).toContain("Compartió una publicación");
-    expect(h).toMatch(/<a[^>]*href="https:\/\/lookaside\.fbsbx\.com[^"]*"[^>]*target="_blank"[^>]*rel="noopener noreferrer"[^>]*>[^<]*Ver en Instagram/);
-    expect(h).not.toContain("Adjunto");
+    expect(h).not.toContain("Ver en Instagram");
+    expect(h).not.toContain("lookaside");
   });
 
   it("un reel compartido dice «Compartió un reel», en vez de «Este archivo no está disponible.»", () => {

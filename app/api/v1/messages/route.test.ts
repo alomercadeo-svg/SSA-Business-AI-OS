@@ -178,7 +178,7 @@ describe("GET /api/v1/messages lee de la base (F27)", () => {
     expect(JSON.stringify(cuerpo)).not.toContain("lookaside");
   });
 
-  it("F44: una publicación y un reel viajan como compartidos, con el enlace de la lista; los ya guardados también", async () => {
+  it("F44: una publicación viaja con su título y sin enlace, un reel con su enlace; los ya guardados también", async () => {
     const ADJ = JSON.parse(readFileSync(new URL("../../../../lib/fixtures/zernio-adjuntos-f44.json", import.meta.url), "utf8"));
     h.filasDeMensajes = [
       fila("m3", { attachments: [ADJ.videoDeCamara], media_status: "pendiente" }),
@@ -186,7 +186,8 @@ describe("GET /api/v1/messages lee de la base (F27)", () => {
       fila("m1", { attachments: [ADJ.publicacion], media_status: "pendiente" }),
     ];
     const cuerpo = await (await leer()).json();
-    expect(cuerpo.messages[0].attachments).toEqual([{ type: "share", compartido: "publicacion", enlace: ADJ.publicacion.payload.url }]);
+    expect(cuerpo.messages[0].attachments).toEqual([{ type: "share", compartido: "publicacion", titulo: ADJ.publicacion.payload.title }]);
+    expect(JSON.stringify(cuerpo.messages[0])).not.toContain("lookaside");
     expect(cuerpo.messages[1].attachments).toEqual([{ type: "video", compartido: "reel", enlace: ADJ.reel.payload.url }]);
     // El video de la cámara no es compartido: su dirección no viaja.
     expect(cuerpo.messages[2].attachments).toEqual([{ type: "video" }]);

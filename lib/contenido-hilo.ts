@@ -17,17 +17,24 @@
  *
  * EL ENLACE. Es una excepción a la regla de `app/api/v1/messages/route.ts`
  * («la dirección del proveedor no sale del servidor»), aprobada por Marcos el
- * 05/11/2026: solo para compartidos y reels, solo https y solo los hosts de
- * `HOSTS_DEL_ENLACE`. Sin ella no hay «Ver en Instagram» para una publicación,
- * que no trae otro enlace. Qué abre el de `lookaside.fbsbx.com` no está
- * verificado.
+ * 05/11/2026: solo https y solo los hosts de `HOSTS_DEL_ENLACE`. **Desde el
+ * 06/11/2026 vale solo para los reels:** el enlace de una publicación es de
+ * `lookaside.fbsbx.com` y abre solo la imagen (visto por Marcos el 05/11), y
+ * el armado desde `ig_post_media_id` no abre la publicación (probado por
+ * Marcos el 06/11). La publicación se muestra con su título y sin botón (F44,
+ * criterio 1, reescrito ese día).
  */
 export type Compartido = "publicacion" | "reel";
 
-export const HOSTS_DEL_ENLACE = new Set(["www.instagram.com", "instagram.com", "lookaside.fbsbx.com"]);
+export const HOSTS_DEL_ENLACE = new Set(["www.instagram.com", "instagram.com"]);
 const HOSTS_DE_REEL = new Set(["www.instagram.com", "instagram.com"]);
 
-type Crudo = { type?: unknown; url?: unknown; originalType?: unknown; payload?: { url?: unknown; reel_video_id?: unknown } | null };
+type Crudo = {
+  type?: unknown;
+  url?: unknown;
+  originalType?: unknown;
+  payload?: { url?: unknown; reel_video_id?: unknown; title?: unknown } | null;
+};
 
 function comoCrudo(a: unknown): Crudo | null {
   return a && typeof a === "object" && !Array.isArray(a) ? (a as Crudo) : null;
@@ -61,4 +68,21 @@ export function enlaceDelCompartido(adjunto: unknown): string | null {
     if (host !== null && HOSTS_DEL_ENLACE.has(host)) return url as string;
   }
   return null;
+}
+
+/** Largo máximo del título que viaja al navegador. Un pie de foto puede ser largo. */
+export const TITULO_MAXIMO = 300;
+
+/**
+ * El título de una publicación compartida (`payload.title`, en las muestras
+ * reales del 05/11/2026), con los espacios juntados y cortado en
+ * `TITULO_MAXIMO` con «…». Nulo si no hay o no es texto.
+ */
+export function tituloDelCompartido(adjunto: unknown): string | null {
+  const a = comoCrudo(adjunto);
+  const t = a?.payload?.title;
+  if (typeof t !== "string") return null;
+  const limpio = t.replace(/\s+/g, " ").trim();
+  if (!limpio) return null;
+  return limpio.length > TITULO_MAXIMO ? limpio.slice(0, TITULO_MAXIMO - 1) + "…" : limpio;
 }

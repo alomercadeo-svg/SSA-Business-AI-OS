@@ -61,10 +61,20 @@ export const TEXTO_ADJUNTO_NO_DISPONIBLE = "Este archivo no está disponible.";
  */
 const TEXTO_COMPARTIDO = { publicacion: "Compartió una publicación", reel: "Compartió un reel" } as const;
 
-function compartidoDe(message: Message): { compartido: keyof typeof TEXTO_COMPARTIDO; enlace: string | null } | null {
-  const a = Array.isArray(message.attachments) ? (message.attachments[0] as { compartido?: unknown; enlace?: unknown } | null) : null;
+function compartidoDe(
+  message: Message,
+): { compartido: keyof typeof TEXTO_COMPARTIDO; enlace: string | null; titulo: string | null } | null {
+  const a = Array.isArray(message.attachments)
+    ? (message.attachments[0] as { compartido?: unknown; enlace?: unknown; titulo?: unknown } | null)
+    : null;
   if (!a || (a.compartido !== "publicacion" && a.compartido !== "reel")) return null;
-  return { compartido: a.compartido, enlace: typeof a.enlace === "string" ? a.enlace : null };
+  return {
+    compartido: a.compartido,
+    // Solo el reel tiene botón: el enlace de una publicación no la abre
+    // (F44, criterio 1, reescrito el 06/11/2026).
+    enlace: a.compartido === "reel" && typeof a.enlace === "string" ? a.enlace : null,
+    titulo: a.compartido === "publicacion" && typeof a.titulo === "string" ? a.titulo : null,
+  };
 }
 
 function ArchivoDelMensaje({ message }: { message: Message }) {
@@ -73,6 +83,7 @@ function ArchivoDelMensaje({ message }: { message: Message }) {
     return (
       <div className="mt-1">
         <p className="text-xs opacity-70">{TEXTO_COMPARTIDO[compartido.compartido]}</p>
+        {compartido.titulo && <p className="line-clamp-3 break-words text-sm italic">«{compartido.titulo}»</p>}
         {compartido.enlace && (
           <a href={compartido.enlace} target="_blank" rel="noopener noreferrer" className="text-xs underline">
             Ver en Instagram

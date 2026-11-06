@@ -20,7 +20,10 @@
  *   R  El reel no se marca (`media_intentos` nulo), no tiene archivo, y el
  *      hilo lo trae como `compartido: "reel"`.
  *   S  La publicación no se marca, no tiene archivo, y el hilo la trae como
- *      `compartido: "publicacion"`, con su enlace de un host de la lista.
+ *      `compartido: "publicacion"`, con su título y sin enlace (criterio 1,
+ *      reescrito el 06/11/2026: el enlace del CDN abre solo la imagen, y el
+ *      armado desde `ig_post_media_id` no abre la publicación). Antes del
+ *      06/11 esta comprobación exigía el enlace de `lookaside.fbsbx.com`.
  *
  * QUÉ CAMBIA CADA PASO. Cada aviso escribe una fila y se lee enseguida, antes
  * del siguiente. V va primero: si V falla, «R no se marcó» no significa nada
@@ -152,12 +155,12 @@ async function principal() {
     const adj = (f) => porId.get(f?.id)?.attachments?.[0] ?? null;
     if (!okHilo) {
       noConcluyente("el reel viene como compartido: reel", "el hilo no trajo los mensajes");
-      noConcluyente("la publicación viene como compartido: publicacion, con enlace", "el hilo no trajo los mensajes");
+      noConcluyente("la publicación viene como compartido: publicacion, con su título y sin enlace", "el hilo no trajo los mensajes");
       noConcluyente("el video de la cámara no viene como compartido", "el hilo no trajo los mensajes");
     } else {
       check(adj(fr)?.compartido === "reel", "el reel viene como compartido: reel", JSON.stringify(adj(fr)));
       const ap = adj(fs);
-      check(ap?.compartido === "publicacion" && typeof ap?.enlace === "string" && new URL(ap.enlace).hostname === "lookaside.fbsbx.com", "la publicación viene como compartido: publicacion, con su enlace de la lista", JSON.stringify(ap));
+      check(ap?.compartido === "publicacion" && ap?.titulo === ADJ.publicacion.payload.title && !("enlace" in (ap ?? {})), "la publicación viene como compartido: publicacion, con su título y sin enlace", JSON.stringify(ap));
       check(adj(fv) !== null && !adj(fv)?.compartido && !adj(fv)?.enlace, "el video de la cámara no viene como compartido ni con enlace", JSON.stringify(adj(fv)));
     }
   } finally {
