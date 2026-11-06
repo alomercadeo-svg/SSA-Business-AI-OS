@@ -47,6 +47,17 @@ describe("la guardia de las políticas que repite bandeja_busca_con_acceso", () 
     expect(politicasSinMencionar(dir, 46)).toEqual([]);
   });
 
+  // Pendiente (d) del 05/11/2026, arreglado el 06/11 (ítem 6 del plan maestro):
+  // nombrar la función de paso, por ejemplo en un comentario copiado de otra
+  // migración, satisfacía la guardia. Ahora hace falta la línea explícita.
+  it("una mención de paso de la función no alcanza: hace falta «revisado contra …»", () => {
+    const dir = carpeta({
+      "00047_a.sql": `-- La búsqueda vive en ${FUNCION_DE_BUSQUEDA} (00045), copiado de la 00046.\ndrop policy if exists "x" on messages;`,
+      "00048_b.sql": `select '${FUNCION_DE_BUSQUEDA}';\ncreate policy "y" on conversations for select using (true);`,
+    });
+    expect(politicasSinMencionar(dir, 46)).toEqual(["00047_a.sql", "00048_b.sql"]);
+  });
+
   it("control: otras tablas, migraciones hasta la 00046 y comentarios no cuentan", () => {
     const dir = carpeta({
       "00047_a.sql": 'create policy "t" on public.tags for select using (true);',

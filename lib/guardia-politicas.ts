@@ -8,9 +8,13 @@
  * de `deleted_at`. Si una migración posterior cambia una política de esas
  * tablas, la función puede quedar comprobando otra cosa que la regla. Esto
  * devuelve las migraciones posteriores a `desde` que crean, cambian o borran
- * una política de esas tablas sin nombrar la función en ningún lado del
- * archivo (un comentario alcanza: lo que se pide es que quien la cambie la
- * mire y lo diga).
+ * una política de esas tablas sin la línea «revisado contra
+ * bandeja_busca_con_acceso» (en un comentario: lo que se pide es que quien la
+ * cambie la mire y lo diga).
+ *
+ * Desde el 06/11/2026 (pendiente (d) del 05/11): antes alcanzaba nombrar la
+ * función en cualquier lado del archivo, y un comentario copiado de otra
+ * migración la satisfacía sin que nadie la hubiera mirado.
  *
  * Solo lo usa `lib/guardia-politicas.test.ts`.
  */
@@ -37,6 +41,6 @@ export function politicasSinMencionar(dir: string, desde: number, funcion = FUNC
       const tocaPoliticas = sinComentarios(sql)
         .split(";")
         .some((sentencia) => SENTENCIA.test(sentencia));
-      return tocaPoliticas && !sql.includes(funcion);
+      return tocaPoliticas && !new RegExp(String.raw`revisado contra ${funcion}\b`, "i").test(sql);
     });
 }
