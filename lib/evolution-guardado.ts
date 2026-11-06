@@ -347,6 +347,7 @@ export async function guardarMensajesDeEvolution(
         contactId: contactId!,
         preview,
         nuevo: (nuevos ?? 0) > 0,
+        texto: mensaje.text,
       });
     }
 

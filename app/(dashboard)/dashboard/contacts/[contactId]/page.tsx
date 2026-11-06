@@ -6,6 +6,7 @@ import { MarcaDeVentana } from "@/components/inbox/marca-ventana";
 import { ahoraDelPedido } from "@/lib/ventana-instagram";
 import { TelefonoSinResolver } from "@/components/contacts/telefono-sin-resolver";
 import { AsignacionContacto } from "@/components/contacts/asignacion-contacto";
+import { RevertirNoContactar } from "@/components/contacts/revertir-no-contactar";
 import { EliminarContacto } from "@/components/contacts/eliminar-contacto";
 import { EditarContacto } from "@/components/contacts/editar-contacto";
 import { NotasContacto, type NotaDeFicha } from "@/components/contacts/notas-contacto";
@@ -192,6 +193,7 @@ export default async function ContactDetailPage({
                 {[contact.do_not_contact_reason, contact.do_not_contact_at ? horaDelNegocio(contact.do_not_contact_at) : null].filter(Boolean).join(" · ")}
                 {". "}No se le puede escribir ni entra a secuencias.
               </p>
+              {manager && <RevertirNoContactar contactoId={contact.id} />}
             </div>
           )}
 

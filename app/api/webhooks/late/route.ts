@@ -376,6 +376,7 @@ async function guardarAviso(
       contactId: contact.contactId,
       preview,
       nuevo: (nuevos ?? 0) > 0,
+      texto: mensaje.text,
     });
     // F40: la ventana de Instagram, 24 horas desde la hora de Meta del mensaje
     // (`sentAt`), no desde la recepción. Solo la mueve el lead, y solo adelanta

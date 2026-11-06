@@ -22,6 +22,7 @@
  *     «Cerradas». El costo: en ese caso se pierde un +1.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { marcarSiPideBaja } from "./no-contactar";
 
 export interface ClavesDeConversacion {
   workspace_id: string;
@@ -69,13 +70,15 @@ export async function conversacionDelMensaje<F extends { id: string }>(
 /** Lo que hace un mensaje del lead, en vivo, después de guardarlo. Tira si no pudo. */
 export async function alEscribirElLead(
   supabase: SupabaseClient,
-  { conversationId, workspaceId, contactId, preview, nuevo }: {
+  { conversationId, workspaceId, contactId, preview, nuevo, texto = null }: {
     conversationId: string;
     workspaceId: string;
     contactId: string;
     preview: string | null;
     /** Si la base insertó el mensaje (no era repetido). */
     nuevo: boolean;
+    /** El texto del lead, para la detección de baja de F34. */
+    texto?: string | null;
   },
 ): Promise<void> {
   if (nuevo) {
@@ -90,4 +93,7 @@ export async function alEscribirElLead(
     .eq("status", "closed")
     .is("deleted_at", null);
   if (error) throw new Error(`conversations: ${error.message}`);
+  // F34: si el mensaje pide no recibir más, se marca el contacto. Solo con un
+  // mensaje nuevo: uno repetido ya pasó por acá.
+  if (nuevo) await marcarSiPideBaja(supabase, { workspaceId, contactId, texto });
 }

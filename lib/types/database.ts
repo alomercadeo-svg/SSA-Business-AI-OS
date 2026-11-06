@@ -156,6 +156,8 @@ export interface Database {
           unassigned_leads_visible_to_members: boolean;
           /** Zona IANA del negocio (F39, 00033). */
           zona_horaria: string;
+          /** F34 (00053): frases que marcan como no contactar. Opcional en el tipo: no está en la selección segura de `workspaces` que usa cada pantalla; se pide aparte. */
+          frases_de_baja?: string[];
           /** Horario de atención por día, franjas en hora local (F39, 00033). Ver `lib/horas-habiles.ts`. */
           horario_atencion: Json;
           created_at: string;
@@ -169,6 +171,7 @@ export interface Database {
           global_keywords?: Json | null;
           unassigned_leads_visible_to_members?: boolean;
           zona_horaria?: string;
+          frases_de_baja?: string[];
           horario_atencion?: Json;
           created_at?: string;
           updated_at?: string;
@@ -181,6 +184,7 @@ export interface Database {
           global_keywords?: Json | null;
           unassigned_leads_visible_to_members?: boolean;
           zona_horaria?: string;
+          frases_de_baja?: string[];
           horario_atencion?: Json;
           updated_at?: string;
         };

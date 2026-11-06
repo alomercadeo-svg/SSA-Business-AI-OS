@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils";
 /**
  * Las pestañas de Configuración (§11, «Pantalla: Configuración»). Están solo
  * las que existen: General, Equipo, Vigilancia de canales (F39), Correos
- * enviados (F23) e Historial de cambios (F31). Frases de baja y Alertas se suman
- * con su funcionalidad (F34; la de Alertas no la pide ningún criterio, §15).
+ * enviados (F23), Historial de cambios (F31) y Frases de baja (F34). Alertas se
+ * suma con su funcionalidad (no la pide ningún criterio, §15).
  *
  * Cada pestaña es una ruta propia y no un estado del cliente: así cada una
  * hace su propio control de rol en el servidor (`getWorkspaceAsManager`).
@@ -14,6 +14,7 @@ export const PESTANAS_CONFIGURACION = [
   { clave: "general", etiqueta: "General", href: "/dashboard/settings" },
   { clave: "equipo", etiqueta: "Equipo", href: "/dashboard/settings/team" },
   { clave: "vigilancia", etiqueta: "Vigilancia de canales", href: "/dashboard/settings/vigilancia" },
+  { clave: "frases", etiqueta: "Frases de baja", href: "/dashboard/settings/frases-de-baja" },
   { clave: "correos", etiqueta: "Correos enviados", href: "/dashboard/settings/correos" },
   { clave: "historial", etiqueta: "Historial de cambios", href: "/dashboard/settings/historial" },
 ] as const;

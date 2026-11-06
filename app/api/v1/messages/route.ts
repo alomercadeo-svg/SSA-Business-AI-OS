@@ -8,6 +8,7 @@ import { guardarEnvioDeLaBandeja } from "@/lib/mensajes-guardado";
 import { BUCKET_DE_ADJUNTOS } from "@/lib/adjuntos";
 import { clasificarCompartido, enlaceDelCompartido, tituloDelCompartido, type Compartido } from "@/lib/contenido-hilo";
 import { AVISO_VENTANA_CERRADA, esRechazoPorVentana, reglaDeVentana } from "@/lib/ventana-instagram";
+import { AVISO_NO_CONTACTAR } from "@/lib/no-contactar";
 
 /** Cuántos mensajes trae el hilo de una vez: los más recientes. */
 export const MENSAJES_POR_HILO = 200;
@@ -209,6 +210,23 @@ export async function POST(request: NextRequest) {
       },
       { status: 403 }
     );
+  }
+
+  // F34: a un contacto marcado como no contactar no se le escribe, sin opción
+  // de forzarlo. Antes de la ventana y del proveedor. Con la clave de
+  // servicio: un Member puede ver la conversación (asignada a él) sin ver el
+  // contacto, y con su sesión la marca le quedaría escondida.
+  if (conversation.contact_id) {
+    const servicioParaMarca = await createServiceClient();
+    const { data: marca, error: errMarca } = await servicioParaMarca
+      .from("contacts")
+      .select("do_not_contact")
+      .eq("id", conversation.contact_id)
+      .maybeSingle();
+    if (errMarca) return NextResponse.json({ error: "No se pudo comprobar el contacto. Probá de nuevo." }, { status: 503 });
+    if ((marca as { do_not_contact?: boolean } | null)?.do_not_contact) {
+      return NextResponse.json({ code: "no_contactar", error: AVISO_NO_CONTACTAR }, { status: 409 });
+    }
   }
 
   // F40: la ventana de Instagram se valida ANTES de intentar el envío. Con la

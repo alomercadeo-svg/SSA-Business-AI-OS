@@ -18,6 +18,7 @@ import { revalidatePath } from "next/cache";
 import { getWorkspaceOrNull, esManager } from "@/lib/workspace";
 import { motivoTelefonoInvalido, normalizarTelefono } from "@/lib/telefono";
 import { nombreVisible } from "@/lib/nombre-visible";
+import { actorDe, registrarAuditoria } from "@/lib/auditoria";
 
 export interface ResumenContacto {
   id: string;
@@ -187,5 +188,36 @@ export async function descartarSugerencia(id: string): Promise<{ ok: true } | { 
     if (error.code === "P0002") return { ok: false, error: "Esa sugerencia ya no está. Recargá la pantalla." };
     return { ok: false, error: SIN_CONEXION };
   }
+  return { ok: true };
+}
+
+/**
+ * F34, ítem 8 del plan maestro: revertir la marca de no contactar. Solo Owner
+ * y Admin; la base lo exige igual (disparador de la 00053, con la sesión del
+ * usuario). Queda en el historial con quién la revirtió.
+ */
+export async function revertirNoContactar(contactoId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const contexto = await getWorkspaceOrNull();
+  if (!contexto) return { ok: false, error: "Tu sesión venció. Volvé a entrar." };
+  if (!esManager(contexto.role)) return { ok: false, error: "Revertir la marca de no contactar es de Owner y Admin." };
+  const { supabase, workspace, user } = contexto;
+  const { data, error } = await supabase
+    .from("contacts")
+    .update({ do_not_contact: false, do_not_contact_reason: null, do_not_contact_at: null })
+    .eq("id", contactoId)
+    .eq("workspace_id", workspace.id)
+    .eq("do_not_contact", true)
+    .select("id, display_name");
+  if (error) return { ok: false, error: "No se pudo revertir la marca. Volvé a intentar." };
+  const fila = (data as { id: string; display_name: string | null }[] | null)?.[0];
+  if (!fila) return { ok: false, error: "Este contacto ya no tiene la marca de no contactar." };
+  await registrarAuditoria({
+    workspaceId: workspace.id,
+    actor: actorDe(user),
+    accion: "contacto.no_contactar_revertido",
+    entidad: { tipo: "contacto", id: fila.id, etiqueta: fila.display_name },
+    cambios: { do_not_contact: { antes: true, despues: false } },
+  });
+  revalidatePath(`/dashboard/contacts/${fila.id}`);
   return { ok: true };
 }
