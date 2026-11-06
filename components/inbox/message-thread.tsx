@@ -563,8 +563,16 @@ export function MessageThread({
           pantalla de la revisión, vetable: en el teléfono, dos filas; arriba el
           nombre (hasta dos líneas), abajo la ventana, el estado y «Cerrar».
           Desde md, la fila de siempre. */}
-      <div className="flex flex-col gap-1.5 border-b border-border px-4 py-2 md:h-14 md:flex-row md:items-center md:justify-between md:gap-3 md:py-0">
+      <div className="flex flex-col gap-0.5 border-b border-border px-4 py-1.5 md:h-14 md:flex-row md:items-center md:justify-between md:gap-3 md:py-0">
         <div className="flex min-w-0 flex-1 items-center gap-3">
+          {/* Tercer retrabajo del ítem 4 (06/11/2026): la foto también abre la
+              ficha, como el nombre y como en el panel (S8). */}
+          {conversation.contact_id ? (
+            <Link
+              href={enlaceAFicha(conversation.contact_id, volverALaBandeja)}
+              aria-label="Abrir la ficha del contacto"
+              className="shrink-0 rounded-full hover:opacity-80"
+            >
           <div className="relative shrink-0">
             {conversation.contacts?.avatar_url ? (
               <img
@@ -585,6 +593,29 @@ export function MessageThread({
               />
             </div>
           </div>
+            </Link>
+          ) : (
+          <div className="relative shrink-0">
+            {conversation.contacts?.avatar_url ? (
+              <img
+                src={conversation.contacts.avatar_url}
+                alt=""
+                className="h-8 w-8 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium">
+                {inicialDe(nombreDeConversacion(conversation))}
+              </div>
+            )}
+            <div className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-background bg-background">
+              <PlatformIcon
+                platform={conversation.platform}
+                className="h-2.5 w-2.5"
+                size={10}
+              />
+            </div>
+          </div>
+          )}
           <div className="min-w-0">
             {/* F35, criterio 31: el nombre abre la ficha del contacto. */}
             {conversation.contact_id ? (

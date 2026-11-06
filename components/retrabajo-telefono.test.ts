@@ -114,7 +114,7 @@ describe("segundo retrabajo del ítem 4 (06/11/2026, lo que vio Marcos de 16:56 
   const bandeja = sinComentarios(leer("app/(dashboard)/dashboard/inbox/inbox-view.tsx"));
 
   it("a. el encabezado del chat, en el teléfono, en dos filas; desde md, una", () => {
-    expect(hilo).toMatch(/className="flex flex-col gap-1\.5 border-b border-border px-4 py-2 md:h-14 md:flex-row md:items-center md:justify-between md:gap-3 md:py-0"/);
+    expect(hilo).toMatch(/className="flex flex-col gap-0\.5 border-b border-border px-4 py-1\.5 md:h-14 md:flex-row md:items-center md:justify-between md:gap-3 md:py-0"/);
   });
 
   it("b. el hilo guarda su lugar al abrir el panel y lo repone al volver", () => {
@@ -122,5 +122,12 @@ describe("segundo retrabajo del ítem 4 (06/11/2026, lo que vio Marcos de 16:56 
     expect(hilo).toMatch(/panelAbierto\?: boolean/);
     expect(hilo).toMatch(/lugarDelHilo\(/);
     expect(hilo).toMatch(/scrollParaVolver\(/);
+  });
+});
+
+describe("tercer retrabajo del ítem 4 (06/11/2026, pedido de Marcos de las 17:4x)", () => {
+  const hilo = sinComentarios(leer("components/inbox/message-thread.tsx"));
+  it("b. la foto del contacto en el encabezado abre la ficha, como el nombre", () => {
+    expect(hilo).toMatch(/<Link\s+href=\{enlaceAFicha\(conversation\.contact_id, volverALaBandeja\)\}\s+aria-label="Abrir la ficha del contacto"/);
   });
 });
