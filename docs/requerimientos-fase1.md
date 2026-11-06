@@ -1216,7 +1216,7 @@ El argumento decisivo es la asimetría del error: **dejar afuera es irreversible
 
 **Criterios de aceptación:**
 
-- [ ] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con «Ver en Instagram», en vez de «Adjunto». No se descarga ni se guarda ningún archivo: se guarda solo el enlace.
+- [ ] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con su título si el aviso lo trae, en vez de «Adjunto», y sin botón para abrirla. No se descarga ni se guarda ningún archivo.
 - [ ] Un reel compartido se ve como «Compartió un reel», con «Ver en Instagram», en vez de «Este archivo no está disponible.». Se reconoce sin intentar bajarlo y no se guarda ningún archivo. Un video grabado con la cámara se sigue bajando y viendo como video.
 - [ ] Una respuesta a una historia se ve con la marca «Respondió a tu historia» y, si el aviso trae el enlace de la historia, con «Ver historia». No se guarda la imagen de la historia.
 - [ ] Tocar una foto del hilo la abre a pantalla completa dentro de la app, y se cierra con «X», con la tecla Escape o con el gesto de volver en el teléfono. Vale para Instagram y para WhatsApp, y no descarga ni guarda nada nuevo.

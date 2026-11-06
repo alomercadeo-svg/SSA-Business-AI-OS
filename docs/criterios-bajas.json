@@ -1250,5 +1250,12 @@
     "texto": "- [ ] Un contacto sin nombre ni usuario se muestra como «Sin nombre» en la bandeja, en Contactos y en la ficha, en vez de su identificador de remitente. El identificador queda en la ficha como dato secundario. Incluye los contactos que hoy tienen el identificador como nombre (95 de 743 en @alomercadeo el 02/11/2026) (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)",
     "nuevo": "- [x] Un contacto sin nombre ni usuario se muestra como «Sin nombre» en la bandeja, en Contactos y en la ficha, en vez de su identificador de remitente. El identificador queda en la ficha como dato secundario. Incluye los contactos que hoy tienen el identificador como nombre (95 de 743 en @alomercadeo el 02/11/2026) (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)",
     "motivo": "Tildado por Marcos el 05/11/2026. Con datos reales: «Sin nombre» en Contactos (17:02), en la ficha con «Instagram: sin usuario · identificador …» en gris (17:10), y en la pestaña «Cerradas» de la bandeja (dicho por Marcos al decidir la tilde). Sin escribir en ningún contacto real: se decide al mostrar, en lib/nombre-visible.ts."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-06",
+    "texto": "- [ ] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con «Ver en Instagram», en vez de «Adjunto». No se descarga ni se guarda ningún archivo: se guarda solo el enlace.",
+    "nuevo": "- [ ] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con su título si el aviso lo trae, en vez de «Adjunto», y sin botón para abrirla. No se descarga ni se guarda ningún archivo.",
+    "motivo": "El enlace armado desde ig_post_media_id no abrió la publicación (06/11/2026, poco después de las 09:50, \"Sorry, this page isn't available\") y la documentación de Meta no documenta la conversión sin llamar a su API. \"Con su título si el aviso lo trae\", porque sin título se muestra solo el encabezado. Sin \"se guarda solo el título\", porque la base guarda el adjunto entero del aviso; lo que cambia es lo que se muestra."
   }
 ]

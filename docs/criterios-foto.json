@@ -2733,7 +2733,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F44: Contenido del hilo: compartidos, historias y fotos"
     ],
-    "texto": "- [ ] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con «Ver en Instagram», en vez de «Adjunto». No se descarga ni se guarda ningún archivo: se guarda solo el enlace."
+    "texto": "- [ ] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con su título si el aviso lo trae, en vez de «Adjunto», y sin botón para abrirla. No se descarga ni se guarda ningún archivo."
   },
   {
     "seccion": "F44: Contenido del hilo: compartidos, historias y fotos",
