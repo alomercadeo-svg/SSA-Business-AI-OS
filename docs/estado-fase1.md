@@ -2835,7 +2835,7 @@ Cada ítem: tests nuevos vistos en rojo antes del cambio, `npm test` + `npm run 
   - Diagnóstico, verificado en el código: el botón «X» y el fondo del visor tienen los dos `onClick={onCerrar}` (`components/inbox/visor-foto.tsx:46` y `:51`), y el clic del botón sube al fondo, así que `history.back()` corre dos veces (`lib/visor-foto.ts:28`); Escape lo llama una sola vez (`:22`). La segunda vuelta atrás sale de la bandeja a la entrada anterior del historial. El `replaceState` (`inbox-view.tsx:103`, `conversation-list.tsx:155`) explica adónde vuelve, no por qué vuelve dos veces. Por qué en Instagram no se vio es inferencia.
   - El cambio: `cerrar()` vuelve atrás una sola vez aunque se llame dos, y el botón corta la propagación. Tests: «cerrar dos veces vuelve atrás una sola vez», «el botón X no sube al fondo»; control: Escape y el gesto de volver siguen cerrando.
   - Pantallas: la foto de WhatsApp y la de Instagram, con «X», Escape y el gesto de volver, en la computadora y en el teléfono.
-- [ ] **Ítem 3a: el enlace de una publicación compartida (F44, criterio 1).** Completa. 40 min.
+- [ ] **Ítem 3a: el enlace de una publicación compartida (F44, criterio 1).** Completa. 40 min. **A medias:** espera que Marcos abra el enlace armado (en «Plan maestro, ítem 3a», abajo).
   - Primero, la documentación oficial de Meta (solo lectura de la web): si dice cómo pasar de `ig_post_media_id` al código corto de la dirección. Si no lo dice, se dice así.
   - **Lectura autorizada por adelantado:** el valor de `ig_post_media_id` del mensaje `cd5c503f`, solo ese campo.
   - Se arma el candidato `https://www.instagram.com/p/<código>/` en local, sin ninguna llamada, y Marcos lo abre. Si abre la publicación, «Ver en Instagram» usa ese enlace y `lookaside.fbsbx.com` sale de los hosts permitidos para las publicaciones. Si no abre, el criterio se reescribe con el texto decidido el 05/11 a las 19:00: «- [ ] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con su título, en vez de «Adjunto», y sin botón para abrirla. No se descarga ni se guarda ningún archivo: se guarda solo el título.», registrado como reescrito en `criterios-bajas.json`, y se saca el botón.
@@ -2983,6 +2983,16 @@ El cierre siempre entra. A la hora de aviso: npm test en verde, subida con verif
 3. La foto de Instagram de c6628c4e (17:37), con «X», Escape y el gesto de volver.
 
 **Propuesta de tilde, para Marcos:** F44, criterio 4 («Tocar una foto del hilo la abre a pantalla completa…»), cuando Marcos vea los tres puntos de arriba. Prueba: los tests de esta tabla, corridos a las 09:44 del 06/11, y su mirada.
+
+### Plan maestro, ítem 3a: el enlace de una publicación compartida (F44, criterio 1) (Bloque 4, medido, a medias)
+
+**06/11/2026, desde las 09:48** (hora de Costa Rica). Revisión completa (lectura de producción y posible cambio de criterio). Estimación: 40 min. **Quedó esperando a Marcos a las 09:49**, en el paso 4 (abrir el enlace armado).
+
+1. **La documentación oficial de Meta**, leída el 06/11 (solo la web, ninguna llamada a la API): la referencia de IG Media (`developers.facebook.com/docs/instagram-platform/reference/instagram-media`) documenta `shortcode` («Shortcode to the media.») y `permalink` («Permanent URL to the media.») **solo como campos que se piden a la API** con `GET /<IG_MEDIA_ID>`, y solo para medios de cuentas profesionales. **No documenta ninguna forma de pasar del número al código sin llamar a la API.** Pedírselo a la API es una llamada a Meta (compuerta 2), y además el medio compartido puede ser de una cuenta personal. Lo que dice la página se leyó con un resumen automático de la página, no línea por línea.
+2. **La lectura autorizada por adelantado** (solo el campo `ig_post_media_id` de `cd5c503f`): por el CLI (`npx supabase db query --linked`), dentro de `begin transaction read only`, de 15:49:15 a 15:49:17 UTC, **salida 0**, md5 de la consulta `7134074370a58d817631f3c0f0846f0d`. Devolvió `solo_lectura` on, 1 fila, y `ig_post_media_id` = `18051207164820568`.
+3. **El candidato, armado en local sin ninguna llamada**, con la conversión conocida de número a código corto (base 64 con el alfabeto `A-Z a-z 0-9 - _`, de foros, **no de documentación oficial**): `https://www.instagram.com/p/BAIXou03xY/`.
+   - **Inferencia, no verificada: lo más probable es que no abra la publicación.** El número tiene 17 cifras y empieza con 18, la forma de los identificadores de la API Graph de Meta; la conversión de foros vale para otro número, el identificador interno de Instagram (de unas 19 cifras). Y el código que sale tiene 10 caracteres, cuando los de las direcciones suelen tener 11.
+4. **Espera a Marcos:** abrir ese enlace en el navegador (cualquier sesión de Instagram) y decir qué abre. Si abre la publicación compartida a las 17:35, el criterio queda como está y «Ver en Instagram» usa el enlace armado. Si no, el criterio se reescribe con el texto decidido el 05/11 a las 19:00 (en el plan maestro) y se saca el botón.
 
 ---
 
