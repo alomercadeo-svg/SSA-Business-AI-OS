@@ -17,15 +17,28 @@ export interface VentanaDelVisor {
 }
 
 export function conectarVisor(w: VentanaDelVisor, alCerrar: () => void): { cerrar(): void; desconectar(): void } {
-  const alVolver = () => alCerrar();
+  // Una sola vuelta atrás por apertura. El `popstate` llega después del clic,
+  // no en el mismo instante: sin esta marca, dos pedidos seguidos (el clic de
+  // «X» que además subía al fondo, el 05/11/2026) volvían atrás dos veces y
+  // sacaban al usuario de la bandeja.
+  let yaVolvio = false;
+  const volverUnaVez = () => {
+    if (yaVolvio) return;
+    yaVolvio = true;
+    w.history.back();
+  };
+  const alVolver = () => {
+    yaVolvio = true;
+    alCerrar();
+  };
   const alTeclear = (e: Event) => {
-    if ((e as KeyboardEvent).key === "Escape") w.history.back();
+    if ((e as KeyboardEvent).key === "Escape") volverUnaVez();
   };
   w.history.pushState({ visorDeFoto: true }, "");
   w.addEventListener("popstate", alVolver);
   w.addEventListener("keydown", alTeclear);
   return {
-    cerrar: () => w.history.back(),
+    cerrar: volverUnaVez,
     desconectar: () => {
       w.removeEventListener("popstate", alVolver);
       w.removeEventListener("keydown", alTeclear);

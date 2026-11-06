@@ -67,3 +67,57 @@ describe("el visor de fotos (F44)", () => {
     expect(cerrar).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * El error de las 18:50 del 05/11/2026: en la foto de WhatsApp, «X» llevaba a
+ * otra conversación. El clic de «X» llamaba a cerrar dos veces (el botón y el
+ * fondo), y el navegador volvía atrás dos veces, fuera de la bandeja. En el
+ * navegador real el `popstate` llega después, no en el mismo instante: esta
+ * ventana falsa lo guarda para dispararlo cuando el test quiere.
+ */
+function ventanaConPopstateDemorado() {
+  const eventos = new EventTarget();
+  let pendientes = 0;
+  const history = { pushState: vi.fn(), back: vi.fn(() => { pendientes += 1; }) };
+  return {
+    history,
+    addEventListener: eventos.addEventListener.bind(eventos),
+    removeEventListener: eventos.removeEventListener.bind(eventos),
+    disparar: (e: Event) => eventos.dispatchEvent(e),
+    llegaElPopstate: () => {
+      while (pendientes > 0) {
+        pendientes -= 1;
+        eventos.dispatchEvent(new Event("popstate"));
+      }
+    },
+  };
+}
+
+describe("el visor vuelve atrás una sola vez (el error de la «X», 05/11/2026)", () => {
+  it("cerrar dos veces antes de que llegue el popstate vuelve atrás una sola vez", () => {
+    const w = ventanaConPopstateDemorado();
+    const cerrar = vi.fn();
+    const c = conectarVisor(w, cerrar);
+    c.cerrar();
+    c.cerrar();
+    expect(w.history.back).toHaveBeenCalledTimes(1);
+    w.llegaElPopstate();
+    expect(cerrar).toHaveBeenCalledTimes(1);
+  });
+
+  it("Escape y después «X», antes del popstate: una sola vuelta", () => {
+    const w = ventanaConPopstateDemorado();
+    const c = conectarVisor(w, vi.fn());
+    w.disparar(tecla("Escape"));
+    c.cerrar();
+    expect(w.history.back).toHaveBeenCalledTimes(1);
+  });
+
+  it("cerrado con el gesto de volver, un «X» tardío no vuelve atrás", () => {
+    const w = ventanaConPopstateDemorado();
+    const c = conectarVisor(w, vi.fn());
+    w.disparar(new Event("popstate"));
+    c.cerrar();
+    expect(w.history.back).not.toHaveBeenCalled();
+  });
+});

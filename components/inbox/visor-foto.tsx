@@ -48,7 +48,11 @@ export function VisorDeFoto({ url, onCerrar }: { url: string; onCerrar: () => vo
       <button
         type="button"
         aria-label="Cerrar"
-        onClick={onCerrar}
+        onClick={(e) => {
+          // Sin esto el clic sube al fondo, que también cierra: dos cierres.
+          e.stopPropagation();
+          onCerrar();
+        }}
         className="absolute right-3 top-3 rounded-full bg-black/60 p-2 text-white hover:bg-black/80"
       >
         <X className="h-5 w-5" />
