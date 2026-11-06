@@ -2846,7 +2846,7 @@ Cada ítem: tests nuevos vistos en rojo antes del cambio, `npm test` + `npm run 
   - **Decidido por Marcos el 06/11:** columna nueva en `messages`, no una marca dentro de `attachments`. Se construye solo después de leer la muestra real.
   - **Lectura autorizada por adelantado:** Marcos responde hoy una historia de @poderosascomunidad desde @marcospittimusic; se lee esa sola entrega en el registro de entregas de Zernio, filtrado por la cuenta de @poderosascomunidad, para ver la forma real de `metadata.storyReply`. Nada más del registro. **Si la entrega no trae la marca de historia, se frena y se avisa.** Si la forma real no coincide con los tipos de `@zernio/node`, el diseño sigue a la forma real.
   - Migración (la próxima libre), idempotente, sin políticas. El receptor (`lib/zernio-aviso.ts:115-133`, `app/api/webhooks/late/route.ts:56-61`) y la importación la escriben; el hilo («Respondió a tu historia», «Ver historia» si hay enlace) y la vista previa («Historia:») la muestran.
-- [ ] **Ítem 4: la bandeja y la ficha en el teléfono (F35, criterio nuevo).** Liviana. Estimación: 150 min (reestimada con los cambios de la revisión; antes, 120).
+- [ ] **Ítem 4: la bandeja y la ficha en el teléfono (F35, criterio nuevo).** Liviana. Estimación: 150 min (reestimada con los cambios de la revisión; antes, 120). **Construido** (`d8b7a22`), **sin desplegar:** espera que Marcos mire el ítem 2 (en «Plan maestro, ítem 4», abajo).
   - Por debajo de 768 px, el menú se oculta detrás de un botón «Menú» y se abre encima; se cierra al elegir, al tocar afuera o con Escape.
   - Bandeja, una columna por vez: sin conversación, la lista; con una, el hilo con «← Conversaciones»; «Datos del contacto» abre el panel a pantalla completa con «← Volver al chat». En la computadora, las tres columnas no cambian.
   - **Decisión de la revisión (vetable):** abrir una conversación en el ancho del teléfono suma una entrada al historial, y volver con el gesto o con el botón del navegador lleva a la lista, no fuera de la bandeja. Cerrar o volver nunca puede ir atrás dos veces (el error del ítem 2), y el visor de foto encima de un chat abierto tiene que seguir cerrando bien. Tests de las entradas del historial como los de `conectarVisor`, vistos en rojo.
@@ -3023,6 +3023,45 @@ El cierre siempre entra. A la hora de aviso: npm test en verde, subida con verif
 **La pregunta del texto del criterio.** El texto aprobado en el plan termina en «No se descarga ni se guarda ningún archivo: se guarda solo el título.». **La última frase no sería cierta:** la base guarda el adjunto entero que manda el aviso (con su enlace y su `ig_post_media_id`), igual que antes; lo que cambia es lo que se muestra. **Recomendación:** terminar en «No se descarga ni se guarda ningún archivo.», sin la última frase.
 
 **El texto del criterio, decidido por Marcos el 06/11/2026** (con un ajuste a la recomendación): «- [ ] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con su título si el aviso lo trae, en vez de «Adjunto», y sin botón para abrirla. No se descarga ni se guarda ningún archivo.» Escrito en `docs/requerimientos-fase1.md` (F44, criterio 1), registrado como reescrito en `docs/criterios-bajas.json` con el motivo literal de Marcos, y la foto regenerada (`node scripts/foto-criterios.mjs --escribir`: 346 líneas, ninguna sin explicar). **La cursiva y las comillas del título no se vetan** (Marcos, 06/11). El despliegue de `a5b9baa` va después de que Marcos mire el ítem 2.
+
+### Plan maestro, ítem 4: la bandeja y la ficha en el teléfono (F35, criterio nuevo) (Bloque 4, medido, sin desplegar)
+
+**06/11/2026, desde las 10:03** (hora de Costa Rica). Revisión liviana. Estimación: 150 min. **Fin de la construcción: 10:24** (commit `d8b7a22` a las 10:23 y `next build` en verde antes de las 10:24). **Suma hasta acá: 21 min.** Se construyó en local mientras Marcos mira el ítem 2 (lo propuso Claude Code y Marcos no lo objetó): **no se subió**, porque toca la bandeja, la misma pantalla del ítem 2 y del 3a, que esperan su mirada.
+
+**Lo hecho**, `d8b7a22`:
+- **El menú** (`components/sidebar.tsx`, `app/(dashboard)/layout.tsx`): por debajo de 768 px se oculta y aparece una barra arriba con el botón «Menú» (`aria-label="Abrir el menú"`) y el nombre del espacio; el menú se abre encima, y se cierra con «X», tocando afuera, con Escape o al elegir una sección. En la computadora, fijo a la izquierda como siempre. El alto pasa de `h-screen` a `h-dvh`: en el teléfono, 100vh incluye la barra del navegador y corta el campo de escritura.
+- **El menú de §11.1** (decisión de la revisión, vetable): «Bandeja» y «Contactos» para todos; «Canales», «Integraciones» y «Configuración» solo para Owner y Admin (Respuestas rápidas se suma con F36); el grupo «Llegan más adelante» con Flujos, Secuencias y Difusiones («Fase 2») y Analíticas («Fase 3»), en gris, que abren el aviso «… llega más adelante» con el texto del prototipo y los botones «Cerrar» y «Volver a la bandeja», sin ir a las pantallas del fork; sin Growth; «Modo claro», «Modo oscuro» y «Cerrar sesión». **Las pantallas del fork siguen existiendo por su dirección:** esto es solo el menú (la parte del Member que entra a una sección de managers queda con 1b, decidido el 06/11). **Decisión de pantalla, vetable:** el aviso, con un botón «Cerrar» además de «Volver a la bandeja».
+- **La bandeja** (`app/(dashboard)/dashboard/inbox/inbox-view.tsx`, `lib/columnas-bandeja.ts`): en el teléfono, una columna por vez. Sin conversación abierta, la lista a todo el ancho; con una, el hilo, con una barra arriba con «← Conversaciones» y «Datos del contacto». El panel del contacto se abre encima, a pantalla completa, con «← Volver al chat» (`components/inbox/contact-panel.tsx` pasa a todo el ancho por debajo de `md`). En la computadora, las tres columnas no cambian.
+- **El historial** (`lib/historial-bandeja.ts`, decisión de la revisión): en el ancho del teléfono, abrir una conversación suma una entrada al historial con una marca propia, y volver (el gesto, el botón del navegador o «← Conversaciones») lleva a la lista, una sola vez aunque se toque dos. Abrir otra estando en un hilo reemplaza la entrada. Si el hilo no sumó entrada (vino de la ficha), «← Conversaciones» va a la lista sin volver atrás. Cerrar el visor de foto encima del chat no cierra el chat: la entrada del visor no lleva la marca. **Verificado en el código de Next.js 16.1.6** (`node_modules/next/dist/client/components/app-router.js`): `pushState` copia a la entrada el estado interno de Next (`copyNextJsInternalHistoryState`), y al volver, `onPopState` dibuja la página con ese árbol, sin recargar. En la computadora la bandeja sigue sin sumar entradas.
+- **La ficha:** no se cambió. Ya apila las columnas por debajo de `lg` (`contacts/[contactId]/page.tsx:153`), el nombre se corta (`truncate`) y las marcas bajan de línea (`flex-wrap`); no se encontraron anchos fijos que se salgan. Lo confirma Marcos en el teléfono.
+
+| Comprobación | En rojo |
+|---|---|
+| `lib/columnas-bandeja.test.ts`: los 5 (sin conversación, la lista sola; con una, el hilo solo; el control de la computadora; el panel a pantalla completa; el panel cerrado) | **5 vistos en rojo por su motivo**, contra un esqueleto que devolvía clases vacías |
+| `lib/historial-bandeja.test.ts`: suma una entrada; reemplaza estando en un hilo; «← Conversaciones» una sola vez; el gesto lleva a la lista; vino de la ficha | **5 vistos en rojo por su motivo**, contra un esqueleto sin efecto |
+| el visor encima del chat no cierra el chat; desconectado no escucha | **no vistos en rojo**: son de ausencia y pasaban con el esqueleto; su control positivo es «el gesto de volver desde el hilo lleva a la lista» |
+| `components/sidebar.test.ts`, reescrito: quién ve qué (Member, y Owner/Admin como control), «Llegan más adelante», sin Growth ni inglés, el menú oculto con su botón, el cierre | **6 vistos en rojo por su motivo** contra el menú de antes. Una expresión del test que siempre coincidía se sacó antes de construir |
+| `components/inbox/estado-hilo.test.ts`, los dos de S8, tramo 9 (**cambiados**: leían las clases como texto fijo; ahora la columna del chat sale de `clasesDelHilo` y el panel es `md:w-80`) | **no vistos en rojo**: se escribieron después del cambio. Exigen lo mismo que antes, en la computadora |
+
+**16 de 20 vistos en rojo.** **Los tests miran clases y lógica, no prueban el diseño en el teléfono:** en S8, tramo 8, tests así dieron verde con el problema adentro. **La tilde depende de la prueba de Marcos en el celular.**
+
+**Antes de commitear:** `npm test`, 1387 de 1387, salida 0; `typecheck`, salida 0; `lint`, salida 0 (0 errores, 45 avisos, los mismos); `next build`, salida 0, con `.h-dvh{height:100dvh}` y `.md\:hidden{display:none}` en el CSS que genera. No se miró en el navegador: la bandeja necesita sesión.
+
+**Lo que mira Marcos, después del despliegue, recargando.** En el teléfono:
+1. El menú: el botón «Menú» lo abre; se cierra con «X», tocando afuera y eligiendo «Contactos».
+2. «Llegan más adelante»: tocar «Flujos» abre el aviso; «Volver a la bandeja» vuelve.
+3. La bandeja: la lista a todo el ancho; abrir una conversación (una con los no leídos en cero) muestra solo el hilo.
+4. El control positivo del criterio: abrir la de @marcospittimusic en @poderosascomunidad, contestar, y volver con «← Conversaciones» a la lista, sin que nada se salga de la pantalla.
+5. El gesto de volver desde un hilo: vuelve a la lista, no sale de la bandeja.
+6. «Datos del contacto»: el panel a pantalla completa, y «← Volver al chat».
+7. Una foto dentro de un chat: se abre y se cierra con «X» y con el gesto, y el chat sigue abierto.
+8. La ficha, desde «Ver ficha completa».
+
+En la computadora:
+
+9. La bandeja con las tres columnas, igual que antes, y el menú nuevo con «Llegan más adelante».
+
+**Propuesta de tilde, para Marcos:** F35, «En el teléfono, la bandeja… se pueden usar…», cuando Marcos haga los puntos 1 a 8. Prueba: su mirada en el celular; los tests de esta tabla, corridos a las 10:23 del 06/11, no alcanzan solos.
 
 ---
 
