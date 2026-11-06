@@ -18,6 +18,12 @@
  *      identificador como dato secundario en la ficha.
  *   Y el pendiente de S8: la página del Member no trae el nombre, el correo
  *   ni el id del Owner (lista y ficha); la del Owner sí trae al Member.
+ *   6. (Agregado el 06/11/2026, ítem 5 del plan maestro; criterio de F43 del
+ *      05/11.) El filtro de los que escribieron: con `escribieron=si`, uno que
+ *      escribió aparece y uno que nunca escribió (solo mensajes del negocio)
+ *      no; sin el filtro, aparecen los dos; con el Member, solo su alcance.
+ *      Sus contactos se crean al final, después de todos los pasos de antes,
+ *      así no cambian los totales que esos pasos miden.
  *
  * LOS CONTROLES. Cada ausencia va después de su presencia. Las búsquedas
  * apuntan a contactos del puesto 101 en adelante: con la lista de antes (las
@@ -385,6 +391,51 @@ await correr(async () => {
       const enMuestra = nueva.ids.filter((id) => muestra.includes(id));
       check(enMuestra.length === vieja.length && vieja.every((id) => enMuestra.includes(id)), `«${texto}»: las mismas (${vieja.length})`, `nueva ${enMuestra.length}, bandeja ${vieja.length}`);
     }
+
+    // ── 9b. Los que escribieron (06/11/2026, criterio 6 de F43) ────────────
+    // Se preparan acá, después de todos los pasos que miden totales.
+    titulo("El filtro de los que escribieron (criterio de F43 del 05/11/2026)");
+    const W = {
+      escribio: `B9CW Escribio ${sufijo}`,
+      nunca: `B9CW Nunca ${sufijo}`,
+      delMember: `B9CW EscribioMember ${sufijo}`,
+      ajeno: `B9CW EscribioAjeno ${sufijo}`,
+    };
+    const altaW = await admin("contacts", {
+      method: "POST",
+      body: JSON.stringify([
+        { workspace_id: E, display_name: W.escribio, setter_id: null, last_interaction_at: new Date(ahora - 500 * 60_000).toISOString() },
+        { workspace_id: E, display_name: W.nunca, setter_id: null, last_interaction_at: new Date(ahora - 501 * 60_000).toISOString() },
+        { workspace_id: E, display_name: W.delMember, setter_id: member.id, last_interaction_at: new Date(ahora - 502 * 60_000).toISOString() },
+        { workspace_id: E, display_name: W.ajeno, setter_id: owner.id, last_interaction_at: new Date(ahora - 503 * 60_000).toISOString() },
+      ]),
+    });
+    if (!Array.isArray(altaW.data) || altaW.data.length !== 4) throw new Error(`no se crearon los contactos de W: HTTP ${altaW.status}`);
+    const idW = Object.fromEntries(altaW.data.map((c) => [c.display_name, c.id]));
+    for (const [nombre, direccion] of [[W.escribio, "inbound"], [W.nunca, "outbound"], [W.delMember, "inbound"], [W.ajeno, "inbound"]]) {
+      const cv = await conv(idW[nombre], ahora - 600 * 60_000);
+      if (!cv) throw new Error("no se pudo crear la conversación de W");
+      const m = await admin("messages", { method: "POST", body: JSON.stringify({ conversation_id: cv, direction: direccion, text: `w-${sufijo}`, platform_message_id: `b9cw-${direccion}-${idW[nombre].slice(0, 8)}-${sufijo}` }) });
+      if (m.status >= 300) throw new Error(`no se pudo crear el mensaje de W: HTTP ${m.status}`);
+    }
+    const sinFiltro = await ids(owner.token, "contactos_filtrados", { p_workspace: E, p_filtros: { q: "b9cw" } });
+    const okW = check(
+      sinFiltro.ok && Object.values(idW).every((id) => sinFiltro.ids.includes(id)),
+      "Owner, sin el filtro: aparecen los cuatro, también el que nunca escribió (control positivo)",
+      `HTTP ${sinFiltro.status}, ${sinFiltro.ids.length}`,
+    );
+    const conFiltro = await ids(owner.token, "contactos_filtrados", { p_workspace: E, p_filtros: { q: "b9cw", escribieron: "si" } });
+    check(conFiltro.ok && [W.escribio, W.delMember, W.ajeno].every((n) => conFiltro.ids.includes(idW[n])), "Owner, con escribieron=si: aparecen los tres que escribieron (presencia)", `HTTP ${conFiltro.status}, ${conFiltro.ids.length}`);
+    if (!okW) noConcluyente("Owner, con escribieron=si: no aparece el que nunca escribió", "falló el control positivo");
+    else check(conFiltro.ok && !conFiltro.ids.includes(idW[W.nunca]), "Owner, con escribieron=si: no aparece el que nunca escribió", `${conFiltro.ids.length} contactos`);
+    const memberW = await ids(member.token, "contactos_filtrados", { p_workspace: E, p_filtros: { q: "b9cw", escribieron: "si" } });
+    check(memberW.ok && memberW.ids.includes(idW[W.delMember]), "Member, con escribieron=si: aparece el suyo que escribió (presencia)", `HTTP ${memberW.status}`);
+    check(memberW.ok && !memberW.ids.includes(idW[W.ajeno]) && memberW.ids.length === 1, "Member, con escribieron=si: solo el suyo, no el ajeno", `${memberW.ids.length} contactos`);
+    const cuantos = await rpcComo(owner.token, "contactos_cantidad", { p_workspace: E, p_filtros: { q: "b9cw", escribieron: "si" } });
+    check(cuantos.status === 200 && Number(cuantos.data) === 3, "contactos_cantidad, con escribieron=si: 3", `HTTP ${cuantos.status} ${JSON.stringify(cuantos.data)}`);
+    const pw = await lista(owner, "Owner", "q=b9cw&escribieron=si", [W.escribio], [W.nunca]);
+    check(pw.html.includes('<option value="si" selected="">Solo los que escribieron</option>'), "la página muestra el filtro puesto («Solo los que escribieron»)");
+    await lista(owner, "Owner", "q=b9cw", [W.escribio, W.nunca]);
 
     // ── 10. Server-Timing de la bandeja (solo se anota) ────────────────────
     titulo("Server-Timing de la bandeja, tres corridas (se anota, no se juzga)");

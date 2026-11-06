@@ -49,7 +49,8 @@ beforeEach(() => {
 describe("filtrosDeContactos: la dirección", () => {
   it("lee la búsqueda, los cinco filtros y la página", () => {
     const p = new URLSearchParams({ q: "  ana  ", seguimiento: "semana", etapa: "3. Respondió", setter: "sin", vendedor: ID, etiqueta: OTRO });
-    expect(filtrosDeContactos(p)).toEqual({ q: "ana", seguimiento: "semana", etapa: "3. Respondió", setter: { tipo: "sin" }, vendedor: { tipo: "persona", id: ID }, etiqueta: OTRO });
+    // Cambiado el 06/11/2026: suma `escribieron` (F43, el filtro de los que escribieron).
+    expect(filtrosDeContactos(p)).toEqual({ q: "ana", seguimiento: "semana", etapa: "3. Respondió", setter: { tipo: "sin" }, vendedor: { tipo: "persona", id: ID }, etiqueta: OTRO, escribieron: false });
   });
 
   it("descarta lo que no entiende", () => {
@@ -94,7 +95,8 @@ describe("filtrosDeContactosParaElRol", () => {
 });
 
 describe("paraLaBaseDeContactos y la dirección", () => {
-  const f = { q: "ana", seguimiento: "hoy" as const, etapa: "3. Respondió", setter: { tipo: "sin" as const }, vendedor: { tipo: "persona" as const, id: ID }, etiqueta: OTRO };
+  // Cambiado el 06/11/2026: suma `escribieron` apagado (lo que se prueba acá no cambia).
+  const f = { q: "ana", seguimiento: "hoy" as const, etapa: "3. Respondió", setter: { tipo: "sin" as const }, vendedor: { tipo: "persona" as const, id: ID }, etiqueta: OTRO, escribieron: false };
   it("arma el jsonb, sin `ahora`", () => {
     expect(paraLaBaseDeContactos(f)).toEqual({ q: "ana", seguimiento: "hoy", etapa: "3. Respondió", setter: "sin", vendedor: ID, etiqueta: OTRO });
     expect(paraLaBaseDeContactos(SIN_FILTROS_DE_CONTACTOS)).toEqual({});
@@ -151,5 +153,21 @@ describe("leerContactos: los pedidos a la base", () => {
     const r = await leerContactos(cliente as never, "ws-1", SIN_FILTROS_DE_CONTACTOS, 9);
     expect(r.pagina).toBe(2);
     expect(r.contactos).toEqual([{ id: "p2" }]);
+  });
+});
+
+describe("el filtro de los que escribieron (F43, criterio del 05/11/2026)", () => {
+  it("?escribieron=si lo pone; cualquier otra cosa, o nada, no (arranca apagado)", () => {
+    expect(filtrosDeContactos({ escribieron: "si" }).escribieron).toBe(true);
+    for (const v of [undefined, "", "no", "SI", "1", "true"]) expect(filtrosDeContactos({ escribieron: v }).escribieron).toBe(false);
+    expect(SIN_FILTROS_DE_CONTACTOS.escribieron).toBe(false);
+  });
+
+  it("va a la base como escribieron: 'si', y a la dirección; apagado, no va", () => {
+    const f = { ...SIN_FILTROS_DE_CONTACTOS, escribieron: true };
+    expect(paraLaBaseDeContactos(f)).toEqual({ escribieron: "si" });
+    expect(direccionDeContactos(f, 1)).toBe("/dashboard/contacts?escribieron=si");
+    expect(hayFiltrosDeContactos(f)).toBe(true);
+    expect(paraLaBaseDeContactos(SIN_FILTROS_DE_CONTACTOS)).toEqual({});
   });
 });

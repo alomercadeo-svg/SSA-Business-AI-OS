@@ -91,3 +91,40 @@ describe("la lista de Contactos", () => {
     expect(f).toContain("Limpiar filtros");
   });
 });
+
+/**
+ * Ítem 5 del plan maestro (06/11/2026). El buscador, que Marcos vio angosto y
+ * cortando el texto el 05/11: ocupa el ancho que sobra, y los filtros pasan
+ * abajo cuando no entran. Y el filtro nuevo de F43, «Solo los que
+ * escribieron», que arranca apagado. Las clases no prueban el dibujo: lo mira
+ * Marcos, en la computadora y en el teléfono.
+ */
+const clasesDe = (html: string, patron: RegExp) => (html.match(patron)?.[1] ?? "").split(/\s+/);
+
+describe("el buscador y el filtro de los que escribieron (ítem 5)", () => {
+  it("el buscador ya no tiene tope de ancho y crece con el lugar que sobra", () => {
+    const caja = clasesDe(vista(), /<div class="([^"]*)"><svg[^>]*lucide-search/);
+    expect(caja).not.toContain("sm:max-w-sm");
+    expect(caja.some((c) => /^sm:flex-\[/.test(c) || c === "sm:grow" || c === "sm:flex-1")).toBe(true);
+    expect(caja.some((c) => /^sm:min-w-/.test(c))).toBe(true);
+  });
+
+  it("en el teléfono el buscador va a todo el ancho y los filtros debajo, en dos columnas", () => {
+    const h = vista();
+    expect(clasesDe(h, /<div class="([^"]*)"><svg[^>]*lucide-search/)).toContain("w-full");
+    const filtros = clasesDe(h, /<div class="([^"]*)"><select[^>]*aria-label="Seguimiento"/);
+    expect(filtros).toEqual(expect.arrayContaining(["grid", "grid-cols-2", "sm:flex", "sm:flex-wrap"]));
+  });
+
+  it("el filtro «Mostrar»: «Mostrar: todos» y «Solo los que escribieron», apagado de entrada", () => {
+    const h = vista();
+    expect(h).toMatch(/<select[^>]*aria-label="Mostrar"/);
+    expect(h).toContain(">Mostrar: todos<");
+    expect(h).toContain(">Solo los que escribieron<");
+    expect(h).toMatch(/<option value="" selected="">Mostrar: todos<\/option>/);
+  });
+
+  it("con el filtro puesto, la opción elegida es «Solo los que escribieron»", () => {
+    expect(vista({ filtros: { escribieron: true } })).toMatch(/<option value="si" selected="">Solo los que escribieron<\/option>/);
+  });
+});

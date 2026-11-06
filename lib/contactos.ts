@@ -49,6 +49,12 @@ export interface FiltrosDeContactos {
   vendedor: FiltroDeAsignacion;
   /** El id de una etiqueta. */
   etiqueta: string | null;
+  /**
+   * F43 (criterio del 05/11/2026, 00051): solo los que escribieron al menos una
+   * vez. Arranca apagado: cuando entren los de Pipedrive (F38), ninguno escribió
+   * en el sistema, y con el filtro puesto de entrada parecerían perdidos.
+   */
+  escribieron: boolean;
 }
 
 export const SIN_FILTROS_DE_CONTACTOS: FiltrosDeContactos = {
@@ -58,6 +64,7 @@ export const SIN_FILTROS_DE_CONTACTOS: FiltrosDeContactos = {
   setter: { tipo: "todos" },
   vendedor: { tipo: "todos" },
   etiqueta: null,
+  escribieron: false,
 };
 
 export type Contacto = Database["public"]["Tables"]["contacts"]["Row"];
@@ -85,6 +92,7 @@ export function filtrosDeContactos(p: Parametros): FiltrosDeContactos {
     setter: filtroDeAsignacion(leer(p, "setter")),
     vendedor: filtroDeAsignacion(leer(p, "vendedor")),
     etiqueta: etiqueta && UUID.test(etiqueta) ? etiqueta.toLowerCase() : null,
+    escribieron: leer(p, "escribieron") === "si",
   };
 }
 
@@ -119,6 +127,7 @@ export function paraLaBaseDeContactos(f: FiltrosDeContactos): Record<string, str
   const vendedor = asignacionParaLaBase(f.vendedor);
   if (vendedor) j.vendedor = vendedor;
   if (f.etiqueta) j.etiqueta = f.etiqueta;
+  if (f.escribieron) j.escribieron = "si";
   return j;
 }
 

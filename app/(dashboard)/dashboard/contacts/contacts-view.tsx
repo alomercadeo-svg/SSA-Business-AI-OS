@@ -191,8 +191,12 @@ export function ContactsView({
           </Link>
         </div>
 
+        {/* Ítem 5 del plan maestro (06/11/2026): el buscador ocupa el ancho que
+            sobra, con un mínimo para que no corte el texto, y los filtros pasan
+            abajo cuando no entran. En el teléfono, el buscador a todo el ancho
+            y los filtros debajo, en dos columnas. */}
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <div className="relative w-full sm:max-w-sm sm:flex-1">
+          <div className="relative w-full sm:w-auto sm:min-w-[20rem] sm:flex-[1_1_20rem]">
             {buscando ? (
               <Loader2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
             ) : (
@@ -207,6 +211,7 @@ export function ContactsView({
               className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:gap-3">
           <select
             aria-label="Seguimiento"
             value={filtros.seguimiento ?? ""}
@@ -236,6 +241,17 @@ export function ContactsView({
               </option>
             ))}
           </select>
+          {/* F43, criterio del 05/11/2026: arranca apagado (lib/contactos.ts). */}
+          <select
+            aria-label="Mostrar"
+            value={filtros.escribieron ? "si" : ""}
+            onChange={(e) => filtrar({ escribieron: e.target.value === "si" })}
+            className={claseDelSelector}
+          >
+            <option value="">Mostrar: todos</option>
+            <option value="si">Solo los que escribieron</option>
+          </select>
+          </div>
           {conFiltros && (
             <button onClick={limpiar} className="text-sm font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
               Limpiar filtros
