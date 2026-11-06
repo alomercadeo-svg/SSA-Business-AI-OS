@@ -2854,7 +2854,7 @@ Cada ítem: tests nuevos vistos en rojo antes del cambio, `npm test` + `npm run 
   - Ficha: ya apila las columnas (`contacts/[contactId]/page.tsx:153`); se revisa que nada se salga.
   - **Los tests por la fuente no prueban el diseño en el teléfono:** en S8, tramo 8, dieron verde con el problema adentro. El reporte lo dice con esas palabras, y la tilde depende de la prueba de Marcos en el celular (abrir una conversación desde la lista, contestar entre @poderosascomunidad y @marcospittimusic, y volver).
   - Pantallas, en el teléfono: el menú; la lista, el hilo y el panel; contestar y volver; el gesto de volver; la foto encima de un chat; la ficha. En la computadora: la bandeja con las tres columnas y el menú nuevo.
-- [ ] **Ítem 5: Contactos, el buscador ancho y el filtro de los que escribieron (F43).** Completa. 100 min. Aprobado como está.
+- [x] **Ítem 5: Contactos, el buscador ancho y el filtro de los que escribieron (F43).** Completa. 100 min. Aprobado como está. **Hecho:** `f59eb4a`, la 00051 aplicada a las 11:08 con todas las condiciones, desplegado a las 11:17, `verify-contactos` 111 de 111; «salida 0, pantallas sin mirar» (en «Plan maestro, ítem 5», abajo).
   - El buscador ocupa el ancho que sobra y los filtros pasan abajo cuando no entran. El filtro nuevo, «Mostrar: todos» / «Solo los que escribieron», en la dirección como `?escribieron=si`, **arranca apagado** (cuando entren los 526 de Pipedrive, ninguno escribió en el sistema). En el teléfono: el buscador a todo el ancho, los filtros debajo, la tabla con desplazamiento propio.
   - Migración: `create or replace function public.contactos_filtrados(p_workspace uuid, p_filtros jsonb)`, misma firma, `security invoker`, con la clave `escribieron` (con `'si'`, solo contactos con algún mensaje `direction = 'inbound'` en sus conversaciones), y su `comment on function`. Qué cuenta como mensaje del lead (y que los ecos entran como `outbound`) se verifica en el código de F27 antes de escribirla.
   - **OK adelantado para el push:** el `--dry-run` lista solo esa; suite y `typecheck` en verde antes; antes de las 18:15; huella de las 13 funciones de la apertura de la 00049, donde cambia solo `contactos_filtrados`; catálogo: `invoker`, `authenticated` sí, `anon` no, una sola versión; con el código viejo, `verify-contactos` 101 de 101. No toca filas.
@@ -3071,6 +3071,63 @@ En la computadora:
 9. La bandeja con las tres columnas, igual que antes, y el menú nuevo con «Llegan más adelante».
 
 **Propuesta de tilde, para Marcos:** F35, «En el teléfono, la bandeja… se pueden usar…», cuando Marcos haga los puntos 1 a 8. Prueba: su mirada en el celular; los tests de esta tabla, corridos a las 10:23 del 06/11, no alcanzan solos.
+
+### Plan maestro, ítem 5: Contactos, el buscador ancho y el filtro de los que escribieron (F43) (Bloque 4, medido)
+
+**06/11/2026, desde las 11:00** (hora de Costa Rica). Revisión completa (migración y seguridad por filas). Estimación: 100 min. **Fin de la construcción: 11:07** (commit `f59eb4a`). **Suma: 16 min** (de 11:00 a 11:21, menos la espera de Railway, de 11:13:04 a 11:17:35). Muy por debajo; ningún freno.
+
+**Verificado antes de escribir la migración:** el mensaje del lead se guarda con `direction = 'inbound'` (`lib/zernio-aviso.ts:124`, `lib/evolution-guardado.ts:147`); lo que escribe el negocio y sus ecos, con `outbound` (`lib/zernio-aviso.ts:85`).
+
+**Lo hecho**, `f59eb4a`:
+- **La 00051** (`supabase/migrations/00051_contactos_escribieron.sql`): `create or replace function public.contactos_filtrados`, misma firma, `security invoker`, conserva el arreglo de la 00050, con la clave `escribieron`: con `'si'`, solo los contactos con algún mensaje `inbound` en alguna de sus conversaciones. Y su `comment on function`. Nada más. En el bundle y en §14c (51 migraciones).
+- **La dirección** (`lib/contactos.ts`): `?escribieron=si`; cualquier otra cosa, apagado. **Arranca apagado**, como se aprobó.
+- **La pantalla** (`contacts-view.tsx`): el filtro «Mostrar: todos» / «Solo los que escribieron», al final de la fila. El buscador ya no tiene tope de ancho (`sm:max-w-sm` salió): crece con el lugar que sobra, con un mínimo de 20rem para que no corte el texto, y los filtros pasan abajo cuando no entran. **En el teléfono:** el buscador a todo el ancho y los filtros debajo, en dos columnas; la tabla, con su desplazamiento propio (ya lo tenía).
+
+**El push de la 00051**, con el OK adelantado del plan, cada condición en hora de Costa Rica:
+
+| Condición | Hora | Resultado |
+|---|---|---|
+| Suite y `typecheck`, antes | 11:07 | 1399 de 1399, salida 0; `typecheck`, salida 0 |
+| `--dry-run` | 11:07:42 | Listaba solo `00051_contactos_escribieron.sql`, salida 0 con `echo $?`, sin tubería |
+| Antes de las 18:15 | — | Sí |
+| Huella, antes | 11:08:06 | md5 de `pg_get_functiondef` de 16 funciones: las 13 de la apertura de la 00049 más las tres de contactos |
+| `npx supabase db push` | 11:08:23 a 11:08:25 | Salida 0 |
+| Huella, después | 11:08:41 | 15 iguales; **solo cambió `contactos_filtrados`** (`50ab1a70` → `57da5708`) |
+| Catálogo | después de las 11:08:41 | Las tres de contactos: `invoker`, `authenticated` sí, `anon` no, una sola versión |
+| Con el código viejo | 11:08:59, 11:09:45, 11:10:03, 11:11:01 | `verify-contactos` en su versión de antes del ítem (sacada de `f59eb4a^` a un archivo temporal, borrado después), **101 de 101**; `verify-bandeja` 43 de 43, `verify-filtros-bandeja` 135 de 135 y `verify-ficha` 64 de 64. Todos con salida 0 |
+
+**El verificador**, `scripts/verify-contactos.mjs`, paso 11 (nuevo): cuatro contactos al final, después de todos los pasos que miden totales (uno que escribió, uno que nunca escribió con solo un mensaje del negocio, uno del Member que escribió y uno ajeno al Member que escribió).
+
+| Corrida | Hora | Resultado |
+|---|---|---|
+| Primera, cortada por un error de la preparación | 11:04:31 | Excepción: el alta de varias filas con claves distintas (HTTP 400). Limpieza en cero. No cuenta |
+| Segunda, cortada por otro error de la preparación | 11:05:30 | Excepción: una variable mal nombrada en el alta del mensaje. Limpieza en cero. No cuenta |
+| **Rojo, antes de la migración** | 11:06:22 a 11:07:07 | **107 bien, 4 fallas, salida 1, por su motivo:** con `escribieron=si` aparecía el que nunca escribió (la función ignoraba la clave), `contactos_cantidad` daba 4 y no 3, la página traía al que nunca escribió y no mostraba el filtro puesto. El control positivo (sin el filtro, los cuatro) y las presencias, en verde |
+| Después de la migración, antes de desplegar | 11:11:46 | 109 bien, 2 fallas, salida 1: la función ya filtra; fallan los dos de la página, que esperan el código |
+| **Verde, después del despliegue** | 11:17:45 | **111 de 111, salida 0** |
+
+Los dos errores de las primeras corridas fueron de la preparación, no del filtro: el verificador no cambió después de su rojo.
+
+**Tests vistos en rojo:**
+- `lib/contactos-escribieron-migracion.test.ts`: **4 de 6 por su motivo** (solo esas sentencias, la clave y el `exists`, el arreglo de la 00050, el bundle). «Existe» **no se vio en rojo**: el esqueleto ya estaba creado. «Sigue security invoker» falló con el archivo vacío, un rojo de carga que **no cuenta**.
+- `lib/contactos.test.ts`: los 2 nuevos, por su motivo. **Se cambiaron dos existentes** (los filtros esperados suman `escribieron: false`); el primero se vio en rojo por el cambio.
+- `contacts-view.test.ts`: **4 de 4 por su motivo** (el buscador con tope, sin el contenedor de dos columnas, sin el filtro, sin la opción elegida).
+- **Los tests de la pantalla miran clases, no el dibujo:** que el buscador no corte el texto lo confirma Marcos.
+
+**La medición** (`scripts/medir-contactos.mjs`, que suma 400 conversaciones y 400 mensajes en su espacio fantasma, 200 del lead), de 11:19:41 a 11:20:18, salida 0, limpieza en cero: con `escribieron`, el Owner entre 550 y 780 ms (200 contactos) y el Member entre 551 y 628 ms (100). La peor de todas, 893 ms («medir.usuario.799»): debajo del freno de 1,5 s.
+
+**Antes de subir:** `npm test` 1399 de 1399, `typecheck`, `lint` (0 errores, 45 avisos) y `next build`, todos con salida 0.
+
+**Despliegue:** `node scripts/verificar-despliegue.mjs`, **salida 0, leída con `echo $?`**: lectura previa a las 11:13:04 (build `4jFYEAakZkHeh_oCWY6fQ`, el que dejó `dc40eb8`, que se había subido con un `git push` directo por ser solo docs), push `dc40eb8..f59eb4a`, el build pasó a `42krkugzyCJXiOLS5ec8B` a las 11:17:35, con `/login` en 200. **Toca Contactos: queda «salida 0, pantallas sin mirar».** Commit activo en Railway, sin identificar por título.
+
+**Lo que escribió en producción:** la 00051 (una función, ninguna fila), el verificador y la medición, en espacios fantasma. Nada llamó a Zernio, Evolution, Resend ni Meta. Ningún contacto real se tocó.
+
+**Lo que mira Marcos, recargando:**
+1. Contactos en la computadora: el buscador ancho, con «Buscar por nombre, teléfono o correo…» entero, y los filtros que bajan de línea al achicar la ventana.
+2. «Mostrar: todos» → «Solo los que escribieron»: el total pasa a «N de 776 contactos», desaparecen los «Sin nombre» de ManyChat que nunca escribieron, y la dirección dice `?escribieron=si`.
+3. Contactos en el teléfono: el buscador a todo el ancho, los filtros debajo en dos columnas, y la tabla que se desplaza de costado.
+
+**Propuesta de tilde, para Marcos:** F43, «Un filtro deja afuera de la lista de Contactos a los contactos que nunca escribieron…», con el control positivo de `verify-contactos` (111 de 111, 11:17:45 del 06/11) y su mirada.
 
 ---
 
