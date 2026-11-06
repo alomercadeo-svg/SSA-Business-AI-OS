@@ -2869,7 +2869,8 @@ Cada ítem: tests nuevos vistos en rojo antes del cambio, `npm test` + `npm run 
   - **El arreglo de la guardia de políticas** (que nombrar la función en un comentario no la satisfaga, pendiente (d) del 05/11) va en su propio commit, con su test en rojo.
   - Pantallas: Configuración › Respuestas rápidas y el «/» en la bandeja; en el teléfono, el selector encima del campo, a todo el ancho.
 - [ ] **Ítem 7: la respuesta privada a un comentario (F40).** Completa. 180 min.
-  - La lectura de solo cantidades de `comment_logs` se pide **al llegar al ítem**, no antes.
+  - La lectura de solo cantidades de `comment_logs` se pide **al llegar al ítem**, no antes. **Autorizada por Marcos el 06/11/2026 a las 15:10**, como se describió (total, fecha del más viejo y del más nuevo, cuántos con `dm_sent` y con `reply_sent`, cuántos en los últimos 7 días; sin texto, autores ni identificadores), con dos agregados: separada por cuenta del negocio (el nombre de usuario de la cuenta, nunca el del autor), y cuántos llegaron después de las 15:00 del 06/11, hora de Costa Rica. **Antes de correrla se le pregunta a Marcos si ya comentó desde @marcospittimusic en una publicación de @poderosascomunidad:** ese comentario es el control positivo. Si comentó y no aparece, la conclusión es «los comentarios no llegan», no «no hay comentarios».
+  - **No se sube hasta que Marcos mire 3a, 4 y 6** (regla del 06/11, sección 5).
   - Lo verificado (`:2556-2557`): `comment_logs.created_at` es la hora de proceso; ninguna columna registra la respuesta privada; `dm_sent` queda en `true` aunque falle; la bandeja no tiene conversaciones de comentario.
   - Recomendación: la migración suma la hora del comentario y la de la respuesta privada; el envío controla los 7 días y la única vez y responde 409 sin llamar a Zernio si no corresponde; la bandeja muestra el bloque de §11. Cómo envía Zernio una respuesta privada se verifica en los tipos de `@zernio/node` antes de escribir. El envío real se pide (compuerta 2).
 - [ ] **Ítem 8: No contactar (F34, y su parte de F31).** Completa. 180 min.
@@ -2895,7 +2896,8 @@ Cada ítem: tests nuevos vistos en rojo antes del cambio, `npm test` + `npm run 
 
 - Las capturas de Railway de `be1646b` (18:20) y `73e0db0` (18:29), pedidas el 06/11.
 - El reel nuevo (3b) y la respuesta a la historia (3c), hoy.
-- Las pantallas de cada ítem, y las tildes.
+- Las pantallas de cada ítem, y las tildes. Las de 3a, 4 y 6 traban la subida del ítem 7.
+- Si ya comentó desde @marcospittimusic en una publicación de @poderosascomunidad (el control positivo de la lectura de `comment_logs`).
 
 ### Las secciones 4 a 10 del prompt de Marcos del 06/11/2026, tal cual
 
@@ -2919,6 +2921,8 @@ Preguntás de a una opción por vez.
 - Las decisiones de pantalla las tomás vos, con el prototipo y las buenas prácticas, y las anotás en el estado como «decisión de pantalla, vetable». Yo veto si hace falta.
 - Después de cada despliegue que toca pantallas, el ítem queda «salida 0, pantallas sin mirar». Me dejás la lista numerada de qué abrir y seguís con el siguiente ítem si no toca las mismas pantallas. Si las toca, esperás que las mire. Si te reporto algo roto, eso pasa primero.
 
+**Agregado el 06/11/2026 a las 15:10, decidido por Marcos** (no es texto del prompt): `a5b9baa`, `7752827` y `1e3646b` tocan la bandeja y se subieron uno encima del otro sin que Marcos mirara ninguno. Desde ahora se puede construir en local el ítem siguiente, pero **no se sube nada que toque una pantalla que tiene un despliegue sin mirar.** Para el ítem 7: no se sube hasta que Marcos mire 3a, 4 y 6.
+
 #### 6. Al cerrar cada ítem
 
 1. Tests nuevos vistos en rojo antes del cambio; el reporte dice cuántos por ítem, y el que no se vio en rojo se dice con esas palabras.
@@ -2935,6 +2939,7 @@ La construcción se sigue midiendo como siempre, por tramos (un tramo por ítem,
 #### 8. Reglas de siempre
 
 - Nada de git stash ni git stash list. Para comparar contra HEAD, git diff o git show HEAD:archivo.
+  - **Agregado el 06/11/2026 a las 15:10, decidido por Marcos** (no es texto del prompt): `git reset`, `git rebase` y `git cherry-pick`, igual que `git stash`, se piden antes. El retroceso de las 10:47 quedó bien explicado, con respaldo y comparado; la regla es para la próxima.
 - Nada de las tarjetas «Tarea sugerida» con worktree.
 - La vuelta atrás de una migración nunca va en supabase/migrations/.
 - Lo que importa va al estado, nunca a tu memoria.
