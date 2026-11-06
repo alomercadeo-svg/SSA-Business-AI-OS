@@ -2178,6 +2178,15 @@
     "texto": "- [x] En el panel del contacto de la bandeja, «Ver ficha completa» abre la ficha de ese contacto, y el nombre del contacto en el encabezado del hilo también. Si el teléfono está sin resolver, el panel muestra «Cargar teléfono en la ficha», que abre la ficha. (agregado el 03/11/2026, decidido por Marcos: con el número real vinculado, desde la bandeja no había forma de abrir la ficha; el prototipo aprobado lo tenía)"
   },
   {
+    "seccion": "F35: Bandeja y filtros",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F35: Bandeja y filtros"
+    ],
+    "texto": "- [ ] En el teléfono, la bandeja (la lista, el hilo y el panel del contacto) y la ficha se pueden usar: el menú se oculta detrás de un botón, se ve una sola columna por vez y siempre hay forma de volver a la anterior. Control positivo: con el ancho de un teléfono, abrir una conversación desde la lista, contestar y volver a la lista, sin que nada se salga de la pantalla (agregado el 05/11/2026, decidido por Marcos: probada desde el teléfono, la app no se podía usar)."
+  },
+  {
     "seccion": "F36: Respuestas rápidas",
     "ruta": [
       "5. Funcionalidades y criterios de aceptación",
