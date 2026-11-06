@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
 import { NextRequest as NextRequestReal, type NextRequest } from "next/server";
 
 /**
@@ -175,6 +176,28 @@ describe("GET /api/v1/messages lee de la base (F27)", () => {
     const cuerpo = await (await leer()).json();
     expect(cuerpo.messages[0].attachments).toEqual([{ type: "image" }]);
     expect(JSON.stringify(cuerpo)).not.toContain("lookaside");
+  });
+
+  it("F44: una publicación y un reel viajan como compartidos, con el enlace de la lista; los ya guardados también", async () => {
+    const ADJ = JSON.parse(readFileSync(new URL("../../../../lib/fixtures/zernio-adjuntos-f44.json", import.meta.url), "utf8"));
+    h.filasDeMensajes = [
+      fila("m3", { attachments: [ADJ.videoDeCamara], media_status: "pendiente" }),
+      fila("m2", { attachments: [ADJ.reel], media_status: "no_disponible" }),
+      fila("m1", { attachments: [ADJ.publicacion], media_status: "pendiente" }),
+    ];
+    const cuerpo = await (await leer()).json();
+    expect(cuerpo.messages[0].attachments).toEqual([{ type: "share", compartido: "publicacion", enlace: ADJ.publicacion.payload.url }]);
+    expect(cuerpo.messages[1].attachments).toEqual([{ type: "video", compartido: "reel", enlace: ADJ.reel.payload.url }]);
+    // El video de la cámara no es compartido: su dirección no viaja.
+    expect(cuerpo.messages[2].attachments).toEqual([{ type: "video" }]);
+    expect(JSON.stringify(cuerpo.messages[2])).not.toContain("lookaside");
+  });
+
+  it("F44: un compartido con un enlace fuera de la lista viaja sin enlace", async () => {
+    h.filasDeMensajes = [fila("m1", { attachments: [{ type: "share", url: "https://ejemplo.com/p/x" }], media_status: "pendiente" })];
+    const cuerpo = await (await leer()).json();
+    expect(cuerpo.messages[0].attachments).toEqual([{ type: "share", compartido: "publicacion" }]);
+    expect(JSON.stringify(cuerpo)).not.toContain("ejemplo.com");
   });
 
   it("dice cuando hay más mensajes que los que trae", async () => {

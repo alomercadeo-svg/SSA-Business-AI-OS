@@ -6,6 +6,7 @@ import { messagePreview } from "@/lib/message-preview";
 import { registrarFalloDeZernio } from "@/lib/integraciones-estado";
 import { guardarEnvioDeLaBandeja } from "@/lib/mensajes-guardado";
 import { BUCKET_DE_ADJUNTOS } from "@/lib/adjuntos";
+import { clasificarCompartido, enlaceDelCompartido, type Compartido } from "@/lib/contenido-hilo";
 import { AVISO_VENTANA_CERRADA, esRechazoPorVentana, reglaDeVentana } from "@/lib/ventana-instagram";
 
 /** Cuántos mensajes trae el hilo de una vez: los más recientes. */
@@ -36,7 +37,8 @@ export const SEGUNDOS_DE_FIRMA = 600;
  * explicación. El 08/10/2026 una cuenta desconectada mostraba un hilo vacío y
  * sin aviso, porque le pedía los mensajes a Zernio.
  *
- * Los adjuntos viajan SIN la dirección del proveedor: solo el tipo y su estado.
+ * Los adjuntos viajan SIN la dirección del proveedor: solo el tipo y su estado
+ * (salvo el enlace de un compartido, F44: ver `adjuntosSinDireccion`).
  * La URL de Meta vence y no tiene por qué llegar al navegador.
  *
  * F28: el archivo bajado viaja como `archivo: { url, mime }`, con una dirección
@@ -139,10 +141,25 @@ async function firmarDescargados(
   return firmadas;
 }
 
-/** Solo el tipo de cada adjunto: la dirección del proveedor no sale del servidor. */
-function adjuntosSinDireccion(adjuntos: unknown): { type: string | null }[] | null {
+/**
+ * Solo el tipo de cada adjunto: la dirección del proveedor no sale del
+ * servidor. Excepción (F44, aprobada por Marcos el 05/11/2026): una
+ * publicación o un reel compartidos viajan con `compartido` y, si es https y de
+ * un host de la lista, con su `enlace`, para «Ver en Instagram». Ver
+ * `lib/contenido-hilo.ts`. Se resuelve acá, al mostrar, así se ven bien
+ * también los ya guardados.
+ */
+function adjuntosSinDireccion(
+  adjuntos: unknown,
+): { type: string | null; compartido?: Compartido; enlace?: string }[] | null {
   if (!Array.isArray(adjuntos) || adjuntos.length === 0) return null;
-  return adjuntos.map((a) => ({ type: typeof a?.type === "string" ? a.type : null }));
+  return adjuntos.map((a) => {
+    const type = typeof a?.type === "string" ? a.type : null;
+    const compartido = clasificarCompartido(a);
+    if (!compartido) return { type };
+    const enlace = enlaceDelCompartido(a);
+    return enlace ? { type, compartido, enlace } : { type, compartido };
+  });
 }
 
 /**

@@ -76,3 +76,27 @@ describe("la foto a pantalla completa (F44, criterio 4)", () => {
     expect(h).toContain('role="dialog"');
   });
 });
+
+describe("los compartidos en el hilo (F44, criterios 1 y 2)", () => {
+  const ENLACE = "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=1&signature=PRUEBA";
+
+  it("una publicación compartida dice «Compartió una publicación», con «Ver en Instagram», en vez de «Adjunto»", () => {
+    const h = html({ message_type: "otro", media_status: "pendiente", attachments: [{ type: "share", compartido: "publicacion", enlace: ENLACE }] });
+    expect(h).toContain("Compartió una publicación");
+    expect(h).toMatch(/<a[^>]*href="https:\/\/lookaside\.fbsbx\.com[^"]*"[^>]*target="_blank"[^>]*rel="noopener noreferrer"[^>]*>[^<]*Ver en Instagram/);
+    expect(h).not.toContain("Adjunto");
+  });
+
+  it("un reel compartido dice «Compartió un reel», en vez de «Este archivo no está disponible.»", () => {
+    const h = html({ message_type: "video", media_status: "no_disponible", attachments: [{ type: "video", compartido: "reel", enlace: "https://www.instagram.com/reel/x/" }] });
+    expect(h).toContain("Compartió un reel");
+    expect(h).toContain("Ver en Instagram");
+    expect(h).not.toContain(TEXTO_ADJUNTO_NO_DISPONIBLE);
+  });
+
+  it("sin enlace, dice qué compartió y no muestra el botón", () => {
+    const h = html({ message_type: "otro", media_status: "pendiente", attachments: [{ type: "share", compartido: "publicacion" }] });
+    expect(h).toContain("Compartió una publicación");
+    expect(h).not.toContain("Ver en Instagram");
+  });
+});

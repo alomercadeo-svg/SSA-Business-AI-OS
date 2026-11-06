@@ -54,7 +54,33 @@ export const TEXTO_ADJUNTO_NO_DISPONIBLE = "Este archivo no está disponible.";
  * `media_mime`: la nota de voz de Instagram se detecta como `video/mp4`, porque
  * su cabecera no la distingue de un video (prueba real del 09/10/2026).
  */
+/**
+ * F44, criterios 1 y 2: lo que el lead compartió, como lo manda
+ * `GET /api/v1/messages` (`compartido` y `enlace` en el primer adjunto). Va
+ * antes que el estado de la descarga: un reel no es un archivo que faltó.
+ */
+const TEXTO_COMPARTIDO = { publicacion: "Compartió una publicación", reel: "Compartió un reel" } as const;
+
+function compartidoDe(message: Message): { compartido: keyof typeof TEXTO_COMPARTIDO; enlace: string | null } | null {
+  const a = Array.isArray(message.attachments) ? (message.attachments[0] as { compartido?: unknown; enlace?: unknown } | null) : null;
+  if (!a || (a.compartido !== "publicacion" && a.compartido !== "reel")) return null;
+  return { compartido: a.compartido, enlace: typeof a.enlace === "string" ? a.enlace : null };
+}
+
 function ArchivoDelMensaje({ message }: { message: Message }) {
+  const compartido = compartidoDe(message);
+  if (compartido) {
+    return (
+      <div className="mt-1">
+        <p className="text-xs opacity-70">{TEXTO_COMPARTIDO[compartido.compartido]}</p>
+        {compartido.enlace && (
+          <a href={compartido.enlace} target="_blank" rel="noopener noreferrer" className="text-xs underline">
+            Ver en Instagram
+          </a>
+        )}
+      </div>
+    );
+  }
   const archivo = message.archivo;
   if (archivo) {
     const tipo = message.message_type;
