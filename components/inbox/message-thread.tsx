@@ -555,6 +555,31 @@ export function MessageThread({
     );
   }
 
+  // La foto del encabezado: abre la ficha cuando hay contacto (tercer
+  // retrabajo del ítem 4, 06/11/2026).
+  const avatarDelEncabezado = (
+    <div className="relative shrink-0">
+      {conversation.contacts?.avatar_url ? (
+        <img
+          src={conversation.contacts.avatar_url}
+          alt=""
+          className="h-8 w-8 rounded-full object-cover"
+        />
+      ) : (
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium">
+          {inicialDe(nombreDeConversacion(conversation))}
+        </div>
+      )}
+      <div className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-background bg-background">
+        <PlatformIcon
+          platform={conversation.platform}
+          className="h-2.5 w-2.5"
+          size={10}
+        />
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex h-full flex-col bg-background">
       {/* Header */}
@@ -573,48 +598,10 @@ export function MessageThread({
               aria-label="Abrir la ficha del contacto"
               className="shrink-0 rounded-full hover:opacity-80"
             >
-          <div className="relative shrink-0">
-            {conversation.contacts?.avatar_url ? (
-              <img
-                src={conversation.contacts.avatar_url}
-                alt=""
-                className="h-8 w-8 rounded-full object-cover"
-              />
-            ) : (
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium">
-                {inicialDe(nombreDeConversacion(conversation))}
-              </div>
-            )}
-            <div className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-background bg-background">
-              <PlatformIcon
-                platform={conversation.platform}
-                className="h-2.5 w-2.5"
-                size={10}
-              />
-            </div>
-          </div>
+              {avatarDelEncabezado}
             </Link>
           ) : (
-          <div className="relative shrink-0">
-            {conversation.contacts?.avatar_url ? (
-              <img
-                src={conversation.contacts.avatar_url}
-                alt=""
-                className="h-8 w-8 rounded-full object-cover"
-              />
-            ) : (
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium">
-                {inicialDe(nombreDeConversacion(conversation))}
-              </div>
-            )}
-            <div className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-background bg-background">
-              <PlatformIcon
-                platform={conversation.platform}
-                className="h-2.5 w-2.5"
-                size={10}
-              />
-            </div>
-          </div>
+            avatarDelEncabezado
           )}
           <div className="min-w-0">
             {/* F35, criterio 31: el nombre abre la ficha del contacto. */}
