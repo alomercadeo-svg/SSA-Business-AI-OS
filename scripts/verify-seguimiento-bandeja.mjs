@@ -309,8 +309,12 @@ await correr(async () => {
     const VOLVER = `/dashboard/inbox?q=b8s&estado=all&seguimiento=hoy&conversacion=${cM1}`;
     const conVolver = await pagina(member, E, `/dashboard/contacts/${M1}?volver=${encodeURIComponent(VOLVER)}`);
     const hrefVolver = `href="${VOLVER.replace(/&/g, "&amp;")}"`;
-    const flechaABandeja = new RegExp(`<a[^>]*${hrefVolver.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[^>]*>(?:<svg[\\s\\S]*?</svg>)?\\s*Bandeja\\s*</a>`);
-    const vuelve = check(conVolver.status === 200 && flechaABandeja.test(conVolver.html), "con ?volver= de la bandeja, la flecha dice «Bandeja» y va a esa dirección", `HTTP ${conVolver.status}`);
+    // Desde el retrabajo del ítem 4 del plan maestro (06/11/2026, punto d,
+    // decidido por Marcos): con una conversación en la vuelta, la flecha dice
+    // «Volver al chat» (`textoDeLaVuelta`, lib/ficha.ts). Sigue exigiendo que
+    // vaya a esa dirección exacta.
+    const flechaABandeja = new RegExp(`<a[^>]*${hrefVolver.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[^>]*>(?:<svg[\\s\\S]*?</svg>)?\\s*Volver al chat\\s*</a>`);
+    const vuelve = check(conVolver.status === 200 && flechaABandeja.test(conVolver.html), "con ?volver= de la bandeja con una conversación, la flecha dice «Volver al chat» y va a esa dirección", `HTTP ${conVolver.status}`);
     const flechaAContactos = /<a[^>]*href="\/dashboard\/contacts"[^>]*>(?:<svg[\s\S]*?<\/svg>)?\s*Contactos\s*<\/a>/;
     for (const externa of ["https://evil.example/dashboard/inbox", "//evil.example/dashboard/inbox", "/dashboard/inboxx", "/dashboard/inbox/../settings"]) {
       const p = await pagina(member, E, `/dashboard/contacts/${M1}?volver=${encodeURIComponent(externa)}`);
