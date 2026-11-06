@@ -9,6 +9,8 @@
  * 0). Los históricos —importados o anteriores a F28— tienen `media_intentos`
  * nulo y nada de este archivo los toca: son de la parte B. Los `share`,
  * `template` y `ephemeral` de Instagram caen en el tipo `otro` y no se marcan.
+ * Los reels compartidos llegan como `video` y tampoco se marcan (F44,
+ * `seDescarga`): son un enlace, no un archivo.
  *
  * ── LA CARRERA ENTRE EL RECEPTOR Y EL REINTENTO ──────────────────────────────
  *
@@ -66,6 +68,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { detectarFormato, BYTES_PARA_DETECTAR } from "./adjuntos-formatos";
 import { evolutionInstanceTokenName, getWorkspaceSecret } from "./vault";
+import { clasificarCompartido } from "./contenido-hilo";
 
 export const BUCKET_DE_ADJUNTOS = "message-media";
 export const TECHO_DE_INTENTOS = 5;
@@ -76,9 +79,18 @@ const TAMANO_MAXIMO_POR_DEFECTO_MB = 25;
 
 const TIPOS_CON_ARCHIVO = new Set(["imagen", "audio", "video", "documento", "sticker"]);
 
-/** ¿El receptor tiene que marcar este mensaje para bajar su archivo? */
+/**
+ * ¿El receptor tiene que marcar este mensaje para bajar su archivo? Un reel
+ * compartido no (F44): llega con tipo `video`, pero su dirección es una página
+ * de Instagram, no un archivo. Se reconoce por el aviso (`lib/contenido-hilo.ts`).
+ */
 export function seDescarga(m: { direction: string; messageType: string; attachments: readonly unknown[] | null }): boolean {
-  return m.direction === "inbound" && TIPOS_CON_ARCHIVO.has(m.messageType) && (m.attachments?.length ?? 0) > 0;
+  return (
+    m.direction === "inbound" &&
+    TIPOS_CON_ARCHIVO.has(m.messageType) &&
+    (m.attachments?.length ?? 0) > 0 &&
+    clasificarCompartido(m.attachments?.[0]) !== "reel"
+  );
 }
 
 /** `ADJUNTOS_TAMANO_MAXIMO_MB`, o 25 MB si no está o no es un número positivo. */
