@@ -344,6 +344,7 @@ export function InboxView({
               ahora={ahora}
               respuestas={respuestas}
               nombreDelEspacio={nombreDelEspacio}
+              panelAbierto={panelEnTelefono}
               alGuardarSeguimiento={() => {
                 setVersionDelPanel((n) => n + 1);
                 setListaDesactualizada((n) => n + 1);

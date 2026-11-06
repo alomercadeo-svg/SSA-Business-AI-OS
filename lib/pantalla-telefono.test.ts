@@ -39,3 +39,22 @@ describe("estaAlFinal: si el hilo sigue pegado al último mensaje", () => {
     expect(estaAlFinal({ scrollTop: 0, scrollHeight: 300, clientHeight: 400 })).toBe(true);
   });
 });
+
+describe("volver del panel deja el chat donde estaba (segundo retrabajo del ítem 4, punto b)", () => {
+  it("si estaba al final, vuelve al final, aunque hayan llegado mensajes", async () => {
+    const { lugarDelHilo, scrollParaVolver } = await import("./pantalla-telefono");
+    const lugar = lugarDelHilo({ scrollTop: 600, scrollHeight: 1000, clientHeight: 400 });
+    expect(lugar.pegado).toBe(true);
+    expect(scrollParaVolver(lugar, { scrollHeight: 1200, clientHeight: 400 })).toBe(800);
+  });
+  it("si estaba leyendo más arriba, vuelve a la misma distancia del final", async () => {
+    const { lugarDelHilo, scrollParaVolver } = await import("./pantalla-telefono");
+    const lugar = lugarDelHilo({ scrollTop: 200, scrollHeight: 1000, clientHeight: 400 });
+    expect(lugar).toEqual({ pegado: false, desdeElFinal: 400 });
+    expect(scrollParaVolver(lugar, { scrollHeight: 1000, clientHeight: 400 })).toBe(200);
+  });
+  it("nunca da un lugar negativo", async () => {
+    const { scrollParaVolver } = await import("./pantalla-telefono");
+    expect(scrollParaVolver({ pegado: false, desdeElFinal: 5000 }, { scrollHeight: 1000, clientHeight: 400 })).toBe(0);
+  });
+});

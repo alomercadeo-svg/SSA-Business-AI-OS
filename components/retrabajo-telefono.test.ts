@@ -108,3 +108,19 @@ describe("f. la ficha: nada afuera de la pantalla", () => {
     expect(ficha).toMatch(/\[overflow-wrap:anywhere\]/);
   });
 });
+
+describe("segundo retrabajo del ítem 4 (06/11/2026, lo que vio Marcos de 16:56 a 17:05)", () => {
+  const hilo = sinComentarios(leer("components/inbox/message-thread.tsx"));
+  const bandeja = sinComentarios(leer("app/(dashboard)/dashboard/inbox/inbox-view.tsx"));
+
+  it("a. el encabezado del chat, en el teléfono, en dos filas; desde md, una", () => {
+    expect(hilo).toMatch(/className="flex flex-col gap-1\.5 border-b border-border px-4 py-2 md:h-14 md:flex-row md:items-center md:justify-between md:gap-3 md:py-0"/);
+  });
+
+  it("b. el hilo guarda su lugar al abrir el panel y lo repone al volver", () => {
+    expect(bandeja).toMatch(/panelAbierto=\{panelEnTelefono\}/);
+    expect(hilo).toMatch(/panelAbierto\?: boolean/);
+    expect(hilo).toMatch(/lugarDelHilo\(/);
+    expect(hilo).toMatch(/scrollParaVolver\(/);
+  });
+});

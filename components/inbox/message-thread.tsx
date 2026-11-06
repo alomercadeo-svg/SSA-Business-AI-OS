@@ -24,7 +24,7 @@ import { inicialDe, nombreDeConversacion } from "@/lib/nombre-visible";
 import { BloqueVentanaCerrada } from "@/components/inbox/ventana-cerrada";
 import { FotoDelHilo } from "@/components/inbox/visor-foto";
 import { SelectorDeRespuestas } from "@/components/inbox/selector-respuestas";
-import { estaAlFinal } from "@/lib/pantalla-telefono";
+import { estaAlFinal, lugarDelHilo, scrollParaVolver, type LugarDelHilo } from "@/lib/pantalla-telefono";
 import { aplicarRespuesta, barraEn, filtrarRespuestas, interpolar, moverEleccion, type Barra, type RespuestaRapida } from "@/lib/respuestas-rapidas";
 import { AVISO_VENTANA_CERRADA, estadoDeVentana, textoDeVence } from "@/lib/ventana-instagram";
 
@@ -207,6 +207,7 @@ export function MessageThread({
   ahora,
   respuestas = [],
   nombreDelEspacio = null,
+  panelAbierto = false,
 }: {
   conversation: Conversation | null;
   messages: Message[];
@@ -230,6 +231,8 @@ export function MessageThread({
   respuestas?: RespuestaRapida[];
   /** F36: el nombre del espacio, para `{{workspace.name}}`. */
   nombreDelEspacio?: string | null;
+  /** En el teléfono, el panel del contacto tapa el hilo (segundo retrabajo del ítem 4). */
+  panelAbierto?: boolean;
 }) {
   const ahoraMs = ahora ?? Date.now();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -352,6 +355,27 @@ export function MessageThread({
     if (messages === initialMessages) contenedor.scrollTop = contenedor.scrollHeight;
     else contenedor.scrollTo({ top: contenedor.scrollHeight, behavior: "smooth" });
   }, [messages, initialMessages]);
+  // Segundo retrabajo del ítem 4 (06/11/2026), punto b: al abrir el panel del
+  // contacto en el teléfono, el hilo guarda dónde estaba; al volver, lo repone
+  // (al final si estaba al final). Después de un cuadro: el hilo tiene que
+  // estar dibujado de nuevo.
+  const lugarAntesDelPanel = useRef<LugarDelHilo | null>(null);
+  useLayoutEffect(() => {
+    const contenedor = scrollContainerRef.current;
+    if (!contenedor) return;
+    if (panelAbierto) {
+      lugarAntesDelPanel.current = lugarDelHilo(contenedor);
+      return;
+    }
+    const lugar = lugarAntesDelPanel.current;
+    if (!lugar) return;
+    lugarAntesDelPanel.current = null;
+    pegadoAlFinal.current = lugar.pegado;
+    const cuadro = requestAnimationFrame(() => {
+      contenedor.scrollTop = scrollParaVolver(lugar, contenedor);
+    });
+    return () => cancelAnimationFrame(cuadro);
+  }, [panelAbierto]);
   // Las fotos cargan después y agrandan el hilo, y el teclado lo achica: si
   // estaba al final, se queda al final.
   useEffect(() => {
@@ -532,7 +556,11 @@ export function MessageThread({
     <div className="flex h-full flex-col bg-background">
       {/* Header */}
       {/* Alto fijo: el nombre ocupa hasta dos filas y el estado no se achica (S8, tramos 8 y 9). */}
-      <div className="flex h-14 items-center justify-between gap-3 border-b border-border px-4">
+      {/* Segundo retrabajo del ítem 4 (06/11/2026), punto a, decisión de
+          pantalla de la revisión, vetable: en el teléfono, dos filas; arriba el
+          nombre (hasta dos líneas), abajo la ventana, el estado y «Cerrar».
+          Desde md, la fila de siempre. */}
+      <div className="flex flex-col gap-1.5 border-b border-border px-4 py-2 md:h-14 md:flex-row md:items-center md:justify-between md:gap-3 md:py-0">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <div className="relative shrink-0">
             {conversation.contacts?.avatar_url ? (
@@ -572,7 +600,7 @@ export function MessageThread({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 pl-11 md:pl-0">
           {conversation.is_automation_paused && (
             <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-medium text-orange-700">
               Automatización en pausa

@@ -154,7 +154,9 @@ describe("el encabezado con un nombre largo no se desborda", () => {
 
   it("el grupo del nombre puede achicarse", () => {
     const h = hiloLargo();
-    const grupo = h.match(/<div class="flex h-14[^"]*"><div class="([^"]*)">/);
+    // Segundo retrabajo del ítem 4 (06/11/2026): el encabezado es de dos filas
+    // en el teléfono y de alto fijo desde md (`md:h-14`).
+    const grupo = h.match(/<div class="flex flex-col[^"]*md:h-14[^"]*"><div class="([^"]*)">/);
     expect(grupo, "el grupo de la izquierda").not.toBeNull();
     expect(clasesDe(grupo)).toContain("min-w-0");
     const contenedor = h.match(new RegExp(`<div class="([^"]*)"><a [^>]*>${NOMBRE_LARGO}</a>`));

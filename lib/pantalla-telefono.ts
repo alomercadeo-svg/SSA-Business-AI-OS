@@ -38,3 +38,23 @@ export function ajusteAlTeclado(v: VistaVisible | null | undefined): { alto: num
 export function estaAlFinal(m: { scrollTop: number; scrollHeight: number; clientHeight: number }, margen = 80): boolean {
   return m.scrollHeight - m.scrollTop - m.clientHeight <= margen;
 }
+
+/**
+ * Segundo retrabajo del ítem 4 (06/11/2026), punto b: volver del panel del
+ * contacto deja el chat donde estaba. Se guarda al abrir el panel como
+ * «pegado al final» o «a tantos px del final» (no como `scrollTop`: si llegó
+ * un mensaje mientras tanto, el final se movió), y se repone al volver.
+ */
+export interface LugarDelHilo {
+  pegado: boolean;
+  desdeElFinal: number;
+}
+
+export function lugarDelHilo(m: { scrollTop: number; scrollHeight: number; clientHeight: number }): LugarDelHilo {
+  return { pegado: estaAlFinal(m), desdeElFinal: Math.max(0, m.scrollHeight - m.clientHeight - m.scrollTop) };
+}
+
+export function scrollParaVolver(l: LugarDelHilo, m: { scrollHeight: number; clientHeight: number }): number {
+  const final = Math.max(0, m.scrollHeight - m.clientHeight);
+  return l.pegado ? final : Math.max(0, final - l.desdeElFinal);
+}
