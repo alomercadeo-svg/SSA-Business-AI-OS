@@ -2860,7 +2860,7 @@ Cada ítem: tests nuevos vistos en rojo antes del cambio, `npm test` + `npm run 
   - **OK adelantado para el push:** el `--dry-run` lista solo esa; suite y `typecheck` en verde antes; antes de las 18:15; huella de las 13 funciones de la apertura de la 00049, donde cambia solo `contactos_filtrados`; catálogo: `invoker`, `authenticated` sí, `anon` no, una sola versión; con el código viejo, `verify-contactos` 101 de 101. No toca filas.
   - Verificador: `verify-contactos.mjs` suma pasos en su espacio fantasma (uno que escribió y uno que no; con el filtro aparece solo el primero, **rojo antes** porque la clave se ignora; sin el filtro, los dos; con un Member, solo su alcance). Los contactos nuevos se crean al final, para no cambiar los totales de los pasos de antes. La medición con el filtro, con el freno de 1,5 s.
   - Pantallas: Contactos con y sin el filtro, el buscador con un texto largo, en la computadora y en el teléfono.
-- [ ] **Ítem 6: Respuestas rápidas (F36, y el `deleted_at` de F30).** Completa. 180 min.
+- [x] **Ítem 6: Respuestas rápidas (F36, y el `deleted_at` de F30).** Completa. 180 min. **Hecho:** `9f3870a` (la guardia) y `1e3646b`, la 00052 aplicada a las 11:37 con todas las condiciones, desplegado a las 11:43, `verify-respuestas-rapidas` 26 de 26; «salida 0, pantallas sin mirar» (en «Plan maestro, ítem 6», abajo).
   - Tabla `response_templates` (id, workspace_id, nombre, atajo, contenido, created_by, created_at, updated_at, deleted_at), índice único de `(workspace_id, atajo)` entre las no eliminadas, seguridad por filas, leer para cualquier miembro (solo las no eliminadas), crear y editar para Owner y Admin, disparador de `updated_at`, y los tipos nuevos de `audit_log` si su `check` los acota.
   - **Antes de escribir las políticas:** si la de lectura esconde las eliminadas, marcar `deleted_at` desde el cliente puede fallar (no lo verifiqué). Se sigue el antecedente de la 00038 (eliminar y restaurar por función `security definer` que exige manager), o se verifica contra la documentación oficial de Postgres; el reporte dice cuál de las dos.
   - La purga de `lib/purga.ts` las borra a los 30 días. Variables `{{contact.display_name}}`, `{{contact.email}}`, `{{contact.phone}}`, `{{workspace.name}}`, vacías si faltan. En pantalla, siempre «Respuestas rápidas».
@@ -3128,6 +3128,65 @@ Los dos errores de las primeras corridas fueron de la preparación, no del filtr
 3. Contactos en el teléfono: el buscador a todo el ancho, los filtros debajo en dos columnas, y la tabla que se desplaza de costado.
 
 **Propuesta de tilde, para Marcos:** F43, «Un filtro deja afuera de la lista de Contactos a los contactos que nunca escribieron…», con el control positivo de `verify-contactos` (111 de 111, 11:17:45 del 06/11) y su mirada.
+
+### Plan maestro, ítem 6: Respuestas rápidas (F36, y el `deleted_at` de F30) (Bloque 4, medido)
+
+**06/11/2026, desde las 11:24** (hora de Costa Rica). Revisión completa (tabla nueva, seguridad por filas, purga). Estimación: 180 min. **Fin de la construcción: 11:36** (commit `1e3646b`). **Suma: 22 min** (de 11:24 a 11:50, menos la espera de Railway, de 11:39:39 a 11:43:07). Muy por debajo; ningún freno.
+
+**Antes de escribir las políticas (pedido de la revisión, punto 8b):** se siguió el antecedente de la 00038 y no se verificó contra la documentación de Postgres. Leer, miembros, sin las eliminadas; crear y editar, solo managers, con `deleted_at is null` en el `using` y el `with check`, así nadie elimina con un UPDATE directo; eliminar, solo por `eliminar_respuesta_rapida` (`security definer`, `search_path` vacío, exige `is_workspace_manager`); sin política de DELETE. El verificador lo probó contra producción (abajo).
+
+**Lo hecho, por commit:**
+- **`9f3870a`, la guardia de políticas** (pendiente (d) del 05/11, en su propio commit): `lib/guardia-politicas.ts` exige la línea «revisado contra bandeja_busca_con_acceso» y no una mención de paso. El test nuevo («una mención de paso no alcanza») **visto en rojo por su motivo**: «expected [] to deeply equal [ '00047_a.sql', '00048_b.sql' ]». La 00052 no toca las políticas de las cuatro tablas, así que la guardia no se dispara.
+- **`1e3646b`, F36:**
+  - **La 00052** (`supabase/migrations/00052_respuestas_rapidas.sql`): `response_templates` (nombre, atajo, contenido, `created_by`, `deleted_at`), el atajo único entre las no eliminadas del espacio, la seguridad por filas con sus tres políticas, el disparador de `updated_at` del fork y `eliminar_respuesta_rapida`. En el bundle y en §14c (33 tablas, 52 migraciones). Los tipos, en `lib/types/database.ts`.
+  - **La purga** (`lib/purga.ts`): borra las respuestas rápidas eliminadas hace más de 30 días, después de las notas; el resumen suma `respuestas`.
+  - **Las acciones** (`lib/actions/respuestas-rapidas.ts`): crear, editar y eliminar, solo Owner y Admin; un atajo repetido lo dice en claro. Cada cambio queda en el historial como «configuracion.cambiada» del espacio, con el nombre y el atajo y **sin el texto** (de un cambio de texto se anota que cambió). No hizo falta tocar las listas cerradas de `audit_log`.
+  - **La pantalla** Configuración › Respuestas rápidas (`/dashboard/settings/response-templates`), con `getWorkspaceAsManager`; los textos del prototipo. **Decisión de pantalla, vetable:** la columna y el campo «Nombre», que el prototipo no tenía y el criterio 2 pide (el selector busca por nombre o atajo); la confirmación al eliminar dice «Deja de aparecer en la bandeja y se borra definitivamente a los 30 días.». La entrada «Respuestas rápidas» del menú, solo Owner y Admin, entre Integraciones y Configuración (§11.1).
+  - **El «/» en la bandeja** (`components/inbox/selector-respuestas.tsx`, `lib/respuestas-rapidas.ts`, `message-thread.tsx`): «/» al principio o después de un espacio abre el selector encima del campo; busca por nombre o atajo, sin mayúsculas ni tildes; flechas, Enter y Escape; al elegir, reemplaza «/lo escrito» por el texto con `{{contact.display_name}}`, `{{contact.email}}`, `{{contact.phone}}` y `{{workspace.name}}`, vacías si falta el dato. Enter con el selector abierto elige y no envía. El campo dice «Escribí un mensaje… (usá / para respuestas rápidas)» (§11). Las respuestas las lee la página de la bandeja en el servidor, con la seguridad por filas. **En el teléfono:** el selector va encima del campo, a todo su ancho, con la lista desplazable (`absolute bottom-full left-0 right-0 … overflow-y-auto`).
+
+**El push de la 00052**, con el OK adelantado del plan:
+
+| Condición | Hora | Resultado |
+|---|---|---|
+| Suite y `typecheck`, antes | 11:36 | 1437 de 1437, salida 0; `typecheck`, salida 0 |
+| `--dry-run` | 11:36:42 | Listaba solo `00052_respuestas_rapidas.sql`, **salida 0 leída con `echo $?`, sin tubería**. Una primera corrida, a las 11:36:31, se leyó **a través de una tubería** (`| grep`, así que `$?` era el de `grep`); por eso se repitió |
+| Antes de las 18:15 | — | Sí |
+| Huella, antes y después | 11:36:44 y 11:37:14 | Las 16 funciones, iguales |
+| `npx supabase db push` | 11:37:00 a 11:37:03 | Salida 0 |
+| Catálogo | después de las 11:37:14 | `response_templates` con la seguridad por filas activa, 3 políticas (INSERT, SELECT y UPDATE, todas `authenticated`), ninguna para `anon`, 0 filas, el disparador; `eliminar_respuesta_rapida`: `definer`, una sola versión, `authenticated` sí, `anon` no |
+| Con el código viejo | 11:37:26, 11:37:49, 11:38:48 | `verify-bandeja` 43 de 43, `verify-filtros-bandeja` 135 de 135, `verify-ficha` 64 de 64, salida 0 |
+
+**El verificador nuevo**, `scripts/verify-respuestas-rapidas.mjs`:
+
+| Corrida | Hora | Resultado |
+|---|---|---|
+| Antes de la migración | 11:35:50 | Salida 1: la tabla no existía. **Rojo de carga, no cuenta** |
+| Después del push, antes de desplegar | 11:39:12 | 19 bien, 4 fallas, 2 no concluyentes, salida 1. **Los 14 de la base, en verde.** Por su motivo: el menú del Owner no traía «Respuestas rápidas» y la bandeja del Member no traía la viva (con sus dos no concluyentes). La pantalla nueva dio 404 al Owner y al Member: rojo de carga, no cuenta |
+| Después del despliegue | 11:43:15 | 24 bien, 1 falla: «el Member vuelve a /dashboard», con HTTP 200 |
+| **Verde** | 11:49:03 | **26 de 26, salida 0** |
+
+- **Los 14 pasos de la base no se vieron en rojo por su motivo:** antes de la migración, la tabla no existía. Se los nombra así.
+- **La comprobación cambiada después del despliegue:** exigía un 3xx. El panel tiene `loading.tsx`, así que la respuesta empieza a mandarse antes de la guarda, y la redirección de Next viaja dentro de la página, con estado 200, como `<meta id="__next-page-redirect" http-equiv="refresh" content="1;url=/dashboard">` (verificado en `node_modules/next/dist/server/app-render/make-get-server-inserted-html.js:52-61`). Ahora acepta las dos formas y **suma** una: la página del Member no trae la respuesta rápida (el Owner sí la recibió). No ablanda nada: la guarda la sigue exigiendo, y la falta de datos se prueba aparte.
+- La purga a los 30 días no está en el verificador: la corre la tarea programada, con su secreto (pedirlo es la compuerta 2). La cubre `lib/purga.test.ts`.
+
+**Tests vistos en rojo, por archivo:** la migración, 9 de 11 («existe» y «sin política de delete» **no**, pasaban con el esqueleto); `lib/respuestas-rapidas.test.ts`, 8 de 10 («sin texto, todas» y «una barra en medio de una palabra, no» **no**); `lib/purga.test.ts`, 2 cambiados, los 2 en rojo; las acciones, 6 de 7 («lo inválido no llega a la base» **no**); la pantalla y su guarda, 4 de 5 («nunca plantilla a secas» **no**: es de ausencia; lleva su control adentro, que la expresión agarra «plantilla» suelta y no «plantillas de WhatsApp»); el menú, 1 cambiado, en rojo; el selector, 4 de 4; los dos del texto del campo (`textos-voseo`, `ventana-pantalla`), cambiados, en rojo. **36 de 42 vistos en rojo; 6 no.** Además: `lib/tareas-programadas.test.ts` cambió solo su dato de ejemplo (el resumen suma `respuestas: 0`), sin test nuevo. **Los tests de la pantalla miran el HTML y la lógica; el selector en uso lo confirma Marcos.**
+
+**Antes de subir:** `npm test` 1437 de 1437, `typecheck`, `lint` (0 errores, 45 avisos) y `next build`, con salida 0.
+
+**Despliegue:** `node scripts/verificar-despliegue.mjs`, **salida 0, leída con `echo $?`**: lectura previa a las 11:39:39 (build `Ntt0YKrQulOetO2FykK-c`), push `0832d21..1e3646b`, el build pasó a `6WwzBLRkmck7m3RzuuNHY` a las 11:43:07, con `/login` en 200. **Toca la bandeja y Configuración: queda «salida 0, pantallas sin mirar».**
+
+**Lo que no se puede romper, después del despliegue** (salida con `echo $?`, limpieza en cero): `verify-bandeja` 43, `verify-filtros-bandeja` 135, `verify-seguimiento-bandeja` 51, `verify-estados-bandeja` 99, `verify-ventana-instagram` 63, `verify-ficha` 64, `verify-contactos` 111 y `verify-contenido-hilo` 18, desde las 11:43:26 hasta las 11:48:17, todos en verde. Las dos guardias de frontera y la de políticas, en `npm test`.
+
+**Lo que escribió en producción:** la 00052 (una tabla vacía y una función), y el verificador, en su espacio fantasma. Nada llamó a Zernio, Evolution, Resend ni Meta.
+
+**Lo que mira Marcos, recargando** (el espacio real no tiene ninguna respuesta rápida todavía):
+1. El menú, en la computadora y en el teléfono: «Respuestas rápidas» entre Integraciones y Configuración.
+2. Configuración › Respuestas rápidas vacía: «Todavía no hay respuestas rápidas» y «Nueva respuesta rápida».
+3. Crear una de prueba (por ejemplo, nombre «Prueba», atajo «prueba», texto «Hola {{contact.display_name}}, te escribe {{workspace.name}}»); editarla; un atajo repetido da el aviso.
+4. En la bandeja, en la conversación de @marcospittimusic en @poderosascomunidad: escribir «/pru», elegir con Enter o tocándola, y ver el texto con el nombre del contacto y del espacio. **No hace falta enviarlo.** En el teléfono: el selector encima del campo, a todo el ancho.
+5. Eliminarla: deja de aparecer en la lista y en el «/».
+
+**Propuesta de tildes, para Marcos:** F36, los 6 criterios, y F30, «Campo `deleted_at` en contactos, notas, conversaciones y respuestas rápidas…», con `verify-respuestas-rapidas` (26 de 26, 11:49:03 del 06/11), los tests de esta sección (11:36) y su mirada. Que la purga las borre a los 30 días está probado solo en Vitest.
 
 ---
 

@@ -159,7 +159,17 @@ await correr(async () => {
   const po = await pagina(owner, "/dashboard/settings/response-templates");
   check(po.status === 200 && po.html.includes(">Respuestas rápidas</h1>") && po.html.includes(`>${R.dos.nombre}<`), "el Owner la abre y ve la suya", `HTTP ${po.status}`);
   const pm = await pagina(member, "/dashboard/settings/response-templates");
-  check(pm.status >= 300 && pm.status < 400 && (pm.location ?? "").endsWith("/dashboard"), "el Member vuelve a /dashboard", `HTTP ${pm.status} → ${pm.location}`);
+  // El panel tiene `loading.tsx`: la respuesta empieza a mandarse antes de la
+  // guarda, y entonces la redirección de Next viaja en la página, con estado
+  // 200, como `<meta id="__next-page-redirect" http-equiv="refresh"
+  // content="1;url=/dashboard">` (node_modules/next/dist/server/app-render/
+  // make-get-server-inserted-html.js:52-61). Se aceptan las dos formas.
+  // Cambiado el 06/11/2026 después de la primera corrida con el código nuevo,
+  // que dio 200: la comprobación exigía un 3xx.
+  const redirige = (pm.status >= 300 && pm.status < 400 && (pm.location ?? "").endsWith("/dashboard")) ||
+    (pm.status === 200 && /<meta[^>]*id="__next-page-redirect"[^>]*content="\d;url=\/dashboard"/.test(pm.html));
+  check(redirige, "el Member vuelve a /dashboard", `HTTP ${pm.status} → ${pm.location ?? "(en la página)"}`);
+  check(!pm.html.includes(R.dos.nombre) && !pm.html.includes(R.dos.contenido), "la página del Member no trae la respuesta rápida (el Owner sí la recibió)");
 
   titulo("El menú: «Respuestas rápidas» para el Owner, no para el Member");
   const io = await pagina(owner, "/dashboard/inbox");
