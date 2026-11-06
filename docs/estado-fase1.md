@@ -2835,7 +2835,7 @@ Cada ítem: tests nuevos vistos en rojo antes del cambio, `npm test` + `npm run 
   - Diagnóstico, verificado en el código: el botón «X» y el fondo del visor tienen los dos `onClick={onCerrar}` (`components/inbox/visor-foto.tsx:46` y `:51`), y el clic del botón sube al fondo, así que `history.back()` corre dos veces (`lib/visor-foto.ts:28`); Escape lo llama una sola vez (`:22`). La segunda vuelta atrás sale de la bandeja a la entrada anterior del historial. El `replaceState` (`inbox-view.tsx:103`, `conversation-list.tsx:155`) explica adónde vuelve, no por qué vuelve dos veces. Por qué en Instagram no se vio es inferencia.
   - El cambio: `cerrar()` vuelve atrás una sola vez aunque se llame dos, y el botón corta la propagación. Tests: «cerrar dos veces vuelve atrás una sola vez», «el botón X no sube al fondo»; control: Escape y el gesto de volver siguen cerrando.
   - Pantallas: la foto de WhatsApp y la de Instagram, con «X», Escape y el gesto de volver, en la computadora y en el teléfono.
-- [ ] **Ítem 3a: el enlace de una publicación compartida (F44, criterio 1).** Completa. 40 min. **A medias:** espera que Marcos abra el enlace armado (en «Plan maestro, ítem 3a», abajo).
+- [ ] **Ítem 3a: el enlace de una publicación compartida (F44, criterio 1).** Completa. 40 min. **A medias:** el enlace armado no abrió; construido sin botón y con el título (`a5b9baa`, sin desplegar); espera el texto del criterio y que Marcos mire el ítem 2 (en «Plan maestro, ítem 3a», abajo).
   - Primero, la documentación oficial de Meta (solo lectura de la web): si dice cómo pasar de `ig_post_media_id` al código corto de la dirección. Si no lo dice, se dice así.
   - **Lectura autorizada por adelantado:** el valor de `ig_post_media_id` del mensaje `cd5c503f`, solo ese campo.
   - Se arma el candidato `https://www.instagram.com/p/<código>/` en local, sin ninguna llamada, y Marcos lo abre. Si abre la publicación, «Ver en Instagram» usa ese enlace y `lookaside.fbsbx.com` sale de los hosts permitidos para las publicaciones. Si no abre, el criterio se reescribe con el texto decidido el 05/11 a las 19:00: «- [ ] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con su título, en vez de «Adjunto», y sin botón para abrirla. No se descarga ni se guarda ningún archivo: se guarda solo el título.», registrado como reescrito en `criterios-bajas.json`, y se saca el botón.
@@ -2993,6 +2993,29 @@ El cierre siempre entra. A la hora de aviso: npm test en verde, subida con verif
 3. **El candidato, armado en local sin ninguna llamada**, con la conversión conocida de número a código corto (base 64 con el alfabeto `A-Z a-z 0-9 - _`, de foros, **no de documentación oficial**): `https://www.instagram.com/p/BAIXou03xY/`.
    - **Inferencia, no verificada: lo más probable es que no abra la publicación.** El número tiene 17 cifras y empieza con 18, la forma de los identificadores de la API Graph de Meta; la conversión de foros vale para otro número, el identificador interno de Instagram (de unas 19 cifras). Y el código que sale tiene 10 caracteres, cuando los de las direcciones suelen tener 11.
 4. **Espera a Marcos:** abrir ese enlace en el navegador (cualquier sesión de Instagram) y decir qué abre. Si abre la publicación compartida a las 17:35, el criterio queda como está y «Ver en Instagram» usa el enlace armado. Si no, el criterio se reescribe con el texto decidido el 05/11 a las 19:00 (en el plan maestro) y se saca el botón.
+
+5. **Lo que abrió, dicho por Marcos el 06/11, poco después de las 09:50:** «Sorry, this page isn't available. The link you followed may be broken, or the page may have been removed.» **El enlace armado no abre la publicación.** Por lo decidido el 05/11 a las 19:00, el criterio 1 se reescribe y se saca el botón.
+6. **El cambio**, `a5b9baa` (desde las 09:51; fin de la construcción, 10:02): la publicación compartida viaja al navegador con su `titulo` (de `payload.title`, con los espacios juntados y cortado a 300 caracteres con «…», `tituloDelCompartido` en `lib/contenido-hilo.ts`) y **sin enlace**; el hilo muestra «Compartió una publicación» y, debajo, el título entre comillas, en cursiva, hasta tres líneas; **sin «Ver en Instagram»**, aunque le llegue un enlace. El reel conserva su botón. `lookaside.fbsbx.com` sale de `HOSTS_DEL_ENLACE`: la excepción del 05/11 a la regla «la dirección del proveedor no sale del servidor» queda solo para los reels, de instagram.com. **Decisión de pantalla, vetable:** el título en cursiva y entre comillas, para que no se confunda con un mensaje escrito por el lead. **En el teléfono:** el título se corta en tres líneas y no ensancha la burbuja (`line-clamp-3 break-words`).
+
+| Comprobación | En rojo |
+|---|---|
+| `lib/contenido-hilo.test.ts`, «el enlace: solo https y solo instagram.com» (**cambiada**: antes aceptaba `lookaside.fbsbx.com`) | vista en rojo, por su motivo: «expected 'https://lookaside.fbsbx.com/ig_messag…' to be null» |
+| el título sale de `payload.title`, sin espacios de más (nueva) | primero rojo de carga (la función no existía, no cuenta); con un esqueleto que devuelve nulo, **vista en rojo por su motivo**: «expected null to be '<título de prueba>'» |
+| sin título, vacío o que no es texto: nulo (nueva) | **no vista en rojo**: pasa con el esqueleto; es de ausencia |
+| se corta en el máximo, con «…» (nueva) | rojo de carga y, con el esqueleto, **vista en rojo por su motivo** |
+| `route.test.ts`, la publicación viaja con su título y sin enlace (**cambiada**: antes exigía el enlace) | vista en rojo, por su motivo |
+| `burbuja-adjuntos.test.ts`, la publicación con su título y sin botón (**cambiada**: antes exigía el botón con `lookaside`) | vista en rojo, por su motivo |
+| la publicación no muestra botón aunque le llegue un enlace (nueva) | vista en rojo, por su motivo |
+
+**6 de 7 vistos en rojo por su motivo; 1 no visto en rojo.** Cuatro son tests existentes cambiados, porque el criterio cambió.
+
+**El verificador cambió después de su rojo del 05/11** (`scripts/verify-contenido-hilo.mjs`): la comprobación de la publicación exigía el enlace de `lookaside.fbsbx.com`; ahora exige el título y que no haya enlace. **No ablanda nada:** sigue exigiendo `compartido: "publicacion"` y suma dos condiciones; ningún otro paso cambió. **Corrida roja contra producción, antes de desplegar**, de 10:01:35 a 10:01:50, **salida 1, leída con `echo $?`**: 17 bien, 1 falla, por su motivo (la publicación llega como `{"type":"share","compartido":"publicacion","enlace":"https://lookaside.fbsbx.com/…"}`, el enlace inventado del fixture). Limpieza en cero.
+
+**Antes de commitear:** `npm test`, 1372 de 1372, salida 0; `typecheck`, salida 0; `lint`, salida 0 (0 errores, 45 avisos, los mismos).
+
+7. **Falta, y espera a Marcos:** (a) el texto del criterio reescrito en el plano (la pregunta de abajo); (b) **el despliegue de `a5b9baa` no se hizo**: toca el hilo, la misma pantalla que el ítem 2, que todavía está «salida 0, pantallas sin mirar» (regla de la sección 5). Se sube cuando Marcos mire el ítem 2 o diga que se suba.
+
+**La pregunta del texto del criterio.** El texto aprobado en el plan termina en «No se descarga ni se guarda ningún archivo: se guarda solo el título.». **La última frase no sería cierta:** la base guarda el adjunto entero que manda el aviso (con su enlace y su `ig_post_media_id`), igual que antes; lo que cambia es lo que se muestra. **Recomendación:** terminar en «No se descarga ni se guarda ningún archivo.», sin la última frase.
 
 ---
 
