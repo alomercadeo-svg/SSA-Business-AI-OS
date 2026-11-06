@@ -682,6 +682,45 @@ export interface Database {
           },
         ];
       };
+      /** F36 (00052). Respuestas rápidas: las leen los miembros (sin las eliminadas), las cambian Owner y Admin. */
+      response_templates: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          nombre: string;
+          atajo: string;
+          contenido: string;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+          deleted_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          nombre: string;
+          atajo: string;
+          contenido: string;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          deleted_at?: string | null;
+        };
+        Update: {
+          nombre?: string;
+          atajo?: string;
+          contenido?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "response_templates_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       /** F29 (00039). «¿Es la misma persona?»: las escribe el receptor; se descartan con `descartar_sugerencia`. */
       sugerencias_union: {
         Row: {
@@ -1716,6 +1755,11 @@ export interface Database {
       eliminar_contacto: {
         Args: { p_contacto: string };
         Returns: Json;
+      };
+      /** F36 (00052). Owner y Admin: marca `deleted_at`; false si no correspondía. */
+      eliminar_respuesta_rapida: {
+        Args: { p_id: string };
+        Returns: boolean;
       };
       /** F30 (00038). Owner y Admin (`manual`), o el servidor (`mensaje_entrante`). */
       restaurar_contacto: {

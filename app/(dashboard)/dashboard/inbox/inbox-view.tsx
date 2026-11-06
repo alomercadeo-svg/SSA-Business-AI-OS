@@ -16,6 +16,7 @@ import { conConversacion, crearVigiaDeLaDireccion } from "@/lib/direccion-bandej
 import { volverDe } from "@/lib/ficha";
 import { clasesDeLaLista, clasesDelHilo, clasesDelPanel } from "@/lib/columnas-bandeja";
 import { conectarHiloEnTelefono, esAnchoDeTelefono } from "@/lib/historial-bandeja";
+import type { RespuestaRapida } from "@/lib/respuestas-rapidas";
 import type { Database } from "@/lib/types/database";
 
 type Conversation = Database["public"]["Tables"]["conversations"]["Row"] & {
@@ -32,6 +33,8 @@ export function InboxView({
   workspaceId,
   zonaDelNegocio = "America/Costa_Rica",
   conversacionInicial = null,
+  respuestas = [],
+  nombreDelEspacio = null,
 }: {
   /** La primera página de la lista, leída por el servidor (F35). */
   inicial: InicialDeLaLista;
@@ -52,6 +55,10 @@ export function InboxView({
    * las que carga la lista; la lista y su orden no cambian.
    */
   conversacionInicial?: Conversation | null;
+  /** F36: las Respuestas rápidas del espacio, para «/». */
+  respuestas?: RespuestaRapida[];
+  /** F36: el nombre del espacio, para `{{workspace.name}}`. */
+  nombreDelEspacio?: string | null;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Conversation | null>(conversacionInicial);
@@ -335,6 +342,8 @@ export function InboxView({
               volverALaBandeja={volver}
               zona={zonaDelNegocio}
               ahora={ahora}
+              respuestas={respuestas}
+              nombreDelEspacio={nombreDelEspacio}
               alGuardarSeguimiento={() => {
                 setVersionDelPanel((n) => n + 1);
                 setListaDesactualizada((n) => n + 1);

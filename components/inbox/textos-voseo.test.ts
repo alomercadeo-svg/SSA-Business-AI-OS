@@ -68,7 +68,7 @@ describe("el hilo", () => {
     const h = renderToStaticMarkup(createElement(MessageThread, { conversation: conversacion as never, messages: [] }));
     expect(h).toContain("Sin nombre");
     expect(h).toContain("Automatización en pausa");
-    expect(h).toContain('placeholder="Escribí un mensaje..."');
+    expect(h).toContain('placeholder="Escribí un mensaje… (usá / para respuestas rápidas)"');
     expect(h).toContain('aria-label="Enviar mensaje"');
     for (const viejo of ["Unknown", "Bot paused", "Type a message", "Send message"]) expect(h).not.toContain(viejo);
   });

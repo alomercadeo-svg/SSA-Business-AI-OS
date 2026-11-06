@@ -6,6 +6,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   GitBranch,
   MessageSquare,
+  MessageSquareText,
   Users,
   Radio,
   ListOrdered,
@@ -49,7 +50,7 @@ function subscribeToThemeClass(callback: () => void) {
 /**
  * El menú de §11.1 (escrito el 07/10/2026, del prototipo aprobado el 06/10):
  * Bandeja y Contactos para todos; Canales, Integraciones y Configuración solo
- * para Owner y Admin (Respuestas rápidas se suma con F36). Esconderlas es
+ * para Owner y Admin, con Respuestas rápidas (F36). Esconderlas es
  * comodidad: el control real es la guarda del servidor en cada página
  * (`getWorkspaceAsManager`). Growth, del fork, no aparece.
  */
@@ -58,6 +59,7 @@ const navigation = [
   { name: "Contactos", href: "/dashboard/contacts", icon: Users },
   { name: "Canales", href: "/dashboard/channels", icon: Plug, soloManagers: true },
   { name: "Integraciones", href: "/dashboard/settings/integrations", icon: KeyRound, soloManagers: true },
+  { name: "Respuestas rápidas", href: "/dashboard/settings/response-templates", icon: MessageSquareText, soloManagers: true },
   { name: "Configuración", href: "/dashboard/settings", icon: Settings, soloManagers: true },
 ];
 

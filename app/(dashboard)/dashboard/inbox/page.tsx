@@ -30,13 +30,22 @@ export default async function InboxPage({
   // Lo que ofrece el panel de filtros: las etiquetas del espacio, las
   // plataformas con algún canal activo y, en «Asignación», el equipo para
   // Owner y Admin, o solo quien mira si es Member (lib/miembros-bandeja.ts).
-  const [pagina, cantidades, etiquetas, canalesActivos, miembros] = await Promise.all([
+  // F36: las Respuestas rápidas, para «/» en el campo de escritura. Las lee la
+  // seguridad por filas (00052): cualquier miembro, sin las eliminadas.
+  const [pagina, cantidades, etiquetas, canalesActivos, miembros, respuestasRapidas] = await Promise.all([
     leerPaginaDeBandeja(supabase, workspace.id, { estado, busqueda, cursor: null, filtros }),
     leerCantidades(supabase, workspace.id, busqueda, filtros),
     supabase.from("tags").select("id, name").eq("workspace_id", workspace.id).order("name"),
     supabase.from("channels").select("platform").eq("workspace_id", workspace.id).eq("is_active", true),
     miembrosParaLaBandeja(role, user, workspace.id),
+    supabase
+      .from("response_templates")
+      .select("id, nombre, atajo, contenido")
+      .eq("workspace_id", workspace.id)
+      .is("deleted_at", null)
+      .order("nombre"),
   ]);
+  if (respuestasRapidas.error) console.error("[inbox] no se pudieron leer las respuestas rápidas:", respuestasRapidas.error.message);
   const plataformasActivas = new Set((canalesActivos.data ?? []).map((c) => c.platform));
   const opcionesDeFiltros: OpcionesDeFiltros = {
     etiquetas: etiquetas.data ?? [],
@@ -87,6 +96,8 @@ export default async function InboxPage({
           workspaceId={workspace.id}
           zonaDelNegocio={workspace.zona_horaria}
           conversacionInicial={conversacionInicial}
+          respuestas={respuestasRapidas.data ?? []}
+          nombreDelEspacio={workspace.name}
         />
       </div>
     </div>

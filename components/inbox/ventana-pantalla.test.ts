@@ -82,7 +82,7 @@ describe("el encabezado del hilo: siempre el estado", () => {
 
 describe("el campo de respuesta", () => {
   it("abierta: acepta texto libre", () => {
-    expect(hilo(conv({ window_expires_at: vence(10 * H) }))).toMatch(/<textarea[^>]*placeholder="Escribí un mensaje..."/);
+    expect(hilo(conv({ window_expires_at: vence(10 * H) }))).toMatch(/<textarea[^>]*placeholder="Escribí un mensaje… \(usá \/ para respuestas rápidas\)"/);
   });
   it("por vencer: el campo, con la línea de ayuda (D4)", () => {
     const h = hilo(conv({ window_expires_at: vence(80 * 60000) }));

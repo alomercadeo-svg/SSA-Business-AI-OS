@@ -6,7 +6,7 @@ import { join } from "node:path";
  * El menú (§11.1, tal como lo pide el plano; decisión de la revisión del
  * 06/11/2026 para el ítem 4 del plan maestro): en voseo; Bandeja y Contactos
  * para todos; Canales, Integraciones y Configuración solo para Owner y Admin
- * (Respuestas rápidas se suma con F36); un grupo «Llegan más adelante» con
+ * y Respuestas rápidas (F36, desde el 06/11/2026); un grupo «Llegan más adelante» con
  * Flujos, Secuencias y Difusiones («Fase 2») y Analíticas («Fase 3»), que no
  * llevan a las pantallas del fork; y sin Growth.
  *
@@ -30,9 +30,10 @@ describe("quién ve qué en el menú", () => {
     expect(nombres(undefined)).toEqual(["Bandeja", "Contactos"]);
   });
 
-  it("control positivo: Owner y Admin ven también Canales, Integraciones y Configuración", () => {
+  // Cambiado el 06/11/2026 (F36, ítem 6): suma «Respuestas rápidas», en el orden de §11.1.
+  it("control positivo: Owner y Admin ven también Canales, Integraciones, Respuestas rápidas y Configuración", () => {
     for (const rol of ["owner", "admin"]) {
-      expect(nombres(rol)).toEqual(["Bandeja", "Contactos", "Canales", "Integraciones", "Configuración"]);
+      expect(nombres(rol)).toEqual(["Bandeja", "Contactos", "Canales", "Integraciones", "Respuestas rápidas", "Configuración"]);
     }
   });
 

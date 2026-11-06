@@ -51,7 +51,8 @@ describe("la purga de F30", () => {
     expect(corteDePurga(AHORA)).toBe("2026-09-20T12:00:00.000Z");
   });
 
-  it("borra los archivos primero y después las filas: conversaciones, contactos y notas", async () => {
+  // Cambiado el 06/11/2026 (F36, ítem 6): suma las respuestas rápidas, al final.
+  it("borra los archivos primero y después las filas: conversaciones, contactos, notas y respuestas rápidas", async () => {
     const { servicio, pedidos } = baseFalsa({ contactos: ["c1"], convDeContactos: ["v1"], convSueltas: ["v2"], rutas: ["ws/v1/m1/archivo.jpg"] });
     const orden: string[] = [];
     const borradas: string[][] = [];
@@ -62,15 +63,17 @@ describe("la purga de F30", () => {
       },
     };
     const r = await purgarEspacio({ servicio: servicio as never, workspaceId: "ws", ahora: AHORA, almacen });
-    expect(r).toEqual({ contactos: 1, conversaciones: 2, notas: 0, archivos: 1 });
+    expect(r).toEqual({ contactos: 1, conversaciones: 2, notas: 0, respuestas: 0, archivos: 1 });
     expect(borradas).toEqual([["ws/v1/m1/archivo.jpg"]]);
     expect(orden).toEqual(["storage:0"]); // cuando se borró Storage, todavía no había ningún DELETE
-    expect(pedidos.filter((p) => p.op === "delete").map((p) => p.tabla)).toEqual(["conversations", "contacts", "contact_notes"]);
+    expect(pedidos.filter((p) => p.op === "delete").map((p) => p.tabla)).toEqual(["conversations", "contacts", "contact_notes", "response_templates"]);
     // Siempre dentro del espacio y con el corte de 30 días.
     const contactos = pedidos.find((p) => p.tabla === "contacts" && p.op === "select")!;
     expect(contactos.filtros).toEqual([["eq", "workspace_id", "ws"], ["lt", "deleted_at", "2026-09-20T12:00:00.000Z"]]);
     const notas = pedidos.find((p) => p.tabla === "contact_notes")!;
     expect(notas.filtros).toEqual([["eq", "workspace_id", "ws"], ["lt", "deleted_at", "2026-09-20T12:00:00.000Z"]]);
+    const respuestas = pedidos.find((p) => p.tabla === "response_templates")!;
+    expect(respuestas.filtros).toEqual([["eq", "workspace_id", "ws"], ["lt", "deleted_at", "2026-09-20T12:00:00.000Z"]]);
   });
 
   it("si Storage falla, no borra ninguna fila: la purga del otro día lo vuelve a intentar", async () => {
@@ -84,9 +87,9 @@ describe("la purga de F30", () => {
     const { servicio, pedidos } = baseFalsa({ contactos: [], convDeContactos: [], convSueltas: [], rutas: [] });
     let llamadas = 0;
     const r = await purgarEspacio({ servicio: servicio as never, workspaceId: "ws", ahora: AHORA, almacen: { borrar: async () => void llamadas++ } });
-    expect(r).toEqual({ contactos: 0, conversaciones: 0, notas: 0, archivos: 0 });
+    expect(r).toEqual({ contactos: 0, conversaciones: 0, notas: 0, respuestas: 0, archivos: 0 });
     expect(llamadas).toBe(0);
-    expect(pedidos.filter((p) => p.op === "delete").map((p) => p.tabla)).toEqual(["contact_notes"]);
+    expect(pedidos.filter((p) => p.op === "delete").map((p) => p.tabla)).toEqual(["contact_notes", "response_templates"]);
   });
 
   it("con más de 1000 archivos, los borra todos: pagina en vez de quedarse con las primeras 1000 filas", async () => {

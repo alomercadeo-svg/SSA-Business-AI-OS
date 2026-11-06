@@ -59,6 +59,8 @@ export interface ResumenDePurga {
   contactos: number;
   conversaciones: number;
   notas: number;
+  /** F36 (00052): las respuestas rápidas eliminadas hace más de 30 días. */
+  respuestas: number;
   archivos: number;
 }
 
@@ -155,11 +157,20 @@ export async function purgarEspacio({
     .lt("deleted_at", corte)
     .select("id");
   if (errNotas) throw new Error(`contact_notes: ${errNotas.message}`);
+  // F36 (00052): las respuestas rápidas, que no tienen archivos ni cascada.
+  const { data: respuestas, error: errRespuestas } = await servicio
+    .from("response_templates")
+    .delete()
+    .eq("workspace_id", workspaceId)
+    .lt("deleted_at", corte)
+    .select("id");
+  if (errRespuestas) throw new Error(`response_templates: ${errRespuestas.message}`);
 
   return {
     contactos: contactos.length,
     conversaciones: conversaciones.length,
     notas: (notas ?? []).length,
+    respuestas: (respuestas ?? []).length,
     archivos: rutas.length,
   };
 }

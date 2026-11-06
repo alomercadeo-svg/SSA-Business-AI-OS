@@ -23,6 +23,8 @@ import { MarcaDeVentana } from "@/components/inbox/marca-ventana";
 import { inicialDe, nombreDeConversacion } from "@/lib/nombre-visible";
 import { BloqueVentanaCerrada } from "@/components/inbox/ventana-cerrada";
 import { FotoDelHilo } from "@/components/inbox/visor-foto";
+import { SelectorDeRespuestas } from "@/components/inbox/selector-respuestas";
+import { aplicarRespuesta, barraEn, filtrarRespuestas, interpolar, moverEleccion, type Barra, type RespuestaRapida } from "@/lib/respuestas-rapidas";
 import { AVISO_VENTANA_CERRADA, estadoDeVentana, textoDeVence } from "@/lib/ventana-instagram";
 
 /**
@@ -202,6 +204,8 @@ export function MessageThread({
   zona = "America/Costa_Rica",
   alGuardarSeguimiento,
   ahora,
+  respuestas = [],
+  nombreDelEspacio = null,
 }: {
   conversation: Conversation | null;
   messages: Message[];
@@ -221,6 +225,10 @@ export function MessageThread({
   alGuardarSeguimiento?: () => void;
   /** F40: la hora del reloj de la bandeja (`useAhora`), para la ventana de Instagram. */
   ahora?: number;
+  /** F36: las Respuestas rápidas del espacio, para «/» (las lee la seguridad por filas: sin las eliminadas). */
+  respuestas?: RespuestaRapida[];
+  /** F36: el nombre del espacio, para `{{workspace.name}}`. */
+  nombreDelEspacio?: string | null;
 }) {
   const ahoraMs = ahora ?? Date.now();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -232,6 +240,31 @@ export function MessageThread({
   // Al sumar arriba, el hilo no baja al final y conserva lo que se estaba leyendo.
   const alturaAntesDeSumar = useRef<number | null>(null);
   const [input, setInput] = useState("");
+  // F36: la «/» que abrió el selector, y cuál está elegida con el teclado.
+  const [barra, setBarra] = useState<Barra | null>(null);
+  const [elegida, setElegida] = useState(0);
+  const opciones = barra ? filtrarRespuestas(respuestas, barra.consulta) : [];
+  const leerBarra = (el: HTMLTextAreaElement) => {
+    const b = respuestas.length > 0 ? barraEn(el.value, el.selectionStart ?? el.value.length) : null;
+    setBarra(b);
+    if (!b || b.consulta !== barra?.consulta) setElegida(0);
+  };
+  const elegirRespuesta = (indice: number) => {
+    const r = opciones[indice];
+    if (!r || !barra) return;
+    const contenido = interpolar(r.contenido, { contacto: conversation?.contacts ?? null, espacio: { name: nombreDelEspacio } });
+    const { texto, cursor } = aplicarRespuesta(input, barra, contenido);
+    setInput(texto);
+    setBarra(null);
+    setElegida(0);
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(cursor, cursor);
+      autoResize();
+    });
+  };
   const [sending, setSending] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState<string | null>(null);
   const [avisoDeEstado, setAvisoDeEstado] = useState<{ texto: string; error: boolean } | null>(null);
@@ -609,21 +642,43 @@ export function MessageThread({
         ) : (
         <>
         <div className="mx-auto flex max-w-2xl items-end gap-2">
-          <div className="flex-1">
+          <div className="relative flex-1">
+            {/* F36: «/» abre las Respuestas rápidas. */}
+            {barra && <SelectorDeRespuestas opciones={opciones} elegida={elegida} alElegir={elegirRespuesta} />}
             <textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
+                leerBarra(e.target);
                 autoResize();
               }}
+              onClick={(e) => leerBarra(e.currentTarget)}
+              onBlur={() => setBarra(null)}
               onKeyDown={(e) => {
+                if (barra) {
+                  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setElegida((i) => moverEleccion(i, opciones.length, e.key as "ArrowDown" | "ArrowUp"));
+                    return;
+                  }
+                  if (e.key === "Enter" && opciones.length > 0) {
+                    e.preventDefault();
+                    elegirRespuesta(elegida);
+                    return;
+                  }
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    setBarra(null);
+                    return;
+                  }
+                }
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   handleSend();
                 }
               }}
-              placeholder="Escribí un mensaje..."
+              placeholder="Escribí un mensaje… (usá / para respuestas rápidas)"
               rows={1}
               className="w-full resize-none rounded-lg border border-input bg-background px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               style={{ maxHeight: 150 }}

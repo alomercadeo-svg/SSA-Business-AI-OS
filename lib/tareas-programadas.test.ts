@@ -189,7 +189,7 @@ describe("el reintento de adjuntos de F28 en la misma corrida", () => {
 });
 
 describe("la purga de F30 en la misma corrida", () => {
-  const vacio = { contactos: 0, conversaciones: 0, notas: 0, archivos: 0 };
+  const vacio = { contactos: 0, conversaciones: 0, notas: 0, respuestas: 0, archivos: 0 };
 
   it("corre por espacio y escribe su marca con el resumen (control positivo)", async () => {
     const { servicio, tareas } = baseFalsa([ESPACIO, { ...ESPACIO, id: "ws-2" }]);
