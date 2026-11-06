@@ -2765,6 +2765,12 @@ En su chat de revisión. Fuera de la medición. Cada una está marcada `[x]` en 
 
 **Criterios que quedarían para que Marcos decida (no se tildó nada):** de F44, el 1 (si «Ver en Instagram» abre la publicación), el 2 y el 4 (`requerimientos-fase1.md:1218`, `:1219` y `:1221`). El 3 sigue sin construir.
 
+**Lo que vio Marcos en la bandeja, recargando (05/11/2026, después de las 18:30, captura en el chat):** en c6628c4e, «Compartió una publicación» con «Ver en Instagram», «Compartió un reel» con «Ver en Instagram», el `ephemeral` como «Adjunto» y el video de la cámara con su reproductor. **«Ver en Instagram» de la publicación lleva a `lookaside.fbsbx.com/ig_messaging_cdn/…`, no a la publicación.** Por lo acordado, **el criterio 1 no se tilda y se decide en la próxima sesión.** Marcos prefiere que abra la publicación en Instagram web.
+- **Lo que se sabe:** el aviso no trae el enlace de la publicación; lo único que la identifica es `payload.ig_post_media_id`. Los tipos de `@zernio/node` no mencionan `ig_post_media_id` ni un enlace para un mensaje compartido (búsqueda de `ig_post_media_id`, `permalink` y `shortcode` el 05/11/2026 a las 18:41: los `permalink` que hay son de publicaciones, anuncios e historias de la propia cuenta).
+- **Sin verificar:** armar `instagram.com/p/<código>/` desde ese número. La conversión conocida de número a código corto probablemente no vale para los identificadores de 17 o 18 dígitos de la API de Meta (inferencia).
+- **Para la próxima sesión, en este orden:** que Marcos pruebe a mano en el navegador si el código armado abre la publicación (sin ninguna llamada nuestra); si no, preguntar a Zernio cómo obtener el enlace (se pide antes).
+- **Falta todavía:** la foto a pantalla completa (Instagram y WhatsApp, con «X», Escape y el gesto de volver) y los títulos de los dos despliegues de Railway (18:20 y 18:29).
+
 ---
 
 ## Siguiente paso
