@@ -426,8 +426,12 @@ export function ConversationList({
               {/* Content */}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between">
-                  <p className="truncate text-sm font-medium">
-                    {nombreDeConversacion(conversation)}
+                  <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium">
+                    <span className="truncate">{nombreDeConversacion(conversation)}</span>
+                    {/* F34: pidió no recibir más mensajes. */}
+                    {conversation.contacts?.do_not_contact && (
+                      <span className="shrink-0 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-800 dark:bg-red-950 dark:text-red-300">No contactar</span>
+                    )}
                   </p>
                   <span
                     suppressHydrationWarning

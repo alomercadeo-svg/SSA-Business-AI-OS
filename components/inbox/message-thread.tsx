@@ -22,6 +22,7 @@ import type { Database } from "@/lib/types/database";
 import { MarcaDeVentana } from "@/components/inbox/marca-ventana";
 import { inicialDe, nombreDeConversacion } from "@/lib/nombre-visible";
 import { BloqueVentanaCerrada } from "@/components/inbox/ventana-cerrada";
+import { AVISO_NO_CONTACTAR } from "@/lib/no-contactar-texto";
 import { FotoDelHilo } from "@/components/inbox/visor-foto";
 import { SelectorDeRespuestas } from "@/components/inbox/selector-respuestas";
 import { estaAlFinal, lugarDelHilo, scrollParaVolver, type LugarDelHilo } from "@/lib/pantalla-telefono";
@@ -299,6 +300,8 @@ export function MessageThread({
     setVentanaActual(conversation?.window_expires_at ?? null);
     setAvisoDeEnvio(null);
   }, [conversation?.id, conversation?.window_expires_at]);
+  // F34: el contacto pidió no recibir más mensajes.
+  const noContactar = Boolean(conversation?.contacts?.do_not_contact);
   const ventana = conversation ? estadoDeVentana({ platform: conversation.platform, window_expires_at: ventanaActual }, ahoraMs) : null;
 
   const updateConversationStatus = useCallback(async (status: EstadoDeConversacion) => {
@@ -601,6 +604,9 @@ export function MessageThread({
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2 pl-11 md:pl-0">
+          {noContactar && (
+            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-800 dark:bg-red-950 dark:text-red-300">No contactar</span>
+          )}
           {conversation.is_automation_paused && (
             <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-medium text-orange-700">
               Automatización en pausa
@@ -690,7 +696,11 @@ export function MessageThread({
             {avisoDeEnvio}
           </p>
         )}
-        {ventana?.estado === "cerrada" ? (
+        {noContactar ? (
+          <div className="mx-auto max-w-2xl rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100" role="status">
+            {AVISO_NO_CONTACTAR}
+          </div>
+        ) : ventana?.estado === "cerrada" ? (
           <div className="mx-auto max-w-2xl">
             <BloqueVentanaCerrada
               volver={volverALaBandeja}
