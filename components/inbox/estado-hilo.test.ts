@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
+import { clasesDelHilo } from "@/lib/columnas-bandeja";
 import { join } from "node:path";
 
 /**
@@ -184,16 +185,23 @@ const clasesDelBloque = (archivo: string, despuesDe: string) => {
   return m ? m[1].split(/\s+/) : [];
 };
 
+// Cambiado el 06/11/2026 (F35, teléfono): la columna del chat toma sus clases
+// de `clasesDelHilo` (lib/columnas-bandeja.ts) y el panel es de 80 desde `md`.
+// Lo que exige no cambia: en la computadora el chat puede achicarse y el panel no.
 describe("las columnas de la bandeja con un nombre largo", () => {
   it("la columna del chat puede achicarse", () => {
-    const clases = clasesDelBloque("app/(dashboard)/dashboard/inbox/inbox-view.tsx", "{/* Center panel: Message thread */}");
-    expect(clases).toContain("flex-1");
-    expect(clases).toContain("min-w-0");
+    const fuente = readFileSync(join(process.cwd(), "app/(dashboard)/dashboard/inbox/inbox-view.tsx"), "utf8");
+    expect(fuente).toMatch(/\{\/\* Center panel: Message thread \*\/\}[\s\S]{0,300}<div className=\{clasesDelHilo\(/);
+    for (const hay of [true, false]) {
+      const clases = clasesDelHilo(hay).split(/\s+/);
+      expect(clases).toContain("flex-1");
+      expect(clases).toContain("min-w-0");
+    }
   });
 
   it("el panel «Datos del contacto» no se achica", () => {
     const clases = clasesDelBloque("components/inbox/contact-panel.tsx", "const loading = cargando;");
-    expect(clases).toContain("w-80");
+    expect(clases).toContain("md:w-80");
     expect(clases).toContain("shrink-0");
   });
 });

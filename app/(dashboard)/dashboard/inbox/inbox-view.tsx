@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Lock, MessageSquare, RefreshCw, User } from "lucide-react";
+import { ArrowLeft, Lock, MessageSquare, RefreshCw, User } from "lucide-react";
 import { ConversationList, type InicialDeLaLista } from "@/components/inbox/conversation-list";
 import type { EstadoDeBandeja } from "@/lib/bandeja";
 import { SIN_FILTROS, SIN_OPCIONES, hayFiltros, type FiltrosDeBandeja, type OpcionesDeFiltros } from "@/lib/filtros-bandeja";
@@ -14,6 +14,8 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { conConversacion, crearVigiaDeLaDireccion } from "@/lib/direccion-bandeja";
 import { volverDe } from "@/lib/ficha";
+import { clasesDeLaLista, clasesDelHilo, clasesDelPanel } from "@/lib/columnas-bandeja";
+import { conectarHiloEnTelefono, esAnchoDeTelefono } from "@/lib/historial-bandeja";
 import type { Database } from "@/lib/types/database";
 
 type Conversation = Database["public"]["Tables"]["conversations"]["Row"] & {
@@ -60,6 +62,8 @@ export function InboxView({
   const [historial, setHistorial] = useState<EstadoDelHistorial | null>(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [showContactPanel, setShowContactPanel] = useState(true);
+  // F35, teléfono: el panel del contacto, cerrado por defecto y encima del hilo.
+  const [panelEnTelefono, setPanelEnTelefono] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   // Un lead que le sacaron a este usuario mientras lo tenía abierto. Antes esto
@@ -96,11 +100,32 @@ export function InboxView({
     }
   }
 
+  // F35, teléfono (revisión del 06/11/2026): en el ancho del teléfono, abrir
+  // una conversación suma una entrada al historial, y volver lleva a la lista
+  // (`lib/historial-bandeja.ts`). En la computadora no se suman entradas.
+  const hiloEnTelefono = useRef<ReturnType<typeof conectarHiloEnTelefono> | null>(null);
+  useEffect(() => {
+    const h = conectarHiloEnTelefono(window, () => {
+      setSelected(null);
+      setPanelEnTelefono(false);
+      // Si el hilo no sumó entrada (vino de la ficha), la dirección todavía
+      // nombra la conversación: se saca sin sumar otra entrada.
+      if (new URLSearchParams(window.location.search).has("conversacion")) {
+        window.history.replaceState(null, "", conConversacion(window.location.href, null));
+      }
+    });
+    hiloEnTelefono.current = h;
+    return () => h.desconectar();
+  }, []);
+
   // La conversación abierta va en la dirección (`?conversacion=`, el mismo
   // parámetro de F30), así volver desde la ficha la vuelve a abrir (tramo C).
   const handleSelect = useCallback((c: Conversation) => {
     setSelected(c);
-    window.history.replaceState(null, "", conConversacion(window.location.href, c.id));
+    setPanelEnTelefono(false);
+    const url = conConversacion(window.location.href, c.id);
+    if (esAnchoDeTelefono() && hiloEnTelefono.current) hiloEnTelefono.current.abrir(url);
+    else window.history.replaceState(null, "", url);
   }, []);
 
   // Volver con el atrás del navegador: Next dibuja la página que guardó la
@@ -190,8 +215,8 @@ export function InboxView({
 
   return (
     <div className="flex h-full">
-      {/* Left panel: Conversation list */}
-      <div className="w-80 flex-shrink-0">
+      {/* Left panel: Conversation list. En el teléfono, sola (F35). */}
+      <div className={clasesDeLaLista(selected !== null)}>
         <ConversationList
           inicial={inicial}
           estado={estado}
@@ -207,11 +232,34 @@ export function InboxView({
       </div>
 
       {/* Center panel: Message thread */}
-      {/* min-w-0: un nombre largo no ensancha la columna (S8, tramo 9). */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {/* Toggle contact panel button */}
+      {/* min-w-0: un nombre largo no ensancha la columna (S8, tramo 9). En el teléfono, solo con una abierta (F35). */}
+      <div className={clasesDelHilo(selected !== null)}>
+        {/* Teléfono: volver a la lista y abrir los datos del contacto (F35). */}
+        {selected && (
+          <div className="flex shrink-0 items-center justify-between border-b border-border px-2 py-1 md:hidden">
+            <button
+              type="button"
+              onClick={() => hiloEnTelefono.current?.volver()}
+              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Conversaciones
+            </button>
+            {selected.contact_id && (
+              <button
+                type="button"
+                onClick={() => setPanelEnTelefono(true)}
+                className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <User className="h-3.5 w-3.5" />
+                Datos del contacto
+              </button>
+            )}
+          </div>
+        )}
+        {/* Toggle contact panel button (computadora) */}
         {selected && !showContactPanel && (
-          <div className="flex shrink-0 justify-end border-b border-border px-2 py-1">
+          <div className="hidden shrink-0 justify-end border-b border-border px-2 py-1 md:flex">
             <button
               onClick={() => setShowContactPanel(true)}
               className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
@@ -263,9 +311,13 @@ export function InboxView({
               </p>
               <button
                 onClick={() => {
-                  setSelected(null);
                   setScopeError(null);
-                  window.history.replaceState(null, "", conConversacion(window.location.href, null));
+                  // Lleva a la lista; en el teléfono, sin dejar la entrada del hilo colgada.
+                  if (hiloEnTelefono.current) hiloEnTelefono.current.volver();
+                  else {
+                    setSelected(null);
+                    window.history.replaceState(null, "", conConversacion(window.location.href, null));
+                  }
                   router.refresh();
                 }}
                 className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
@@ -292,17 +344,34 @@ export function InboxView({
         </div>
       </div>
 
-      {/* Right panel: Contact info */}
-      {showContactPanel && selected?.contact_id && (
-        <ContactPanel
-          key={`${selected.contact_id}-${versionDelPanel}`}
-          contactId={selected.contact_id}
-          workspaceId={workspaceId}
-          zona={zonaDelNegocio}
-          volver={volver}
-          onClose={() => setShowContactPanel(false)}
-          alGuardarSeguimiento={() => setListaDesactualizada((n) => n + 1)}
-        />
+      {/* Right panel: Contact info. En el teléfono, encima del hilo y a pantalla completa (F35). */}
+      {selected?.contact_id && (showContactPanel || panelEnTelefono) && (
+        <div className={clasesDelPanel({ enCompu: showContactPanel, enTelefono: panelEnTelefono })}>
+          <div className="flex shrink-0 items-center border-b border-border px-2 py-1 md:hidden">
+            <button
+              type="button"
+              onClick={() => setPanelEnTelefono(false)}
+              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Volver al chat
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 md:flex-none">
+            <ContactPanel
+              key={`${selected.contact_id}-${versionDelPanel}`}
+              contactId={selected.contact_id}
+              workspaceId={workspaceId}
+              zona={zonaDelNegocio}
+              volver={volver}
+              onClose={() => {
+                if (esAnchoDeTelefono()) setPanelEnTelefono(false);
+                else setShowContactPanel(false);
+              }}
+              alGuardarSeguimiento={() => setListaDesactualizada((n) => n + 1)}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

@@ -146,7 +146,8 @@ export function VistaDelPanel({
 }) {
   const loading = cargando;
   return (
-    <div className="flex h-full w-80 shrink-0 flex-col border-l border-border bg-background">
+    // F35, teléfono: a todo el ancho; desde `md`, la columna de 80 de siempre.
+    <div className="flex h-full w-full shrink-0 flex-col border-border bg-background md:w-80 md:border-l">
       {/* Header */}
       <div className="flex h-14 items-center justify-between border-b border-border px-4">
         <h3 className="text-sm font-semibold">Datos del contacto</h3>

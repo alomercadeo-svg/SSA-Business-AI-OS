@@ -21,7 +21,11 @@ export default async function DashboardLayout({
     .filter((w) => w.id);
 
   return (
-    <div className="flex h-screen">
+    // F35, criterio del teléfono: en el teléfono el menú es una barra arriba
+    // (columna); desde `md`, a la izquierda (fila). `h-dvh` y no `h-screen`:
+    // en el teléfono, 100vh incluye la barra del navegador y corta el campo
+    // de escritura.
+    <div className="flex h-dvh flex-col md:flex-row">
       <Sidebar workspace={workspace} user={user} workspaces={workspaces} />
       <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
     </div>
