@@ -1,0 +1,30 @@
+{
+  "_fixture": "Real, observado: los adjuntos de tres entrantes de la cuenta personal de prueba a @poderosascomunidad (conversación c6628c4e), leídos de messages.attachments el 2026-11-05 a las 18:00 y 18:06 de Costa Rica, con permiso de Marcos y sin texto. Se conservan las claves, los tipos (type y originalType), qué clave trae enlace y el host de cada enlace; las rutas, los títulos y los identificadores son inventados. cd5c503f es la publicación compartida (17:35:54), c000480a el reel compartido (17:36:04) y 3a1f0d1d el video grabado con la cámara (17:36:51).",
+  "publicacion": {
+    "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=0000000000000001&signature=PRUEBA",
+    "type": "share",
+    "payload": {
+      "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=0000000000000001&signature=PRUEBA",
+      "title": "<título de prueba>",
+      "ig_post_media_id": "0000000000000000001"
+    },
+    "originalType": "ig_post"
+  },
+  "reel": {
+    "url": "https://www.instagram.com/reel/PRUEBA0000/",
+    "type": "video",
+    "payload": {
+      "url": "https://www.instagram.com/reel/PRUEBA0000/",
+      "title": "<título de prueba>",
+      "reel_video_id": "0000000000000000002"
+    },
+    "originalType": "ig_reel"
+  },
+  "videoDeCamara": {
+    "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=0000000000000003&signature=PRUEBA",
+    "type": "video",
+    "payload": {
+      "url": "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=0000000000000003&signature=PRUEBA"
+    }
+  }
+}
