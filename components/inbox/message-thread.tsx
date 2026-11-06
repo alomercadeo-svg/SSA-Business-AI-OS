@@ -24,6 +24,7 @@ import { inicialDe, nombreDeConversacion } from "@/lib/nombre-visible";
 import { BloqueVentanaCerrada } from "@/components/inbox/ventana-cerrada";
 import { FotoDelHilo } from "@/components/inbox/visor-foto";
 import { SelectorDeRespuestas } from "@/components/inbox/selector-respuestas";
+import { estaAlFinal } from "@/lib/pantalla-telefono";
 import { aplicarRespuesta, barraEn, filtrarRespuestas, interpolar, moverEleccion, type Barra, type RespuestaRapida } from "@/lib/respuestas-rapidas";
 import { AVISO_VENTANA_CERRADA, estadoDeVentana, textoDeVence } from "@/lib/ventana-instagram";
 
@@ -270,8 +271,10 @@ export function MessageThread({
   const [avisoDeEstado, setAvisoDeEstado] = useState<{ texto: string; error: boolean } | null>(null);
   // F35, tramo D: el seguimiento era de hoy o venció, y la ruta pide el próximo antes de cerrar.
   const [pedido, setPedido] = useState<{ fecha: string | null } | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const contenidoRef = useRef<HTMLDivElement>(null);
+  // Si el hilo está pegado al último mensaje. Lo actualiza el desplazamiento.
+  const pegadoAlFinal = useRef(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // El estado que se ve: el de la conversación elegida, y después el que
@@ -328,17 +331,40 @@ export function MessageThread({
     setErrorAnteriores(null);
   }, [initialMessages, hayAnteriores]);
 
-  // Auto-scroll to bottom when messages change, salvo cuando se sumaron los
-  // anteriores arriba: ahí se conserva la posición.
+  // Al cambiar los mensajes, al final; salvo cuando se sumaron los anteriores
+  // arriba: ahí se conserva la posición. Retrabajo del ítem 4 (06/11/2026),
+  // punto b: los mensajes recién cargados (la conversación que se abre) bajan
+  // de una, sin animación; uno nuevo baja con animación. Solo se mueve el
+  // hilo: `scrollIntoView` movía también la página, y en el iPhone eso sacaba
+  // el encabezado de la vista.
+  useLayoutEffect(() => {
+    pegadoAlFinal.current = true;
+  }, [conversation?.id]);
   useLayoutEffect(() => {
     const contenedor = scrollContainerRef.current;
-    if (alturaAntesDeSumar.current !== null && contenedor) {
+    if (!contenedor) return;
+    if (alturaAntesDeSumar.current !== null) {
       contenedor.scrollTop += contenedor.scrollHeight - alturaAntesDeSumar.current;
       alturaAntesDeSumar.current = null;
       return;
     }
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    pegadoAlFinal.current = true;
+    if (messages === initialMessages) contenedor.scrollTop = contenedor.scrollHeight;
+    else contenedor.scrollTo({ top: contenedor.scrollHeight, behavior: "smooth" });
+  }, [messages, initialMessages]);
+  // Las fotos cargan después y agrandan el hilo, y el teclado lo achica: si
+  // estaba al final, se queda al final.
+  useEffect(() => {
+    const contenedor = scrollContainerRef.current;
+    const contenido = contenidoRef.current;
+    if (!contenedor || !contenido || typeof ResizeObserver === "undefined") return;
+    const observador = new ResizeObserver(() => {
+      if (pegadoAlFinal.current) contenedor.scrollTop = contenedor.scrollHeight;
+    });
+    observador.observe(contenido);
+    observador.observe(contenedor);
+    return () => observador.disconnect();
+  }, [conversation?.id]);
 
   async function verAnteriores() {
     const masViejo = messages.find((m) => !m.id.startsWith("optimistic-"));
@@ -352,6 +378,7 @@ export function MessageThread({
       const data = await res.json().catch(() => null);
       if (!res.ok || !Array.isArray(data?.messages)) throw new Error(String(res.status));
       alturaAntesDeSumar.current = scrollContainerRef.current?.scrollHeight ?? null;
+      pegadoAlFinal.current = false;
       setMessages((prev) => sumarAnteriores(prev, data.messages as Message[]));
       setHayMasAnteriores(data.hayAnteriores === true);
       if (data.hayAnteriores !== true) setLlegoAlPrimero(true);
@@ -578,8 +605,14 @@ export function MessageThread({
       )}
 
       {/* Messages */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4">
-        <div className="mx-auto max-w-2xl space-y-4">
+      <div
+        ref={scrollContainerRef}
+        onScroll={(e) => {
+          pegadoAlFinal.current = estaAlFinal(e.currentTarget);
+        }}
+        className="flex-1 overflow-y-auto p-4"
+      >
+        <div ref={contenidoRef} className="mx-auto max-w-2xl space-y-4">
           {avisoDelHistorial(historial) && (
             <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
               {avisoDelHistorial(historial)}
@@ -619,7 +652,6 @@ export function MessageThread({
               <MessageBubble message={message} />
             </div>
           ))}
-          <div ref={messagesEndRef} />
         </div>
       </div>
 

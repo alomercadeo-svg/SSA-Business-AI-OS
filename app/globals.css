@@ -94,3 +94,23 @@
     @apply bg-background text-foreground;
   }
 }
+
+/*
+ * Retrabajo del ítem 4 del plan maestro (06/11/2026), punto a. Safari en
+ * iPhone agranda la página al tocar un campo con letra de menos de 16 px, y no
+ * vuelve sola. **No verificado en documentación oficial de WebKit o Apple**:
+ * lo dicen fuentes secundarias, y coincide con lo que vio Marcos. En el ancho
+ * del teléfono, los campos van a 16 px.
+ *
+ * Fuera de `@layer` a propósito: las utilidades de Tailwind 4 (`text-sm` de
+ * cada campo) viven en `@layer utilities`, y lo que no está en ninguna capa
+ * les gana en la cascada. No se bloquea el agrandado de la página
+ * (`maximum-scale`, `user-scalable`): es de la persona.
+ */
+@media (max-width: 767.98px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}

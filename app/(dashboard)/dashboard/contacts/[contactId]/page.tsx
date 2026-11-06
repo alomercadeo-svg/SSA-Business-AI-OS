@@ -22,6 +22,7 @@ import {
   resumenDeConversacion,
   textoDeToque,
   TEXTO_DE_TEMPERATURA,
+  textoDeLaVuelta,
   volverDe,
   type ConversacionDeFicha,
 } from "@/lib/ficha";
@@ -135,9 +136,12 @@ export default async function ContactDetailPage({
   const nombre = nombreVisible(contact, canales);
 
   const dato = (titulo: string, valor: React.ReactNode) => (
-    <div className="grid grid-cols-[10rem_1fr] gap-2 py-1.5 text-sm">
+    // Retrabajo del ítem 4 (06/11/2026), punto f: en el teléfono la columna
+    // del título es más angosta, y un correo o un @usuario largo se parte en
+    // cualquier punto en vez de empujar la página.
+    <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-2 py-1.5 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
       <dt className="text-muted-foreground">{titulo}</dt>
-      <dd className="min-w-0 break-words">{valor ?? <span className="text-muted-foreground/60">—</span>}</dd>
+      <dd className="min-w-0 [overflow-wrap:anywhere]">{valor ?? <span className="text-muted-foreground/60">—</span>}</dd>
     </div>
   );
 
@@ -146,7 +150,7 @@ export default async function ContactDetailPage({
       <div className="border-b border-border px-4 py-4 sm:px-8">
         <Link href={vuelta ?? "/dashboard/contacts"} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" />
-          {vuelta ? "Bandeja" : "Contactos"}
+          {textoDeLaVuelta(vuelta)}
         </Link>
       </div>
 

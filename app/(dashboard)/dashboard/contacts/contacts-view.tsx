@@ -33,6 +33,7 @@ import { crearUnPedidoALaVez } from "@/lib/un-pedido-a-la-vez";
 import { inicialDe, nombreVisible } from "@/lib/nombre-visible";
 import { etiquetaDeMiembro } from "@/lib/etiqueta-miembro";
 import { ultimaInteraccion } from "@/lib/fechas-contactos";
+import { fechaSinHora } from "@/lib/ficha";
 import { cn } from "@/lib/utils";
 
 type Tag = Database["public"]["Tables"]["tags"]["Row"];
@@ -46,8 +47,11 @@ const mismoPedido = (a: Pedido, b: Pedido) => JSON.stringify(a) === JSON.stringi
 const conTotal = (n: number) => `${n} contacto${n === 1 ? "" : "s"}`;
 const valorDeAsignacion = (a: FiltroDeAsignacion) => (a.tipo === "persona" ? a.id : a.tipo);
 const asignacionDe = (v: string): FiltroDeAsignacion => (v === "todos" ? { tipo: "todos" } : v === "sin" ? { tipo: "sin" } : { tipo: "persona", id: v });
+// `min-w-0 w-full`: en el teléfono el selector se achica dentro de su columna;
+// si no, la opción más larga lo ensancha y empuja la página (retrabajo del
+// ítem 4, punto g, 06/11/2026).
 const claseDelSelector =
-  "rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
+  "min-w-0 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring sm:w-auto";
 
 export function ContactsView({
   inicial,
@@ -266,7 +270,14 @@ export function ContactsView({
           <Vacia total={lista.total} filtros={filtros} conFiltros={conFiltros} limpiar={limpiar} />
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Teléfono: tarjetas, sin tabla (retrabajo del ítem 4, punto g,
+                decisión de pantalla de la revisión, vetable). */}
+            <ul aria-label="Contactos" className="divide-y divide-border md:hidden">
+              {lista.contactos.map((contact) => (
+                <Tarjeta key={contact.id} contact={contact} reloj={reloj} />
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[48rem]">
                 <thead>
                   <tr className="border-b border-border bg-muted/50 text-left">
@@ -305,6 +316,44 @@ export function ContactsView({
         )}
       </div>
     </div>
+  );
+}
+
+function Tarjeta({ contact, reloj }: { contact: ContactoDeLaLista; reloj: Date }) {
+  const nombre = nombreVisible(contact, contact.contact_channels);
+  const dato = (titulo: string, valor: string) => (
+    <div className="min-w-0">
+      <dt className="text-xs text-muted-foreground">{titulo}</dt>
+      <dd className="truncate text-sm">{valor}</dd>
+    </div>
+  );
+  return (
+    <li>
+      <Link href={`/dashboard/contacts/${contact.id}`} className="block px-4 py-3 hover:bg-accent/50">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
+            {contact.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={contact.avatar_url} alt={nombre} className="h-8 w-8 rounded-full object-cover" />
+            ) : (
+              inicialDe(nombre)
+            )}
+          </div>
+          <span className="min-w-0 flex-1 truncate text-sm font-medium">{nombre}</span>
+          {!contact.phone_resolved && (
+            <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">Sin resolver</span>
+          )}
+        </div>
+        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 pl-11">
+          {dato("Última interacción", ultimaInteraccion(contact.last_interaction_at, reloj))}
+          {dato("Próximo seguimiento", fechaSinHora(contact.next_followup_date))}
+          <div className="col-span-2 min-w-0">
+            <dt className="text-xs text-muted-foreground">Etapa</dt>
+            <dd className="truncate text-sm">{contact.pipeline_stage ?? "Sin etapa"}</dd>
+          </div>
+        </dl>
+      </Link>
+    </li>
   );
 }
 

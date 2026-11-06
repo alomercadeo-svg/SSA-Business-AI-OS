@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { agruparPorCanal, enlaceAlHilo, fechaSinHora, horaDelNegocio, textoDeToque, type ConversacionDeFicha } from "./ficha";
 
 describe("la ficha (F30)", () => {
@@ -48,5 +50,24 @@ describe("el resumen de una conversación en la ficha (lectura de Marcos del 20/
     const { resumenDeConversacion } = await import("./ficha");
     expect(resumenDeConversacion("hola", "texto")).toBe("hola");
     expect(resumenDeConversacion("", null)).toBe("Sin mensajes");
+  });
+});
+
+describe("el texto de la flecha de la ficha (retrabajo del ítem 4, punto d, 06/11/2026)", () => {
+  it("abierta desde una conversación de la bandeja, vuelve al chat y lo dice", async () => {
+    const { textoDeLaVuelta } = await import("./ficha");
+    expect(textoDeLaVuelta("/dashboard/inbox?conversacion=abc")).toBe("Volver al chat");
+    expect(textoDeLaVuelta("/dashboard/inbox?estado=open&conversacion=abc")).toBe("Volver al chat");
+  });
+  it("control: desde la bandeja sin conversación, «Bandeja»; sin vuelta, «Contactos»", async () => {
+    const { textoDeLaVuelta } = await import("./ficha");
+    expect(textoDeLaVuelta("/dashboard/inbox")).toBe("Bandeja");
+    expect(textoDeLaVuelta("/dashboard/inbox?estado=open")).toBe("Bandeja");
+    expect(textoDeLaVuelta(null)).toBe("Contactos");
+  });
+  it("la ficha usa ese texto", () => {
+    const fuente = readFileSync(resolve(__dirname, "../app/(dashboard)/dashboard/contacts/[contactId]/page.tsx"), "utf8");
+    expect(fuente).toMatch(/textoDeLaVuelta\(vuelta\)/);
+    expect(fuente).not.toMatch(/vuelta \? "Bandeja" : "Contactos"/);
   });
 });

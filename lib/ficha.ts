@@ -154,6 +154,19 @@ export function volverDe(valor: unknown): string | null {
   return valor;
 }
 
+/**
+ * El texto de la flecha de la ficha (retrabajo del ítem 4, punto d,
+ * 06/11/2026). Abierta desde una conversación de la bandeja, la flecha vuelve
+ * a ese chat, y lo dice: «Volver al chat», como el panel del contacto en el
+ * teléfono. Desde la bandeja sin conversación, «Bandeja»; sin vuelta,
+ * «Contactos».
+ */
+export function textoDeLaVuelta(vuelta: string | null): string {
+  if (!vuelta) return "Contactos";
+  const consulta = vuelta.split("?")[1] ?? "";
+  return new URLSearchParams(consulta).get("conversacion") ? "Volver al chat" : "Bandeja";
+}
+
 /** El enlace de una conversación de la ficha: abre ese hilo en la bandeja. */
 export function enlaceAlHilo(conversacionId: string): string {
   return `/dashboard/inbox?conversacion=${encodeURIComponent(conversacionId)}`;

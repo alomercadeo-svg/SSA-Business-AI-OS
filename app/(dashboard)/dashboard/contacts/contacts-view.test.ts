@@ -128,3 +128,32 @@ describe("el buscador y el filtro de los que escribieron (ítem 5)", () => {
     expect(vista({ filtros: { escribieron: true } })).toMatch(/<option value="si" selected="">Solo los que escribieron<\/option>/);
   });
 });
+
+describe("Contactos en el teléfono: tarjetas, sin tabla (retrabajo del ítem 4, punto g, 06/11/2026)", () => {
+  const con = contacto("t1", { display_name: "Ana Tarjeta", next_followup_date: "2026-11-10", pipeline_stage: "3. Respondió" });
+  const tarjetas = (h: string) => h.match(/<ul[^>]*aria-label="Contactos"[^>]*>[\s\S]*?<\/ul>/)?.[0] ?? "";
+
+  it("cada contacto es una tarjeta que abre su ficha, con nombre, última interacción, próximo seguimiento y etapa", () => {
+    const h = vista({ contactos: [con] });
+    const t = tarjetas(h);
+    expect(t, "falta la lista de tarjetas").not.toBe("");
+    expect(t).toMatch(/href="\/dashboard\/contacts\/t1"/);
+    expect(t).toContain("Ana Tarjeta");
+    expect(t).toContain("Próximo seguimiento");
+    expect(t).toContain("10 nov 2026");
+    expect(t).toContain("3. Respondió");
+    expect(t).toContain("Última interacción");
+  });
+
+  it("sin seguimiento ni etapa, lo dice", () => {
+    const t = tarjetas(vista({ contactos: [contacto("t2", { next_followup_date: null, pipeline_stage: null })] }));
+    expect(t).toContain("Sin fecha");
+    expect(t).toContain("Sin etapa");
+  });
+
+  it("las tarjetas solo en el teléfono, y la tabla solo desde md", () => {
+    const h = vista({ contactos: [con] });
+    expect(h).toMatch(/<ul[^>]*class="[^"]*\bmd:hidden\b[^"]*"[^>]*aria-label="Contactos"|<ul[^>]*aria-label="Contactos"[^>]*class="[^"]*\bmd:hidden\b/);
+    expect(h).toMatch(/<div class="hidden overflow-x-auto md:block"><table/);
+  });
+});

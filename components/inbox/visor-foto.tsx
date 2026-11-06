@@ -42,7 +42,9 @@ export function VisorDeFoto({ url, onCerrar }: { url: string; onCerrar: () => vo
       role="dialog"
       aria-modal="true"
       aria-label="Foto a pantalla completa"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
+      // Retrabajo del ítem 4 (06/11/2026), punto e: arriba queda lugar para la
+      // «X», así la foto, que entra entera en lo que sobra, nunca la tapa.
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 px-3 pb-3 pt-16"
       onClick={onCerrar}
     >
       <button
@@ -53,7 +55,7 @@ export function VisorDeFoto({ url, onCerrar }: { url: string; onCerrar: () => vo
           e.stopPropagation();
           onCerrar();
         }}
-        className="absolute right-3 top-3 rounded-full bg-black/60 p-2 text-white hover:bg-black/80"
+        className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-2 text-white hover:bg-black/80"
       >
         <X className="h-5 w-5" />
       </button>
