@@ -21,7 +21,7 @@ describe("fraseDeBaja: si un mensaje del lead pide no recibir más", () => {
     expect(fraseDeBaja("Hola, por favor NO ME ESCRIBAS MAS, gracias", F)).toBe("no me escribas más");
     expect(fraseDeBaja("deja de mandar mensajes!!", F)).toBe("dejá de mandar mensajes");
     expect(fraseDeBaja("STOP", F)).toBe("stop");
-    expect(fraseDeBaja("Ya basta.", F)).toBe("basta");
+    expect(fraseDeBaja("Basta.", F)).toBe("basta");
   });
   it("por palabras enteras: «bastante» o «stopper» no cuentan", () => {
     expect(fraseDeBaja("Me gustó bastante la propuesta", F)).toBeNull();
@@ -34,6 +34,23 @@ describe("fraseDeBaja: si un mensaje del lead pide no recibir más", () => {
   });
   it("una frase vacía de la lista no marca todo", () => {
     expect(fraseDeBaja("cualquier cosa", ["", "  "])).toBeNull();
+  });
+});
+
+describe("las palabras sueltas marcan solo si son el mensaje entero (decisión de la revisión del 06/11/2026, vetable)", () => {
+  const F = ["no me escribas más", "stop", "basta", "unsubscribe"];
+  it("«basta con que me mandes el link» no es un pedido de baja", () => {
+    expect(fraseDeBaja("basta con que me mandes el link", F)).toBeNull();
+    expect(fraseDeBaja("Ya basta.", F)).toBeNull();
+    expect(fraseDeBaja("no hay stop en la ruta", F)).toBeNull();
+  });
+  it("la palabra sola marca, sin contar mayúsculas, tildes, espacios ni signos", () => {
+    expect(fraseDeBaja("  BASTA!!! ", F)).toBe("basta");
+    expect(fraseDeBaja("Stop.", F)).toBe("stop");
+    expect(fraseDeBaja("¡básta!", F)).toBe("basta");
+  });
+  it("control: una frase de más de una palabra marca dentro del mensaje", () => {
+    expect(fraseDeBaja("Hola, por favor no me escribas más, gracias", F)).toBe("no me escribas más");
   });
 });
 
@@ -85,5 +102,37 @@ describe("las pantallas (por la fuente)", () => {
     const a = leer("lib/actions/frases-de-baja.ts");
     expect(a).toMatch(/if \(!esManager\(contexto\.role\)\)/);
     expect(a).toMatch(/accion: "configuracion\.cambiada"/);
+  });
+});
+
+describe("si la marca falla, el aviso igual se acusa (pedido de Marcos del 06/11/2026)", () => {
+  it("alEscribirElLead no tira aunque falle marcar el contacto", async () => {
+    const { alEscribirElLead } = await import("./estado-por-mensaje");
+    const errores: unknown[] = [];
+    const original = console.error;
+    console.error = (...a: unknown[]) => { errores.push(a); };
+    const cadena = (resultado: unknown) => {
+      const c: Record<string, unknown> = {};
+      for (const m of ["update", "eq", "is", "select", "maybeSingle"]) c[m] = () => c;
+      (c as { then: unknown }).then = (ok: (v: unknown) => void) => ok(resultado);
+      return c;
+    };
+    const supabase = {
+      rpc: async () => ({ error: null }),
+      from: (tabla: string) =>
+        tabla === "workspaces"
+          ? cadena({ data: { frases_de_baja: ["no me escribas más"] }, error: null })
+          : tabla === "contacts"
+            ? cadena({ data: null, error: { message: "caída" } })
+            : cadena({ data: null, error: null }),
+    };
+    try {
+      await expect(
+        alEscribirElLead(supabase as never, { conversationId: "c", workspaceId: "w", contactId: "k", preview: null, nuevo: true, texto: "no me escribas más" }),
+      ).resolves.toBeUndefined();
+      expect(errores.length).toBeGreaterThan(0);
+    } finally {
+      console.error = original;
+    }
   });
 });

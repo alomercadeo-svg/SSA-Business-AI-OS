@@ -94,6 +94,14 @@ export async function alEscribirElLead(
     .is("deleted_at", null);
   if (error) throw new Error(`conversations: ${error.message}`);
   // F34: si el mensaje pide no recibir más, se marca el contacto. Solo con un
-  // mensaje nuevo: uno repetido ya pasó por acá.
-  if (nuevo) await marcarSiPideBaja(supabase, { workspaceId, contactId, texto });
+  // mensaje nuevo: uno repetido ya pasó por acá. Si la marca falla, NO tira:
+  // el mensaje ya está guardado y el aviso se acusa igual (pedido de Marcos
+  // del 06/11/2026). Queda en el registro del servidor, sin el texto.
+  if (nuevo) {
+    try {
+      await marcarSiPideBaja(supabase, { workspaceId, contactId, texto });
+    } catch (err) {
+      console.error(`[no-contactar] no se pudo revisar la baja del contacto ${contactId}:`, err instanceof Error ? err.message : "error");
+    }
+  }
 }
