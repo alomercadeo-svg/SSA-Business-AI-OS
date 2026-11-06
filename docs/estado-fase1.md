@@ -2782,6 +2782,35 @@ En su chat de revisión. Fuera de la medición. Cada una está marcada `[x]` en 
 
 **Criterio nuevo de F35, decidido por Marcos el 05/11/2026,** al final de los suyos: en el teléfono, la bandeja (la lista, el hilo y el panel del contacto) y la ficha se pueden usar, con su control positivo. Motivo: probada desde el teléfono, la app no se podía usar. **F35 queda en 30 de 32.** La línea de base del Bloque 4 pasa de 119 a 120 (S8, de 31 a 32), en «El Bloque 4 se mide, por sesiones», abajo. Sin sesión asignada todavía.
 
+### Apertura del 06/11/2026 (fuera de la medición)
+
+`node scripts/commits-sin-subir.mjs`: «Sin commits sin subir contra origin/bloque-1-foundation.», salida 0. **El repo no coincidía con lo que tenía Marcos** (último commit `e3c085b`, de las 18:41:49 del 05/11): había uno más, `5af1cdd` (19:02:17 del 05/11), subido a las 19:02:23 según `.git/logs/refs/remotes/origin/bloque-1-foundation`. Se frenó, se le dijo, y Marcos dijo seguir desde `5af1cdd`: es de la sesión del 05/11 y está subido. Árbol limpio.
+
+**Los despliegues del cierre del 05/11:**
+- **`e3c085b`**, push a las 18:41:56 (registro de origin). **Identificado por título** con la captura de Railway de Marcos de las 18:55 del 05/11: ACTIVE «docs: S9 tramo C, lo que vio Marcos: «Ver en Instagram» de la public...» (cortado así en pantalla), «13 minutes ago via GitHub», «Deployment successful». Es compatible con el push; no lo prueba.
+- **`5af1cdd`**, push a las 19:02:23. **Identificado por título** con la captura de Marcos de las 08:51 del 06/11: ACTIVE «docs: S9 tramo C, lo que vio Marcos a las 18:50 (la X de la foto de W...», «13 hours ago via GitHub», «Deployment successful». Compatible con el push; no lo prueba.
+- La salida de `verificar-despliegue.mjs` de esos dos pushes no está en el repo (un commit no puede registrar su propio despliegue).
+- **`be1646b` (18:20) y `73e0db0` (18:29) siguen «sin identificar por título»**: las capturas se le pidieron a Marcos el 06/11, juntas, una sola vez. Si llegan, se anotan acá.
+
+**Lo que vio Marcos a las 18:50 del 05/11, completo** (lo que «S9, tramo C» no tenía; ningún criterio de F44 se tildó el 05/11):
+1. «Compartió una publicación» se ve, pero «Ver en Instagram» abre la imagen en `lookaside.fbsbx.com` y no la publicación: el criterio 1 no se tilda.
+2. «Compartió un reel» abre `https://www.instagram.com/reels/…` en pestaña nueva, como se esperaba. **No se tilda hasta probar un reel nuevo después del despliegue** (y leer sus intentos: ítem 3b del plan maestro).
+3. El video de la cámara se reproduce bien.
+4. La foto de Instagram, en la computadora, abre a pantalla completa y cierra con «X» y con Escape.
+5. En el teléfono la app no se puede usar: el menú lateral ocupa toda la pantalla **y no se oculta**, y las columnas de la bandeja siguen una al lado de la otra, fuera de la pantalla.
+6. La foto de WhatsApp: Escape funciona, pero «X» lleva siempre a `…/dashboard/inbox?conversacion=cbe5f226-…&ventana=por-vencer`, que es la conversación de @theconsultour con el filtro de la prueba de las 17:26. **La sospecha de Marcos, sin verificar en ese momento:** que `history.back()` vuelve a una entrada vieja del historial y choca con el `replaceState` de `inbox-view.tsx`. **El diagnóstico del 06/11, verificado en el código, está en el ítem 2 del plan maestro:** «X» vuelve atrás dos veces.
+
+**Decidido por Marcos a las 19:00 del 05/11, lo que faltaba:** que el identificador `ig_post_media_id` se pueda convertir en el código corto de la dirección es **una suposición**: se verifica en documentación oficial o se dice que no se verificó (ítem 3a).
+
+**Decidido por Marcos a las 19:05 del 05/11, la medición:** la construcción se sigue midiendo por tramos; además, cada tramo anota cinco horas: el prompt pegado, el plan listo, la aprobación, el fin de la construcción y las pantallas vistas. Es la sección 7 del prompt, copiada tal cual en el plan maestro.
+
+**Dato de Alejandra, dicho por Marcos el 05/11 a las 19:46:** trabaja más o menos un 70 % en la computadora y un 30 % en el celular, y usa el celular para trabajar y darles seguimiento a sus clientes. Por eso F35 en el teléfono va antes que las funcionalidades que suman cosas al hilo y al panel.
+
+**El criterio nuevo de F35** (`requerimientos-fase1.md:1025`, el teléfono): entró al plano en `5af1cdd` sin pasar por el chat de revisión de Marcos; **aprobado tal cual por Marcos el 06/11/2026, en la revisión del plan maestro.** No necesita registro en `docs/criterios-bajas.json`: verificado en `docs/plano-criterios.test.ts`, donde un criterio nuevo solo exige estar en la foto («agregar no necesita motivo», en el test «la foto está al día con los criterios nuevos»), y lo está (`criterios-foto.json:2180-2188`).
+
+**El menú por rol de §11.1 (solo lectura del código).** Un Member que escribe a mano la dirección de Canales, Integraciones o Configuración no entra, y no puede leer ni escribir nada ahí. **Verificado:** las páginas llaman a `getWorkspaceAsManager` (`lib/workspace.ts:128-133`), que lo manda a `/dashboard` antes de leer nada (Canales `channels/page.tsx:8`, General `settings/page.tsx:22`, Integraciones `settings/integrations/page.tsx:18`, Equipo `settings/team/page.tsx:6`, Correos `settings/correos/page.tsx:24`, Historial `settings/historial/page.tsx:20`, Vigilancia `settings/vigilancia/page.tsx:35`); las acciones piden Owner o Admin en el servidor (`lib/actions/configuracion.ts:37`, `integraciones.ts:40`, `canales.ts:27` y `:64`, `vigilancia.ts:18`, `team.ts:55`, `:165`, `:232` y `:372`); las rutas de canales usan `requireManager`; y en la base, `integration_configs`, `email_log` y las alertas del espacio son solo de managers, y editar `workspaces` y `channels` también (00019:438-462). Respuestas rápidas no existe: 404. **No coincide con §11.1, sin ser hueco:** el Member no ve «Esa sección es solo para Owner y Admin…» (lo mandan a `/dashboard/flows`), y el menú le muestra Channels y Settings en inglés. **Dos hallazgos fuera de la pregunta** (el secreto de firma de Zernio legible para un Member, y los flujos del fork publicables por un Member): **decidido por Marcos el 06/11, no se construyen ahora**; quedan como un solo pendiente en §15 del plano, con el disparador «antes de invitar al primer Member al espacio real, y en todo caso antes de entregar la Fase 1», con el detalle de qué es verificado y qué inferencia.
+
+
 ## Plan maestro del cierre de la Fase 1
 
 **Este es el documento con el que se retoma.** Si la sesión se corta o se compacta, la próxima lee esta sección y sigue desde la primera casilla sin marcar. Revisión completa (el plan entero). Pedido por Marcos el 06/11/2026; plan escrito por Claude Code en modo Plan (solo lectura) y **aprobado por Marcos el 06/11/2026 con once cambios**, que ya están aplicados abajo.
@@ -2796,8 +2825,8 @@ En su chat de revisión. Fuera de la medición. Cada una está marcada `[x]` en 
 
 Cada ítem: tests nuevos vistos en rojo antes del cambio, `npm test` + `npm run typecheck` + `npm run lint` en verde, commit propio, subida con `verificar-despliegue.mjs` y `echo $?`, «salida 0, pantallas sin mirar» si toca pantallas, el verificador nuevo corrido después del push, y los de la sección 9 antes de cada push que los pueda afectar.
 
-- [ ] **Escritura 0: el plan maestro al estado.** Esta sección. Solo docs, commit propio. 10 min.
-- [ ] **Ítem 0: lo que le falta al estado.** Solo docs. 15 min.
+- [x] **Escritura 0: el plan maestro al estado.** Esta sección. Solo docs, commit propio. 10 min. **Hecha:** `a295607`, de 09:40 a 09:42.
+- [x] **Ítem 0: lo que le falta al estado.** Solo docs. 15 min. **Hecho** (en «Apertura del 06/11/2026», arriba, y §15 del plano), de 09:42 a 09:43; el commit es el que sigue a `a295607`. Queda pendiente solo lo de Marcos: las capturas de `be1646b` y `73e0db0`.
   - Los despliegues de `e3c085b` y `5af1cdd`, identificados por título con las capturas de Marcos (18:55 del 05/11 y 08:51 del 06/11). Los de `be1646b` (18:20) y `73e0db0` (18:29): el estado los tiene «sin identificar» (`:2752`), y las capturas se pidieron una sola vez, juntas, el 06/11.
   - Lo que faltaba de lo que vio Marcos a las 18:50 del 05/11, de lo que decidió a las 19:00 y a las 19:05, y el dato de Alejandra del 05/11 a las 19:46.
   - El criterio nuevo de F35 (`requerimientos-fase1.md:1025`), aprobado tal cual por Marcos el 06/11 en la revisión; y la confirmación, leída en `docs/plano-criterios.test.ts`, de que un agregado no necesita registro en `criterios-bajas.json`.
