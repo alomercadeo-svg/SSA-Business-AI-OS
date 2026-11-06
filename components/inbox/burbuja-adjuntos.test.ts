@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MessageBubble, TEXTO_ADJUNTO_FALLIDO, TEXTO_ADJUNTO_NO_DISPONIBLE } from "./message-thread";
+import { VisorDeFoto } from "./visor-foto";
 
 /**
  * F28, 5g: la burbuja muestra el archivo bajado con la dirección firmada que da
@@ -58,5 +59,20 @@ describe("la burbuja de un adjunto (F28)", () => {
       expect(h).not.toContain("<img");
       expect(h).not.toContain(TEXTO_ADJUNTO_FALLIDO);
     }
+  });
+});
+
+describe("la foto a pantalla completa (F44, criterio 4)", () => {
+  it("la foto del hilo es un botón «Ampliar la foto» que la abre, con la misma dirección firmada", () => {
+    const h = html({ archivo: { url: URL, mime: "image/jpeg" } });
+    expect(h).toMatch(/<button[^>]*aria-label="Ampliar la foto"/);
+    expect(h).toContain(`src="${URL.replace("&", "&amp;")}"`);
+  });
+
+  it("el visor abierto muestra la misma foto y un botón «Cerrar»", () => {
+    const h = renderToStaticMarkup(createElement(VisorDeFoto, { url: URL, onCerrar: () => {} }));
+    expect(h).toContain(`src="${URL.replace("&", "&amp;")}"`);
+    expect(h).toMatch(/<button[^>]*aria-label="Cerrar"/);
+    expect(h).toContain('role="dialog"');
   });
 });

@@ -22,6 +22,7 @@ import type { Database } from "@/lib/types/database";
 import { MarcaDeVentana } from "@/components/inbox/marca-ventana";
 import { inicialDe, nombreDeConversacion } from "@/lib/nombre-visible";
 import { BloqueVentanaCerrada } from "@/components/inbox/ventana-cerrada";
+import { FotoDelHilo } from "@/components/inbox/visor-foto";
 import { AVISO_VENTANA_CERRADA, estadoDeVentana, textoDeVence } from "@/lib/ventana-instagram";
 
 /**
@@ -60,8 +61,8 @@ function ArchivoDelMensaje({ message }: { message: Message }) {
     if (tipo === "audio") return <audio controls preload="metadata" src={archivo.url} className="mt-1 max-w-full" />;
     if (tipo === "video") return <video controls preload="metadata" src={archivo.url} className="mt-1 max-h-80 max-w-full rounded-lg" />;
     if (tipo === "imagen" || tipo === "sticker" || archivo.mime?.startsWith("image/")) {
-      // eslint-disable-next-line @next/next/no-img-element -- dirección firmada de Storage, de vida corta
-      return <img src={archivo.url} alt="Imagen recibida" loading="lazy" className="mt-1 max-h-80 max-w-full rounded-lg" />;
+      // F44, criterio 4: tocarla la abre a pantalla completa.
+      return <FotoDelHilo url={archivo.url} />;
     }
     return (
       <a href={archivo.url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs underline">
