@@ -3348,7 +3348,7 @@ Cada una con su prueba y la hora de la última corrida (hora de Costa Rica, 06/1
 | **Pruebas de Marcos** | 10:2x (el teléfono del ítem 2, sin hora de fin); 15:07–15:42; 16:56–17:05; 17:45 (sin hora de inicio); 18:0x–18:1x | unas 55 min, más las que no tienen hora |
 | **Esperas** | Lo demás. **La más larga, de 11:53 a 15:07** (más de tres horas): Marcos no avisó una pausa, así que por la regla se cuenta; **si fue una pausa, la saca él** | el resto del día |
 
-**Lo que no se subió, por qué y qué lo destraba:** se subió todo lo construido. Quedan en local solo los commits de documentación de este cierre, que se suben ahora con `verificar-despliegue.mjs`.
+**La extensión hasta las 20:00** (decidida por Marcos a las 18:5x; un ítem arranca solo si termina antes de las 19:40): construcción, la purga de F36 (19:00–19:02), las tildes y la foto, la lectura de B y el diagnóstico de A y B (19:13–19:26); pruebas de Marcos, 19:00–19:12. **Lo que no se subió, por qué y qué lo destraba:** se subió todo lo construido. Quedan en local solo los commits de documentación de este cierre, que se suben ahora con `verificar-despliegue.mjs`.
 
 ### Plan maestro, tercer retrabajo del ítem 4 (Bloque 4, medido, subido)
 
