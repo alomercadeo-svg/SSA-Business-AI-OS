@@ -879,7 +879,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** la vista completa del lead y la posibilidad de deshacer un borrado.
 
-**Estado: completa** (20 de octubre de 2026, tramo 2 de la sesión 3 del Bloque 3): **10 de 11.** El 8 (`deleted_at` en respuestas rápidas) queda pendiente de F36, que desde el 20/10/2026 tiene el criterio que lo cubre. Migraciones 00037 (las notas, con su seguridad por filas y en la fusión) y 00038 (el borrado suave: «no eliminado» en las políticas de lectura y edición, ninguna política de borrar para usuarios, `eliminar_contacto`, `restaurar_contacto` y `contactos_eliminados`); la purga diaria (`lib/purga.ts`, una tarea de `POST /api/cron/tareas`, con su marca en Vigilancia de canales); la ficha en dos columnas con «Editar datos» (`PATCH /api/v1/contacts/[id]`), las notas, el historial y el clic al hilo. El lead eliminado se restaura solo si él o el negocio le escriben (decisiones de Marcos del 19 y el 20/10/2026). Probada con sesiones reales contra producción: `verify-notas` (43 de 43), `verify-borrado` (73 de 73), `verify-ficha` (64 de 64) y `verify-purga` (las tres fases, con la tarea real del cron); el detalle, en `docs/estado-fase1.md`. «No contactar» se vio con el dato puesto a mano en un espacio fantasma: el dato lo escribe F34. Antes decía: no construido (verificado el 22 de septiembre de 2026: la tabla `contact_notes` no existe en la base).
+**Actualizado el 06/11/2026: 11 de 11 tildados, completa**, decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 06/11/2026»): el 8, `deleted_at` en respuestas rápidas, se cerró con F36. **Antes decía:** **Estado: completa** (20 de octubre de 2026, tramo 2 de la sesión 3 del Bloque 3): **10 de 11.** El 8 (`deleted_at` en respuestas rápidas) queda pendiente de F36, que desde el 20/10/2026 tiene el criterio que lo cubre. Migraciones 00037 (las notas, con su seguridad por filas y en la fusión) y 00038 (el borrado suave: «no eliminado» en las políticas de lectura y edición, ninguna política de borrar para usuarios, `eliminar_contacto`, `restaurar_contacto` y `contactos_eliminados`); la purga diaria (`lib/purga.ts`, una tarea de `POST /api/cron/tareas`, con su marca en Vigilancia de canales); la ficha en dos columnas con «Editar datos» (`PATCH /api/v1/contacts/[id]`), las notas, el historial y el clic al hilo. El lead eliminado se restaura solo si él o el negocio le escriben (decisiones de Marcos del 19 y el 20/10/2026). Probada con sesiones reales contra producción: `verify-notas` (43 de 43), `verify-borrado` (73 de 73), `verify-ficha` (64 de 64) y `verify-purga` (las tres fases, con la tarea real del cron); el detalle, en `docs/estado-fase1.md`. «No contactar» se vio con el dato puesto a mano en un espacio fantasma: el dato lo escribe F34. Antes decía: no construido (verificado el 22 de septiembre de 2026: la tabla `contact_notes` no existe en la base).
 
 **Criterios de aceptación:**
 
@@ -890,7 +890,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [x] Botón para editar todos los datos (devuelto el 23/09/2026, auditoría #67)
 - [x] Clic en una conversación navega al hilo en la bandeja (devuelto el 23/09/2026, auditoría #68)
 - [x] Marca visible si el contacto pidió no ser contactado, y marca si el teléfono está sin resolver
-- [ ] Campo `deleted_at` en contactos, notas, conversaciones y respuestas rápidas. Eliminar marca la fecha, no borra
+- [x] Campo `deleted_at` en contactos, notas, conversaciones y respuestas rápidas. Eliminar marca la fecha, no borra
 - [x] Los listados y las reglas de seguridad excluyen lo eliminado
 - [x] Tarea diaria que borra definitivamente lo que lleva más de 30 días eliminado, en cascada
 - [x] El historial de auditoría no se purga nunca
@@ -971,17 +971,17 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** respetar a quien pidió no recibir más mensajes.
 
-**Estado: parcial, y es la más cubierta del Bloque 4** (inspeccionado el 22 de septiembre de 2026). **El fork cubre:** la columna `contacts.is_subscribed`, respetada por el listado de contactos (`/api/v1/contacts`) y por el envío de difusiones. **Falta:** el opt-out duro desde la bandeja, las frases de baja configurables, y que las secuencias lo respeten.
+**Actualizado el 06/11/2026: 4 de 7 tildados**, decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 06/11/2026»). Construida el 06/11/2026, ítem 8 del plan maestro (migración 00053). Quedan la pausa de las secuencias activas (sin prueba), la marca roja (la mira Marcos) y el bloqueo por WhatsApp (espera a F42). **Antes decía:** **Estado: parcial, y es la más cubierta del Bloque 4** (inspeccionado el 22 de septiembre de 2026). **El fork cubre:** la columna `contacts.is_subscribed`, respetada por el listado de contactos (`/api/v1/contacts`) y por el envío de difusiones. **Falta:** el opt-out duro desde la bandeja, las frases de baja configurables, y que las secuencias lo respeten.
 
 **Criterios de aceptación:**
 
-- [ ] Lista de frases de baja configurable por espacio de trabajo
-- [ ] La lista viene cargada con: "no me escribas más", "dejá de mandar mensajes", "no quiero recibir mensajes", "stop", "unsubscribe", "basta", "no me contactes" (devuelto el 23/09/2026, auditoría #92b)
+- [x] Lista de frases de baja configurable por espacio de trabajo
+- [x] La lista viene cargada con: "no me escribas más", "dejá de mandar mensajes", "no quiero recibir mensajes", "stop", "unsubscribe", "basta", "no me contactes" (devuelto el 23/09/2026, auditoría #92b)
 - [ ] Al detectar una: se marca el contacto, se registra el motivo y la fecha, se pausan las secuencias activas y queda en el historial de auditoría
 - [ ] Marca roja visible en la bandeja y en la ficha
-- [ ] Un Admin o el Owner puede revertirla, con registro
+- [x] Un Admin o el Owner puede revertirla, con registro
 - [ ] Al intentar enviar a un contacto marcado se bloquea el envío, sin opción de forzarlo. Con Evolution una denuncia pesa más que cien mensajes
-- [ ] Un contacto marcado nunca entra a una secuencia
+- [x] Un contacto marcado nunca entra a una secuencia
 
 #### F35: Bandeja y filtros
 
@@ -1038,7 +1038,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** textos reutilizables que el operador inserta escribiendo una barra.
 
-**Estado: no construido, y la tabla hay que crearla** (verificado el 22 de septiembre de 2026). **El 20/10/2026 suma un criterio**, decidido por Marcos: el borrado suave de las respuestas rápidas, que es el dueño de esa parte del criterio de `deleted_at` de F30. F36 es del Bloque 4: no toca la línea de base del Bloque 3.
+**Actualizado el 06/11/2026: 4 de 6 tildados**, decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 06/11/2026»). Construida el 06/11/2026, ítem 6 del plan maestro (migración 00052). Quedan la interpolación con un dato vacío, vista en pantalla, y el borrado a los 30 días por la tarea real. **Antes decía:** **Estado: no construido, y la tabla hay que crearla** (verificado el 22 de septiembre de 2026). **El 20/10/2026 suma un criterio**, decidido por Marcos: el borrado suave de las respuestas rápidas, que es el dueño de esa parte del criterio de `deleted_at` de F30. F36 es del Bloque 4: no toca la línea de base del Bloque 3.
 
 > **`response_templates` no es una tabla del fork que el `CLAUDE.md` recordara mal: es un nombre que elegimos nosotros para una tabla que no existe.**
 >
@@ -1050,11 +1050,11 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Criterios de aceptación:**
 
-- [ ] Tabla `response_templates` con alta, baja y modificación en `/settings/response-templates`
-- [ ] Selector con "/" en la bandeja, con búsqueda por nombre o atajo
+- [x] Tabla `response_templates` con alta, baja y modificación en `/settings/response-templates`
+- [x] Selector con "/" en la bandeja, con búsqueda por nombre o atajo
 - [ ] Interpolación de datos del contacto; si un dato falta, queda vacío
-- [ ] Al seleccionar, se inserta el contenido con las variables interpoladas: `{{contact.display_name}}`, `{{contact.email}}`, `{{contact.phone}}`, `{{workspace.name}}` (devuelto el 23/09/2026, auditoría #88b)
-- [ ] En la interfaz se llaman "respuestas rápidas", nunca "plantillas", para no confundirlas con las plantillas de WhatsApp del plan B
+- [x] Al seleccionar, se inserta el contenido con las variables interpoladas: `{{contact.display_name}}`, `{{contact.email}}`, `{{contact.phone}}`, `{{workspace.name}}` (devuelto el 23/09/2026, auditoría #88b)
+- [x] En la interfaz se llaman "respuestas rápidas", nunca "plantillas", para no confundirlas con las plantillas de WhatsApp del plan B
 - [ ] Eliminar una respuesta rápida marca la fecha y no la borra (`deleted_at` en `response_templates`). Las listas y la seguridad por filas excluyen las eliminadas, y la purga diaria de F30 (`lib/purga.ts`) también las borra a los 30 días. (Agregado el 20/10/2026, decidido por Marcos: es el dueño de la parte de respuestas rápidas del criterio de `deleted_at` de F30)
 
 #### F37: Importación de contactos desde planilla
@@ -1197,7 +1197,7 @@ El argumento decisivo es la asimetría del error: **dejar afuera es irreversible
 
 **Descripción:** que la lista de Contactos muestre y encuentre a todos los contactos, no solo a los primeros 100.
 
-**Estado: parcial** (5 de noviembre de 2026): **5 de 6 tildados**, decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes de S9, decididas por Marcos el 05/11/2026»). Construida en S9, tramo B. El sexto criterio, el filtro de los que nunca escribieron, se agregó el 05/11/2026 y no está construido. **Antes decía: Estado: no construido** (2 de noviembre de 2026). Funcionalidad nueva, decidida por Marcos en la revisión de antes de S7; va en el Bloque 4, S9. Viene del candidato de §15 del 20/10/2026: hoy la lista muestra solo 100 (`app/(dashboard)/dashboard/contacts/page.tsx:8` y `:44`) y el buscador filtra solo esos 100, en el navegador (`contacts-view.tsx:105-110`), según lo anotado ese día.
+**Actualizado el 06/11/2026: 6 de 6 tildados, completa**, decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 06/11/2026»): el filtro de los que nunca escribieron, construido el 06/11/2026 (ítem 5 del plan maestro, migración 00051). **Antes decía:** **Estado: parcial** (5 de noviembre de 2026): **5 de 6 tildados**, decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes de S9, decididas por Marcos el 05/11/2026»). Construida en S9, tramo B. El sexto criterio, el filtro de los que nunca escribieron, se agregó el 05/11/2026 y no está construido. **Antes decía: Estado: no construido** (2 de noviembre de 2026). Funcionalidad nueva, decidida por Marcos en la revisión de antes de S7; va en el Bloque 4, S9. Viene del candidato de §15 del 20/10/2026: hoy la lista muestra solo 100 (`app/(dashboard)/dashboard/contacts/page.tsx:8` y `:44`) y el buscador filtra solo esos 100, en el navegador (`contacts-view.tsx:105-110`), según lo anotado ese día.
 
 **Criterios de aceptación:**
 
@@ -1206,17 +1206,17 @@ El argumento decisivo es la asimetría del error: **dejar afuera es irreversible
 - [x] La navegación es por páginas numeradas, con «Página N de M».
 - [x] Control positivo: un contacto que está más allá de los primeros 100 aparece al buscarlo y se abre. Con el token de un Member, la búsqueda no devuelve contactos fuera de su alcance, y con el de un Owner sí.
 - [x] Un contacto sin nombre ni usuario se muestra como «Sin nombre» en la bandeja, en Contactos y en la ficha, en vez de su identificador de remitente. El identificador queda en la ficha como dato secundario. Incluye los contactos que hoy tienen el identificador como nombre (95 de 743 en @alomercadeo el 02/11/2026) (agregado el 02/11/2026, revisión de antes de S7, decidido por Marcos)
-- [ ] Un filtro deja afuera de la lista de Contactos a los contactos que nunca escribieron: sin ningún mensaje del lead en ninguna de sus conversaciones. Control positivo: con el filtro, un contacto que escribió aparece y uno que nunca escribió no; sin el filtro, aparecen los dos (agregado el 05/11/2026, decidido por Marcos: los contactos que deja la bienvenida de ManyChat sin que la persona escriba llenan la lista de «Sin nombre»).
+- [x] Un filtro deja afuera de la lista de Contactos a los contactos que nunca escribieron: sin ningún mensaje del lead en ninguna de sus conversaciones. Control positivo: con el filtro, un contacto que escribió aparece y uno que nunca escribió no; sin el filtro, aparecen los dos (agregado el 05/11/2026, decidido por Marcos: los contactos que deja la bienvenida de ManyChat sin que la persona escriba llenan la lista de «Sin nombre»).
 
 #### F44: Contenido del hilo: compartidos, historias y fotos
 
 **Descripción:** que en el hilo se vea qué compartió o a qué respondió el lead, y que las fotos se puedan ampliar.
 
-**Estado: no construido** (2 de noviembre de 2026). Funcionalidad nueva, decidida por Marcos en la revisión de antes de S7; va en el Bloque 4, S9. Viene del pendiente de §15 del 09/10/2026 sobre los `share` de Instagram, que la bandeja muestra como «Adjunto». **Cada criterio se prueba con datos reales, de @marcospittimusic a @poderosascomunidad.**
+**Actualizado el 06/11/2026: 1 de 4 tildados**, decidido por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 06/11/2026»): la publicación compartida, con el criterio reescrito ese día. **Antes decía:** **Estado: no construido** (2 de noviembre de 2026). Funcionalidad nueva, decidida por Marcos en la revisión de antes de S7; va en el Bloque 4, S9. Viene del pendiente de §15 del 09/10/2026 sobre los `share` de Instagram, que la bandeja muestra como «Adjunto». **Cada criterio se prueba con datos reales, de @marcospittimusic a @poderosascomunidad.**
 
 **Criterios de aceptación:**
 
-- [ ] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con su título si el aviso lo trae, en vez de «Adjunto», y sin botón para abrirla. No se descarga ni se guarda ningún archivo.
+- [x] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con su título si el aviso lo trae, en vez de «Adjunto», y sin botón para abrirla. No se descarga ni se guarda ningún archivo.
 - [ ] Un reel compartido se ve como «Compartió un reel», con «Ver en Instagram», en vez de «Este archivo no está disponible.». Se reconoce sin intentar bajarlo y no se guarda ningún archivo. Un video grabado con la cámara se sigue bajando y viendo como video.
 - [ ] Una respuesta a una historia se ve con la marca «Respondió a tu historia» y, si el aviso trae el enlace de la historia, con «Ver historia». No se guarda la imagen de la historia.
 - [ ] Tocar una foto del hilo la abre a pantalla completa dentro de la app, y se cierra con «X», con la tecla Escape o con el gesto de volver en el teléfono. Vale para Instagram y para WhatsApp, y no descarga ni guarda nada nuevo.

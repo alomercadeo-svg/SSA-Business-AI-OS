@@ -1554,7 +1554,7 @@
       "Bloque 3: Modelo de contacto, ingesta y CRM",
       "F30: Notas, ficha de contacto y borrado suave"
     ],
-    "texto": "- [ ] Campo `deleted_at` en contactos, notas, conversaciones y respuestas rápidas. Eliminar marca la fecha, no borra"
+    "texto": "- [x] Campo `deleted_at` en contactos, notas, conversaciones y respuestas rápidas. Eliminar marca la fecha, no borra"
   },
   {
     "seccion": "F30: Notas, ficha de contacto y borrado suave",
@@ -1842,7 +1842,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F34: Marca de no contactar"
     ],
-    "texto": "- [ ] Lista de frases de baja configurable por espacio de trabajo"
+    "texto": "- [x] Lista de frases de baja configurable por espacio de trabajo"
   },
   {
     "seccion": "F34: Marca de no contactar",
@@ -1851,7 +1851,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F34: Marca de no contactar"
     ],
-    "texto": "- [ ] La lista viene cargada con: \"no me escribas más\", \"dejá de mandar mensajes\", \"no quiero recibir mensajes\", \"stop\", \"unsubscribe\", \"basta\", \"no me contactes\" (devuelto el 23/09/2026, auditoría #92b)"
+    "texto": "- [x] La lista viene cargada con: \"no me escribas más\", \"dejá de mandar mensajes\", \"no quiero recibir mensajes\", \"stop\", \"unsubscribe\", \"basta\", \"no me contactes\" (devuelto el 23/09/2026, auditoría #92b)"
   },
   {
     "seccion": "F34: Marca de no contactar",
@@ -1878,7 +1878,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F34: Marca de no contactar"
     ],
-    "texto": "- [ ] Un Admin o el Owner puede revertirla, con registro"
+    "texto": "- [x] Un Admin o el Owner puede revertirla, con registro"
   },
   {
     "seccion": "F34: Marca de no contactar",
@@ -1896,7 +1896,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F34: Marca de no contactar"
     ],
-    "texto": "- [ ] Un contacto marcado nunca entra a una secuencia"
+    "texto": "- [x] Un contacto marcado nunca entra a una secuencia"
   },
   {
     "seccion": "F35: Bandeja y filtros",
@@ -2193,7 +2193,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F36: Respuestas rápidas"
     ],
-    "texto": "- [ ] Tabla `response_templates` con alta, baja y modificación en `/settings/response-templates`"
+    "texto": "- [x] Tabla `response_templates` con alta, baja y modificación en `/settings/response-templates`"
   },
   {
     "seccion": "F36: Respuestas rápidas",
@@ -2202,7 +2202,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F36: Respuestas rápidas"
     ],
-    "texto": "- [ ] Selector con \"/\" en la bandeja, con búsqueda por nombre o atajo"
+    "texto": "- [x] Selector con \"/\" en la bandeja, con búsqueda por nombre o atajo"
   },
   {
     "seccion": "F36: Respuestas rápidas",
@@ -2220,7 +2220,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F36: Respuestas rápidas"
     ],
-    "texto": "- [ ] Al seleccionar, se inserta el contenido con las variables interpoladas: `{{contact.display_name}}`, `{{contact.email}}`, `{{contact.phone}}`, `{{workspace.name}}` (devuelto el 23/09/2026, auditoría #88b)"
+    "texto": "- [x] Al seleccionar, se inserta el contenido con las variables interpoladas: `{{contact.display_name}}`, `{{contact.email}}`, `{{contact.phone}}`, `{{workspace.name}}` (devuelto el 23/09/2026, auditoría #88b)"
   },
   {
     "seccion": "F36: Respuestas rápidas",
@@ -2229,7 +2229,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F36: Respuestas rápidas"
     ],
-    "texto": "- [ ] En la interfaz se llaman \"respuestas rápidas\", nunca \"plantillas\", para no confundirlas con las plantillas de WhatsApp del plan B"
+    "texto": "- [x] En la interfaz se llaman \"respuestas rápidas\", nunca \"plantillas\", para no confundirlas con las plantillas de WhatsApp del plan B"
   },
   {
     "seccion": "F36: Respuestas rápidas",
@@ -2724,7 +2724,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F43: Lista de contactos completa"
     ],
-    "texto": "- [ ] Un filtro deja afuera de la lista de Contactos a los contactos que nunca escribieron: sin ningún mensaje del lead en ninguna de sus conversaciones. Control positivo: con el filtro, un contacto que escribió aparece y uno que nunca escribió no; sin el filtro, aparecen los dos (agregado el 05/11/2026, decidido por Marcos: los contactos que deja la bienvenida de ManyChat sin que la persona escriba llenan la lista de «Sin nombre»)."
+    "texto": "- [x] Un filtro deja afuera de la lista de Contactos a los contactos que nunca escribieron: sin ningún mensaje del lead en ninguna de sus conversaciones. Control positivo: con el filtro, un contacto que escribió aparece y uno que nunca escribió no; sin el filtro, aparecen los dos (agregado el 05/11/2026, decidido por Marcos: los contactos que deja la bienvenida de ManyChat sin que la persona escriba llenan la lista de «Sin nombre»)."
   },
   {
     "seccion": "F44: Contenido del hilo: compartidos, historias y fotos",
@@ -2733,7 +2733,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F44: Contenido del hilo: compartidos, historias y fotos"
     ],
-    "texto": "- [ ] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con su título si el aviso lo trae, en vez de «Adjunto», y sin botón para abrirla. No se descarga ni se guarda ningún archivo."
+    "texto": "- [x] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con su título si el aviso lo trae, en vez de «Adjunto», y sin botón para abrirla. No se descarga ni se guarda ningún archivo."
   },
   {
     "seccion": "F44: Contenido del hilo: compartidos, historias y fotos",

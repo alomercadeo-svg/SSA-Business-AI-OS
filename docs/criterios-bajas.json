@@ -1257,5 +1257,82 @@
     "texto": "- [ ] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con «Ver en Instagram», en vez de «Adjunto». No se descarga ni se guarda ningún archivo: se guarda solo el enlace.",
     "nuevo": "- [ ] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con su título si el aviso lo trae, en vez de «Adjunto», y sin botón para abrirla. No se descarga ni se guarda ningún archivo.",
     "motivo": "El enlace armado desde ig_post_media_id no abrió la publicación (06/11/2026, poco después de las 09:50, \"Sorry, this page isn't available\") y la documentación de Meta no documenta la conversión sin llamar a su API. \"Con su título si el aviso lo trae\", porque sin título se muestra solo el encabezado. Sin \"se guarda solo el título\", porque la base guarda el adjunto entero del aviso; lo que cambia es lo que se muestra."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-06",
+    "texto": "- [ ] Lista de frases de baja configurable por espacio de trabajo",
+    "nuevo": "- [x] Lista de frases de baja configurable por espacio de trabajo",
+    "motivo": "Tildado por Marcos el 06/11/2026. Visto por Marcos de 18:04 a 18:07: Configuración › «Frases de baja» con las siete frases del criterio; agregó «ya basta» y quedó guardada (Historial de cambios, 18:04, Ale Admin)."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-06",
+    "texto": "- [ ] La lista viene cargada con: \"no me escribas más\", \"dejá de mandar mensajes\", \"no quiero recibir mensajes\", \"stop\", \"unsubscribe\", \"basta\", \"no me contactes\" (devuelto el 23/09/2026, auditoría #92b)",
+    "nuevo": "- [x] La lista viene cargada con: \"no me escribas más\", \"dejá de mandar mensajes\", \"no quiero recibir mensajes\", \"stop\", \"unsubscribe\", \"basta\", \"no me contactes\" (devuelto el 23/09/2026, auditoría #92b)",
+    "motivo": "Tildado por Marcos el 06/11/2026. Visto por Marcos de 18:04 a 18:07: Configuración › «Frases de baja» con las siete frases del criterio; agregó «ya basta» y quedó guardada (Historial de cambios, 18:04, Ale Admin)."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-06",
+    "texto": "- [ ] Un Admin o el Owner puede revertirla, con registro",
+    "nuevo": "- [x] Un Admin o el Owner puede revertirla, con registro",
+    "motivo": "Tildado por Marcos el 06/11/2026. Prueba real: «no me escribas más» desde @marcospittimusic marcó a «Marcos Pitti music» (Historial de cambios, 18:05, Sistema); «Revertir la marca» desde la ficha, como Admin, la sacó (Historial de cambios, 18:07, «Marca de no contactar revertida: Marcos Pitti music»). Que un Member no puede revertir: verify-no-contactar 15 de 15, última corrida el 06/11/2026 a las 17:51."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-06",
+    "texto": "- [ ] Un contacto marcado nunca entra a una secuencia",
+    "nuevo": "- [x] Un contacto marcado nunca entra a una secuencia",
+    "motivo": "Tildado por Marcos el 06/11/2026. verify-no-contactar contra la base de producción, en un espacio fantasma: la base rechaza inscribir en una secuencia a un contacto marcado, con su control positivo (uno sin marca entra); 15 de 15, última corrida el 06/11/2026 a las 17:51. Las secuencias son de la Fase 2: en la Fase 1 no puede haber un caso real."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-06",
+    "texto": "- [ ] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con su título si el aviso lo trae, en vez de «Adjunto», y sin botón para abrirla. No se descarga ni se guarda ningún archivo.",
+    "nuevo": "- [x] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con su título si el aviso lo trae, en vez de «Adjunto», y sin botón para abrirla. No se descarga ni se guarda ningún archivo.",
+    "motivo": "Tildado por Marcos el 06/11/2026. Visto por Marcos el 06/11 a las 15:42, en la computadora: la publicación compartida de las 17:35 del 05/11 en «Marcos Pitti music», como «Compartió una publicación», con su título en cursiva y sin botón. verify-contenido-hilo 18 de 18, última corrida el 06/11/2026 a las 18:20."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-06",
+    "texto": "- [ ] Un filtro deja afuera de la lista de Contactos a los contactos que nunca escribieron: sin ningún mensaje del lead en ninguna de sus conversaciones. Control positivo: con el filtro, un contacto que escribió aparece y uno que nunca escribió no; sin el filtro, aparecen los dos (agregado el 05/11/2026, decidido por Marcos: los contactos que deja la bienvenida de ManyChat sin que la persona escriba llenan la lista de «Sin nombre»).",
+    "nuevo": "- [x] Un filtro deja afuera de la lista de Contactos a los contactos que nunca escribieron: sin ningún mensaje del lead en ninguna de sus conversaciones. Control positivo: con el filtro, un contacto que escribió aparece y uno que nunca escribió no; sin el filtro, aparecen los dos (agregado el 05/11/2026, decidido por Marcos: los contactos que deja la bienvenida de ManyChat sin que la persona escriba llenan la lista de «Sin nombre»).",
+    "motivo": "Tildado por Marcos el 06/11/2026. Visto por Marcos el 06/11 a las 15:42: «Solo los que escribieron» da «461 de 783 contactos» y la dirección termina en ?escribieron=si. verify-contactos 111 de 111, última corrida el 06/11/2026 a las 18:19, con el control positivo (con el filtro, el que escribió aparece y el que nunca escribió no; sin el filtro, los dos). F43 queda completa, 6 de 6."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-06",
+    "texto": "- [ ] Tabla `response_templates` con alta, baja y modificación en `/settings/response-templates`",
+    "nuevo": "- [x] Tabla `response_templates` con alta, baja y modificación en `/settings/response-templates`",
+    "motivo": "Tildado por Marcos el 06/11/2026. Visto por Marcos el 06/11 de 15:07 a 15:42 y a las 18:0x: crear, editar, el aviso de atajo repetido («Ya hay una respuesta rápida con el atajo «/prueba».») y eliminar; «/pru» inserta el texto con el nombre del contacto y el del espacio, en la computadora y en el iPhone; la interfaz dice «Respuestas rápidas». verify-respuestas-rapidas 26 de 26, última corrida el 06/11/2026 a las 18:20."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-06",
+    "texto": "- [ ] Selector con \"/\" en la bandeja, con búsqueda por nombre o atajo",
+    "nuevo": "- [x] Selector con \"/\" en la bandeja, con búsqueda por nombre o atajo",
+    "motivo": "Tildado por Marcos el 06/11/2026. Visto por Marcos el 06/11 de 15:07 a 15:42 y a las 18:0x: crear, editar, el aviso de atajo repetido («Ya hay una respuesta rápida con el atajo «/prueba».») y eliminar; «/pru» inserta el texto con el nombre del contacto y el del espacio, en la computadora y en el iPhone; la interfaz dice «Respuestas rápidas». verify-respuestas-rapidas 26 de 26, última corrida el 06/11/2026 a las 18:20."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-06",
+    "texto": "- [ ] Al seleccionar, se inserta el contenido con las variables interpoladas: `{{contact.display_name}}`, `{{contact.email}}`, `{{contact.phone}}`, `{{workspace.name}}` (devuelto el 23/09/2026, auditoría #88b)",
+    "nuevo": "- [x] Al seleccionar, se inserta el contenido con las variables interpoladas: `{{contact.display_name}}`, `{{contact.email}}`, `{{contact.phone}}`, `{{workspace.name}}` (devuelto el 23/09/2026, auditoría #88b)",
+    "motivo": "Tildado por Marcos el 06/11/2026. Visto por Marcos el 06/11 de 15:07 a 15:42 y a las 18:0x: crear, editar, el aviso de atajo repetido («Ya hay una respuesta rápida con el atajo «/prueba».») y eliminar; «/pru» inserta el texto con el nombre del contacto y el del espacio, en la computadora y en el iPhone; la interfaz dice «Respuestas rápidas». verify-respuestas-rapidas 26 de 26, última corrida el 06/11/2026 a las 18:20. Nota: en pantalla se vieron dos de las cuatro variables ({{contact.display_name}} y {{workspace.name}}); las otras dos, en tests (lib/respuestas-rapidas.test.ts)."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-06",
+    "texto": "- [ ] En la interfaz se llaman \"respuestas rápidas\", nunca \"plantillas\", para no confundirlas con las plantillas de WhatsApp del plan B",
+    "nuevo": "- [x] En la interfaz se llaman \"respuestas rápidas\", nunca \"plantillas\", para no confundirlas con las plantillas de WhatsApp del plan B",
+    "motivo": "Tildado por Marcos el 06/11/2026. Visto por Marcos el 06/11 de 15:07 a 15:42 y a las 18:0x: crear, editar, el aviso de atajo repetido («Ya hay una respuesta rápida con el atajo «/prueba».») y eliminar; «/pru» inserta el texto con el nombre del contacto y el del espacio, en la computadora y en el iPhone; la interfaz dice «Respuestas rápidas». verify-respuestas-rapidas 26 de 26, última corrida el 06/11/2026 a las 18:20."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-06",
+    "texto": "- [ ] Campo `deleted_at` en contactos, notas, conversaciones y respuestas rápidas. Eliminar marca la fecha, no borra",
+    "nuevo": "- [x] Campo `deleted_at` en contactos, notas, conversaciones y respuestas rápidas. Eliminar marca la fecha, no borra",
+    "motivo": "Tildado por Marcos el 06/11/2026. Eliminar una respuesta rápida la sacó de la lista y del «/» (visto por Marcos el 06/11); verify-respuestas-rapidas 26 de 26, última corrida el 06/11/2026 a las 18:20: comprueba en la base que queda con fecha y no se borra. Contactos, notas y conversaciones: verify-borrado 73 de 73, última corrida el 06/11/2026 a las 18:21; verify-notas 43 de 43, última corrida el 06/11/2026 a las 18:22."
   }
 ]
