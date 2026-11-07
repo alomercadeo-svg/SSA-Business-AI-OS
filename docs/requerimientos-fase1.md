@@ -971,14 +971,14 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** respetar a quien pidió no recibir más mensajes.
 
-**Actualizado el 06/11/2026: 4 de 7 tildados**, decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 06/11/2026»). Construida el 06/11/2026, ítem 8 del plan maestro (migración 00053). Quedan la pausa de las secuencias activas (sin prueba), la marca roja (la mira Marcos) y el bloqueo por WhatsApp (espera a F42). **Antes decía:** **Estado: parcial, y es la más cubierta del Bloque 4** (inspeccionado el 22 de septiembre de 2026). **El fork cubre:** la columna `contacts.is_subscribed`, respetada por el listado de contactos (`/api/v1/contacts`) y por el envío de difusiones. **Falta:** el opt-out duro desde la bandeja, las frases de baja configurables, y que las secuencias lo respeten.
+**Actualizado el 06/11/2026, a las 19:1x: 5 de 7 tildados**, decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 06/11/2026»). Construida el 06/11/2026, ítem 8 del plan maestro (migración 00053). Quedan la pausa de las secuencias activas (sin prueba) y el bloqueo por WhatsApp (espera a F42). **Antes decía:** **Estado: parcial, y es la más cubierta del Bloque 4** (inspeccionado el 22 de septiembre de 2026). **El fork cubre:** la columna `contacts.is_subscribed`, respetada por el listado de contactos (`/api/v1/contacts`) y por el envío de difusiones. **Falta:** el opt-out duro desde la bandeja, las frases de baja configurables, y que las secuencias lo respeten.
 
 **Criterios de aceptación:**
 
 - [x] Lista de frases de baja configurable por espacio de trabajo
 - [x] La lista viene cargada con: "no me escribas más", "dejá de mandar mensajes", "no quiero recibir mensajes", "stop", "unsubscribe", "basta", "no me contactes" (devuelto el 23/09/2026, auditoría #92b)
 - [ ] Al detectar una: se marca el contacto, se registra el motivo y la fecha, se pausan las secuencias activas y queda en el historial de auditoría
-- [ ] Marca roja visible en la bandeja y en la ficha
+- [x] Marca roja visible en la bandeja y en la ficha
 - [x] Un Admin o el Owner puede revertirla, con registro
 - [ ] Al intentar enviar a un contacto marcado se bloquea el envío, sin opción de forzarlo. Con Evolution una denuncia pesa más que cien mensajes
 - [x] Un contacto marcado nunca entra a una secuencia
@@ -1038,7 +1038,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** textos reutilizables que el operador inserta escribiendo una barra.
 
-**Actualizado el 06/11/2026: 4 de 6 tildados**, decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 06/11/2026»). Construida el 06/11/2026, ítem 6 del plan maestro (migración 00052). Quedan la interpolación con un dato vacío, vista en pantalla, y el borrado a los 30 días por la tarea real. **Antes decía:** **Estado: no construido, y la tabla hay que crearla** (verificado el 22 de septiembre de 2026). **El 20/10/2026 suma un criterio**, decidido por Marcos: el borrado suave de las respuestas rápidas, que es el dueño de esa parte del criterio de `deleted_at` de F30. F36 es del Bloque 4: no toca la línea de base del Bloque 3.
+**Actualizado el 06/11/2026, a las 19:1x: 5 de 6 tildados**, decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 06/11/2026»). Construida el 06/11/2026, ítem 6 del plan maestro (migración 00052). Queda el borrado a los 30 días por la tarea real. **Antes decía:** **Estado: no construido, y la tabla hay que crearla** (verificado el 22 de septiembre de 2026). **El 20/10/2026 suma un criterio**, decidido por Marcos: el borrado suave de las respuestas rápidas, que es el dueño de esa parte del criterio de `deleted_at` de F30. F36 es del Bloque 4: no toca la línea de base del Bloque 3.
 
 > **`response_templates` no es una tabla del fork que el `CLAUDE.md` recordara mal: es un nombre que elegimos nosotros para una tabla que no existe.**
 >
@@ -1052,7 +1052,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 - [x] Tabla `response_templates` con alta, baja y modificación en `/settings/response-templates`
 - [x] Selector con "/" en la bandeja, con búsqueda por nombre o atajo
-- [ ] Interpolación de datos del contacto; si un dato falta, queda vacío
+- [x] Interpolación de datos del contacto; si un dato falta, queda vacío
 - [x] Al seleccionar, se inserta el contenido con las variables interpoladas: `{{contact.display_name}}`, `{{contact.email}}`, `{{contact.phone}}`, `{{workspace.name}}` (devuelto el 23/09/2026, auditoría #88b)
 - [x] En la interfaz se llaman "respuestas rápidas", nunca "plantillas", para no confundirlas con las plantillas de WhatsApp del plan B
 - [ ] Eliminar una respuesta rápida marca la fecha y no la borra (`deleted_at` en `response_templates`). Las listas y la seguridad por filas excluyen las eliminadas, y la purga diaria de F30 (`lib/purga.ts`) también las borra a los 30 días. (Agregado el 20/10/2026, decidido por Marcos: es el dueño de la parte de respuestas rápidas del criterio de `deleted_at` de F30)
@@ -1212,14 +1212,14 @@ El argumento decisivo es la asimetría del error: **dejar afuera es irreversible
 
 **Descripción:** que en el hilo se vea qué compartió o a qué respondió el lead, y que las fotos se puedan ampliar.
 
-**Actualizado el 06/11/2026: 1 de 4 tildados**, decidido por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 06/11/2026»): la publicación compartida, con el criterio reescrito ese día. **Antes decía:** **Estado: no construido** (2 de noviembre de 2026). Funcionalidad nueva, decidida por Marcos en la revisión de antes de S7; va en el Bloque 4, S9. Viene del pendiente de §15 del 09/10/2026 sobre los `share` de Instagram, que la bandeja muestra como «Adjunto». **Cada criterio se prueba con datos reales, de @marcospittimusic a @poderosascomunidad.**
+**Actualizado el 06/11/2026, a las 19:1x: 3 de 4 tildados**, decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 06/11/2026»): la publicación compartida (con el criterio reescrito ese día), el reel y la foto a pantalla completa. Queda «Respondió a tu historia» (3c). **Antes decía:** **Estado: no construido** (2 de noviembre de 2026). Funcionalidad nueva, decidida por Marcos en la revisión de antes de S7; va en el Bloque 4, S9. Viene del pendiente de §15 del 09/10/2026 sobre los `share` de Instagram, que la bandeja muestra como «Adjunto». **Cada criterio se prueba con datos reales, de @marcospittimusic a @poderosascomunidad.**
 
 **Criterios de aceptación:**
 
 - [x] Una publicación compartida por el lead se ve en el hilo como «Compartió una publicación», con su título si el aviso lo trae, en vez de «Adjunto», y sin botón para abrirla. No se descarga ni se guarda ningún archivo.
-- [ ] Un reel compartido se ve como «Compartió un reel», con «Ver en Instagram», en vez de «Este archivo no está disponible.». Se reconoce sin intentar bajarlo y no se guarda ningún archivo. Un video grabado con la cámara se sigue bajando y viendo como video.
+- [x] Un reel compartido se ve como «Compartió un reel», con «Ver en Instagram», en vez de «Este archivo no está disponible.». Se reconoce sin intentar bajarlo y no se guarda ningún archivo. Un video grabado con la cámara se sigue bajando y viendo como video.
 - [ ] Una respuesta a una historia se ve con la marca «Respondió a tu historia» y, si el aviso trae el enlace de la historia, con «Ver historia». No se guarda la imagen de la historia.
-- [ ] Tocar una foto del hilo la abre a pantalla completa dentro de la app, y se cierra con «X», con la tecla Escape o con el gesto de volver en el teléfono. Vale para Instagram y para WhatsApp, y no descarga ni guarda nada nuevo.
+- [x] Tocar una foto del hilo la abre a pantalla completa dentro de la app, y se cierra con «X», con la tecla Escape o con el gesto de volver en el teléfono. Vale para Instagram y para WhatsApp, y no descarga ni guarda nada nuevo.
 
 
 ### Apéndice: plan B, escrito y sin construir

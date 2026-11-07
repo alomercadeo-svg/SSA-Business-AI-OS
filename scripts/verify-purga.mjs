@@ -29,6 +29,10 @@
  *   - Y, eliminado hace 29 días, con su mensaje y su PNG: el control de que el
  *     corte es de 30 días. Tiene que quedar todo.
  *   - Z, vivo, con una nota eliminada hace 31 días (se va) y una viva (queda).
+ * Y tres respuestas rápidas (F36, criterio 6, sumadas el 06/11/2026, pedido
+ * de Marcos): R1 eliminada hace 31 días (se va), R2 eliminada hace 29 días
+ * (queda: el control del corte) y R3 viva (queda). Se eliminan por la función
+ * de la base, `eliminar_respuesta_rapida`, como lo hace la pantalla.
  *
  * LOS CONTROLES. La presencia de cada fila y de cada archivo se comprueba al
  * preparar, así la ausencia del final significa algo. Y y Z son los controles
@@ -90,6 +94,7 @@ async function recuento(e) {
   check((await cuenta(`workspaces?select=id&id=eq.${e.espacio}`)) === 0, "workspaces: 0");
   check((await cuenta(`contacts?select=id&workspace_id=eq.${e.espacio}`)) === 0, "contacts: 0");
   check((await cuenta(`channels?select=id&workspace_id=eq.${e.espacio}`)) === 0, "channels: 0");
+  check((await cuenta(`response_templates?select=id&workspace_id=eq.${e.espacio}`)) === 0, "response_templates: 0");
   check((await cuenta(`tareas_estado?select=clave&workspace_id=eq.${e.espacio}`)) === 0, "tareas_estado del espacio: 0");
   check(objetos(e.espacio).length === 0, "objetos en message-media del espacio: 0");
   const r = await fetch(`${URL_BASE}/auth/v1/admin/users/${e.owner}`, { headers: { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` } });
@@ -142,6 +147,16 @@ if (fase === "preparar") {
     const nZ2 = await nota(Z, "nota viva de Z");
 
     // Eliminar por las funciones de la base: dejan la fila del historial.
+    // F36, criterio 6: tres respuestas rápidas del Owner (crear es de manager).
+    const respuesta = async (atajo) =>
+      (await comoUsuario(owner.token, "response_templates", { method: "POST", body: JSON.stringify({ workspace_id: espacio, nombre: `b3-purga-${atajo}`, atajo, contenido: "texto de prueba", created_by: owner.id }) })).data?.[0]?.id;
+    const R1 = await respuesta(`r1${sufijo}`.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 30));
+    const R2 = await respuesta(`r2${sufijo}`.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 30));
+    const R3 = await respuesta(`r3${sufijo}`.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 30));
+    const eR1 = await rpcComo(owner.token, "eliminar_respuesta_rapida", { p_id: R1 });
+    const eR2 = await rpcComo(owner.token, "eliminar_respuesta_rapida", { p_id: R2 });
+    check(Boolean(R1 && R2 && R3) && eR1.status === 200 && eR2.status === 200, "el Owner crea tres respuestas rápidas y elimina R1 y R2 por la función", `HTTP ${eR1.status} ${eR2.status}`);
+
     const eX = await rpcComo(owner.token, "eliminar_contacto", { p_contacto: X });
     const eY = await rpcComo(owner.token, "eliminar_contacto", { p_contacto: Y });
     const eN = await rpcComo(owner.token, "eliminar_nota", { p_nota: nZ1 });
@@ -154,16 +169,20 @@ if (fase === "preparar") {
     check((await filas(`contact_channels?select=id&contact_id=eq.${X}`)).length === 1, "la fila de canal de X");
     check((await filas(`contact_notes?select=id&id=in.(${nX},${nZ1},${nZ2})`)).length === 3, "las tres notas");
     check(objetos(espacio).length === 2, "los dos PNG en message-media");
+    const rs = await filas(`response_templates?select=id,deleted_at&id=in.(${R1},${R2},${R3})`);
+    check(rs.length === 3 && rs.filter((r) => r.deleted_at).length === 2, "las tres respuestas rápidas, R1 y R2 con fecha de eliminación");
     const audX = (await filas(`audit_log?select=id&entity_id=eq.${X}&action=eq.contacto.eliminado`)).length;
     check(audX === 1, "la fila «contacto.eliminado» de X en el historial");
 
     const ahora = Date.now();
     const estado = {
-      espacio, owner: owner.id, canal, X, Y, Z, convX, convY, mX, mY, rutaX, rutaY, nX, nZ1, nZ2,
+      espacio, owner: owner.id, canal, X, Y, Z, convX, convY, mX, mY, rutaX, rutaY, nX, nZ1, nZ2, R1, R2, R3,
       retroceso: {
         X: new Date(ahora - 31 * DIA).toISOString(),
         Y: new Date(ahora - 29 * DIA).toISOString(),
         nZ1: new Date(ahora - 31 * DIA).toISOString(),
+        R1: new Date(ahora - 31 * DIA).toISOString(),
+        R2: new Date(ahora - 29 * DIA).toISOString(),
       },
     };
     const actual = async (tabla, id) => (await filas(`${tabla}?select=deleted_at&id=eq.${id}`))[0]?.deleted_at;
@@ -173,6 +192,8 @@ if (fase === "preparar") {
       ["contacts", Y, estado.retroceso.Y],
       ["conversations", convY, estado.retroceso.Y],
       ["contact_notes", nZ1, estado.retroceso.nZ1],
+      ["response_templates", R1, estado.retroceso.R1],
+      ["response_templates", R2, estado.retroceso.R2],
     ];
     console.log(`\nLas ${plan.length} filas que «retroceder» va a escribir con la clave de servicio, todas del espacio fantasma ${corto(espacio)} (deleted_at):`);
     for (const [tabla, id, nuevo] of plan) console.log(`  ${tabla} ${corto(id)}: ${await actual(tabla, id)} → ${nuevo}`);
@@ -214,6 +235,8 @@ if (fase === "retroceder") {
     await escribir("contacts", e.Y, e.retroceso.Y);
     await escribir("conversations", e.convY, e.retroceso.Y);
     await escribir("contact_notes", e.nZ1, e.retroceso.nZ1);
+    await escribir("response_templates", e.R1, e.retroceso.R1);
+    await escribir("response_templates", e.R2, e.retroceso.R2);
     const marca = await admin(`tareas_estado?clave=eq.purga_eliminados:${e.espacio}`, { method: "DELETE" });
     console.log(`  marca de la purga del espacio fantasma borrada: ${marca.data?.length ?? 0} fila(s)`);
     console.log("\nReleído");
@@ -226,6 +249,8 @@ if (fase === "retroceder") {
     await ver("contacts", e.Y, e.retroceso.Y);
     await ver("conversations", e.convY, e.retroceso.Y);
     await ver("contact_notes", e.nZ1, e.retroceso.nZ1);
+    await ver("response_templates", e.R1, e.retroceso.R1);
+    await ver("response_templates", e.R2, e.retroceso.R2);
     e.retrocedido_at = new Date().toISOString();
     guardarEstado(e);
   });
@@ -255,6 +280,7 @@ if (fase === "comprobar") {
       console.log(`  resultado de la tarea: ${JSON.stringify(fila.resultado)}`);
       check(fila.resultado?.contactos === 1 && fila.resultado?.conversaciones === 1 && fila.resultado?.notas === 1 && fila.resultado?.archivos === 1,
         "la tarea dice: 1 contacto, 1 conversación, 1 nota suelta y 1 archivo");
+      check(fila.resultado?.respuestas === 1, "la tarea dice: 1 respuesta rápida", JSON.stringify(fila.resultado));
 
       console.log("\nX, eliminado hace 31 días: se fue todo, en cascada");
       check((await filas(`contacts?select=id&id=eq.${e.X}`)).length === 0, "X no existe");
@@ -272,6 +298,11 @@ if (fase === "comprobar") {
       check((await filas(`contacts?select=id&id=eq.${e.Z}`)).length === 1, "Z (vivo) sigue");
       check((await filas(`contact_notes?select=id&id=eq.${e.nZ1}`)).length === 0, "la nota de Z eliminada hace 31 días se fue");
       check((await filas(`contact_notes?select=id&id=eq.${e.nZ2}`)).length === 1, "la nota viva de Z sigue");
+
+      console.log("\nLas respuestas rápidas (F36, criterio 6)");
+      check((await filas(`response_templates?select=id&id=eq.${e.R1}`)).length === 0, "R1, eliminada hace 31 días, se fue");
+      check((await filas(`response_templates?select=id&id=eq.${e.R2}`)).length === 1, "control: R2, eliminada hace 29 días, sigue");
+      check((await filas(`response_templates?select=id&id=eq.${e.R3}`)).length === 1, "control: R3, viva, sigue");
 
       console.log("\nEl historial no se purga");
       const total = auditTotal();

@@ -1869,7 +1869,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F34: Marca de no contactar"
     ],
-    "texto": "- [ ] Marca roja visible en la bandeja y en la ficha"
+    "texto": "- [x] Marca roja visible en la bandeja y en la ficha"
   },
   {
     "seccion": "F34: Marca de no contactar",
@@ -2211,7 +2211,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F36: Respuestas rápidas"
     ],
-    "texto": "- [ ] Interpolación de datos del contacto; si un dato falta, queda vacío"
+    "texto": "- [x] Interpolación de datos del contacto; si un dato falta, queda vacío"
   },
   {
     "seccion": "F36: Respuestas rápidas",
@@ -2742,7 +2742,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F44: Contenido del hilo: compartidos, historias y fotos"
     ],
-    "texto": "- [ ] Un reel compartido se ve como «Compartió un reel», con «Ver en Instagram», en vez de «Este archivo no está disponible.». Se reconoce sin intentar bajarlo y no se guarda ningún archivo. Un video grabado con la cámara se sigue bajando y viendo como video."
+    "texto": "- [x] Un reel compartido se ve como «Compartió un reel», con «Ver en Instagram», en vez de «Este archivo no está disponible.». Se reconoce sin intentar bajarlo y no se guarda ningún archivo. Un video grabado con la cámara se sigue bajando y viendo como video."
   },
   {
     "seccion": "F44: Contenido del hilo: compartidos, historias y fotos",
@@ -2760,7 +2760,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F44: Contenido del hilo: compartidos, historias y fotos"
     ],
-    "texto": "- [ ] Tocar una foto del hilo la abre a pantalla completa dentro de la app, y se cierra con «X», con la tecla Escape o con el gesto de volver en el teléfono. Vale para Instagram y para WhatsApp, y no descarga ni guarda nada nuevo."
+    "texto": "- [x] Tocar una foto del hilo la abre a pantalla completa dentro de la app, y se cierra con «X», con la tecla Escape o con el gesto de volver en el teléfono. Vale para Instagram y para WhatsApp, y no descarga ni guarda nada nuevo."
   },
   {
     "seccion": "F6: WhatsApp por API oficial vía Zernio",
