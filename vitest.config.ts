@@ -9,7 +9,9 @@ export default defineConfig({
   },
   test: {
     include: ["**/*.test.ts"],
-    exclude: ["node_modules/**"],
+    // `herramientas-locales/` guarda herramientas que no son del proyecto
+    // (Playwright, con su propio node_modules), ignoradas por git.
+    exclude: ["node_modules/**", "herramientas-locales/**"],
     environment: "node",
   },
 });
