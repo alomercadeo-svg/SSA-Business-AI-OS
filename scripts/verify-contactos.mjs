@@ -437,6 +437,57 @@ await correr(async () => {
     check(pw.html.includes('<option value="si" selected="">Solo los que escribieron</option>'), "la página muestra el filtro puesto («Solo los que escribieron»)");
     await lista(owner, "Owner", "q=b9cw", [W.escribio, W.nunca]);
 
+    // ── El orden de Contactos (F43, criterio 7, 09/11/2026) ────────────────
+    // Contactos propios, creados al final para no cambiar los pasos de antes.
+    // Todos con un correo del dominio `b9or-<sufijo>`, que es lo que se busca.
+    titulo("El orden de Contactos (F43, criterio 7)");
+    const dom = `b9or-${sufijo}.invalid`;
+    const conNombre = ["alba", "Álvaro", "beto", "Zoe", ...Array.from({ length: 55 }, (_, i) => `m${String(i + 1).padStart(2, "0")}`)];
+    const filasOr = [
+      ...conNombre.map((n, i) => ({ workspace_id: E, display_name: n, email: `c${i}@${dom}`, setter_id: i % 2 ? member.id : owner.id, last_interaction_at: new Date(ahora - (700 + i) * 60_000).toISOString() })),
+      { workspace_id: E, display_name: null, email: `usuario@${dom}`, setter_id: null, last_interaction_at: new Date(ahora - 800 * 60_000).toISOString() },
+      ...[1, 2, 3].map((k) => ({ workspace_id: E, display_name: null, email: `sn${k}@${dom}`, setter_id: null, last_interaction_at: new Date(ahora - (810 + k) * 60_000).toISOString() })),
+    ];
+    const altaOr = await admin("contacts", { method: "POST", body: JSON.stringify(filasOr) });
+    if (!Array.isArray(altaOr.data) || altaOr.data.length !== filasOr.length) throw new Error(`no se crearon los contactos del orden: HTTP ${altaOr.status}`);
+    const porCorreo = Object.fromEntries(altaOr.data.map((c) => [c.email, c.id]));
+    // Sin nombre pero con usuario de Instagram: se ordena por «carla_ig», no al final.
+    await canal(porCorreo[`usuario@${dom}`], `b9or-sender-${sufijo}`, "carla_ig");
+    const sinNombre = [1, 2, 3].map((k) => porCorreo[`sn${k}@${dom}`]);
+    const pag = async (token, orden, dir, n, extra = {}) => {
+      const r = await rpcComo(token, "contactos_pagina?select=id", { p_workspace: E, p_filtros: { q: dom, orden, dir, setters: [member.id, owner.id], ...extra }, p_pagina: n, p_por_pagina: 50 });
+      return r.status === 200 && Array.isArray(r.data) ? r.data.map((c) => c.id) : null;
+    };
+    const asc1 = await pag(owner.token, "nombre", "asc", 1);
+    const asc2 = await pag(owner.token, "nombre", "asc", 2);
+    const desc1 = await pag(owner.token, "nombre", "desc", 1);
+    const desc2 = await pag(owner.token, "nombre", "desc", 2);
+    const presente = check(asc1 && asc2 && asc1.length === 50 && asc2.length === filasOr.length - 50, `presencia: ${filasOr.length} contactos en dos páginas (50 y ${filasOr.length - 50})`, JSON.stringify([asc1?.length, asc2?.length]));
+    if (!presente) noConcluyente("el orden por nombre", "falló la presencia");
+    else {
+      const asc = [...asc1, ...asc2];
+      const esperado = ["alba", "Álvaro", "beto", "carla_ig", ...conNombre.slice(4).sort(), "Zoe"];
+      const nombreDe = Object.fromEntries(altaOr.data.map((c) => [c.id, c.display_name ?? (c.email.startsWith("usuario@") ? "carla_ig" : null)]));
+      check(JSON.stringify(asc.slice(0, -3).map((id) => nombreDe[id])) === JSON.stringify(esperado), "por nombre ascendente: «alba», «Álvaro» (la tilde no cambia el orden), «beto», «carla_ig» (sin nombre, con usuario: por su usuario), …, «Zoe»", JSON.stringify(asc.slice(0, 6).map((id) => nombreDe[id])));
+      check(sinNombre.every((id) => asc.slice(-3).includes(id)), "por nombre ascendente: los tres «Sin nombre» al final");
+      check(new Set(asc).size === asc.length && asc.length === filasOr.length, "la página 2 sigue a la 1: sin repetidos ni salteados");
+      const desc = [...(desc1 ?? []), ...(desc2 ?? [])];
+      check(JSON.stringify(desc.slice(0, -3)) === JSON.stringify(asc.slice(0, -3).reverse()), "por nombre descendente: el mismo conjunto, invertido");
+      check(sinNombre.every((id) => desc.slice(-3).includes(id)), "por nombre descendente: los «Sin nombre» siguen al final");
+    }
+    const porSetter = await pag(owner.token, "setter", "asc", 1);
+    const setterDe = Object.fromEntries(altaOr.data.map((c) => [c.id, c.setter_id]));
+    const grupos = (porSetter ?? []).map((id) => setterDe[id]);
+    const corte = grupos.indexOf(owner.id);
+    check(porSetter && corte > 0 && grupos.slice(0, corte).every((s) => s === member.id) && grupos.slice(corte).every((s) => s === owner.id || s === null), "por setter: primero los del primero de la lista, después los del segundo", JSON.stringify(grupos.slice(0, 5)));
+    const conFiltroOr = await pag(owner.token, "nombre", "asc", 1, { setter: member.id });
+    const cantFiltro = await rpcComo(owner.token, "contactos_cantidad", { p_workspace: E, p_filtros: { q: dom, setter: member.id } });
+    check(conFiltroOr && conFiltroOr.every((id) => setterDe[id] === member.id) && conFiltroOr.length === Number(cantFiltro.data), "con la búsqueda y el filtro de setter puestos, el orden respeta el filtro y la cantidad", `${conFiltroOr?.length} de ${cantFiltro.data}`);
+    const ordenMember = await pag(member.token, "nombre", "asc", 1);
+    check(ordenMember && ordenMember.length > 0 && ordenMember.every((id) => setterDe[id] === member.id), "un Member, ordenado: solo su alcance", `${ordenMember?.length}`);
+    const pOr = await lista(owner, "Owner", `q=${encodeURIComponent(dom)}&orden=nombre&dir=desc`, ["Zoe"]);
+    check(pOr.status === 200 && pOr.html.indexOf(">Zoe<") > -1 && pOr.html.indexOf(">Zoe<") < pOr.html.indexOf(">alba<"), "la página de Contactos con ?orden=nombre&dir=desc muestra «Zoe» antes que «alba»");
+
     // ── 10. Server-Timing de la bandeja (solo se anota) ────────────────────
     titulo("Server-Timing de la bandeja, tres corridas (se anota, no se juzga)");
     for (let i = 0; i < 3; i++) {

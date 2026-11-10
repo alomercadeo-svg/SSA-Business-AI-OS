@@ -3794,6 +3794,11 @@ Mismas reglas: un ítem arranca solo si su estimación termina antes de la 01:00
 
 **Nota:** con la 00054 (F37), la 00055 (F33) y la 00056 (este orden), la migración de 3c pasa a ser la **00057**.
 
+#### Decidido por Marcos a las 23:2x: las horas de producción y el plan del orden aprobado
+
+- **Sin hora fija para terminar, pero sí para producción:** migraciones y lo que toque la tarea programada o los receptores, hasta la **01:00**; último despliegue de código, **01:45**; después, nada a producción hasta mañana salvo documentación; lo que se construya después queda en local, commiteado. Un ítem arranca solo si su estimación permite subirlo antes de su corte. F37 parte 2, después de la entrega.
+- **Plan del orden aprobado, con dos ajustes:** (1) **«Sin nombre» se define por lo que se ve:** se ordena por el nombre visible (el criterio de `lib/nombre-visible.ts`: el nombre y, si no hay, el usuario de Instagram), y al final van solo los que en pantalla dicen «Sin nombre» (decisión de la revisión, vetable); el verificador suma un contacto sin nombre pero con usuario, que se ordena por su usuario; (2) **la 00056 sube sola apenas esté lista**, con sus condiciones, sin esperar la pantalla (responde igual que hoy sin las claves nuevas); si a las 00:55 no está lista, se corta. La pantalla puede subir hasta la 01:45. Subir también `c25e50f`. Al terminar, el cierre de producción; antes de arrancar otra cosa, preguntar.
+
 #### La medición del día, por categoría (aproximada, hora de Costa Rica)
 
 | Categoría | Tramos | Suma |
