@@ -3423,13 +3423,15 @@ No hubo sesión el 07/11 ni el 08/11 (ningún commit esos días), así que «Lo 
 
 #### Lo que mira Marcos en el iPhone (recargando antes)
 
-1. **Recargá la bandeja** en Safari (que traiga el código nuevo).
+1. **Recargá la bandeja** en Chrome (que traiga el código nuevo).
 2. **A:** abrí «Marcos Pitti music» desde la lista. Tiene que abrir **en el último mensaje**, no en la foto de las 17:37 del 05/11. Volvé a la lista y abrila otra vez; repetilo tres veces.
 3. **Las fotos del hilo:** se ven enteras, en un alto fijo; una apaisada o chica queda con espacio a los costados (decisión de pantalla, vetable). Tocá una: abre a pantalla completa y cierra con «X» y con el gesto de volver.
 4. **Subí por el hilo con el dedo y quedate leyendo:** no tiene que volver solo al final mientras leés.
 5. **B y el control positivo de F35:** desde @marcospittimusic escribile a @poderosascomunidad (así la ventana está abierta); en la bandeja abrí ese chat desde la lista, **enviá una respuesta desde el iPhone** y volvé con «← Conversaciones»: la vista previa tiene que ser la tuya.
-6. **B con el teléfono en pausa:** con un chat abierto en la bandeja, bloqueá el iPhone o cambiá de app un minuto; mientras tanto mandá un mensaje desde @marcospittimusic; volvé a Safari y a la lista: tiene que mostrar ese mensaje.
+6. **B con el teléfono en pausa:** con un chat abierto en la bandeja, bloqueá el iPhone o cambiá de app un minuto; mientras tanto mandá un mensaje desde @marcospittimusic; volvé a Chrome y a la lista: tiene que mostrar ese mensaje.
 7. **En la computadora:** la bandeja con las tres columnas, y un chat con fotos que abre en el último mensaje.
+
+**Corrección del 09/11/2026, dicha por Marcos:** **Marcos nunca usa Safari; todas sus pruebas en el iPhone fueron en Chrome.** La sesión había dicho Safari en esta lista y en el chat sin verificarlo. Donde este estado dice «Safari» como el navegador de las pruebas de Marcos (el diagnóstico de A del 06/11, punto 4, y los retrabajos del ítem 4), era una suposición de la sesión. **Inferencia, no verificada hoy contra la documentación de Apple:** Chrome en el iPhone usa por dentro WebKit, el motor de Safari (exigencia de Apple fuera de la Unión Europea), así que el diagnóstico de A sigue en pie; lo que cambia entre los dos son las barras (y con ellas el alto visible) y cómo se pausa la página en segundo plano. La prueba se hace en Chrome.
 
 ### Plan maestro, tercer retrabajo del ítem 4 (Bloque 4, medido, subido)
 
