@@ -309,7 +309,10 @@ await correr(async () => {
           await page.waitForFunction(
             (t) => {
               const imgs = [...document.querySelectorAll("img")].filter((i) => i.src.includes("/message-media/"));
-              return imgs.length > 0 && imgs.filter((i) => i.complete && i.naturalHeight > 0).length === imgs.length;
+              // Al menos una: desde el arreglo, con el alto reservado, las de
+              // más arriba quedan fuera de la vista y la carga diferida
+              // (`loading="lazy"`) no las baja (corrida de las 19:03).
+              return imgs.some((i) => i.complete && i.naturalHeight > 0);
             },
             FINAL,
             { timeout: 20000 }
@@ -329,8 +332,8 @@ await correr(async () => {
         // arreglo funcionando. Lo que da verde (al final, el último visible)
         // no cambió.
         const control = check(
-          cargaron && antes && !antes.error && antes.fotosCargadas === 0 && despues?.fotos > 0 && despues.fotosCargadas === despues.fotos,
-          "control: las fotos del hilo cargaron después de montarse el hilo",
+          cargaron && antes && !antes.error && antes.fotosCargadas === 0 && despues?.fotosCargadas > 0,
+          "control: al menos una foto del hilo cargó después de montarse el hilo",
           JSON.stringify({ cargaron, antes, despues })
         );
         if (!control) noConcluyente("el hilo queda en el último mensaje", "las fotos no cargaron después de montarse el hilo: la condición del error no se dio");

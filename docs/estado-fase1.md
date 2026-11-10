@@ -3412,6 +3412,24 @@ No hubo sesión el 07/11 ni el 08/11 (ningún commit esos días), así que «Lo 
 - **Tests: 12 nuevos; 10 vistos en rojo por su motivo** (antes del arreglo, con las funciones nuevas imitando el comportamiento de antes): 3 de `lib/reconexion-realtime.test.ts` y 7 de `components/inbox/hilo-y-lista-al-volver.test.ts`. **No vistos en rojo: 2**, controles que el comportamiento de antes ya cumplía (la primera suscripción no pide nada; con un gesto reciente, la persona despega el hilo). **Un test cambió después de su rojo:** el de «vuelve al frente» esperaba `visibilitychange` antes que el manejador, y en un código válido va después; lo que exige (el manejador sube `listaDesactualizada` cuando la página se ve) no cambió. **Los tests por la fuente no prueban el diseño en el teléfono.**
 - `npm test` 1497 de 1497, `typecheck` salida 0, `lint` 0 errores y 45 avisos, los mismos (una primera corrida dio 47: el comentario nuevo de `visor-foto.tsx` había quedado entre `eslint-disable-next-line` y la foto; se movió arriba).
 - **La prueba, `010ad16`:** A pasa a 5 intentos, y su control cambia de «las fotos agrandaron el hilo» a «las fotos cargaron después de montarse el hilo»: con el alto reservado el hilo ya no crece al cargar, y el control viejo daría «no concluyente» con el arreglo funcionando. **Lo que da verde no cambió** (a 4 px o menos del final, el último mensaje visible).
+- **Antes de subir, los ocho de la sección 9, contra el código viejo**, de 18:57 a 19:02, todos salida 0: 43, 135, 51, 99, 63, 64, 111 y 18.
+- **Subida:** `895d60b` (con `4687a53` y `010ad16`), `verificar-despliegue.mjs`, **salida 0, leída con `echo $?`**: lectura previa a las 19:02:16 (build `Mphx1fBJ5TZyFzgsofi4t`), push `bfc8b90..895d60b`, el build pasó a `Bc3wsBfPGVukkTT5l75GA` a las 19:03:51, con `/login` en 200. **Toca la bandeja: «salida 0, pantallas sin mirar».** Commit activo en Railway, sin identificar por título.
+- **La prueba después de subir:**
+  - **19:03–19:06, salida 1: A no concluyente en 5 de 5, aunque en los 5 el hilo quedó al final** (distancia 0, el último visible). Falla del control, no de la app: con el alto reservado, las dos fotos de más arriba quedan fuera de la vista y la carga diferida (`loading="lazy"`) no las baja; el control exigía las tres. **B1 verde, B2 verde.**
+  - El control pasa a «al menos una foto cargó después de montarse el hilo» (la de más abajo, la que provocaba el error). Lo que da verde no cambió.
+  - **19:07–19:08, salida 0, 20 de 20: A en verde en 5 de 5, B1 verde, B2 verde** (al volver, la lista muestra «NUEVO-B2» como la base, con Realtime cortado y 2 mensajes descartados). Limpieza en cero.
+- **Después de subir, los ocho de la sección 9**, de 19:08 a 19:13, todos salida 0: 43, 135, 51, 99, 63, 64, 111 y 18.
+- **Medición (aproximada, hora de Costa Rica):** el diagnóstico desde 18:50; construcción hasta 18:57; verificadores antes de subir 18:57–19:02; subida 19:02–19:04 (la espera de Railway no se cuenta); prueba y verificadores 19:04–19:13. La aprobación llegó a las 18:4x, sin hora exacta anotada.
+
+#### Lo que mira Marcos en el iPhone (recargando antes)
+
+1. **Recargá la bandeja** en Safari (que traiga el código nuevo).
+2. **A:** abrí «Marcos Pitti music» desde la lista. Tiene que abrir **en el último mensaje**, no en la foto de las 17:37 del 05/11. Volvé a la lista y abrila otra vez; repetilo tres veces.
+3. **Las fotos del hilo:** se ven enteras, en un alto fijo; una apaisada o chica queda con espacio a los costados (decisión de pantalla, vetable). Tocá una: abre a pantalla completa y cierra con «X» y con el gesto de volver.
+4. **Subí por el hilo con el dedo y quedate leyendo:** no tiene que volver solo al final mientras leés.
+5. **B y el control positivo de F35:** desde @marcospittimusic escribile a @poderosascomunidad (así la ventana está abierta); en la bandeja abrí ese chat desde la lista, **enviá una respuesta desde el iPhone** y volvé con «← Conversaciones»: la vista previa tiene que ser la tuya.
+6. **B con el teléfono en pausa:** con un chat abierto en la bandeja, bloqueá el iPhone o cambiá de app un minuto; mientras tanto mandá un mensaje desde @marcospittimusic; volvé a Safari y a la lista: tiene que mostrar ese mensaje.
+7. **En la computadora:** la bandeja con las tres columnas, y un chat con fotos que abre en el último mensaje.
 
 ### Plan maestro, tercer retrabajo del ítem 4 (Bloque 4, medido, subido)
 
