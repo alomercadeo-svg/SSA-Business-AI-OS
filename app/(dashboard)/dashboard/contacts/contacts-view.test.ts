@@ -56,7 +56,8 @@ describe("la lista de Contactos", () => {
 
   it("las columnas y los textos, en voseo", () => {
     const h = vista({ contactos: [contacto("a", { email: null, is_subscribed: false, last_interaction_at: null })] });
-    for (const t of [">Nombre<", ">Correo<", ">Última interacción<", ">Etiquetas<", ">Suscripto<", ">Setter<", "Sin correo", "Sin etiquetas", "Nunca", 'placeholder="Buscar por nombre, teléfono o correo…"']) expect(h).toContain(t);
+    // Cambiado el 10/11/2026 (retrabajo de Contactos, a): los encabezados que ordenan llevan ↕, o ↓ el activo.
+    for (const t of [">Nombre ↕<", ">Correo ↕<", ">Última interacción ↓<", ">Etiquetas<", ">Suscripto<", ">Setter ↕<", "Sin correo", "Sin etiquetas", "Nunca", 'placeholder="Buscar por nombre, teléfono o correo…"']) expect(h).toContain(t);
     for (const viejo of [">Name<", ">Email<", "Last Interaction", "Subscribed", "No email", "No tags", "Never", "Unknown", "Search by name", ">Segment<", ">Contacts<", "No contacts found"]) expect(h).not.toContain(viejo);
   });
 
@@ -109,11 +110,15 @@ describe("el buscador y el filtro de los que escribieron (ítem 5)", () => {
     expect(caja.some((c) => /^sm:min-w-/.test(c))).toBe(true);
   });
 
-  it("en el teléfono el buscador va a todo el ancho y los filtros debajo, en dos columnas", () => {
+  // Cambiado el 10/11/2026 (retrabajo de Contactos, b): antes, en el teléfono, los
+  // filtros iban debajo en dos columnas; ahora van detrás de «Filtros», cerrados,
+  // y en la computadora se ven como antes (md:flex).
+  it("en el teléfono el buscador va a todo el ancho y los filtros, cerrados, detrás de «Filtros»", () => {
     const h = vista();
     expect(clasesDe(h, /<div class="([^"]*)"><svg[^>]*lucide-search/)).toContain("w-full");
     const filtros = clasesDe(h, /<div class="([^"]*)"><select[^>]*aria-label="Seguimiento"/);
-    expect(filtros).toEqual(expect.arrayContaining(["grid", "grid-cols-2", "sm:flex", "sm:flex-wrap"]));
+    expect(filtros).toEqual(expect.arrayContaining(["hidden", "grid-cols-1", "md:flex", "md:flex-wrap"]));
+    expect(h).toMatch(/<button type="button" aria-expanded="false"[^>]*>Filtros<\/button>/);
   });
 
   it("el filtro «Mostrar»: «Mostrar: todos» y «Solo los que escribieron», apagado de entrada", () => {
