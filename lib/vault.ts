@@ -31,6 +31,12 @@ export const SECRET_NAMES = {
   evolutionWebhookSecretPrevious: "evolution_webhook_secret_previous",
   /** Clave de Resend, para el correo saliente (F23). Se carga desde integraciones (F24). */
   resend: "resend_api_key",
+  /**
+   * El secreto con el que se firma cada aviso de Zernio (1a, ítem 4 de la
+   * sesión de cierre). Antes vivía en `workspaces.webhook_secret`, que un
+   * Member podía leer con su sesión.
+   */
+  zernioWebhook: "zernio_webhook_secret",
   /** Claves de los proveedores de IA (F24). Se cargan acá; el cableado es de la Fase 2. */
   openai: "openai_api_key",
   anthropic: "anthropic_api_key",

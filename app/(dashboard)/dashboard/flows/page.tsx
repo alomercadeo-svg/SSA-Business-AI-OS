@@ -1,4 +1,4 @@
-import { getWorkspace } from "@/lib/workspace";
+import { getWorkspaceAsManager } from "@/lib/workspace";
 import Link from "next/link";
 import { GitBranch, Sparkles, Plug } from "lucide-react";
 import { CreateFlowButton } from "@/components/create-flow-button";
@@ -34,7 +34,7 @@ function formatDate(dateString: string) {
 }
 
 export default async function FlowsPage() {
-  const { workspace, supabase } = await getWorkspace();
+  const { workspace, supabase } = await getWorkspaceAsManager(); // 1b: solo Owner y Admin (§11.1)
 
   const [{ data: flows }, { count: channelCount }] = await Promise.all([
     supabase

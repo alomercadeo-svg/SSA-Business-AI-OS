@@ -1,4 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { __clearSecretCache } from "./vault";
 import { createHmac } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -16,9 +17,19 @@ interface CapturedUpdate {
   patch: Record<string, unknown>;
 }
 
-function makeFakeSupabase(seed: { webhook_secret?: string | null }) {
+function makeFakeSupabase(seed: { webhook_secret?: string | null; vault?: string | null }) {
   const updates: CapturedUpdate[] = [];
+  const guardados: Array<{ nombre: string; valor: string }> = [];
   const client = {
+    // 1a (ítem 4 de la sesión de cierre): Vault, por las funciones de la 00018.
+    rpc(fn: string, args: Record<string, string>) {
+      if (fn === "read_secret") return Promise.resolve({ data: args.secret_name === "zernio_webhook_secret" ? (seed.vault ?? null) : null, error: null });
+      if (fn === "store_secret") {
+        guardados.push({ nombre: args.secret_name, valor: args.secret_value });
+        return Promise.resolve({ data: null, error: null });
+      }
+      return Promise.resolve({ data: null, error: null });
+    },
     from(table: string) {
       return {
         select() {
@@ -41,7 +52,7 @@ function makeFakeSupabase(seed: { webhook_secret?: string | null }) {
       };
     },
   };
-  return { client: client as unknown as SupabaseClient, updates };
+  return { client: client as unknown as SupabaseClient, updates, guardados };
 }
 
 /**
@@ -265,24 +276,33 @@ describe("generateWebhookSecret", () => {
 });
 
 describe("getOrCreateWorkspaceWebhookSecret", () => {
+  beforeEach(() => __clearSecretCache());
+
   it("returns the existing secret without writing (AC5)", async () => {
-    const fake = makeFakeSupabase({ webhook_secret: "existing-secret" });
+    const fake = makeFakeSupabase({ vault: "existing-secret" });
     const secret = await getOrCreateWorkspaceWebhookSecret(fake.client, "ws-1");
 
     expect(secret).toBe("existing-secret");
     expect(fake.updates).toHaveLength(0);
+    expect(fake.guardados).toHaveLength(0);
   });
 
-  it("generates, persists and returns a new secret when missing (AC1, AC5)", async () => {
-    const fake = makeFakeSupabase({ webhook_secret: null });
+  it("1a: un secreto que todavía está en la columna se copia a Vault con el mismo valor, sin rotarlo", async () => {
+    const fake = makeFakeSupabase({ webhook_secret: "legacy-in-column", vault: null });
+    const secret = await getOrCreateWorkspaceWebhookSecret(fake.client, "ws-1");
+
+    expect(secret).toBe("legacy-in-column");
+    expect(fake.guardados).toEqual([{ nombre: "zernio_webhook_secret", valor: "legacy-in-column" }]);
+    expect(fake.updates).toHaveLength(0);
+  });
+
+  it("generates, persists and returns a new secret when missing (AC1, AC5); 1a: in Vault, never in the column", async () => {
+    const fake = makeFakeSupabase({ webhook_secret: null, vault: null });
     const secret = await getOrCreateWorkspaceWebhookSecret(fake.client, "ws-1");
 
     expect(secret).toMatch(/^[0-9a-f]{64}$/);
-    expect(fake.updates).toHaveLength(1);
-    expect(fake.updates[0]).toMatchObject({
-      table: "workspaces",
-      patch: { webhook_secret: secret },
-    });
+    expect(fake.guardados).toEqual([{ nombre: "zernio_webhook_secret", valor: secret }]);
+    expect(fake.updates).toHaveLength(0);
   });
 });
 
@@ -309,6 +329,14 @@ describe("verifyWebhookSignature (AC4)", () => {
 });
 
 describe("resolveWebhookSecret (AC4)", () => {
+  beforeEach(() => __clearSecretCache());
+
+  it("1a: lee primero el de Vault, aunque la columna tenga otro", async () => {
+    const fake = makeFakeSupabase({ webhook_secret: "column-secret", vault: "vault-secret" });
+    const secret = await resolveWebhookSecret(fake.client, { workspace_id: "ws-1", webhook_secret: "legacy-channel-secret" });
+    expect(secret).toBe("vault-secret");
+  });
+
   it("prefers the workspace secret over the channel secret", async () => {
     const fake = makeFakeSupabase({ webhook_secret: "ws-secret" });
     const secret = await resolveWebhookSecret(fake.client, {

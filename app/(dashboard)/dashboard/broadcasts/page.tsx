@@ -1,8 +1,8 @@
-import { getWorkspace } from "@/lib/workspace";
+import { getWorkspaceAsManager } from "@/lib/workspace";
 import { BroadcastsView } from "./broadcasts-view";
 
 export default async function BroadcastsPage() {
-  const { workspace, supabase } = await getWorkspace();
+  const { workspace, supabase } = await getWorkspaceAsManager(); // 1b: solo Owner y Admin (§11.1)
 
   const { data: broadcasts } = await supabase
     .from("broadcasts")

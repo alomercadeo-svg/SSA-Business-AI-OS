@@ -15,7 +15,7 @@ export default async function InboxPage({
 }) {
   const { workspace, supabase, role, user } = await getWorkspace();
   const parametros = await searchParams;
-  const { conversacion, q, estado: estadoPedido } = parametros;
+  const { conversacion, q, estado: estadoPedido, aviso } = parametros;
   // F35: la pestaña y la búsqueda viven en la dirección (`?estado=`, `?q=`),
   // así la página se puede recargar o compartir. «Abiertas» por defecto.
   const busqueda = busquedaDeBandeja(q);
@@ -85,6 +85,12 @@ export default async function InboxPage({
 
   return (
     <div className="flex h-full flex-col">
+      {aviso === "solo-managers" && (
+        // §11.1 (1b): el Member que entró a una sección de managers.
+        <p role="status" className="border-b border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+          Esa sección es solo para Owner y Admin. Te llevamos a la bandeja.
+        </p>
+      )}
       <AvisoSesionWhatsapp inicial={(canalesDeWhatsapp ?? []) as CanalDeSesion[]} esManager={esManager(role)} />
       <div className="min-h-0 flex-1">
         <InboxView

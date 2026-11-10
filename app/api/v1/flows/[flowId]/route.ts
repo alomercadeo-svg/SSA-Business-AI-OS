@@ -1,3 +1,4 @@
+import { requireManager } from "@/lib/workspace";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -44,6 +45,10 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ flowId: string }> }
 ) {
+  // 1b (ítem 4 de la sesión de cierre): escribir flujos es de Owner y Admin,
+  // controlado en el servidor. Un flujo publicado le escribe a cualquier contacto.
+  const { error: sinRol } = await requireManager();
+  if (sinRol) return sinRol;
   const { flowId } = await params;
   const supabase = await createClient();
   const workspaceId = await getWorkspaceId(supabase);
@@ -77,6 +82,10 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ flowId: string }> }
 ) {
+  // 1b (ítem 4 de la sesión de cierre): escribir flujos es de Owner y Admin,
+  // controlado en el servidor. Un flujo publicado le escribe a cualquier contacto.
+  const { error: sinRol } = await requireManager();
+  if (sinRol) return sinRol;
   const { flowId } = await params;
   const supabase = await createClient();
   const workspaceId = await getWorkspaceId(supabase);

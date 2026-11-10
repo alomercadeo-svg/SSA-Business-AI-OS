@@ -7,6 +7,7 @@
  * workspace level (the secret lives on `workspaces.webhook_secret`).
  */
 
+import { getWorkspaceSecret, setWorkspaceSecret, SECRET_NAMES } from "./vault";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Zernio } from "./zernio-client";
@@ -163,17 +164,24 @@ export async function getOrCreateWorkspaceWebhookSecret(
   supabase: SupabaseClient,
   workspaceId: string,
 ): Promise<string> {
+  // 1a (ítem 4 de la sesión de cierre): el secreto vive en Vault. Un Member lo
+  // podía leer en `workspaces.webhook_secret` con su sesión (§15 del plano).
+  const enVault = await getWorkspaceSecret(supabase, workspaceId, SECRET_NAMES.zernioWebhook);
+  if (enVault) return enVault;
+
   const { data } = await supabase
     .from("workspaces")
     .select("webhook_secret")
     .eq("id", workspaceId)
     .single();
 
+  // Uno que todavía está en la columna se copia a Vault con el MISMO valor:
+  // rotarlo obligaría a registrar otra vez el aviso en Zernio (lo que pasó el
+  // 22/09/2026).
   const existing = (data as { webhook_secret?: string | null } | null)?.webhook_secret;
-  if (existing) return existing;
-
-  const secret = generateWebhookSecret();
-  await supabase.from("workspaces").update({ webhook_secret: secret }).eq("id", workspaceId);
+  const secret = existing || generateWebhookSecret();
+  const { error } = await setWorkspaceSecret(supabase, workspaceId, SECRET_NAMES.zernioWebhook, secret);
+  if (error) throw new Error("No se pudo guardar el secreto de firma de Zernio en Vault.");
   return secret;
 }
 
@@ -209,6 +217,11 @@ export async function resolveWebhookSecret(
   supabase: SupabaseClient,
   channel: ChannelSecretRef,
 ): Promise<string | null> {
+  // 1a: primero Vault. La columna queda como respaldo mientras dura el paso 1
+  // (y para los espacios fantasma de los verificadores, que la escriben).
+  const enVault = await getWorkspaceSecret(supabase, channel.workspace_id, SECRET_NAMES.zernioWebhook);
+  if (enVault) return enVault;
+
   const { data } = await supabase
     .from("workspaces")
     .select("webhook_secret")

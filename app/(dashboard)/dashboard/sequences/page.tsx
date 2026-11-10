@@ -1,4 +1,4 @@
-import { getWorkspace } from "@/lib/workspace";
+import { getWorkspaceAsManager } from "@/lib/workspace";
 import Link from "next/link";
 import { ListOrdered } from "lucide-react";
 import { CreateSequenceButton } from "@/components/sequences/create-sequence-button";
@@ -30,7 +30,7 @@ function formatDate(dateString: string) {
 }
 
 export default async function SequencesPage() {
-  const { workspace, supabase } = await getWorkspace();
+  const { workspace, supabase } = await getWorkspaceAsManager(); // 1b: solo Owner y Admin (§11.1)
 
   const { data: sequences } = await supabase
     .from("sequences")

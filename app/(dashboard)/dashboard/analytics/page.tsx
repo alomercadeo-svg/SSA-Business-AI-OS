@@ -1,8 +1,8 @@
-import { getWorkspace } from "@/lib/workspace";
+import { getWorkspaceAsManager } from "@/lib/workspace";
 import { AnalyticsView } from "./analytics-view";
 
 export default async function AnalyticsPage() {
-  const { workspace, supabase } = await getWorkspace();
+  const { workspace, supabase } = await getWorkspaceAsManager(); // 1b: solo Owner y Admin (§11.1)
 
   const nowDate = new Date();
   const thirtyDaysAgo = new Date(

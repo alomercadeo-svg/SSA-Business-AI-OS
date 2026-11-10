@@ -4294,3 +4294,37 @@ Suite 1658 de 1658, `typecheck` y `lint` en verde, `next build` local bien.
 - **No se hizo en este tramo: F38, criterio 6 (el código de país como ajuste del espacio).** Necesita una columna nueva, así que queda para después de la copia y la 00057.
 
 **Tests nuevos: 7, vistos en rojo 5:** 3 del toque, por función inexistente; 1 del motor, por su motivo («expected [flow_sessions, flows] to not include flows»); 1 de la caída. **No vistos en rojo, porque son controles positivos o por ausencia:** «sin la marca el motor sigue» y «una transición que no avisa no deja error ni correo». Suite 1665 de 1665, `typecheck` y `lint` en verde (0 errores).
+
+#### La copia de la base y la 00057 (10/11/2026, 17:45 a 17:52)
+
+- **Marcos inició sesión en el CLI 3.1.0** (`supabase login --no-browser`, en el panel de Terminal, a las 17:4x). Igual no alcanzó: `db dump --remote` del CLI 3.1.0 también necesita Docker («DockerRunError», 17:45). El aviso del llavero de macOS que vio Marcos era ese CLI leyendo su propio token, recién guardado; lo denegó y no cambió nada.
+- **Decisión de Marcos (17:4x), después de preguntarle: la copia sin Docker.** Cada tabla de `public` se exportó a JSON con `supabase db query --linked` (el CLI 2.117 de los verificadores), de a 2000 filas, junto con el catálogo: columnas, restricciones, índices, funciones con su definición, políticas, disparadores y migraciones aplicadas. Quedó en `backups/copia-20261110-1749/`, que git ignora. **No es `db dump`:** no copia `auth` ni `storage` (`db dump` tampoco), y el esquema se rehace desde las migraciones del repositorio y ese catálogo. Script: el del scratchpad de la sesión, `copia.mjs`. **Para la próxima:** o se instala Docker Desktop, o se agrega al `CLAUDE.md` este camino como alternativa (decisión de Marcos).
+- **La copia (17:49:26 a 17:51:13):** 34 tablas, 13.537 filas, **todas iguales al conteo de la base**; 56 migraciones aplicadas, la última la 00056; 59 funciones y 64 políticas.
+- **La 00057, aplicada de 17:51:29 a 17:51:32** con `npx supabase db push`. El `--dry-run` listó solo esa. Comprobado en la base después: `csv_imports` con 24 columnas, `csv_import_lotes` con la seguridad por filas activada y 0 políticas, `email_log_tipo_check` con `importacion`, y las 4 importaciones de antes, intactas.
+- **Hallazgo, de la captura de Marcos:** la organización de Supabase figura en plan **FREE** y el proyecto en **NANO**, y el `CLAUDE.md` dice «Supabase (plan Pro)». **No verifiqué** si el plan gratuito tiene copias automáticas; recuerdo que no, pero no lo leí hoy en la documentación de Supabase. Va a «Necesita tu decisión».
+
+### Ítem 4 de la sesión de cierre: el aviso al Member y los roles (1a y 1b)
+
+**Plan (revisión completa: seguridad por filas, secretos y el receptor de Zernio; aprobado de antemano).** Construido como está escrito en §15 del plano y en «Salió del plan, decidido por Marcos el 06/11/2026».
+
+- **1a, el secreto de firma de Zernio, paso 1** (la recomendación del 06/11: a Vault, con el mismo valor, sin rotar, en dos pasos como 00018 y 00021):
+  - El código lee primero de Vault (`zernio_webhook_secret`). Lo hacen `resolveWebhookSecret`, que usa el receptor, y `getOrCreateWorkspaceWebhookSecret`, que usan Sincronizar y Probar la clave.
+  - Un secreto que todavía está en la columna se copia a Vault con el mismo valor. Uno nuevo va solo a Vault.
+  - La **00058** copia los secretos que hoy están en `workspaces.webhook_secret` a Vault, sin tocar la columna.
+  - **El paso 2** (vaciar la columna, que es lo que de verdad le cierra la lectura al Member) va **después** de ver en producción que un aviso real de Zernio entra con el secreto leído de Vault.
+- **1b, los flujos del fork:**
+  - Crear, cambiar, borrar, publicar y restaurar un flujo devuelve 403 a un Member (`requireManager` en las cinco escrituras de `app/api/v1/flows/**`).
+  - La **00059** pasa la escritura de `flows`, `triggers` y `flow_versions` a `is_workspace_manager`; la lectura queda igual.
+  - Las pantallas Flujos, Secuencias, Difusiones, Analíticas y Growth piden Owner o Admin en el servidor.
+- **El aviso de §11.1:** un Member que entra a una sección de managers vuelve a la bandeja con «Esa sección es solo para Owner y Admin. Te llevamos a la bandeja.» (`getWorkspaceAsManager` → `/dashboard/inbox?aviso=solo-managers`). `/dashboard` lleva a la bandeja, no a Flujos.
+
+**Decidí yo (vetable):**
+- Las pantallas del fork (Flujos, Secuencias, Difusiones, Analíticas, Growth) siguen abriendo para Owner y Admin si se escribe la dirección. El menú ya no lleva ahí (ítem 4 del plan maestro). El control real es el de las rutas y la base.
+- Las rutas de flujos del fork siguen tomando el espacio de la primera membresía, como estaban; la guarda nueva mira el rol en el espacio activo. Con un solo espacio por persona es lo mismo.
+
+**Tests nuevos: 10, vistos en rojo 9.**
+- 1 de las rutas de flujos, por su motivo: el Member recibía `[201, 200, 200, 200, 200]`.
+- 4 del aviso y las pantallas, por la fuente.
+- 4 del secreto en Vault (`lib/zernio-webhook.test.ts`).
+
+Dos tests viejos del secreto **se cambiaron**, porque pedían que el secreto nuevo se escribiera en la columna: ahora piden Vault. **No visto en rojo:** «un Admin sí crea y publica», que es el control positivo. Suite 1673 de 1673, `typecheck` y `lint` en verde.

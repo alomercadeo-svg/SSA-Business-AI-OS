@@ -128,7 +128,8 @@ export function esManager(role: string): boolean {
 export const getWorkspaceAsManager = cache(async (): Promise<WorkspaceContext> => {
   const contexto = await resolveWorkspace();
   if (!contexto) redirect("/login");
-  if (!esManager(contexto.role)) redirect("/dashboard");
+  // §11.1 (1b, ítem 4 de la sesión de cierre): a la bandeja, con el aviso.
+  if (!esManager(contexto.role)) redirect("/dashboard/inbox?aviso=solo-managers");
   return contexto;
 });
 

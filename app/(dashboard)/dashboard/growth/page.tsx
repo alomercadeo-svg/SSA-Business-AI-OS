@@ -1,9 +1,9 @@
-import { getWorkspace } from "@/lib/workspace";
+import { getWorkspaceAsManager } from "@/lib/workspace";
 import { CHANNEL_PUBLIC_COLUMNS } from "@/lib/safe-columns";
 import { GrowthView } from "./growth-view";
 
 export default async function GrowthPage() {
-  const { workspace, supabase } = await getWorkspace();
+  const { workspace, supabase } = await getWorkspaceAsManager(); // 1b: solo Owner y Admin (§11.1)
 
   const thirtyDaysAgo = new Date(
     new Date().getTime() - 30 * 24 * 60 * 60 * 1000

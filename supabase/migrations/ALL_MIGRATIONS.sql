@@ -7059,3 +7059,101 @@ alter table email_log add constraint email_log_tipo_check check (tipo in (
   'sesion_whatsapp',
   'importacion'
 ));
+
+-- ============================================================
+-- MIGRATION 58: EL SECRETO DE FIRMA DE ZERNIO A VAULT, PASO 1
+-- ============================================================
+
+-- ============================================================
+-- 00058: EL SECRETO DE FIRMA DE ZERNIO A VAULT, PASO 1 (1a; ítem 4 de la sesión de cierre, 10/11/2026)
+-- ============================================================
+-- §15 del plano, «El Member puede leer el secreto de firma de los avisos de
+-- Zernio con su propia sesión»: `workspaces.webhook_secret` lo lee cualquier
+-- miembro (la política de lectura de `workspaces` es `is_workspace_member`,
+-- 00002:23-25), y con ese secreto se pueden fabricar avisos firmados que el
+-- receptor acepta.
+--
+-- Recomendación del 06/11/2026, aplicada: moverlo a Vault con el MISMO valor,
+-- sin rotarlo (rotar obliga a registrar otra vez el aviso en Zernio), en dos
+-- pasos como 00018 y 00021. Este es el paso 1: copia cada secreto que hoy está
+-- en la columna a Vault (`ws:<espacio>:zernio_webhook_secret`, la clave de
+-- `vault_secret_key` de la 00018). El código lee primero de Vault desde el
+-- mismo despliegue. El paso 2, con la lectura de Vault probada en producción,
+-- vacía la columna.
+--
+-- No toca la columna ni ninguna política. Idempotente: si el secreto ya está
+-- en Vault, se actualiza con el mismo valor. Solo deja un conteo en el log,
+-- nunca el valor.
+
+do $$
+declare
+  r record;
+  v_key text;
+  v_id uuid;
+  v_copiados integer := 0;
+begin
+  for r in
+    select id, webhook_secret as val from public.workspaces
+    where webhook_secret is not null and btrim(webhook_secret) <> ''
+  loop
+    v_key := public.vault_secret_key(r.id, 'zernio_webhook_secret');
+    select id into v_id from vault.secrets where name = v_key;
+    if v_id is null then
+      perform vault.create_secret(r.val, v_key, 'workspace ' || r.id::text);
+    else
+      perform vault.update_secret(v_id, r.val);
+    end if;
+    v_copiados := v_copiados + 1;
+  end loop;
+  raise log '00058_secreto_zernio_a_vault: % secretos copiados a Vault', v_copiados;
+end
+$$;
+
+-- ============================================================
+-- MIGRATION 59: ESCRIBIR FLUJOS ES DE OWNER Y ADMIN
+-- ============================================================
+
+-- ============================================================
+-- 00059: ESCRIBIR FLUJOS ES DE OWNER Y ADMIN (1b; ítem 4 de la sesión de cierre, 10/11/2026)
+-- ============================================================
+-- §15 del plano, «El Member puede crear y publicar flujos del fork»: la
+-- política de escritura de `flows` (00002:212-214) y la de `triggers`
+-- (00002:231-239) son `is_workspace_member`, y la de alta de `flow_versions`
+-- (00010) también. Un flujo publicado corre con la clave de servicio ante los
+-- mensajes de cualquier contacto, así que un Member podría hacer que el
+-- sistema les escriba a leads fuera de su alcance.
+--
+-- Esta migración deja la LECTURA como estaba (cualquier miembro) y pasa la
+-- ESCRITURA (alta, cambio y borrado) a `is_workspace_manager`. Las rutas
+-- `app/api/v1/flows/**` ya devuelven 403 a un Member desde el mismo ítem; esto
+-- es la misma regla en la base. Al 10/11/2026 (copia de las 17:49) hay 0
+-- flujos, 0 disparadores y 0 versiones: no cambia nada que exista.
+--
+-- Idempotente: cada política se borra si existe y se vuelve a crear.
+
+drop policy if exists "Users can manage flows in their workspaces" on public.flows;
+drop policy if exists "flows: escribir, solo Owner y Admin (alta)" on public.flows;
+drop policy if exists "flows: escribir, solo Owner y Admin (cambio)" on public.flows;
+drop policy if exists "flows: escribir, solo Owner y Admin (borrado)" on public.flows;
+create policy "flows: escribir, solo Owner y Admin (alta)"
+  on public.flows for insert to authenticated
+  with check (public.is_workspace_manager(workspace_id));
+create policy "flows: escribir, solo Owner y Admin (cambio)"
+  on public.flows for update to authenticated
+  using (public.is_workspace_manager(workspace_id))
+  with check (public.is_workspace_manager(workspace_id));
+create policy "flows: escribir, solo Owner y Admin (borrado)"
+  on public.flows for delete to authenticated
+  using (public.is_workspace_manager(workspace_id));
+
+drop policy if exists "Users can manage triggers via flow" on public.triggers;
+drop policy if exists "triggers: escribir, solo Owner y Admin" on public.triggers;
+create policy "triggers: escribir, solo Owner y Admin"
+  on public.triggers for all to authenticated
+  using (exists (select 1 from public.flows f where f.id = triggers.flow_id and public.is_workspace_manager(f.workspace_id)))
+  with check (exists (select 1 from public.flows f where f.id = triggers.flow_id and public.is_workspace_manager(f.workspace_id)));
+
+drop policy if exists "flow_versions_insert" on public.flow_versions;
+create policy "flow_versions_insert"
+  on public.flow_versions for insert to authenticated
+  with check (exists (select 1 from public.flows f where f.id = flow_versions.flow_id and public.is_workspace_manager(f.workspace_id)));

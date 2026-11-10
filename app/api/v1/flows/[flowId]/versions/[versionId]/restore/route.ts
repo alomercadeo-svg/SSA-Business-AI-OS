@@ -1,3 +1,4 @@
+import { requireManager } from "@/lib/workspace";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -5,6 +6,10 @@ export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ flowId: string; versionId: string }> }
 ) {
+  // 1b (ítem 4 de la sesión de cierre): escribir flujos es de Owner y Admin,
+  // controlado en el servidor. Un flujo publicado le escribe a cualquier contacto.
+  const { error: sinRol } = await requireManager();
+  if (sinRol) return sinRol;
   const { flowId, versionId } = await params;
   const supabase = await createClient();
 
