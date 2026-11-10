@@ -486,7 +486,9 @@ await correr(async () => {
     const ordenMember = await pag(member.token, "nombre", "asc", 1);
     check(ordenMember && ordenMember.length > 0 && ordenMember.every((id) => setterDe[id] === member.id), "un Member, ordenado: solo su alcance", `${ordenMember?.length}`);
     const pOr = await lista(owner, "Owner", `q=${encodeURIComponent(dom)}&orden=nombre&dir=desc`, ["Zoe"]);
-    check(pOr.status === 200 && pOr.html.indexOf(">Zoe<") > -1 && pOr.html.indexOf(">Zoe<") < pOr.html.indexOf(">alba<"), "la página de Contactos con ?orden=nombre&dir=desc muestra «Zoe» antes que «alba»");
+    // Corregido el 09/11 a las 23:4x: en descendente, «alba» cae en la página 2 (50 por página), así que se comparan dos de la página 1.
+    const en = (t) => pOr.html.indexOf(`>${t}<`);
+    check(pOr.status === 200 && en("Zoe") > -1 && en("Zoe") < en("m55") && en("m55") < en("m54"), "la página de Contactos con ?orden=nombre&dir=desc muestra «Zoe», «m55», «m54» en ese orden", JSON.stringify([en("Zoe"), en("m55"), en("m54")]));
 
     // ── 10. Server-Timing de la bandeja (solo se anota) ────────────────────
     titulo("Server-Timing de la bandeja, tres corridas (se anota, no se juzga)");
