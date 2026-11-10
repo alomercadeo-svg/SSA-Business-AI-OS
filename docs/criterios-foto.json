@@ -2733,7 +2733,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F43: Lista de contactos completa"
     ],
-    "texto": "- [ ] En Contactos, tocar el encabezado de Nombre, Correo, Última interacción o Setter ordena la lista por esa columna, de forma ascendente o descendente, en el servidor, sobre todos los contactos y con los filtros y la búsqueda puestos; el orden queda en la dirección. Sin nombre van al final; las tildes no cambian el orden. En el teléfono, un selector «Ordenar por». Control positivo: ordenar por nombre ascendente y descendente da el mismo conjunto invertido, y la segunda página sigue a la primera sin repetir ni saltear. (pedido por Marcos el 09/11/2026; estaba como pregunta abierta en §15 desde el 05/11)"
+    "texto": "- [x] En Contactos, tocar el encabezado de Nombre, Correo, Última interacción o Setter ordena la lista por esa columna, de forma ascendente o descendente, en el servidor, sobre todos los contactos y con los filtros y la búsqueda puestos; el orden queda en la dirección. Sin nombre van al final; las tildes no cambian el orden. En el teléfono, un selector «Ordenar por». Control positivo: ordenar por nombre ascendente y descendente da el mismo conjunto invertido, y la segunda página sigue a la primera sin repetir ni saltear. (pedido por Marcos el 09/11/2026; estaba como pregunta abierta en §15 desde el 05/11)"
   },
   {
     "seccion": "F44: Contenido del hilo: compartidos, historias y fotos",

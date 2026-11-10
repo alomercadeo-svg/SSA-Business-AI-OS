@@ -1495,5 +1495,12 @@
     "texto": "- [ ] Control positivo en la puesta en marcha, con el número vinculado: un mensaje enviado desde la bandeja llega a un teléfono de prueba y queda guardado una sola vez",
     "nuevo": "- [x] Control positivo en la puesta en marcha, con el número vinculado: un mensaje enviado desde la bandeja llega a un teléfono de prueba y queda guardado una sola vez",
     "motivo": "Tildado por Marcos el 09/11/2026 (hacia las 22:45). Sus envíos reales desde la bandeja, «prueba F42 2» (computadora, 20:45) y «prueba F42 3» (iPhone, Chrome, 20:47), en «Marcos Pitti»: le llegaron al WhatsApp y quedaron guardados una sola vez (lectura de los dos ids, 1 cada uno, del 09/11 de 20:50:46 a 20:50:49 y de 20:51:02 a 20:51:04)."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-10",
+    "texto": "- [ ] En Contactos, tocar el encabezado de Nombre, Correo, Última interacción o Setter ordena la lista por esa columna, de forma ascendente o descendente, en el servidor, sobre todos los contactos y con los filtros y la búsqueda puestos; el orden queda en la dirección. Sin nombre van al final; las tildes no cambian el orden. En el teléfono, un selector «Ordenar por». Control positivo: ordenar por nombre ascendente y descendente da el mismo conjunto invertido, y la segunda página sigue a la primera sin repetir ni saltear. (pedido por Marcos el 09/11/2026; estaba como pregunta abierta en §15 desde el 05/11)",
+    "nuevo": "- [x] En Contactos, tocar el encabezado de Nombre, Correo, Última interacción o Setter ordena la lista por esa columna, de forma ascendente o descendente, en el servidor, sobre todos los contactos y con los filtros y la búsqueda puestos; el orden queda en la dirección. Sin nombre van al final; las tildes no cambian el orden. En el teléfono, un selector «Ordenar por». Control positivo: ordenar por nombre ascendente y descendente da el mismo conjunto invertido, y la segunda página sigue a la primera sin repetir ni saltear. (pedido por Marcos el 09/11/2026; estaba como pregunta abierta en §15 desde el 05/11)",
+    "motivo": "Tildado por Marcos el 10/11/2026. Visto por Marcos hacia las 00:10, recargando: los encabezados ordenan y se invierten; con búsqueda, filtro, página 2 y al recargar se mantiene; en el iPhone, «Ordenar por» funciona. verify-contactos 122 de 122, última corrida el 09/11/2026 de 23:49:53 a 23:50:51 (hora de Costa Rica)."
   }
 ]
