@@ -3590,6 +3590,12 @@ Revisión **completa** (migración, receptor de avisos). Nada construido. Estima
 
 **Lo que mira Marcos:** (1) «Importar CSV» en Contactos; (2) un CSV chico suyo en un espacio fantasma o en «Pruebas de correo» (nunca en el de Alejandra): los cinco pasos, el resumen y los contactos creados; (3) importarlo otra vez: 0 creados; (4) en el iPhone, que los pasos se puedan usar.
 
+**Agregado a las 20:5x, antes de mandarlo a la revisión (leído en las migraciones del repositorio; una lectura del catálogo de producción para lo mismo la bloqueó el modo automático, y estaba bien: no estaba autorizada):**
+- **Choque entre §11 y la seguridad por filas, para que decida Marcos.** §11 deja que un Member importe asignando a otra persona (con la ayuda «después no vas a poder ver estos contactos»). La política «contacts: crear, un Member solo asignado a si mismo» (00038:88-99) **no lo deja**: un Member solo crea contactos donde él es setter o vendedor. **Recomendación:** manda la base; para un Member, la opción de asignación queda fija en «A mí» y la ayuda lo explica. Cambiar la política sería abrir el alcance del Member (compuerta 8).
+- **La deduplicación de un Member busca en todo el espacio, no solo en lo suyo** (con la clave de servicio, solo para buscar): si no, un contacto que existe fuera de su alcance no lo ve y se crea un duplicado. Si el que existe está fuera de su alcance, la fila no se toca y el resumen dice «Ya existe un contacto con ese dato que no tenés asignado: no se creó otro ni se cambió. Pedile a un Owner o Admin.». La actualización siempre con la sesión del usuario: la seguridad por filas decide.
+- **Un contacto eliminado** (con `deleted_at`, dentro de los 30 días) que coincide: no se restaura ni se duplica; la fila dice «Ese contacto está en Eliminados: restauralo desde ahí y volvé a importar.».
+- **Etiquetas y campos propios:** se asignan solo los que ya existen (por nombre); uno que no existe se informa en la fila, no se crea. Los campos propios se validan con su tipo (los seis del fork). Las políticas de `tags` y `custom_field_definitions` se leen en las migraciones antes de escribir.
+
 ### Plan maestro, tercer retrabajo del ítem 4 (Bloque 4, medido, subido)
 
 **06/11/2026, de 17:57 a 17:59** (hora de Costa Rica; fin de la construcción, 17:59). Liviana. Commits `086010d` y `f55de20`. Pedido por Marcos a las 17:4x, después de mirar el segundo retrabajo.
