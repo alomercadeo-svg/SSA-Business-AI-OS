@@ -22,6 +22,8 @@ const h = vi.hoisted(() => ({
   // F35, tramo D: si el alta sin pisar crea la conversación, y si la base insertó el mensaje.
   conversacionNueva: true,
   mensajeNuevo: true,
+  /** F42: los `key.id` que ya están guardados como salientes en el canal (los guardó la bandeja). */
+  yaGuardados: new Set<string>(),
 }));
 
 vi.mock("./inbox-sync", () => ({ upsertContactForSender: h.upsertContactForSender }));
@@ -37,7 +39,11 @@ function supabaseFalso() {
         insert: (v: any) => ((op.op = "insert"), (op.valores = v), h.ops.push(op), Promise.resolve({ error: null })),
         or: () => cadena,
         is: (c: string, v: unknown) => (op.filtros.push([c, v]), cadena),
-        limit: async () => ({ data: [], error: null }),
+        limit: async () => {
+          if (tabla !== "messages") return { data: [], error: null };
+          const pid = String(op.filtros.find(([c]) => c === "platform_message_id")?.[1]);
+          return { data: h.yaGuardados.has(pid) ? [{ id: `msg-${pid}` }] : [], error: null };
+        },
         upsert: (v: any, o: any) => {
           op.op = "upsert";
           op.valores = v;
@@ -116,6 +122,7 @@ beforeEach(() => {
   h.rpcs.length = 0;
   h.conversacionNueva = true;
   h.mensajeNuevo = true;
+  h.yaGuardados.clear();
   h.upsertContactForSender.mockReset();
   h.upsertContactForSender.mockImplementation(async ({ senderId }: { senderId: string }) => {
     h.porSender.set(senderId, `ct-${senderId}`);
@@ -157,6 +164,10 @@ describe("guardado de WhatsApp (F27)", () => {
   });
 
   it("send.message (2545) usa la misma clave de unicidad: si ya estaba guardado, la base no lo duplica", async () => {
+    // F42 (09/11/2026): un send.message de un contacto que el canal no conoce
+    // ya no crea contacto (se saltea); el contacto es conocido para que el
+    // test siga mirando la clave de unicidad, que es lo que miraba.
+    h.porSender.set(`${TEL}@s.whatsapp.net`, "ct-1");
     await guardarMensajesDeEvolution(supabaseFalso() as never, CANAL, "send.message", [aviso({ key: { fromMe: true } })]);
     const op = h.ops.find((o) => o.tabla === "messages") as any;
     expect(op.opciones).toEqual({ onConflict: "conversation_id,platform_message_id,direction", ignoreDuplicates: true });
@@ -480,5 +491,45 @@ describe("F35, tramo D: el estado de la conversación y los no leídos", () => {
       expect(aperturas(), evento).toEqual([]);
       for (const o of quePisan()) expect(o.valores, evento).not.toHaveProperty("status");
     }
+  });
+});
+
+/**
+ * F42: el aviso `send.message` de un envío de la bandeja. El contacto
+ * «Marcos Pitti» de WhatsApp está guardado con el teléfono (`@s.whatsapp.net`)
+ * y `addressing_mode = lid` (lectura del 09/11/2026, 20:14): Evolution puede
+ * resolver el destino desde su caché como `@lid` (`whatsappNumber`, 2.3.7), y
+ * el aviso volver con ese `@lid`, sin teléfono. Antes del arreglo, el receptor
+ * creaba un contacto y una conversación nuevos y guardaba el mensaje otra vez
+ * ahí: la unicidad es por conversación, `key.id` y dirección.
+ */
+describe("F42: el aviso de un envío de la bandeja no duplica", () => {
+  const enviado = (remoteJid: string, id = "3EB0ENVIADO") =>
+    aviso({ key: { remoteJid, fromMe: true, id, addressingMode: "lid" }, pushName: "Negocio" });
+
+  it("si el key.id ya está guardado como saliente en el canal, no guarda nada ni crea contactos", async () => {
+    h.yaGuardados.add("3EB0ENVIADO");
+    const r = await guardarMensajesDeEvolution(supabaseFalso() as any, CANAL, "send.message", [enviado(LID)]);
+    expect(mensajesGuardados()).toEqual([]);
+    expect(h.upsertContactForSender).not.toHaveBeenCalled();
+    expect(r.salteados).toBe(1);
+  });
+
+  it("un send.message con un @lid que el canal no conoce, sin teléfono, no crea contacto ni guarda", async () => {
+    const r = await guardarMensajesDeEvolution(supabaseFalso() as any, CANAL, "send.message", [enviado(LID)]);
+    expect(h.upsertContactForSender).not.toHaveBeenCalled();
+    expect(mensajesGuardados()).toEqual([]);
+    expect(r.salteados).toBe(1);
+  });
+
+  it("control: un send.message de un contacto conocido y no guardado se guarda una vez", async () => {
+    h.porSender.set(`${TEL}@s.whatsapp.net`, "ct-1");
+    await guardarMensajesDeEvolution(supabaseFalso() as any, CANAL, "send.message", [enviado(`${TEL}@s.whatsapp.net`)]);
+    expect(mensajesGuardados()).toEqual([expect.objectContaining({ platform_message_id: "3EB0ENVIADO", direction: "outbound" })]);
+  });
+
+  it("control: lo escrito desde el teléfono (messages.upsert, fromMe) a alguien nuevo sigue creando el contacto", async () => {
+    await guardarMensajesDeEvolution(supabaseFalso() as any, CANAL, "messages.upsert", [enviado(`${TEL}@s.whatsapp.net`, "3EB0TELEFONO")]);
+    expect(h.upsertContactForSender).toHaveBeenCalledTimes(1);
   });
 });

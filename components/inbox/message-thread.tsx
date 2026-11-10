@@ -23,6 +23,7 @@ import { MarcaDeVentana } from "@/components/inbox/marca-ventana";
 import { inicialDe, nombreDeConversacion } from "@/lib/nombre-visible";
 import { BloqueVentanaCerrada } from "@/components/inbox/ventana-cerrada";
 import { AVISO_NO_CONTACTAR } from "@/lib/no-contactar-texto";
+import { AVISO_WHATSAPP_DESCONECTADO, sesionImpideEnviar } from "@/lib/whatsapp-bandeja";
 import { FotoDelHilo } from "@/components/inbox/visor-foto";
 import { SelectorDeRespuestas } from "@/components/inbox/selector-respuestas";
 import { estaAlFinal, lugarDelHilo, pegadoTrasDesplazar, scrollParaVolver, type LugarDelHilo } from "@/lib/pantalla-telefono";
@@ -308,6 +309,27 @@ export function MessageThread({
   }, [conversation?.id, conversation?.window_expires_at]);
   // F34: el contacto pidió no recibir más mensajes.
   const noContactar = Boolean(conversation?.contacts?.do_not_contact);
+  // F42: la sesión del canal de una conversación de WhatsApp, leída con la
+  // seguridad por filas (todos los miembros leen `channels`, 00002) y otra vez
+  // cada 60 segundos, como el aviso de F32. Caída, agotada o sin vincular: el
+  // campo se reemplaza por el aviso. La ruta lo controla igual en el servidor.
+  const [sesionLeida, setSesionLeida] = useState<{ canal: string; estado: string | null } | null>(null);
+  const canalWhatsapp = conversation?.platform === "whatsapp" ? conversation.channel_id : null;
+  useEffect(() => {
+    if (!canalWhatsapp) return;
+    let vigente = true;
+    const leer = async () => {
+      const { data } = await createClient().from("channels").select("session_state").eq("id", canalWhatsapp).maybeSingle();
+      if (vigente) setSesionLeida({ canal: canalWhatsapp, estado: (data as { session_state?: string | null } | null)?.session_state ?? null });
+    };
+    void leer();
+    const cada = setInterval(leer, 60_000);
+    return () => {
+      vigente = false;
+      clearInterval(cada);
+    };
+  }, [canalWhatsapp]);
+  const sesionWhatsapp = canalWhatsapp && sesionLeida?.canal === canalWhatsapp ? sesionLeida.estado : null;
   const ventana = conversation ? estadoDeVentana({ platform: conversation.platform, window_expires_at: ventanaActual }, ahoraMs) : null;
 
   const updateConversationStatus = useCallback(async (status: EstadoDeConversacion) => {
@@ -732,6 +754,10 @@ export function MessageThread({
         {noContactar ? (
           <div className="mx-auto max-w-2xl rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100" role="status">
             {AVISO_NO_CONTACTAR}
+          </div>
+        ) : sesionImpideEnviar(sesionWhatsapp) ? (
+          <div className="mx-auto max-w-2xl rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100" role="status">
+            {AVISO_WHATSAPP_DESCONECTADO}
           </div>
         ) : ventana?.estado === "cerrada" ? (
           <div className="mx-auto max-w-2xl">

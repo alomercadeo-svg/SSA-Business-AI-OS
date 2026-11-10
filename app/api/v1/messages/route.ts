@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { createZernioClient } from "@/lib/zernio-client";
-import { getZernioApiKey } from "@/lib/vault";
+import { evolutionInstanceTokenName, getWorkspaceSecret, getZernioApiKey } from "@/lib/vault";
 import { messagePreview } from "@/lib/message-preview";
 import { registrarFalloDeZernio } from "@/lib/integraciones-estado";
 import { guardarEnvioDeLaBandeja } from "@/lib/mensajes-guardado";
@@ -9,6 +9,8 @@ import { BUCKET_DE_ADJUNTOS } from "@/lib/adjuntos";
 import { clasificarCompartido, enlaceDelCompartido, tituloDelCompartido, type Compartido } from "@/lib/contenido-hilo";
 import { AVISO_VENTANA_CERRADA, esRechazoPorVentana, reglaDeVentana } from "@/lib/ventana-instagram";
 import { AVISO_NO_CONTACTAR } from "@/lib/no-contactar";
+import { enviarTextoPorEvolution, ErrorDeEnvioEvolution } from "@/lib/evolution-envio";
+import { AVISO_WHATSAPP_DESCONECTADO, AVISO_WHATSAPP_RECHAZO, AVISO_WHATSAPP_SIN_RESPUESTA, sesionImpideEnviar } from "@/lib/whatsapp-bandeja";
 
 /** Cuántos mensajes trae el hilo de una vez: los más recientes. */
 export const MENSAJES_POR_HILO = 200;
@@ -195,7 +197,7 @@ export async function POST(request: NextRequest) {
   // Get conversation with channel info
   const { data: conversation } = await supabase
     .from("conversations")
-    .select("*, channels(late_account_id, provider)")
+    .select("*, channels(late_account_id, provider, instance_name, session_state)")
     .eq("id", conversationId)
     .maybeSingle();
 
@@ -237,6 +239,11 @@ export async function POST(request: NextRequest) {
   const vence = conversation.window_expires_at ? new Date(conversation.window_expires_at).getTime() : NaN;
   if (regla && !(Number.isFinite(vence) && vence > Date.now())) {
     return NextResponse.json({ code: "ventana_cerrada", error: AVISO_VENTANA_CERRADA }, { status: 409 });
+  }
+
+  // F42: WhatsApp por Evolution. Sin ventana (arriba), con la sesión del canal.
+  if (proveedor === "evolution") {
+    return enviarPorWhatsapp(conversation as ConversacionParaWhatsapp, text, user.id, supabase);
   }
 
   if (!conversation.late_conversation_id) {
@@ -345,4 +352,111 @@ export async function POST(request: NextRequest) {
     await registrarFalloDeZernio(await createServiceClient(), conversation.workspace_id, error);
     return NextResponse.json({ code: "proveedor", error: "No se envió: Instagram rechazó el mensaje." }, { status: 502 });
   }
+}
+
+interface ConversacionParaWhatsapp {
+  id: string;
+  workspace_id: string;
+  channel_id: string;
+  contact_id: string | null;
+  channels: { instance_name?: string | null; session_state?: string | null } | null;
+}
+
+/**
+ * F42: el envío por Evolution. La conversación ya la autorizó la seguridad por
+ * filas del usuario (el alcance del Member) y ya pasó «no contactar».
+ *
+ * El orden: la sesión del canal (caída, agotada o sin vincular: 409, sin
+ * llamar); el token de la instancia, de Vault con la clave de servicio (un
+ * Member no lee Vault; sin token: 503, sin llamar); el destino, el
+ * `platform_sender_id` del contacto en el canal, que es con lo que el receptor
+ * lo encuentra; el envío; el guardado con el `key.id` (el aviso `send.message`
+ * de ese envío trae el mismo y no lo duplica: `lib/evolution-guardado.ts`).
+ * Un fallo no guarda nada (decisión de la revisión del 09/11/2026, vetable):
+ * un rechazo dice que no salió; sin respuesta en 15 s, que si salió va a
+ * aparecer (lo guarda el aviso).
+ */
+async function enviarPorWhatsapp(
+  conversation: ConversacionParaWhatsapp,
+  text: string,
+  userId: string,
+  supabase: Awaited<ReturnType<typeof createClient>>,
+) {
+  const canal = conversation.channels;
+  if (sesionImpideEnviar(canal?.session_state)) {
+    return NextResponse.json({ code: "whatsapp_desconectado", error: AVISO_WHATSAPP_DESCONECTADO }, { status: 409 });
+  }
+  const servicio = await createServiceClient();
+  const base = process.env.EVOLUTION_API_URL;
+  const instancia = canal?.instance_name ?? null;
+  const token = instancia ? await getWorkspaceSecret(servicio, conversation.workspace_id, evolutionInstanceTokenName(conversation.channel_id)) : null;
+  if (!base || !instancia || !token) {
+    return NextResponse.json({ code: "whatsapp_sin_configurar", error: "WhatsApp no está configurado en el servidor. Avisale a un Owner." }, { status: 503 });
+  }
+  const { data: delLead } = conversation.contact_id
+    ? await servicio
+        .from("contact_channels")
+        .select("platform_sender_id")
+        .eq("channel_id", conversation.channel_id)
+        .eq("contact_id", conversation.contact_id)
+        .maybeSingle()
+    : { data: null };
+  const numero = (delLead as { platform_sender_id?: string } | null)?.platform_sender_id ?? null;
+  if (!numero) {
+    return NextResponse.json({ code: "whatsapp_sin_destino", error: "No se encontró el WhatsApp de este contacto." }, { status: 409 });
+  }
+
+  let messageId: string;
+  try {
+    ({ id: messageId } = await enviarTextoPorEvolution({ base, instancia, token, numero, texto: text }));
+  } catch (err) {
+    const tipo = err instanceof ErrorDeEnvioEvolution ? err.tipo : "rechazo";
+    console.error("[messages] envío por Evolution:", err instanceof Error ? err.message : "error");
+    if (tipo === "sin_respuesta") {
+      return NextResponse.json({ code: "whatsapp_sin_respuesta", error: AVISO_WHATSAPP_SIN_RESPUESTA }, { status: 504 });
+    }
+    return NextResponse.json({ code: "proveedor", error: AVISO_WHATSAPP_RECHAZO }, { status: 502 });
+  }
+
+  const enviadoAt = new Date().toISOString();
+  const guardado = await guardarEnvioDeLaBandeja(servicio, {
+    conversationId: conversation.id,
+    direction: "outbound",
+    platformMessageId: messageId,
+    text,
+    attachments: null,
+    messageType: "texto",
+    quotedMessageId: null,
+    remoteJid: numero,
+    createdAt: enviadoAt,
+    sentByUserId: userId,
+  });
+  if (guardado.error) {
+    // Ya salió: no se responde error (reintentar lo mandaría dos veces).
+    console.error("[messages] enviado por WhatsApp y no guardado:", guardado.error.message);
+  }
+  await supabase
+    .from("conversations")
+    .update({ last_message_at: enviadoAt, last_message_preview: messagePreview(text) })
+    .eq("id", conversation.id);
+
+  return NextResponse.json(
+    {
+      id: guardado.id ?? messageId,
+      conversation_id: conversation.id,
+      direction: "outbound",
+      text,
+      attachments: null,
+      quick_reply_payload: null,
+      postback_payload: null,
+      callback_data: null,
+      platform_message_id: messageId,
+      sent_by_flow_id: null,
+      sent_by_node_id: null,
+      sent_by_user_id: userId,
+      status: "sent",
+      created_at: enviadoAt,
+    },
+    { status: 201 },
+  );
 }

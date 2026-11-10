@@ -28,6 +28,8 @@ const h = vi.hoisted(() => ({
   ordenes: [] as Array<[string, unknown]>,
   /** F40: campos de la conversación que cambia cada test (plataforma, canal, ventana). */
   conv: {} as Record<string, unknown>,
+  /** F42: el token de la instancia en Vault (null: no está). */
+  tokenEvolution: "tok-instancia" as string | null,
 }));
 
 function supabaseFalso(rol: "usuario" | "servicio" = "usuario") {
@@ -91,7 +93,11 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => supabaseFalso("usuario"),
   createServiceClient: async () => supabaseFalso("servicio"),
 }));
-vi.mock("@/lib/vault", () => ({ getZernioApiKey: async () => "zk" }));
+vi.mock("@/lib/vault", () => ({
+  getZernioApiKey: async () => "zk",
+  getWorkspaceSecret: async () => h.tokenEvolution,
+  evolutionInstanceTokenName: (canal: string) => `evolution_instance_token:${canal}`,
+}));
 vi.mock("@/lib/zernio-client", () => ({
   createZernioClient: () => ({ messages: { sendInboxMessage: h.sendInboxMessage } }),
 }));
@@ -406,5 +412,102 @@ describe("POST /api/v1/messages: la ventana de Instagram (F40)", () => {
     expect(res.status).toBe(502);
     await expect(res.json()).resolves.toEqual({ code: "proveedor", error: "No se envió: Instagram rechazó el mensaje." });
     expect(registrarFalloDeZernio).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * F42: contestar por WhatsApp desde la bandeja, con respuestas simuladas de
+ * Evolution (la forma sale de `prepareMessage` de Evolution 2.3.7, armada).
+ * Escritos en rojo antes de la rama de Evolution: la ruta respondía 400 «No
+ * Zernio conversation ID linked to this conversation» a toda conversación de
+ * WhatsApp por Evolution.
+ */
+describe("POST /api/v1/messages por WhatsApp (F42)", () => {
+  const EVO = "https://evo.ejemplo.invalid";
+  const evolution = vi.fn();
+  const conWhatsapp = (sesion: string, extra: Record<string, unknown> = {}) => {
+    h.conv = {
+      platform: "whatsapp",
+      late_conversation_id: null,
+      window_expires_at: null,
+      channels: { provider: "evolution", instance_name: "inst-1", session_state: sesion, late_account_id: null, is_active: true },
+      ...extra,
+    };
+  };
+  beforeEach(() => {
+    process.env.EVOLUTION_API_URL = EVO;
+    h.tokenEvolution = "tok-instancia";
+    evolution.mockReset();
+    evolution.mockResolvedValue(new Response(JSON.stringify({ key: { remoteJid: "lead@s.whatsapp.net", fromMe: true, id: "3EB0ENVIADO" } }), { status: 201 }));
+    vi.stubGlobal("fetch", evolution);
+  });
+
+  for (const sesion of ["caido", "agotado", "sin_vincular"]) {
+    it(`con la sesión «${sesion}» responde 409 y no llama a Evolution ni guarda`, async () => {
+      conWhatsapp(sesion);
+      const res = await POST(pedido({ conversationId: "conv-1", text: "prueba F42" }));
+      expect(res.status).toBe(409);
+      await expect(res.json()).resolves.toMatchObject({ code: "whatsapp_desconectado", error: "WhatsApp no está conectado. Los mensajes no pueden salir ni entrar por este canal hasta reconectarlo." });
+      expect(evolution).not.toHaveBeenCalled();
+      expect(h.upserts).toEqual([]);
+    });
+  }
+
+  it("con la sesión conectada envía por Evolution y guarda con el key.id, una sola clave de unicidad", async () => {
+    conWhatsapp("conectado");
+    const res = await POST(pedido({ conversationId: "conv-1", text: "prueba F42" }));
+    expect(res.status).toBe(201);
+    const [url, init] = evolution.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`${EVO}/message/sendText/inst-1`);
+    expect((init.headers as Record<string, string>).apikey).toBe("tok-instancia");
+    expect(JSON.parse(String(init.body))).toEqual({ number: "lead-ig-1", text: "prueba F42" });
+    expect(h.sendInboxMessage).not.toHaveBeenCalled();
+    expect(h.upserts).toEqual([
+      {
+        tabla: "messages",
+        valores: expect.objectContaining({ conversation_id: "conv-1", direction: "outbound", platform_message_id: "3EB0ENVIADO", sent_by_user_id: "u-1", remote_jid: "lead-ig-1", text: "prueba F42" }),
+        opciones: { onConflict: "conversation_id,platform_message_id,direction" },
+      },
+    ]);
+  });
+
+  it("«no se pudo verificar» intenta enviar (control)", async () => {
+    conWhatsapp("sin_verificar");
+    const res = await POST(pedido({ conversationId: "conv-1", text: "prueba F42" }));
+    expect(res.status).toBe(201);
+    expect(evolution).toHaveBeenCalledTimes(1);
+  });
+
+  it("no hay ventana de 24 horas: con la ventana vencida igual envía (criterio 4)", async () => {
+    conWhatsapp("conectado", { window_expires_at: "2026-01-01T00:00:00Z" });
+    const res = await POST(pedido({ conversationId: "conv-1", text: "prueba F42" }));
+    expect(res.status).toBe(201);
+    expect(evolution).toHaveBeenCalledTimes(1);
+  });
+
+  it("si Evolution rechaza (400), responde el error y no guarda nada", async () => {
+    conWhatsapp("conectado");
+    evolution.mockResolvedValue(new Response(JSON.stringify({ status: 400 }), { status: 400 }));
+    const res = await POST(pedido({ conversationId: "conv-1", text: "prueba F42" }));
+    expect(res.status).toBe(502);
+    await expect(res.json()).resolves.toMatchObject({ error: "No se envió: WhatsApp rechazó el mensaje." });
+    expect(h.upserts).toEqual([]);
+  });
+
+  it("si Evolution no responde a tiempo, lo dice y no guarda nada (si salió, lo guarda el aviso)", async () => {
+    conWhatsapp("conectado");
+    evolution.mockRejectedValue(Object.assign(new Error("aborted"), { name: "AbortError" }));
+    const res = await POST(pedido({ conversationId: "conv-1", text: "prueba F42" }));
+    expect(res.status).toBe(504);
+    await expect(res.json()).resolves.toMatchObject({ error: "WhatsApp no respondió a tiempo. Si el mensaje salió, va a aparecer en el hilo en unos segundos." });
+    expect(h.upserts).toEqual([]);
+  });
+
+  it("sin el token de la instancia en Vault no llama a Evolution", async () => {
+    conWhatsapp("conectado");
+    h.tokenEvolution = null;
+    const res = await POST(pedido({ conversationId: "conv-1", text: "prueba F42" }));
+    expect(res.status).toBe(503);
+    expect(evolution).not.toHaveBeenCalled();
   });
 });

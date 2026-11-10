@@ -238,6 +238,8 @@ export async function guardarMensajesDeEvolution(
   const porBajar: string[] = [];
   let ultimoEntrante: string | null = null;
 
+  const delEnvio = normalizarEvento(evento) === "send.message";
+
   for (const m of mensajes) {
     const identidad = identidadDeClave(m.key);
     if (identidad.tipo !== "persona" || !identidad.rawJid || !m.key?.id) {
@@ -247,6 +249,15 @@ export async function guardarMensajesDeEvolution(
     const fila = traducirMensaje(m);
     const entrante = fila.direction === "inbound";
     const ahora = new Date().toISOString();
+
+    // F42: el aviso de un envío de la bandeja (`send.message`, lo enviado por
+    // la API). Si la bandeja ya lo guardó con su `key.id`, no se toca: el
+    // aviso puede volver con otro JID (el `@lid` de la caché de Evolution) y
+    // caer en otra conversación, donde la unicidad no lo frena.
+    if (delEnvio && (await yaGuardadoEnElCanal(supabase, canal.id, m.key.id))) {
+      salteados++;
+      continue;
+    }
 
     // El contacto: por su identificador en el canal; si no, por el `@lid` que
     // trae al lado (vía 1); si no, nuevo.
@@ -282,6 +293,14 @@ export async function guardarMensajesDeEvolution(
         contactId = hallazgo.contact_id;
         existia = true;
       }
+    }
+    // F42: un envío por la API va siempre a una conversación que ya existe
+    // (F42 no inicia conversaciones). Si su JID no lleva a ningún contacto, no
+    // se crea uno nuevo con el mensaje duplicado: se saltea.
+    if (!contactId && delEnvio) {
+      console.warn("[evolution] send.message sin contacto conocido en el canal: salteado");
+      salteados++;
+      continue;
     }
     if (!contactId) {
       const nombre = !m.key.fromMe && m.pushName?.trim() ? m.pushName.trim() : identidad.telefono ?? identidad.rawJid;
@@ -415,4 +434,17 @@ export async function procesarAvisoDeContacto(
     if (r?.resultado === "resuelto") reconciliados++;
   }
   return reconciliados;
+}
+
+/** F42: si ese `key.id` ya está guardado como saliente en alguna conversación del canal. */
+async function yaGuardadoEnElCanal(supabase: Supa, canalId: string, keyId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select("id, conversations!inner(channel_id)")
+    .eq("platform_message_id", keyId)
+    .eq("direction", "outbound")
+    .eq("conversations.channel_id", canalId)
+    .limit(1);
+  if (error) throw new Error(`messages: ${error.message}`);
+  return (data ?? []).length > 0;
 }
