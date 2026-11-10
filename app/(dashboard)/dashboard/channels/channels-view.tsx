@@ -96,7 +96,7 @@ export function ChannelsView({
       const data = await res.json();
 
       if (!res.ok || data.error) {
-        setSyncMessage(data.error || "Failed to connect");
+        setSyncMessage(data.error || "No se pudo conectar.");
         setTimeout(() => setSyncMessage(null), 4000);
         return;
       }
@@ -105,7 +105,7 @@ export function ChannelsView({
         window.location.href = data.authUrl;
       }
     } catch {
-      setSyncMessage("Failed to start connection");
+      setSyncMessage("No se pudo empezar la conexión.");
       setTimeout(() => setSyncMessage(null), 4000);
     } finally {
       setConnecting(null);
@@ -122,7 +122,7 @@ export function ChannelsView({
       const data = await res.json();
 
       if (!res.ok || data.error) {
-        setSyncMessage(data.error || "Sync failed");
+        setSyncMessage(data.error || "No se pudo sincronizar.");
         return;
       }
 
@@ -147,10 +147,10 @@ export function ChannelsView({
       if (aviso) {
         setSyncMessage(aviso);
       } else if (failed.length > 0) {
-        setSyncMessage(`Could not save some channels: ${failed.join("; ")}`);
+        setSyncMessage(`No se pudieron guardar algunos canales: ${failed.join("; ")}`);
       } else if (nothingChanged && syncedChannels.length === 0 && skipped.length > 0) {
         setSyncMessage(
-          `Nothing to connect: ZernFlow does not support ${skipped.join(", ")}`
+          `No hay nada para conectar: el sistema no admite ${skipped.join(", ")}`
         );
       } else if (importandoHistorial || importacionYaEnCurso) {
         // F27: la importación del historial sigue en segundo plano.
@@ -160,13 +160,13 @@ export function ChannelsView({
             : "Canales al día. Ya hay una importación del historial en curso."
         );
       } else if (nothingChanged) {
-        setSyncMessage("All channels up to date");
+        setSyncMessage("Los canales están al día.");
       } else {
         const parts = [];
-        if (created > 0) parts.push(`${created} added`);
-        if (updated > 0) parts.push(`${updated} updated`);
-        if (deactivated > 0) parts.push(`${deactivated} deactivated`);
-        if (conversationsImported > 0) parts.push(`${conversationsImported} conversations imported`);
+        if (created > 0) parts.push(`${created} agregados`);
+        if (updated > 0) parts.push(`${updated} actualizados`);
+        if (deactivated > 0) parts.push(`${deactivated} desactivados`);
+        if (conversationsImported > 0) parts.push(`${conversationsImported} conversaciones importadas`);
         setSyncMessage(parts.join(", "));
       }
       setTimeout(
@@ -174,7 +174,7 @@ export function ChannelsView({
         failed.length > 0 || aviso || importandoHistorial || importacionYaEnCurso ? 10000 : 4000
       );
     } catch {
-      setSyncMessage("Failed to sync. Check your connection.");
+      setSyncMessage("No se pudo sincronizar. Revisá tu conexión.");
     } finally {
       setSyncing(false);
     }
@@ -203,9 +203,9 @@ export function ChannelsView({
       <div className="border-b border-border px-8 py-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Channels</h1>
+            <h1 className="text-2xl font-bold">Canales</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Your connected social media accounts from Zernio
+              Las cuentas conectadas al sistema.
             </p>
             {/* Desde el 05/10/2026 esta pantalla no borra canales: la ruta DELETE
                 responde 405 y la base rechaza borrar un canal con historia (00025).
@@ -233,7 +233,7 @@ export function ChannelsView({
               <RefreshCw
                 className={cn("h-4 w-4", syncing && "animate-spin")}
               />
-              {syncing ? "Syncing..." : "Sync"}
+              {syncing ? "Sincronizando…" : "Sincronizar"}
             </button>
             <div className="relative" ref={pickerRef}>
               <button
@@ -241,7 +241,7 @@ export function ChannelsView({
                 className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
               >
                 <Plus className="h-4 w-4" />
-                Connect Channel
+                Conectar canal
               </button>
               {showPlatformPicker && (
                 <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-border bg-card p-2 shadow-lg">
@@ -273,18 +273,17 @@ export function ChannelsView({
           <div className="flex flex-col items-center justify-center py-20">
             <Plug className="h-10 w-10 text-muted-foreground/40" />
             <p className="mt-3 text-sm font-medium text-muted-foreground">
-              No channels yet
+              Todavía no hay canales
             </p>
             <p className="mt-1 max-w-xs text-center text-xs text-muted-foreground/70">
-              Connect a social media account to start building flows and
-              automating conversations.
+              Conectá una cuenta para empezar a recibir sus mensajes en la bandeja.
             </p>
             <button
               onClick={() => setShowPlatformPicker(true)}
               className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
             >
               <Plus className="h-4 w-4" />
-              Connect Channel
+              Conectar canal
             </button>
           </div>
         ) : (
@@ -375,7 +374,7 @@ export function ChannelsView({
                             : "bg-muted-foreground"
                         )}
                       />
-                      {channel.is_active ? "Active" : "Inactive"}
+                      {channel.is_active ? "Activo" : "Inactivo"}
                     </span>
                     {channel.excede_plan_zernio && (
                       <span
@@ -423,7 +422,7 @@ export function ChannelsView({
                               ? "border-green-200 bg-green-50 text-green-600"
                               : "border-border bg-card text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground"
                           )}
-                          title={copiedId === channel.id ? "Copied!" : "Copy DM link"}
+                          title={copiedId === channel.id ? "¡Copiado!" : "Copiar el enlace para escribirle"}
                         >
                           {copiedId === channel.id ? (
                             <Check className="h-3 w-3" />
