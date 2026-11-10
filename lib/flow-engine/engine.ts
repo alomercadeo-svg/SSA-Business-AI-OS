@@ -23,10 +23,24 @@ import { createZernioClient } from "@/lib/zernio-client";
 import { getZernioApiKey } from "@/lib/vault";
 import { registrarFalloDeZernio } from "@/lib/integraciones-estado";
 
+/**
+ * F34, criterio 6 (ítem 3 de la sesión de cierre, 10/11/2026): a un contacto
+ * marcado «no contactar» el motor no le escribe nada. Se mira al arrancar y al
+ * retomar, antes de cualquier nodo: así no sale ningún mensaje, respuesta
+ * privada ni respuesta de IA. Si no se puede leer el contacto, no se frena
+ * (la marca la pone el receptor antes de llegar acá).
+ */
+async function contactoNoContactar(supabase: SupabaseClient<Database>, contactId: string): Promise<boolean> {
+  const { data } = await supabase.from("contacts").select("do_not_contact").eq("id", contactId).maybeSingle();
+  return Boolean((data as { do_not_contact?: boolean } | null)?.do_not_contact);
+}
+
 export async function executeFlow(
   supabase: SupabaseClient<Database>,
   context: FlowExecutionContext
 ) {
+  if (await contactoNoContactar(supabase, context.contactId)) return;
+
   // Ensure variables always exists so nodes (aiResponse, httpRequest) can write
   // outputs even when the trigger passed none (e.g. DM-triggered flows).
   context.variables ??= {};
@@ -140,6 +154,11 @@ export async function resumeSession(
   session: Database["public"]["Tables"]["flow_sessions"]["Row"],
   context: FlowExecutionContext
 ) {
+  // F34: una sesión de un contacto que pidió no recibir mensajes se cierra sin seguir.
+  if (await contactoNoContactar(supabase, session.contact_id ?? context.contactId)) {
+    await completeSession(supabase, session.id);
+    return;
+  }
   const { data: flow, error: flowError } = await supabase
     .from("flows")
     .select("*")

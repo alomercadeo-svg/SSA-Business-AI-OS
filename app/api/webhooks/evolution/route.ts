@@ -13,7 +13,8 @@ import {
 } from "@/lib/evolution-webhook";
 import { guardarEventoEvolution, procesarEventoEvolution } from "@/lib/evolution-processor";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { notificarAlerta, notificarSesionWhatsapp } from "@/lib/correo";
+import { notificarAlerta } from "@/lib/correo";
+import { alCambiarLaSesion } from "@/lib/sesion-caida";
 import { lecturaDeAviso, registrarLectura, type Transicion } from "@/lib/sesion-whatsapp";
 import { auditarAlertaSiEsNueva } from "@/lib/auditoria";
 import { almacenDeSupabase, descargarAdjunto } from "@/lib/adjuntos";
@@ -265,7 +266,7 @@ async function manejarWebhook(request: NextRequest) {
   if (transicion?.avisar) {
     const aviso = transicion;
     after(async () => {
-      await notificarSesionWhatsapp(aviso, { servicio: supabase });
+      await alCambiarLaSesion(aviso, { servicio: supabase as unknown as SupabaseClient });
     });
   }
 

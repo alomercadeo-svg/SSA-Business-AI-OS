@@ -3,10 +3,11 @@
  * `first_click` y `last_click`.
  *
  * Esto arma el "toque" a partir de lo que trae una interacción y decide cómo
- * queda la atribución. **Hoy no lo llama ningún camino**: el primer llamador es
- * F27, con el aviso de Evolution de un contacto que llega por un anuncio de
- * click-to-WhatsApp (`contextInfo.externalAdReply`). Si Zernio manda la
- * referencia del anuncio en Instagram no está verificado.
+ * queda la atribución. Lo llaman el guardado de WhatsApp (F27, con
+ * `contextInfo.externalAdReply` de click-to-WhatsApp) y, desde el 10/11/2026,
+ * el receptor de Zernio (`toqueDelAviso`, con `metadata.referral` de un
+ * anuncio de Instagram). Que Zernio la mande así sale de los tipos de
+ * `@zernio/node`: no se vio ningún aviso real con referencia.
  *
  * Las reglas:
  *   - `first_click` se escribe una sola vez. La base lo hace cumplir con un

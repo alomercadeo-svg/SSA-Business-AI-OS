@@ -89,8 +89,9 @@ export interface Dependencias {
 /** Las de producción. Se cargan al usarlas, para que los tests no las arrastren. */
 async function dependenciasReales(): Promise<Dependencias> {
   const [
-    { notificarAlerta, notificarSesionWhatsapp },
+    { notificarAlerta },
     { auditarAlertaSiEsNueva },
+    { alCambiarLaSesion },
     { getWorkspaceSecret, SECRET_NAMES, evolutionInstanceTokenName },
     { leerWebhook },
     { createZernioClient },
@@ -98,6 +99,7 @@ async function dependenciasReales(): Promise<Dependencias> {
   ] = await Promise.all([
     import("./correo"),
     import("./auditoria"),
+    import("./sesion-caida"),
     import("./vault"),
     import("./integraciones-estado"),
     import("./zernio-client"),
@@ -121,7 +123,8 @@ async function dependenciasReales(): Promise<Dependencias> {
         leerEstado: async (instancia, token) =>
           evolution.url ? leerSesionDeEvolution(instancia, token, evolution) : { tipo: "sin_verificar", motivo: "sin_configurar" },
         leerOwnerJid: async (instancia, token) => (evolution.url ? tieneOwnerJid(instancia, token, evolution) : false),
-        notificar: (t, o) => notificarSesionWhatsapp(t, { servicio: o.servicio as never }),
+        // F31: además del correo, «canal con error» en el historial (lib/sesion-caida.ts).
+        notificar: (t, o) => alCambiarLaSesion(t, { servicio: o.servicio as never }),
       }),
     reabrir: reabrirPorSeguimiento,
   };

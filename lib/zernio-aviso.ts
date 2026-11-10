@@ -38,6 +38,7 @@
  *   nulo. La respuesta a una historia es otro campo (`metadata.storyReply`) y
  *   no se guarda.
  */
+import { toqueDe, type Toque } from "./atribucion";
 import { tipoPorAdjuntos, type AdjuntoCrudo, type MensajeParaGuardar } from "./mensajes-guardado";
 
 export interface AvisoDeMensajeZernio {
@@ -68,6 +69,19 @@ export interface AvisoDeMensajeZernio {
     callbackData?: string;
     postbackPayload?: string;
     quotedMessageId?: string;
+    /**
+     * F25: la referencia del anuncio, solo en el primer mensaje después del
+     * clic (`@zernio/node` 0.2.519, `dist/index.d.ts:7743-7790`). No se vio
+     * nunca una real: se sigue a los tipos.
+     */
+    referral?: {
+      ad_id?: string;
+      ref?: string;
+      source?: string;
+      type?: string;
+      source_url?: string;
+      ctwa_clid?: string;
+    };
   };
 }
 
@@ -130,4 +144,24 @@ export function mensajeDelAviso(
     remoteJid,
     createdAt: aviso.message.sentAt || new Date().toISOString(),
   };
+}
+
+/**
+ * F25 (ítem 3 de la sesión de cierre): el toque de un anuncio de Instagram
+ * (click-to-Direct). `ref` es el parámetro que se le pone al anuncio: va como
+ * campaña. Sin referencia, o en un saliente, no hay toque.
+ */
+export function toqueDelAviso(aviso: AvisoDeMensajeZernio): Toque | null {
+  if (esSaliente(aviso)) return null;
+  const r = aviso.metadata?.referral;
+  if (!r || typeof r !== "object") return null;
+  return toqueDe({
+    utm: { campaign: typeof r.ref === "string" ? r.ref : null },
+    adId: typeof r.ad_id === "string" ? r.ad_id : null,
+    ctwaClid: typeof r.ctwa_clid === "string" ? r.ctwa_clid : null,
+    url: typeof r.source_url === "string" ? r.source_url : null,
+    sourceType: typeof r.source === "string" ? r.source : null,
+    canal: aviso.account.platform || "instagram",
+    cuando: aviso.message.sentAt || new Date().toISOString(),
+  });
 }

@@ -11,7 +11,8 @@ import { messagePreview } from "@/lib/message-preview";
 import { guardarMensajes } from "@/lib/mensajes-guardado";
 import { alEscribirElLead, conversacionDelMensaje } from "@/lib/estado-por-mensaje";
 import { moverVentana, reglaDeVentana, venceEn } from "@/lib/ventana-instagram";
-import { contactoDelAviso, esSaliente, mensajeDelAviso, type AvisoDeMensajeZernio } from "@/lib/zernio-aviso";
+import { contactoDelAviso, esSaliente, mensajeDelAviso, toqueDelAviso, type AvisoDeMensajeZernio } from "@/lib/zernio-aviso";
+import { aplicarToque } from "@/lib/atribucion";
 import { rellenarPerfilSiFalta } from "@/lib/relleno-perfil";
 import { claveDeImportacion } from "@/lib/importacion-historial";
 import { almacenDeSupabase, descargarAdjunto, seDescarga } from "@/lib/adjuntos";
@@ -390,6 +391,16 @@ async function guardarAviso(
       });
     }
     await supabase.from("channels").update({ last_inbound_at: ahora }).eq("id", channel.id);
+    // F25: `last_click` en cada mensaje nuevo que trae la referencia de un
+    // anuncio; `first_click` no se pisa nunca (además lo frena la 00029).
+    const toque = (nuevos ?? 0) > 0 ? toqueDelAviso(aviso) : null;
+    if (toque) {
+      const { data: actual } = await supabase.from("contacts").select("attribution").eq("id", contact.contactId).maybeSingle();
+      await supabase
+        .from("contacts")
+        .update({ attribution: aplicarToque((actual as { attribution?: unknown } | null)?.attribution as never, toque) as never })
+        .eq("id", contact.contactId);
+    }
   }
 
   return {

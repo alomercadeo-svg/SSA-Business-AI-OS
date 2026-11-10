@@ -4282,3 +4282,15 @@ Sin fecha: el Flujo 4 del plano, la conexión en vivo de WhatsApp. Espera el nú
 - «sin secreto no retoma ninguna importación». Pasaba antes, porque no se retomaba nada.
 
 Suite 1658 de 1658, `typecheck` y `lint` en verde, `next build` local bien.
+
+### Ítem 3 de la sesión de cierre: los criterios chicos que el mapa marcó sin construir
+
+**Plan (revisión completa: toca los dos receptores de avisos y el motor de flujos; aprobado de antemano).** Sale del mapa de arriba. **No se reconstruye lo que el mapa muestra construido:** F35 (el filtro muestra todas las conversaciones del contacto) y F40 (el error claro por ventana vencida, y el botón «Escribir por WhatsApp» con su texto y su control) van a la lista de tildes propuestas, no a construcción.
+
+**Construido (17:3x a 17:4x), en local; se sube después de la 00057 porque va encima del commit del ítem 2:**
+- **F25, `last_click` en Instagram.** El receptor de Zernio arma el toque con `metadata.referral` (`toqueDelAviso`, `lib/zernio-aviso.ts`) y lo aplica en cada mensaje nuevo del lead (`app/api/webhooks/late/route.ts`). `first_click` sigue sin pisarse. **La forma de `referral` sale de los tipos de `@zernio/node` 0.2.519 (`dist/index.d.ts:7743-7790`): no vi ningún aviso real con un anuncio.** Por eso el criterio queda «construido, sin caso real» y no se propone para tilde.
+- **F34, criterio 6: el motor de flujos no le escribe a un contacto marcado.** El hueco era de seguridad: la bandeja y las secuencias respetaban la marca, pero el motor, que corre con cada mensaje y comentario de Instagram, no la miraba. Ahora `executeFlow` no arranca y `resumeSession` cierra la sesión si el contacto está marcado. Así no sale ningún mensaje, respuesta privada ni respuesta de IA (`lib/flow-engine/engine.ts`). **Lo que sigue sin la guardia:** las secuencias y difusiones del fork (`lib/sequence-processor.ts`, `broadcasts/.../send`, `cron/jobs`). Hoy no corren en producción, y las secuencias ya las frena la base (00053). Van a la lista final.
+- **F31: la caída de la sesión de WhatsApp deja «canal con error» en el historial**, con el estado nuevo y el anterior. `lib/sesion-caida.ts` lo hace junto con el correo de antes, desde el receptor de Evolution y desde la tarea programada.
+- **No se hizo en este tramo: F38, criterio 6 (el código de país como ajuste del espacio).** Necesita una columna nueva, así que queda para después de la copia y la 00057.
+
+**Tests nuevos: 7, vistos en rojo 5:** 3 del toque, por función inexistente; 1 del motor, por su motivo («expected [flow_sessions, flows] to not include flows»); 1 de la caída. **No vistos en rojo, porque son controles positivos o por ausencia:** «sin la marca el motor sigue» y «una transición que no avisa no deja error ni correo». Suite 1665 de 1665, `typecheck` y `lint` en verde (0 errores).
