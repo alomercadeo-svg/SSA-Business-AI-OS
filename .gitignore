@@ -45,3 +45,6 @@ supabase/.temp
 
 # permisos locales de Claude Code, no del proyecto
 .claude/settings.local.json
+
+# herramientas locales que no son del proyecto (Playwright con su WebKit)
+herramientas-locales/
