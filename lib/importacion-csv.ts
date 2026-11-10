@@ -102,7 +102,7 @@ export function sugerirCampo(encabezado: string, camposPropios: { slug: string; 
   // F38: antes que el id de persona («Id de trato de Pipedrive» también dice
   // «pipedrive») y antes que el nombre («Nota del contacto» dice «contacto»).
   if (/\b(deal id|id de trato|trato id)\b/.test(e)) return "pipedrive_trato";
-  if (/^(nota|notas|nota del contacto)$/.test(e)) return "nota";
+  if (/^(nota|notas|nota del contacto)( \d+)?$/.test(e)) return "nota";
   if (/^(etapa|stage|etapa del trato)$/.test(e)) return "etapa";
   if (/^(estado|estado del trato|status)$/.test(e)) return "estado_trato";
   if (/^(valor|valor del trato|value)$/.test(e)) return "valor";
@@ -137,7 +137,8 @@ export interface FilaPreparada {
   moneda: string | null;
   fechaCierre: string | null;
   pipedriveTrato: string | null;
-  nota: string | null;
+  /** Una por cada columna mapeada a «Nota del contacto» (F38, parte A: los tratos anteriores). */
+  notas: string[];
   usoCodigoPorDefecto: boolean;
   error: string | null;
 }
@@ -180,7 +181,7 @@ export function prepararFila(
     moneda: null,
     fechaCierre: null,
     pipedriveTrato: null,
-    nota: null,
+    notas: [],
     usoCodigoPorDefecto: false,
     error: null,
   };
@@ -201,7 +202,7 @@ export function prepararFila(
     else if (campo === "moneda") f.moneda = v.toUpperCase();
     else if (campo === "fecha_cierre") f.fechaCierre = v;
     else if (campo === "pipedrive_trato") f.pipedriveTrato = v;
-    else if (campo === "nota") f.nota = v;
+    else if (campo === "nota") f.notas.push(v);
     else if (campo.startsWith("campo:")) f.campos[campo.slice(6)] = v;
   });
 

@@ -12,8 +12,12 @@
  *
  * Lo que hace:
  *   - Descarta los tratos con «IG DM» en el título (los trae Instagram).
- *   - Frena si una persona tiene más de un trato que no es «IG DM» (el plano
- *     supone uno por persona y el control depende de eso).
+ *   - Una persona con más de un trato que no es «IG DM» (decisión de Marcos del
+ *     10/11/2026): a la ficha va el abierto; entre varios abiertos, el creado
+ *     más recientemente; sin abiertos, el cerrado más reciente según «Trato
+ *     cerrado el» (o la creación, si falta). Los demás van como notas «Trato
+ *     anterior en Pipedrive: …», en columnas «Nota del contacto 2», 3…, y la
+ *     cuenta tiene que cerrar: ficha + nota + sin persona = no «IG DM».
  *   - Aplana el trato en la persona: etapa, estado (abierto, ganado o perdido),
  *     valor, moneda, fecha de cierre (AAAA-MM-DD), id del trato, y el motivo de
  *     pérdida como «Nota del contacto».
@@ -65,7 +69,8 @@ const ESTADOS = new Map([
 ]);
 
 export const MAX_FILAS = 500;
-export const COLUMNAS_DE_SALIDA = [
+/** Las columnas fijas de salida; después van «Nota del contacto», «Nota del contacto 2», … */
+export const COLUMNAS_BASE = [
   "Nombre",
   "Correo",
   "Teléfono",
@@ -76,7 +81,6 @@ export const COLUMNAS_DE_SALIDA = [
   "Moneda",
   "Fecha de cierre",
   "Id de trato de Pipedrive",
-  "Nota del contacto",
 ];
 
 // ---------- CSV ----------
@@ -171,6 +175,14 @@ function fecha(v) {
   return Number.isNaN(f.getTime()) || f.toISOString().slice(0, 10) !== `${a}-${m}-${d}` ? null : `${a}-${m}-${d}`;
 }
 
+/** Un momento de Pipedrive como «AAAA-MM-DD HH:MM:SS», que se ordena como texto; o null. */
+function instante(v) {
+  const dia = fecha(v);
+  if (!dia) return null;
+  const hora = /(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(v);
+  return `${dia} ${hora ? `${hora[1].padStart(2, "0")}:${hora[2]}:${hora[3] ?? "00"}` : "00:00:00"}`;
+}
+
 /**
  * La unión. Recibe el texto de los dos CSV y devuelve las filas de salida y
  * los conteos; tira `Freno` con el motivo (sin datos) si algo no cuadra.
@@ -204,6 +216,7 @@ export function unir(textoPersonas, textoTratos) {
     moneda: columna(T.columnas, ["moneda de valor", "moneda", "currency", "moneda del valor"]),
     cierre: columna(T.columnas, ["trato cerrado el", "fecha de cierre", "close time", "fecha de cierre real"]),
     motivo: columna(T.columnas, ["motivo de la perdida", "motivo de perdida", "lost reason", "razon de perdida"]),
+    creado: columna(T.columnas, ["trato creado", "creado", "add time", "fecha de creacion"]),
   };
   for (const [k, que] of [
     ["id", "id del trato"],
@@ -215,19 +228,46 @@ export function unir(textoPersonas, textoTratos) {
     ["moneda", "moneda"],
     ["cierre", "fecha de cierre"],
     ["motivo", "motivo de pérdida"],
+    ["creado", "fecha de creación"],
   ]) {
     if (t[k] < 0) falta("Tratos", T.columnas, que);
   }
 
-  const c = { personas: P.filas.length, tratos: T.filas.length, igdm: 0, sinPersona: 0, personaInexistente: 0, aplanados: 0, conLosDosTelefonos: 0, sinTelefonoNiCorreo: 0 };
+  const c = {
+    personas: P.filas.length,
+    tratos: T.filas.length,
+    igdm: 0,
+    igdmPorVariante: {},
+    prefijos: {},
+    noIgdm: 0,
+    porEstado: { abierto: 0, ganado: 0, perdido: 0 },
+    sinPersona: 0,
+    personaInexistente: 0,
+    aplanados: 0,
+    comoNota: 0,
+    conLosDosTelefonos: 0,
+    sinTelefonoNiCorreo: 0,
+    conVarios: { personas: 0, conUnAbierto: 0, conVariosAbiertos: 0, conAbiertoYCerrado: 0, sinAbiertos: 0 },
+    desempates: { unAbiertoEntreVarios: 0, variosAbiertosPorCreacion: 0, cerradoMasReciente: 0, cierreFaltanteUsoCreacion: 0 },
+  };
+  const sumar = (m, k) => m.set(k, (m.get(k) ?? 0) + 1);
   const idsDePersona = new Set(P.filas.map((f) => (f[p.id] ?? "").trim()));
+  const prefijos = new Map();
   const tratosPorPersona = new Map();
   for (const f of T.filas) {
-    const v = (i) => (f[i] ?? "").trim();
-    if (/ig\s*dm/i.test(v(t.titulo))) {
+    const v = (i) => (i >= 0 ? (f[i] ?? "").trim() : "");
+    const titulo = v(t.titulo);
+    const prefijo = /^([^-–]{1,15}?)\s*[-–]\s/.exec(titulo)?.[1]?.trim();
+    if (prefijo) sumar(prefijos, prefijo);
+    const ig = /ig\s*-?\s*dm/i.exec(titulo);
+    if (ig) {
       c.igdm++;
+      c.igdmPorVariante[ig[0]] = (c.igdmPorVariante[ig[0]] ?? 0) + 1;
       continue;
     }
+    c.noIgdm++;
+    const estado = ESTADOS.get(v(t.estado).toLowerCase());
+    if (estado) c.porEstado[estado]++;
     const persona = v(t.persona);
     if (!persona) {
       c.sinPersona++;
@@ -240,14 +280,60 @@ export function unir(textoPersonas, textoTratos) {
     if (!tratosPorPersona.has(persona)) tratosPorPersona.set(persona, []);
     tratosPorPersona.get(persona).push(f);
   }
-  const conVarios = [...tratosPorPersona.values()].filter((l) => l.length > 1).length;
-  if (conVarios > 0) {
-    throw new Freno(`${conVarios} personas tienen más de un trato que no es «IG DM». El plano supone uno por persona y el control depende de eso: hay que decidir qué hacer antes de seguir.`);
-  }
+  // Solo los prefijos que se repiten 5 veces o más: uno que aparece una vez
+  // puede ser un nombre, y el script no imprime datos.
+  for (const [k, n] of prefijos) if (n >= 5) c.prefijos[k] = n;
 
-  // Etapas, estados, valores y fechas: todo se compara antes de escribir.
-  const malas = { etapa: new Map(), estado: new Map(), valor: new Map(), fecha: new Map() };
-  const sumar = (m, k) => m.set(k, (m.get(k) ?? 0) + 1);
+  // Etapas, estados, valores y fechas: todo se compara antes de escribir,
+  // también en los tratos que van como nota.
+  const malas = { etapa: new Map(), estado: new Map(), valor: new Map(), fecha: new Map(), creado: new Map() };
+  const leerTrato = (trato) => {
+    const w = (i) => (i >= 0 ? (trato[i] ?? "").trim() : "");
+    const etapa = w(t.etapa);
+    if (etapa && !ETAPAS.includes(etapa)) sumar(malas.etapa, etapa);
+    const estadoCrudo = w(t.estado);
+    const estado = ESTADOS.get(estadoCrudo.toLowerCase()) ?? "";
+    if (estadoCrudo && !estado) sumar(malas.estado, estadoCrudo);
+    const valor = w(t.valor);
+    if (valor && !/^-?\d+(\.\d+)?$/.test(valor)) sumar(malas.valor, forma(valor));
+    const cierreCrudo = w(t.cierre);
+    const cierre = cierreCrudo ? instante(cierreCrudo) : "";
+    if (cierreCrudo && !cierre) sumar(malas.fecha, forma(cierreCrudo));
+    const creadoCrudo = w(t.creado);
+    const creado = creadoCrudo ? instante(creadoCrudo) : "";
+    if (creadoCrudo && !creado) sumar(malas.creado, forma(creadoCrudo));
+    return { id: w(t.id), etapa, estado, valor, moneda: w(t.moneda), cierre, creado, motivo: w(t.motivo) };
+  };
+  const masReciente = (lista, clave) => lista.reduce((a, b) => (clave(b) > clave(a) ? b : a));
+
+  /** Decisión de Marcos del 10/11/2026: cuál va a la ficha. */
+  const elegir = (tratos) => {
+    if (tratos.length === 1) return tratos[0];
+    c.conVarios.personas++;
+    const abiertos = tratos.filter((x) => x.estado === "abierto");
+    const cerrados = tratos.filter((x) => x.estado !== "abierto");
+    if (abiertos.length === 1) c.conVarios.conUnAbierto++;
+    if (abiertos.length > 1) c.conVarios.conVariosAbiertos++;
+    if (abiertos.length >= 1 && cerrados.length >= 1) c.conVarios.conAbiertoYCerrado++;
+    if (abiertos.length === 0) c.conVarios.sinAbiertos++;
+    if (abiertos.length === 1) {
+      c.desempates.unAbiertoEntreVarios++;
+      return abiertos[0];
+    }
+    if (abiertos.length > 1) {
+      c.desempates.variosAbiertosPorCreacion++;
+      return masReciente(abiertos, (x) => x.creado);
+    }
+    c.desempates.cerradoMasReciente++;
+    if (tratos.some((x) => !x.cierre)) c.desempates.cierreFaltanteUsoCreacion++;
+    return masReciente(tratos, (x) => x.cierre || x.creado);
+  };
+  const dia = (inst) => (inst ? `${inst.slice(8, 10)}/${inst.slice(5, 7)}/${inst.slice(0, 4)}` : "");
+  const notaDeTratoAnterior = (x) => {
+    const partes = [x.estado, x.etapa, x.valor ? `${x.valor} ${x.moneda}`.trim() : "", x.cierre ? `cerrado el ${dia(x.cierre)}` : ""].filter(Boolean);
+    return `Trato anterior en Pipedrive: ${partes.join(", ")}${x.motivo ? `. Motivo de pérdida: ${x.motivo}` : ""}`;
+  };
+
   const salida = [];
   for (const f of P.filas) {
     const v = (i) => (i >= 0 ? (f[i] ?? "").trim() : "");
@@ -258,47 +344,53 @@ export function unir(textoPersonas, textoTratos) {
     const telefono = movil || trabajo;
     const correo = p.correos.map((i) => v(i)).find(Boolean) ?? "";
     if (!telefono && !correo) c.sinTelefonoNiCorreo++;
-    const fila = [v(p.nombre), correo, telefono, id, "", "", "", "", "", "", ""];
-    const trato = tratosPorPersona.get(id)?.[0];
-    if (trato) {
-      const w = (i) => (trato[i] ?? "").trim();
-      const etapa = w(t.etapa);
-      if (etapa && !ETAPAS.includes(etapa)) sumar(malas.etapa, etapa);
-      const estadoCrudo = w(t.estado);
-      const estado = ESTADOS.get(estadoCrudo.toLowerCase());
-      if (estadoCrudo && !estado) sumar(malas.estado, estadoCrudo);
-      const valor = w(t.valor);
-      if (valor && !/^-?\d+(\.\d+)?$/.test(valor)) sumar(malas.valor, forma(valor));
-      const cierreCrudo = w(t.cierre);
-      const cierre = cierreCrudo ? fecha(cierreCrudo) : "";
-      if (cierreCrudo && !cierre) sumar(malas.fecha, forma(cierreCrudo));
-      const motivo = w(t.motivo);
-      fila[4] = etapa;
-      fila[5] = estado ?? "";
-      fila[6] = valor;
-      fila[7] = w(t.moneda);
-      fila[8] = cierre ?? "";
-      fila[9] = w(t.id);
-      fila[10] = motivo ? `Motivo de pérdida en Pipedrive: ${motivo}` : "";
+    const fila = [v(p.nombre), correo, telefono, id, "", "", "", "", "", ""];
+    const notas = [];
+    const tratos = (tratosPorPersona.get(id) ?? []).map(leerTrato);
+    if (tratos.length) {
+      const ficha = elegir(tratos);
+      fila[4] = ficha.etapa;
+      fila[5] = ficha.estado;
+      fila[6] = ficha.valor;
+      fila[7] = ficha.moneda;
+      fila[8] = ficha.cierre.slice(0, 10);
+      fila[9] = ficha.id;
+      if (ficha.motivo) notas.push(`Motivo de pérdida en Pipedrive: ${ficha.motivo}`);
       c.aplanados++;
+      for (const x of tratos) {
+        if (x === ficha) continue;
+        notas.push(notaDeTratoAnterior(x));
+        c.comoNota++;
+      }
     }
-    salida.push(fila);
+    salida.push({ fila, notas });
   }
   const problemas = [];
-  for (const [k, l] of malas.etapa) problemas.push(`la etapa «${k}» no está en la lista de la base (${l} filas)`);
-  for (const [k, l] of malas.estado) problemas.push(`el estado «${k}» no es abierto, ganado ni perdido (${l} filas): ¿cómo se mapea?`);
-  for (const [k, l] of malas.valor) problemas.push(`un valor con la forma «${k}» no se lee como número (${l} filas)`);
-  for (const [k, l] of malas.fecha) problemas.push(`una fecha de cierre con la forma «${k}» no se puede leer (${l} filas)`);
+  for (const [k, l] of malas.etapa) problemas.push(`la etapa «${k}» no está en la lista de la base (${l} tratos)`);
+  for (const [k, l] of malas.estado) problemas.push(`el estado «${k}» no es abierto, ganado ni perdido (${l} tratos): ¿cómo se mapea?`);
+  for (const [k, l] of malas.valor) problemas.push(`un valor con la forma «${k}» no se lee como número (${l} tratos)`);
+  for (const [k, l] of malas.fecha) problemas.push(`una fecha de cierre con la forma «${k}» no se puede leer (${l} tratos)`);
+  for (const [k, l] of malas.creado) problemas.push(`una fecha de creación con la forma «${k}» no se puede leer (${l} tratos)`);
   if (problemas.length) throw new Freno(`No escribo los archivos:\n  - ${problemas.join("\n  - ")}`);
 
+  // La cuenta tiene que cerrar (decisión del 10/11, punto 3).
+  if (c.aplanados + c.comoNota + c.sinPersona + c.personaInexistente !== c.noIgdm) {
+    throw new Freno(`La cuenta no cierra: ${c.aplanados} en la ficha + ${c.comoNota} como nota + ${c.sinPersona} sin persona + ${c.personaInexistente} con persona inexistente ≠ ${c.noIgdm} que no son «IG DM».`);
+  }
+
+  // Tantas columnas de nota como la persona que más tiene (al menos una).
+  const cuantasNotas = Math.max(1, ...salida.map((s) => s.notas.length));
+  const columnas = [...COLUMNAS_BASE, ...Array.from({ length: cuantasNotas }, (_, i) => (i === 0 ? "Nota del contacto" : `Nota del contacto ${i + 1}`))];
+  const filas = salida.map((s) => [...s.fila, ...Array.from({ length: cuantasNotas }, (_, i) => s.notas[i] ?? "")]);
+
   // A: todas las personas con trato y las sin trato que entren; B: el resto.
-  const conTrato = salida.filter((f) => f[9]);
-  const sinTrato = salida.filter((f) => !f[9]);
+  const conTrato = filas.filter((f) => f[9]);
+  const sinTrato = filas.filter((f) => !f[9]);
   if (conTrato.length > MAX_FILAS) throw new Freno(`Hay ${conTrato.length} personas con trato: no entran en un archivo de ${MAX_FILAS}.`);
   const a = [...conTrato, ...sinTrato.slice(0, MAX_FILAS - conTrato.length)];
   const b = sinTrato.slice(MAX_FILAS - conTrato.length);
   if (b.length > MAX_FILAS) throw new Freno(`El archivo B tendría ${b.length} filas, más de ${MAX_FILAS}.`);
-  return { a, b, conteos: c, columnasPersonas: P.columnas, columnasTratos: T.columnas };
+  return { a, b, columnas, conteos: c, columnasPersonas: P.columnas, columnasTratos: T.columnas };
 }
 
 // ---------- Uso desde la terminal ----------
@@ -324,15 +416,19 @@ async function principal() {
   console.log(`Columnas de Tratos: ${r.columnasTratos.join(" | ")}`);
   console.log(`Personas: ${k.personas} (el plano espera 526)`);
   console.log(`Tratos: ${k.tratos} (el plano espera 517)`);
-  console.log(`«IG DM» descartados: ${k.igdm} (el plano espera 118)`);
-  console.log(`Tratos aplanados: ${k.aplanados} (el plano espera 399)`);
-  console.log(`Tratos que no son «IG DM» sin persona: ${k.sinPersona}; con una persona que no está en el export: ${k.personaInexistente}`);
+  console.log(`«IG DM» descartados: ${k.igdm} (el plano espera 118), por variante: ${JSON.stringify(k.igdmPorVariante)}`);
+  console.log(`Prefijos de título (antes de « - », los que se repiten 5 veces o más): ${JSON.stringify(k.prefijos)}`);
+  console.log(`Tratos que no son «IG DM»: ${k.noIgdm} (el plano espera 399); abiertos ${k.porEstado.abierto}, ganados ${k.porEstado.ganado}, perdidos ${k.porEstado.perdido}`);
+  console.log(`Personas con varios tratos: ${JSON.stringify(k.conVarios)}`);
+  console.log(`Desempates usados: ${JSON.stringify(k.desempates)}`);
+  console.log(`Sin persona: ${k.sinPersona}; con una persona que no está en el export: ${k.personaInexistente}`);
+  console.log(`La cuenta: ${k.aplanados} en la ficha + ${k.comoNota} como nota + ${k.sinPersona} sin persona + ${k.personaInexistente} con persona inexistente = ${k.aplanados + k.comoNota + k.sinPersona + k.personaInexistente} (no «IG DM»: ${k.noIgdm})`);
   console.log(`Personas con Móvil y Trabajo a la vez: ${k.conLosDosTelefonos} (se usó Móvil); sin teléfono ni correo: ${k.sinTelefonoNiCorreo}`);
   const rutaA = join(carpeta, "migracion-A.csv");
   const rutaB = join(carpeta, "migracion-B.csv");
-  writeFileSync(rutaA, escribirCsv(COLUMNAS_DE_SALIDA, r.a));
-  writeFileSync(rutaB, escribirCsv(COLUMNAS_DE_SALIDA, r.b));
-  console.log(`Escrito: ${rutaA} (${r.a.length} filas, ${r.a.filter((f) => f[9]).length} con trato) y ${rutaB} (${r.b.length} filas)`);
+  writeFileSync(rutaA, escribirCsv(r.columnas, r.a));
+  writeFileSync(rutaB, escribirCsv(r.columnas, r.b));
+  console.log(`Escrito: ${rutaA} (${r.a.length} filas, ${r.a.filter((f) => f[9]).length} con trato) y ${rutaB} (${r.b.length} filas); columnas de nota: ${r.columnas.length - COLUMNAS_BASE.length}`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

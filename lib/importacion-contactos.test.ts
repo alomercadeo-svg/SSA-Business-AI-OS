@@ -259,3 +259,21 @@ describe("F38: la migración desde Pipedrive", () => {
     expect(controlDeMigracion([], ["901"])).toEqual({ enArchivo: 0, encontrados: 0, enEspacio: 1 });
   });
 });
+
+describe("F38, parte A: varias notas por fila (los tratos anteriores)", () => {
+  it("cada columna «Nota del contacto» es una nota, y la segunda importación no duplica ninguna", async () => {
+    const m = almacenEnMemoria();
+    const notas: Array<[string, string, string]> = [];
+    m.almacen.ponerNota = async (c, marca, texto) => {
+      if (notas.some((n) => n[0] === c && n[1] === marca && n[2] === texto)) return false;
+      notas.push([c, marca, texto]);
+      return true;
+    };
+    const mapeoN: Campo[] = ["nombre", "pipedrive", "nota", "nota"];
+    const f = () => [prepararFila(["Ana", "77", "Motivo de pérdida en Pipedrive: precio", "Trato anterior en Pipedrive: ganado"], mapeoN, { codigoPais: "+506", numero: 2 })];
+    await importarFilas(f(), catalogos, m.almacen, { asignarA: null });
+    await importarFilas(f(), catalogos, m.almacen, { asignarA: null });
+    expect(notas.map((n) => n[2])).toEqual(["Motivo de pérdida en Pipedrive: precio", "Trato anterior en Pipedrive: ganado"]);
+    expect(notas.every((n) => n[1] === MARCA_MIGRACION)).toBe(true);
+  });
+});

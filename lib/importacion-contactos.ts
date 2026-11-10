@@ -250,7 +250,9 @@ export async function importarFilas(
       r.creados++;
       r.creadosIds.push({ id, nombre });
     }
-    if (f.nota && almacen.ponerNota) await almacen.ponerNota(id, f.pipedrive ? MARCA_MIGRACION : MARCA_PLANILLA, f.nota.slice(0, 5000));
+    if (almacen.ponerNota) {
+      for (const nota of f.notas) await almacen.ponerNota(id, f.pipedrive ? MARCA_MIGRACION : MARCA_PLANILLA, nota.slice(0, 5000));
+    }
     if (f.usoCodigoPorDefecto) r.usaronCodigo++;
 
     // La etiqueta de origen de «Opciones» (retrabajo del 09/11, a): en cada

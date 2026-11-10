@@ -99,6 +99,7 @@ describe("F38: la migración desde Pipedrive", () => {
     expect(sugerirCampo("Moneda")).toBe("moneda");
     expect(sugerirCampo("Fecha de cierre")).toBe("fecha_cierre");
     expect(sugerirCampo("Nota del contacto")).toBe("nota");
+    expect(sugerirCampo("Nota del contacto 2")).toBe("nota");
   });
 
   it("el teléfono se limpia antes de normalizar: el apóstrofe inicial y los invisibles de dirección", () => {
@@ -122,7 +123,7 @@ describe("F38: la migración desde Pipedrive", () => {
       moneda: "USD",
       fechaCierre: "2025-03-14",
       pipedriveTrato: "901",
-      nota: "Motivo de pérdida en Pipedrive: precio",
+      notas: ["Motivo de pérdida en Pipedrive: precio"],
       error: null,
     });
   });
