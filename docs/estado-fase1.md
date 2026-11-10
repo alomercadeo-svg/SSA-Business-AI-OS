@@ -3551,6 +3551,8 @@ Revisión **completa** (migración, receptor de avisos). Nada construido. Estima
 
 **Estimación de la construcción: 90 min** (escrita antes, a las 20:05). Sube antes de la 01:15 si la aprobación llega antes de las 23:00.
 
+- **La purga de F36, «comprobar»:** de 20:02:48 a 20:11:10, **salida 0, 31 de 31**. La tarea real corrió sobre el espacio fantasma a las 20:10:53 (`terminada_at` 02:10:53 UTC): 1 contacto, 1 conversación, 1 nota suelta, 1 archivo y **1 respuesta rápida**. X se fue entero (contacto, conversación, mensaje, canal, nota y PNG); Y (29 días) y Z (vivo) siguen; **R1 (31 días) se fue; R2 (29 días) y R3 (viva) siguen**; `audit_log` del espacio fantasma 2 → 2 (el historial no se purga; el total 916 → 931 por el tráfico real). Limpieza y recuento en cero.
+  - **Propuesta de tilde (la decide Marcos): F36, criterio 6** («Eliminar marca la fecha; listas y seguridad por filas las excluyen; la purga las borra a los 30 días»): **tildar.** Prueba: `verify-purga` 31 de 31, con la tarea real, R1 borrada y R2 y R3 como control, 09/11/2026 de 20:02 a 20:11; además `verify-respuestas-rapidas` (la eliminada no vuelve) y `lib/purga.test.ts`. Con esto F36 quedaría completa (6 de 6).
 - **Los ocho de la sección 9 después de la subida de docs (`8a47e21`):** de 20:05 a 20:10, todos salida 0: 43, 135, 51, 99, 63, 64, 111 y 18.
 - **Ítem 11 (F37), estimación escrita a las 20:11, antes de leer código:** el plan corto, **25 min**; la construcción, **150 min** (la del plan maestro era 240: tabla nueva con migración, la pantalla de cinco pasos, el segundo plano por la tarea programada y el correo). **Con 90 min del ítem 9 antes, no entra entera antes de la 01:00** salvo que las dos aprobaciones lleguen pronto; el plan dice qué parte entra.
 
