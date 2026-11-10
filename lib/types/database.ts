@@ -263,6 +263,8 @@ export interface Database {
           session_linked_at: string | null;
           /** Último estado que no fue «no se pudo verificar» (F32, 00042). */
           session_known_state: Exclude<SesionEstado, "sin_verificar"> | null;
+          /** Las reglas de seguridad de secuencia (F33, 00055). Se leen con `leerConfiguracion`. */
+          safety_config: Json;
           last_comment_cursor: string | null;
           comment_rules: Json | null;
           created_at: string;
@@ -291,6 +293,7 @@ export interface Database {
           session_detail?: string | null;
           session_linked_at?: string | null;
           session_known_state?: Exclude<SesionEstado, "sin_verificar"> | null;
+          safety_config?: Json;
           last_comment_cursor?: string | null;
           comment_rules?: Json | null;
           created_at?: string;
@@ -317,6 +320,7 @@ export interface Database {
           session_detail?: string | null;
           session_linked_at?: string | null;
           session_known_state?: Exclude<SesionEstado, "sin_verificar"> | null;
+          safety_config?: Json;
           last_comment_cursor?: string | null;
           comment_rules?: Json | null;
           updated_at?: string;
