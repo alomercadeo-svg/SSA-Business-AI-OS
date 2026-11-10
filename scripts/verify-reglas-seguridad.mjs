@@ -35,7 +35,11 @@ const DEFECTO = {
 
 let paso = 0;
 const titulo = (t) => console.log(`\n${++paso}. ${t}`);
-const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// Sin depender del orden de las claves: `jsonb` las guarda en su propio orden
+// (primera corrida, 22:11:53: los valores eran los correctos y la comparación
+// de textos daba distinto).
+const canonico = (v) => (Array.isArray(v) ? v.map(canonico) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canonico(v[k])])) : v);
+const igual = (a, b) => JSON.stringify(canonico(a)) === JSON.stringify(canonico(b));
 
 await correr(async () => {
   const owner = await crearUsuario("f33-owner");
