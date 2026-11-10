@@ -3501,6 +3501,21 @@ Revisión **completa** (migración, receptor de avisos). Nada construido. Estima
 - **3c:** hoy no se construye ni se sube ninguna migración; el detalle de arriba es para la revisión de mañana.
 - **Lo que queda de hoy, en orden, con su estimación (escrita a las 19:55, antes de leer código):** la tilde de F35 (registro y foto), 10 min; de dónde sale `git stash list` y cómo bloquearlo, 15 min; la purga de F36, criterio 6 («preparar» y las filas, hasta el OK de Marcos), 10 min; el cierre a las 20:20.
 
+### Cambio de plan, decidido por Marcos a las 19:57 del 09/11/2026: la entrega del curso, mañana a las 11:00
+
+**Reemplaza el cierre de las 20:20.** Mañana a las 11:00 Marcos entrega el proyecto del curso, y lo que se evalúa es la app funcionando. **La prioridad es que la app en producción esté estable y funcionando a las 11:00: más vale una funcionalidad menos que una bandeja caída.**
+
+**Reglas de esta noche:**
+- Cierre a las **02:00**. Un ítem arranca solo si su estimación termina antes de la **01:00**.
+- Último push de migración: **00:30**. Último despliegue de código: **01:15**; después, solo documentación. **Nada que toque los receptores de Zernio o de Evolution se sube después de las 00:30.**
+- Después de cada subida, los ocho de la sección 9, y `verify-hilo-telefono` si toca la bandeja. Si alguno queda en rojo y no se arregla en 20 minutos, se revierte el commit (de arriba hacia abajo, como dice la regla) y se sigue.
+- Las compuertas y las demás reglas del plan maestro siguen igual.
+
+**Orden:** (1) terminar la purga de F36 y subir los commits locales (incluido `d1f0dc7`) con `verificar-despliegue.mjs`; **3c, el ítem 7, F33 y F38 quedan para después de la entrega**; (2) ítem 9 (F42), con un plan corto para la revisión de Marcos antes de construir (estimación; si lleva migración, las condiciones del OK adelantado; cómo envía un texto Evolution 2.3.7, verificado en su código público; el verificador con su rojo; lo que mira Marcos). **Autorizado por adelantado:** envíos reales desde el número dedicado **únicamente al WhatsApp personal de Marcos**, en la conversación «Marcos Pitti» de WhatsApp, con textos que digan «prueba F42»; ningún envío a otro número; (3) ítem 11 (F37), con el mismo plan corto; **las pruebas de importación van en un espacio fantasma o en «Pruebas de correo», nunca en el espacio real; el correo de fin de importación, solo en «Pruebas de correo»**; (4) a la **01:15**, el cierre: todo subido, los ocho en verde, el estado al día con lo hecho y lo pendiente, y la lista numerada de lo que Marcos revisa mañana a las 08:00, en la computadora y en el iPhone, antes de entregar.
+
+- **La purga de F36: «retroceder» con el OK de Marcos** (19:57), de 20:02:38 a 20:02:41, **salida 0, 15 de 15**: las 7 filas escritas y releídas con las fechas listadas, y la marca `purga_eliminados:a0bbe251…` de `tareas_estado` borrada (1 fila). «Comprobar» corre esperando la tarea real.
+- **El bloqueo de `git stash`, con el OK de Marcos:** en `.claude/settings.local.json`, `Bash(git stash:*)` salió de **allow** (346 → 345 reglas) y **deny** suma `Bash(git stash)` y `Bash(git stash *)`. **Control, un solo intento autorizado de `git stash list`, a las 20:02: bloqueado** («Permission to use Bash with command git stash list has been denied»). **Con eso queda verificado en la práctica lo que la documentación no decía:** la deny le gana al conjunto de comandos de solo lectura.
+
 ### Plan maestro, tercer retrabajo del ítem 4 (Bloque 4, medido, subido)
 
 **06/11/2026, de 17:57 a 17:59** (hora de Costa Rica; fin de la construcción, 17:59). Liviana. Commits `086010d` y `f55de20`. Pedido por Marcos a las 17:4x, después de mirar el segundo retrabajo.
