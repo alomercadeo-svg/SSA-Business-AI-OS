@@ -76,7 +76,7 @@ await correr(async () => {
   check(antes === 2, `presencia: el espacio arranca con 2 contactos vivos y 1 eliminado (${antes})`);
 
   const filas = [
-    [`Nueva ${sufijo}`, `nueva-${sufijo}@ejemplo.invalid`, "", "", "vip"],
+    [`Nueva ${sufijo}`, `nueva-${sufijo}@ejemplo.invalid`, "", "", "VIP, Pauta Verify"],
     [`A nombre nuevo ${sufijo}`, `A-${sufijo}@ejemplo.invalid`, "", "", ""],
     ["", "", telB.replace("+506", ""), "", ""],
     [`Pipedrive ${sufijo}`, "", "", `pd-${sufijo}`, ""],
@@ -107,7 +107,9 @@ await correr(async () => {
   const a = (await admin(`contacts?select=display_name,email&workspace_id=eq.${espacio}&email=eq.a-${sufijo}@ejemplo.invalid`)).data ?? [];
   check(a.length === 1 && a[0].display_name === `A nombre nuevo ${sufijo}`, "A se actualizó por su correo (sin distinguir mayúsculas), sin duplicarse", JSON.stringify(a));
   check((await contar(`contacts?select=id&workspace_id=eq.${espacio}&phone=eq.${encodeURIComponent(telB)}`)) === 1, "B no se duplicó por su teléfono");
-  check((await contar(`contact_tags?select=contact_id,contacts!inner(workspace_id)&contacts.workspace_id=eq.${espacio}`)) === 1, "la etiqueta «vip» quedó en la nueva");
+  check(JSON.stringify(r1.cuerpo.etiquetasCreadas) === JSON.stringify(["Pauta Verify"]), "«VIP» usó la «vip» existente y se creó solo «Pauta Verify» (decisión del 09/11, b)", JSON.stringify(r1.cuerpo.etiquetasCreadas));
+  check((await contar(`tags?select=id&workspace_id=eq.${espacio}`)) === 2, "el espacio tiene 2 etiquetas: «vip» y «Pauta Verify»");
+  check((await contar(`contact_tags?select=contact_id,contacts!inner(workspace_id)&contacts.workspace_id=eq.${espacio}`)) === 2, "las dos etiquetas quedaron en la nueva");
 
   titulo("Importar lo mismo otra vez: 0 creados");
   const r2 = await importar(owner, espacio, filas);
