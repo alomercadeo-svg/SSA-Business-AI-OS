@@ -34,6 +34,29 @@ export function ajusteAlTeclado(v: VistaVisible | null | undefined): { alto: num
   return { alto: v.height, arriba: Math.max(0, v.offsetTop || 0) };
 }
 
+/**
+ * A del 09/11/2026: cuánto vale un gesto de la persona (tocar, la rueda, el
+ * teclado, el puntero) para que un desplazamiento cuente como suyo. Cada
+ * desplazamiento dentro de esa ventana la estira, así la inercia del dedo
+ * sigue contando.
+ */
+export const VENTANA_DEL_GESTO_MS = 1000;
+
+/**
+ * A del 09/11/2026: «pegado al final» cambia solo por un desplazamiento de la
+ * persona. Uno que dispara el navegador (al crecer el hilo, o el que sigue a
+ * un `scrollTop` puesto por el código) no lo cambia: en el WebKit de
+ * Playwright, uno así llegó a 319 px del final antes de que el observador de
+ * tamaño bajara el hilo, y lo dejó despegado (`verify-hilo-telefono`).
+ */
+export function pegadoTrasDesplazar(p: { pegado: boolean; alFinal: boolean; msDesdeElGesto: number }): {
+  pegado: boolean;
+  deLaPersona: boolean;
+} {
+  if (!(p.msDesdeElGesto <= VENTANA_DEL_GESTO_MS)) return { pegado: p.pegado, deLaPersona: false };
+  return { pegado: p.alFinal, deLaPersona: true };
+}
+
 /** Punto b: si el hilo está pegado al último mensaje (a menos de `margen` px). */
 export function estaAlFinal(m: { scrollTop: number; scrollHeight: number; clientHeight: number }, margen = 80): boolean {
   return m.scrollHeight - m.scrollTop - m.clientHeight <= margen;

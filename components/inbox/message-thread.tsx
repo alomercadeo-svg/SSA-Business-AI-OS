@@ -25,7 +25,7 @@ import { BloqueVentanaCerrada } from "@/components/inbox/ventana-cerrada";
 import { AVISO_NO_CONTACTAR } from "@/lib/no-contactar-texto";
 import { FotoDelHilo } from "@/components/inbox/visor-foto";
 import { SelectorDeRespuestas } from "@/components/inbox/selector-respuestas";
-import { estaAlFinal, lugarDelHilo, scrollParaVolver, type LugarDelHilo } from "@/lib/pantalla-telefono";
+import { estaAlFinal, lugarDelHilo, pegadoTrasDesplazar, scrollParaVolver, type LugarDelHilo } from "@/lib/pantalla-telefono";
 import { aplicarRespuesta, barraEn, filtrarRespuestas, interpolar, moverEleccion, type Barra, type RespuestaRapida } from "@/lib/respuestas-rapidas";
 import { AVISO_VENTANA_CERRADA, estadoDeVentana, textoDeVence } from "@/lib/ventana-instagram";
 
@@ -277,8 +277,14 @@ export function MessageThread({
   const [pedido, setPedido] = useState<{ fecha: string | null } | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const contenidoRef = useRef<HTMLDivElement>(null);
-  // Si el hilo está pegado al último mensaje. Lo actualiza el desplazamiento.
+  // Si el hilo está pegado al último mensaje. Lo actualiza el desplazamiento
+  // de la persona, no cualquiera (A del 09/11/2026: `pegadoTrasDesplazar`).
   const pegadoAlFinal = useRef(true);
+  // La hora del último gesto de la persona sobre el hilo.
+  const ultimoGesto = useRef(Number.NEGATIVE_INFINITY);
+  const marcarGesto = () => {
+    ultimoGesto.current = Date.now();
+  };
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // El estado que se ve: el de la conversación elegida, y después el que
@@ -660,8 +666,17 @@ export function MessageThread({
       <div
         ref={scrollContainerRef}
         onScroll={(e) => {
-          pegadoAlFinal.current = estaAlFinal(e.currentTarget);
+          const ahora = Date.now();
+          const r = pegadoTrasDesplazar({ pegado: pegadoAlFinal.current, alFinal: estaAlFinal(e.currentTarget), msDesdeElGesto: ahora - ultimoGesto.current });
+          pegadoAlFinal.current = r.pegado;
+          // La inercia del dedo sigue siendo de la persona.
+          if (r.deLaPersona) ultimoGesto.current = ahora;
         }}
+        onTouchStart={marcarGesto}
+        onTouchMove={marcarGesto}
+        onWheel={marcarGesto}
+        onPointerDown={marcarGesto}
+        onKeyDown={marcarGesto}
         className="flex-1 overflow-y-auto p-4"
       >
         <div ref={contenidoRef} className="mx-auto max-w-2xl space-y-4">

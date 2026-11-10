@@ -27,6 +27,7 @@ import {
 import { FiltrosBandeja } from "./filtros-bandeja";
 import { MarcaDeVentana } from "./marca-ventana";
 import { crearUnPedidoALaVez } from "@/lib/un-pedido-a-la-vez";
+import { crearAvisoDeReconexion } from "@/lib/reconexion-realtime";
 import { direccionDeLaBandeja } from "@/lib/direccion-bandeja";
 import { inicialDe, nombreDeConversacion } from "@/lib/nombre-visible";
 
@@ -304,13 +305,20 @@ export function ConversationList({
           }
         }
       )
-      .subscribe();
+      // B del 09/11/2026: lo que llegó mientras la conexión estuvo caída se
+      // perdió; al reconectarse, la lista vuelve a pedir sus datos, por el
+      // mismo «un pedido a la vez».
+      .subscribe(
+        crearAvisoDeReconexion(() =>
+          pedidos.volverAPedir({ estado: estadoElegido.current, q: buscadoAhora.current.trim(), filtros: filtrosElegidos.current }),
+        ),
+      );
 
     return () => {
       supabase.removeChannel(channel);
       if (temporizador.current) clearTimeout(temporizador.current);
     };
-  }, [workspaceId, recontar]);
+  }, [workspaceId, recontar, pedidos]);
 
   // La búsqueda ya la aplicó el servidor: acá no se vuelve a filtrar por
   // texto, porque el servidor también busca por usuario, correo y teléfono.

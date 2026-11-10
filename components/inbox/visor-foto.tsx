@@ -16,8 +16,11 @@ export function FotoDelHilo({ url }: { url: string }) {
   return (
     <>
       <button type="button" aria-label="Ampliar la foto" onClick={() => setAbierta(true)} className="mt-1 block cursor-zoom-in">
+        {/* A del 09/11/2026, decisión de pantalla, vetable: el alto queda
+            reservado (320 px) antes de que la foto cargue, así el hilo no crece
+            al cargarla; la foto entra entera adentro de ese alto. */}
         {/* eslint-disable-next-line @next/next/no-img-element -- dirección firmada de Storage, de vida corta */}
-        <img src={url} alt="Imagen recibida" loading="lazy" className="max-h-80 max-w-full rounded-lg" />
+        <img src={url} alt="Imagen recibida" loading="lazy" className="h-80 w-auto max-w-full rounded-lg object-contain" />
       </button>
       {abierta && <VisorConHistorial url={url} onCerrado={() => setAbierta(false)} />}
     </>

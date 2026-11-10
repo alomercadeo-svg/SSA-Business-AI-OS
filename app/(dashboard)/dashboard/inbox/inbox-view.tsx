@@ -120,9 +120,22 @@ export function InboxView({
       if (new URLSearchParams(window.location.search).has("conversacion")) {
         window.history.replaceState(null, "", conConversacion(window.location.href, null));
       }
+      // B del 09/11/2026: la lista estuvo oculta mientras se veía el chat, y
+      // lo que cambió en ese rato pudo no llegarle por Realtime.
+      setListaDesactualizada((n) => n + 1);
     });
     hiloEnTelefono.current = h;
     return () => h.desconectar();
+  }, []);
+
+  // B del 09/11/2026: cuando la página vuelve al frente (el teléfono pausa la
+  // conexión en segundo plano), la lista vuelve a pedir sus datos.
+  useEffect(() => {
+    const alVolver = () => {
+      if (document.visibilityState === "visible") setListaDesactualizada((n) => n + 1);
+    };
+    document.addEventListener("visibilitychange", alVolver);
+    return () => document.removeEventListener("visibilitychange", alVolver);
   }, []);
 
   // La conversación abierta va en la dirección (`?conversacion=`, el mismo
