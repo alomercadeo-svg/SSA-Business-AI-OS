@@ -2943,6 +2943,7 @@ La construcción se sigue midiendo como siempre, por tramos (un tramo por ítem,
 - Nada de git stash ni git stash list. Para comparar contra HEAD, git diff o git show HEAD:archivo.
   - **Agregado el 06/11/2026 a las 15:10, decidido por Marcos** (no es texto del prompt): `git reset`, `git rebase` y `git cherry-pick`, igual que `git stash`, se piden antes. El retroceso de las 10:47 quedó bien explicado, con respaldo y comparado; la regla es para la próxima.
 - Nada de las tarjetas «Tarea sugerida» con worktree.
+- **Agregado el 10/11/2026, decidido por Marcos** (no es texto del prompt): **el commit nunca se encadena con «;» después de la suite.** Va en un comando aparte, después de leer el resultado, o con «&&», que corta si algo falla. Pasó dos veces la noche del 09/11 (el commit de las tildes de las 22:4x, con un test de docs en rojo, y `4f3d9b1` a las 00:1x, con dos tests de la vista de Contactos en rojo); en las dos se corrigió antes de subir.
 - La vuelta atrás de una migración nunca va en supabase/migrations/.
 - Lo que importa va al estado, nunca a tu memoria.
 - Si el verificador cambia después de su rojo, el reporte lo dice y explica por qué no ablanda los pasos que fallaron.
@@ -3837,6 +3838,67 @@ La lista de arriba («Lo que revisa Marcos a las 08:00, antes de entregar»), co
 1. En la computadora, Contactos: los cuatro encabezados con ↕ antes de tocarlos; al tocar uno, ↑ o ↓.
 2. En el iPhone, en Chrome, recargando: el buscador y la fila «Filtros» · «Ordenar por»; el primer contacto a la vista sin desplazar; los textos sin cortar.
 3. Tocar «Filtros»: se abre el panel con los selectores y «Limpiar filtros»; poner uno y ver «Filtros · 1»; cerrarlo.
+
+#### Pantallas vistas por Marcos: el retrabajo de Contactos (10/11/2026, hacia las 00:45)
+
+Las flechas ↕ desde el principio y ↑ o ↓ al tocar; en el iPhone, la lista a la vista, «Filtros · N» y «Ordenar por» sin cortar, y el panel de filtros funciona. **El retrabajo pasa a «pantallas vistas por Marcos».**
+
+- **Los ocho después de la subida de docs de las 00:32** (`1a121c3`): de 00:33 a 00:37, siete en verde (43, 135, 99, 63, 64, 122, 18) y `verify-seguimiento-bandeja` **49 pasaron, 0 fallaron, 1 no concluyente, por la hora** (entre las 00:00 y las 04:00 de Costa Rica, en Pacific/Kiritimati es el mismo día y el paso no distingue).
+
+### Cierre final de la noche del 09 al 10/11/2026
+
+#### Lo hecho en la jornada (desde las 17:16 del 09/11)
+
+- **A y B** (el chat que no abría en el último mensaje y la lista sin refrescar), con Playwright en el iPhone emulado; **F35 tildada**.
+- **F36, criterio 6:** la purga real; **F36 completa**.
+- **El bloqueo de `git stash`** en los permisos de Claude Code, comprobado con un intento bloqueado.
+- **Ítem 9, F42** (respuesta por WhatsApp desde la bandeja), con dos envíos reales de Marcos y la prueba real de «no contactar» por WhatsApp.
+- **Ítem 11, F37 parte 1** (importación desde planilla, hasta 500 filas, solo Owner y Admin), con la 00054, la etiqueta de origen y las etiquetas de la planilla que se crean solas.
+- **Ítem 10, F33** (reglas de seguridad de secuencia: configuración, pantalla y funciones), con la 00055.
+- **F34, criterio 3** (la pausa de las secuencias de un marcado), con tests y verificador.
+- **F43, criterio 7** (el orden de Contactos), agregado y construido en la noche, con la 00056; y el retrabajo de Contactos (el ícono de orden y los filtros del teléfono).
+- **Arreglos de guardias:** el test de conteos contaba «public» como tabla; la línea de estado de F33 quedaba sin fecha en los primeros 900 caracteres.
+- **Migraciones aplicadas:** 00054, 00055 y 00056, cada una con su OK adelantado y sus condiciones cumplidas. **§14c: 34 tablas y 56 migraciones.**
+
+#### Los números finales
+
+- **Avance de la fase: 18 de 28.** Completas: F1, F2, F3, F4, F21, F22, F23, F24, F27, F28, F29, F30, F31, F32, F36, F39, F41 y F43.
+- **Bloque 4: 86 de 121**, por sesión: **S7 9 de 9; S8 31 de 32; S9 24 de 30; S10 16 de 25; S11 6 de 25.**
+- **Cada funcionalidad tocada en la jornada:** **F35, 31 de 32** (falta «si el contacto tiene más de una conversación, el filtro muestra todas»); **F36, 6 de 6, completa**; **F42, 8 de 10** (sin el 5 y el 7); **F37, 6 de 10** (sin el 2, 7, 8 y 9, la parte 2); **F33, 2 de 8** (el 5 y el 7); **F34, 6 de 7** (sin el 6); **F43, 7 de 7, completa** (con el criterio nuevo del orden).
+
+#### Lo pendiente, para después de la entrega (sin tildar)
+
+- **F34, criterio 6** (bloquear el envío a un marcado, también por Evolution): **listo para decidir.** Pruebas reales por WhatsApp (09/11, hacia las 20:50) y por Instagram (06/11). **Falta confirmar, con archivo y línea,** que `verify-respuesta-whatsapp` (paso 4) y `verify-no-contactar` (el paso «Escribirle a un marcado desde la bandeja: 409, sin llamar a Zernio») comprueban el 409 a un contacto marcado.
+- **F42, criterio 5** (el campo deshabilitado con la sesión caída, agotada o sin vincular): **propuesta de prueba** con Playwright en un espacio fantasma, con un canal de WhatsApp en `caido`, `agotado` y `sin_vincular`. **La tilde sería como excepción**, porque una caída real obliga a volver a vincular el número con el teléfono dedicado.
+- **Los textos en inglés que se ven en una demostración:** Canales, el ingreso, el registro, la invitación y la vista previa «[Attachment]».
+- **3c** («Respondió a tu historia»; el detalle está escrito; su migración pasa a la **00057**), **el ítem 7** (primer paso: la lectura de `comment_logs` de las 19:30 del 09/11 en adelante, pedida a Marcos), **F38** (Pipedrive, con los exports reales; y el candidato de §15: nombre y apellido por separado), **F37 parte 2** y la importación del Member, **F33** (las suposiciones con Alejandra: el horario y el umbral de la proporción), **F35** (el criterio que falta), **1a y 1b** (antes de invitar al primer Member).
+
+#### La medición del día, por categoría (aproximada, hora de Costa Rica; reemplaza la tabla de abajo, que llegaba hasta las 22:31)
+
+| Categoría | Tramos | Suma |
+|---|---|---|
+| **Planes** | La apertura y el plan (17:16–17:26); los planes de los ítems 9, 11 y 10 (20:05–20:1x, 20:11–20:2x y 20:5x, 21:52–21:5x); el plan del orden (23:1x–23:1x) | unos 55 min |
+| **Revisiones del chat de Marcos** | Llegaron por mensaje, sin hora de inicio: quedan dentro de las esperas | — |
+| **Construcción** | Vitest y Playwright (17:27–17:4x); la prueba y el arreglo de A y B (18:2x–19:13); la purga y el bloqueo (20:02–20:05); F42 (20:13–20:36); F37 parte 1 (21:02–21:25); los retrabajos de F37 (21:4x–22:10); F33 (22:06–22:25); F34, criterio 3 (22:28–22:31); los cierres y las tildes (22:31–22:54); el orden de Contactos (23:21–23:51); el retrabajo de Contactos (00:15–00:37); el cierre final (00:4x–) | unas 4 h 40 min |
+| **Pruebas de Marcos** | A y B en el iPhone (19:2x–19:47); F42 (20:45–20:51); F37 (21:40); la importación con etiquetas y F33 (hacia las 22:4x); el orden (00:10); el retrabajo (00:45) | unos 50 min, más las que no tienen hora |
+| **Esperas** | Lo demás, incluidas las de Railway (de 2 a 4 min por subida) y las revisiones | el resto |
+
+#### Lo que revisa Marcos a las 08:00, antes de entregar (recargando; reemplaza las listas anteriores)
+
+**En la computadora:**
+1. Entrar y abrir la **bandeja**: la lista carga y un chat de Instagram abre en el último mensaje.
+2. **«Marcos Pitti» de WhatsApp:** abre en el último mensaje, con el campo habilitado (no enviar nada salvo que la entrega lo pida).
+3. **Contactos:** la lista y el buscador; los encabezados con ↕, tocar «Nombre» dos veces (A a Z y Z a A) y ver que el orden sigue al recargar.
+4. **Contactos › una ficha:** abre.
+5. **Contactos › «Importar CSV»:** los cinco pasos cargan (no hace falta importar de nuevo; si se importa, solo en «Pruebas de correo»).
+6. **Configuración › Reglas de WhatsApp:** las seis reglas con su explicación y el opt-out fijo.
+7. **Configuración › Historial de cambios, Respuestas rápidas y Frases de baja:** cargan.
+
+**En el iPhone, en Chrome:**
+8. **La bandeja:** el menú, abrir una conversación desde la lista (en el último mensaje) y volver.
+9. **Contactos:** la lista a la vista, «Filtros · N» y «Ordenar por» sin cortar; abrir «Filtros» y cerrarlo.
+
+Si algo de esto no funciona, lo primero es decirlo: no se arregla nada sin el plan de siempre, y hasta que Marcos lo diga no se sube nada.
 
 #### La medición del día, por categoría (aproximada, hora de Costa Rica)
 
