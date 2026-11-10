@@ -27,6 +27,7 @@ const CAMPOS_FIJOS = new Set(["nombre", "correo", "telefono", "pipedrive", "sett
 
 interface Pedido {
   nombreArchivo: string;
+  etiquetaOrigen: string | null;
   codigoPais: string;
   asignarA: string | null;
   mapeo: Campo[];
@@ -43,6 +44,7 @@ function leerPedido(c: unknown): Pedido | string {
   if (p.asignarA !== null && typeof p.asignarA !== "string") return "Pedido inválido.";
   return {
     nombreArchivo: typeof p.nombreArchivo === "string" ? p.nombreArchivo.slice(0, 200) : "planilla.csv",
+    etiquetaOrigen: typeof p.etiquetaOrigen === "string" && p.etiquetaOrigen.trim() ? p.etiquetaOrigen.trim().slice(0, 60) : null,
     codigoPais: p.codigoPais,
     asignarA: p.asignarA ?? null,
     mapeo: p.mapeo,
@@ -84,6 +86,24 @@ export async function POST(request: NextRequest) {
     supabase.from("custom_field_definitions").select("id, slug, type").eq("workspace_id", workspaceId),
   ]);
   if (tags.error || campos.error) return NextResponse.json({ error: "No se pudieron leer las etiquetas y los campos. Probá de nuevo." }, { status: 503 });
+
+  // La etiqueta de origen de «Opciones» se crea la primera vez si no existe
+  // (retrabajo del 09/11, a, decisión de la revisión, vetable): la propuso el
+  // importador. Las de la planilla solo se usan si ya existen.
+  const etiquetas = new Map((tags.data ?? []).map((t) => [String(t.name).toLowerCase(), t.id as string]));
+  let etiquetaOrigenId: string | null = null;
+  if (pedido.etiquetaOrigen) {
+    etiquetaOrigenId = etiquetas.get(pedido.etiquetaOrigen.toLowerCase()) ?? null;
+    if (!etiquetaOrigenId) {
+      const { data: nueva, error: errEtiqueta } = await supabase
+        .from("tags")
+        .insert({ workspace_id: workspaceId, name: pedido.etiquetaOrigen })
+        .select("id")
+        .single();
+      if (errEtiqueta || !nueva) return NextResponse.json({ error: "No se pudo crear la etiqueta de origen. Probá de nuevo." }, { status: 503 });
+      etiquetaOrigenId = nueva.id as string;
+    }
+  }
 
   const { data: registro, error: errRegistro } = await servicio
     .from("csv_imports")
@@ -141,12 +161,12 @@ export async function POST(request: NextRequest) {
   const resumen = await importarFilas(
     filas,
     {
-      etiquetas: new Map((tags.data ?? []).map((t) => [String(t.name).toLowerCase(), t.id as string])),
+      etiquetas,
       campos: new Map((campos.data ?? []).map((c) => [String(c.slug), { id: c.id as string, tipo: String(c.type) }])),
       miembros: new Map(miembros.map((m) => [m.etiqueta.toLowerCase(), m.id])),
     },
     almacen,
-    { asignarA: pedido.asignarA },
+    { asignarA: pedido.asignarA, etiquetaOrigenId },
   );
 
   for (const c of resumen.creadosIds) {

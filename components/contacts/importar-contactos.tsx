@@ -62,21 +62,12 @@ export function ImportarContactos({ camposPropios, miembros }: { camposPropios: 
     if (!planilla) return;
     setPaso(3);
     setError(null);
-    // La etiqueta de origen va como una columna más de etiquetas, si existe.
-    const conOrigen = etiquetaOrigen.trim();
-    const mapeoFinal: Campo[] = conOrigen ? [...mapeo, "etiquetas"] : mapeo;
-    const filas = planilla.filas.map((f) => {
-      const celdas = planilla.columnas.map((_, i) => f[i] ?? "");
-      if (!conOrigen) return celdas;
-      const iEtiquetas = mapeo.indexOf("etiquetas");
-      const previas = iEtiquetas >= 0 ? celdas[iEtiquetas] : "";
-      return [...celdas.map((v, i) => (i === iEtiquetas ? "" : v)), [previas, conOrigen].filter(Boolean).join(", ")];
-    });
+    const filas = planilla.filas.map((f) => planilla.columnas.map((_, i) => f[i] ?? ""));
     try {
       const res = await fetch("/api/v1/contacts/importar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombreArchivo: archivo, codigoPais, asignarA: asignarA || null, mapeo: mapeoFinal, filas }),
+        body: JSON.stringify({ nombreArchivo: archivo, codigoPais, asignarA: asignarA || null, etiquetaOrigen: etiquetaOrigen.trim() || null, mapeo, filas }),
       });
       const datos = await res.json().catch(() => null);
       if (!res.ok) {
@@ -205,7 +196,7 @@ export function ImportarContactos({ camposPropios, miembros }: { camposPropios: 
           <label className="block text-sm">
             <span className="font-medium">Etiqueta de origen</span>
             <input value={etiquetaOrigen} onChange={(e) => setEtiquetaOrigen(e.target.value)} className="mt-1 block w-full max-w-sm rounded-lg border border-input bg-background px-3 py-2" />
-            <span className="mt-1 block text-xs text-muted-foreground">Se aplica si ya existe una etiqueta con ese nombre; si no, el resumen lo dice.</span>
+            <span className="mt-1 block text-xs text-muted-foreground">Se pone en todos los contactos importados. Si no existe, se crea.</span>
           </label>
           <label className="block text-sm">
             <span className="font-medium">Asignar los contactos importados a</span>

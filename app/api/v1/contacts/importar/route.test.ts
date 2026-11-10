@@ -86,3 +86,17 @@ describe("POST /api/v1/contacts/importar: solo Owner y Admin esta noche", () => 
     expect(res.status).toBe(400);
   });
 });
+
+describe("la etiqueta de origen (retrabajo del 09/11, a)", () => {
+  it("si no existe, la crea una vez; las de la planilla no se crean", async () => {
+    const res = await POST(pedido({ ...valido, etiquetaOrigen: "Importado 9/11/2026", mapeo: ["nombre", "correo", "etiquetas"], filas: [["Ana", "ana@x.com", "inventada"]] }));
+    expect(res.status).toBe(200);
+    const tags = h.inserts.filter((i) => i.tabla === "tags");
+    expect(tags).toEqual([{ tabla: "tags", valores: { workspace_id: "ws-1", name: "Importado 9/11/2026" } }]);
+  });
+
+  it("sin etiqueta de origen no crea ninguna (control)", async () => {
+    await POST(pedido(valido));
+    expect(h.inserts.filter((i) => i.tabla === "tags")).toEqual([]);
+  });
+});

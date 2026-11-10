@@ -107,7 +107,7 @@ export async function importarFilas(
   filas: FilaPreparada[],
   catalogos: Catalogos,
   almacen: AlmacenDeContactos,
-  opciones: { asignarA: string | null },
+  opciones: { asignarA: string | null; etiquetaOrigenId?: string | null },
 ): Promise<Resumen> {
   const r: Resumen = { creados: 0, actualizados: 0, conError: 0, usaronCodigo: 0, lineas: [], creadosIds: [], actualizadosIds: [] };
   for (const f of filas) {
@@ -169,7 +169,9 @@ export async function importarFilas(
     }
     if (f.usoCodigoPorDefecto) r.usaronCodigo++;
 
-    const tagIds: string[] = [];
+    // La etiqueta de origen de «Opciones» (retrabajo del 09/11, a): en cada
+    // contacto creado o actualizado.
+    const tagIds: string[] = opciones.etiquetaOrigenId ? [opciones.etiquetaOrigenId] : [];
     for (const t of f.etiquetas) {
       const tagId = catalogos.etiquetas.get(t.toLowerCase());
       if (tagId) tagIds.push(tagId);

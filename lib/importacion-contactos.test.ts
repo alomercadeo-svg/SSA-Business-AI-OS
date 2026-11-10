@@ -134,3 +134,19 @@ describe("valorDeCampo: los seis tipos del fork", () => {
     expect(valorDeCampo("text", "lo que sea")).toBe("lo que sea");
   });
 });
+
+describe("la etiqueta de origen (retrabajo del 09/11, a)", () => {
+  it("va en cada contacto creado o actualizado, no en las filas con error", async () => {
+    const m = almacenEnMemoria([{ id: "c1", email: "ana@x.com" }]);
+    await importarFilas(
+      [fila(["Nueva", "nueva@x.com", "", "", "", "", "", ""], 2), fila(["Ana", "ana@x.com", "", "", "", "", "", ""], 3), fila(["Sin datos", "", "", "", "", "", "", ""], 4)],
+      catalogos,
+      m.almacen,
+      { asignarA: null, etiquetaOrigenId: "tag-origen" },
+    );
+    expect(m.etiquetas).toEqual([
+      ["nuevo-1", "tag-origen"],
+      ["c1", "tag-origen"],
+    ]);
+  });
+});

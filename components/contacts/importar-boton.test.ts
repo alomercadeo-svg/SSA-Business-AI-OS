@@ -19,3 +19,11 @@ describe("F37: la entrada a la importación", () => {
     expect(pagina).toContain("getWorkspaceAsManager()");
   });
 });
+
+describe("la etiqueta de origen viaja aparte (retrabajo del 09/11, a)", () => {
+  const pantalla = readFileSync(resolve(__dirname, "importar-contactos.tsx"), "utf8");
+  it("la pantalla la manda como etiquetaOrigen, no como una columna más de etiquetas", () => {
+    expect(pantalla).toMatch(/etiquetaOrigen: etiquetaOrigen\.trim\(\) \|\| null/);
+    expect(pantalla).not.toContain("[...mapeo, \"etiquetas\"]");
+  });
+});
