@@ -4,7 +4,7 @@
  *
  * A. El chat que no abre en el último mensaje: se abre una conversación desde
  *    la lista y, después de que cargan las fotos, el hilo tiene que estar en el
- *    último mensaje. Tres intentos, cada uno en un navegador nuevo (sin caché),
+ *    último mensaje. Cinco intentos, cada uno en un navegador nuevo (sin caché),
  *    porque el error depende del momento en que cargan las fotos.
  * B. La vista previa de la lista después de un mensaje nuevo, al volver con
  *    «← Conversaciones»: la pantalla tiene que mostrar la de la base.
@@ -200,7 +200,12 @@ async function medirHilo(page, texto) {
     const rc = c.getBoundingClientRect();
     const rn = nodo.getBoundingClientRect();
     const imgs = [...c.querySelectorAll("img")].filter((i) => i.src.includes("/message-media/"));
+    // Lo que rodea al hilo: cada hermano con su alto, para saber qué lo achica.
+    const hermanos = [...(c.parentElement?.children ?? [])].map((h) =>
+      h === c ? `HILO:${h.clientHeight}` : `${(h.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 30) || h.tagName}:${Math.round(h.getBoundingClientRect().height)}`
+    );
     return {
+      ventana: window.innerHeight, vista: Math.round(window.visualViewport?.height ?? 0), hermanos,
       scrollHeight: c.scrollHeight, scrollTop: Math.round(c.scrollTop), clientHeight: c.clientHeight,
       distancia: Math.round(c.scrollHeight - c.scrollTop - c.clientHeight),
       ultimoVisible: rn.top >= rc.top - 1 && rn.bottom <= rc.bottom + 1,
@@ -271,7 +276,7 @@ await correr(async () => {
   const navegador = await webkit.launch();
   try {
     // ── A ────────────────────────────────────────────────────────────────
-    for (let intento = 1; intento <= 3; intento++) {
+    for (let intento = 1; intento <= 5; intento++) {
       titulo(`A, intento ${intento}: abrir el chat desde la lista y que quede en el último mensaje`);
       const ctx = await contexto(navegador, u, espacio);
       const page = await ctx.newPage();
@@ -285,6 +290,19 @@ await correr(async () => {
         for (let i = 0; i < 400 && (!antes || antes.error); i++) {
           antes = await medirHilo(page, FINAL);
           if (antes?.error) await esperar(50);
+        }
+        // Con HILO_DIAG=1: el orden de los desplazamientos, los cambios de
+        // tamaño y las fotos que terminan de cargar, para explicar el rojo.
+        if (process.env.HILO_DIAG) {
+          await page.evaluate((t) => {
+            const c = [...document.querySelectorAll("div")].filter((d) => getComputedStyle(d).overflowY === "auto" && d.clientHeight > 0 && d.textContent?.includes(t)).pop();
+            const t0 = performance.now();
+            const reg = (window.__registro = []);
+            const foto = () => `alto ${c.scrollHeight} visible ${c.clientHeight} arriba ${Math.round(c.scrollTop)} dist ${Math.round(c.scrollHeight - c.scrollTop - c.clientHeight)}`;
+            c.addEventListener("scroll", () => reg.push(`${Math.round(performance.now() - t0)}ms scroll · ${foto()}`));
+            document.addEventListener("load", (e) => { if (e.target.tagName === "IMG") reg.push(`${Math.round(performance.now() - t0)}ms foto cargada · ${foto()}`); }, true);
+            new ResizeObserver(() => reg.push(`${Math.round(performance.now() - t0)}ms cambio de tamaño · ${foto()}`)).observe(c);
+          }, FINAL);
         }
         let cargaron = true;
         try {
@@ -301,11 +319,21 @@ await correr(async () => {
         }
         await esperar(1500);
         const despues = await medirHilo(page, FINAL);
+        if (process.env.HILO_DIAG) for (const l of await page.evaluate(() => window.__registro ?? [])) console.log(`        · ${l}`);
         console.log(`        al aparecer: ${JSON.stringify(antes)}`);
         console.log(`        con las fotos: ${JSON.stringify(despues)}`);
-        const creció = antes && despues && despues.scrollHeight > antes.scrollHeight;
-        const control = check(cargaron && despues?.fotosCargadas > 0 && creció, "control: las fotos del hilo cargaron y agrandaron el hilo", JSON.stringify({ cargaron, antes, despues }));
-        if (!control) noConcluyente("el hilo queda en el último mensaje", "las fotos no cargaron después de montarse el hilo: no hubo crecimiento que probar");
+        // El control: las fotos cargaron DESPUÉS de montarse el hilo, que es
+        // la condición del error. Hasta el arreglo exigía además que el hilo
+        // creciera; desde el arreglo (09/11) la foto reserva su alto y el hilo
+        // ya no crece al cargarla, así que eso daría «no concluyente» con el
+        // arreglo funcionando. Lo que da verde (al final, el último visible)
+        // no cambió.
+        const control = check(
+          cargaron && antes && !antes.error && antes.fotosCargadas === 0 && despues?.fotos > 0 && despues.fotosCargadas === despues.fotos,
+          "control: las fotos del hilo cargaron después de montarse el hilo",
+          JSON.stringify({ cargaron, antes, despues })
+        );
+        if (!control) noConcluyente("el hilo queda en el último mensaje", "las fotos no cargaron después de montarse el hilo: la condición del error no se dio");
         else check(despues.distancia <= 4 && despues.ultimoVisible, "el hilo queda en el último mensaje después de cargar las fotos", `distancia al final ${despues.distancia}px, último visible ${despues.ultimoVisible}`);
       } finally {
         await ctx.close();
