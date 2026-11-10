@@ -31,6 +31,7 @@ interface Resultado {
   actualizados: number;
   conError: number;
   usaronCodigo: number;
+  etiquetasCreadas: string[];
   lineas: { numero: number; nombre: string; que: string }[];
 }
 
@@ -251,6 +252,9 @@ export function ImportarContactos({ camposPropios, miembros }: { camposPropios: 
               </div>
             ))}
           </div>
+          {resultado.etiquetasCreadas?.length > 0 && (
+            <p className="mt-3 text-sm text-muted-foreground">Etiquetas creadas: {resultado.etiquetasCreadas.join(", ")}</p>
+          )}
           {resultado.lineas.length > 0 && (
             <div className="mt-4 overflow-x-auto rounded-lg border border-border">
               <table className="w-full text-sm">

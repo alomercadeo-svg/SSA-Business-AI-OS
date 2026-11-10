@@ -88,11 +88,15 @@ describe("POST /api/v1/contacts/importar: solo Owner y Admin esta noche", () => 
 });
 
 describe("la etiqueta de origen (retrabajo del 09/11, a)", () => {
-  it("si no existe, la crea una vez; las de la planilla no se crean", async () => {
+  it("si no existe, la crea una vez; desde la decisión (b) del 09/11, la de la planilla también", async () => {
     const res = await POST(pedido({ ...valido, etiquetaOrigen: "Importado 9/11/2026", mapeo: ["nombre", "correo", "etiquetas"], filas: [["Ana", "ana@x.com", "inventada"]] }));
     expect(res.status).toBe(200);
     const tags = h.inserts.filter((i) => i.tabla === "tags");
-    expect(tags).toEqual([{ tabla: "tags", valores: { workspace_id: "ws-1", name: "Importado 9/11/2026" } }]);
+    expect(tags).toEqual([
+      { tabla: "tags", valores: { workspace_id: "ws-1", name: "Importado 9/11/2026" } },
+      { tabla: "tags", valores: { workspace_id: "ws-1", name: "inventada" } },
+    ]);
+    await expect(res.json()).resolves.toMatchObject({ etiquetasCreadas: ["inventada"] });
   });
 
   it("sin etiqueta de origen no crea ninguna (control)", async () => {

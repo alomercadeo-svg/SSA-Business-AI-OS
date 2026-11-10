@@ -27,6 +27,9 @@ function almacenEnMemoria(iniciales: Array<DatosDeContacto & { id: string; elimi
     async ponerCampos(id, valores) {
       valores.forEach((v) => campos.push([id, v.fieldId, v.value]));
     },
+    async crearEtiqueta(nombre) {
+      return `creada-${nombre}`;
+    },
   };
   return { almacen, contactos, etiquetas, campos };
 }
@@ -103,9 +106,14 @@ describe("importarFilas (F37, parte 1)", () => {
       { asignarA: "u-owner" },
     );
     expect(m.contactos[0].setter_id).toBe("u-ana");
-    expect(m.etiquetas).toEqual([["nuevo-1", "tag-vip"]]);
+    // Desde el 09/11 a las 22:0x (decisión de Marcos), una etiqueta de la
+    // planilla que no existe se crea: antes decía ««inventada» no existe».
+    expect(m.etiquetas).toEqual([
+      ["nuevo-1", "tag-vip"],
+      ["nuevo-1", "creada-inventada"],
+    ]);
+    expect(r.etiquetasCreadas).toEqual(["inventada"]);
     expect(m.campos).toEqual([["nuevo-1", "cf-ciudad", "San José"]]);
-    expect(r.lineas[0].que).toContain("«inventada» no existe");
     expect(r.lineas[0].que).toContain("«mil» no es un número");
   });
 
@@ -148,5 +156,25 @@ describe("la etiqueta de origen (retrabajo del 09/11, a)", () => {
       ["nuevo-1", "tag-origen"],
       ["c1", "tag-origen"],
     ]);
+  });
+});
+
+describe("las etiquetas de la planilla se crean si no existen (decisión del 09/11, b)", () => {
+  it("«VIP» y «Promoción» usan las existentes sin distinguir mayúsculas ni tildes; una nueva se crea una sola vez", async () => {
+    const m = almacenEnMemoria();
+    const conPromo: Catalogos = { ...catalogos, etiquetas: new Map([["vip", "tag-vip"], ["promocion", "tag-promo"]]) };
+    const r = await importarFilas(
+      [fila(["Ana", "ana@x.com", "", "", "", "VIP, Promoción, Pauta", "", ""], 2), fila(["Luis", "luis@x.com", "", "", "", "pauta", "", ""], 3)],
+      conPromo,
+      m.almacen,
+      { asignarA: null },
+    );
+    expect(m.etiquetas).toEqual([
+      ["nuevo-1", "tag-vip"],
+      ["nuevo-1", "tag-promo"],
+      ["nuevo-1", "creada-Pauta"],
+      ["nuevo-2", "creada-Pauta"],
+    ]);
+    expect(r.etiquetasCreadas).toEqual(["Pauta"]);
   });
 });

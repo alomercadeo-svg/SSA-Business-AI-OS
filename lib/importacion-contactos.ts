@@ -35,10 +35,17 @@ export interface AlmacenDeContactos {
   actualizar(id: string, datos: DatosDeContacto): Promise<void>;
   ponerEtiquetas(id: string, tagIds: string[]): Promise<void>;
   ponerCampos(id: string, valores: { fieldId: string; value: string }[]): Promise<void>;
+  /** Crea una etiqueta del espacio y devuelve su id (decisión de Marcos del 09/11, b). */
+  crearEtiqueta(nombre: string): Promise<string>;
+}
+
+/** La clave con que se compara una etiqueta: sin mayúsculas ni tildes («VIP» es «vip»). */
+export function claveDeEtiqueta(nombre: string): string {
+  return nombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
 
 export interface Catalogos {
-  /** Nombre de la etiqueta en minúsculas → id. */
+  /** `claveDeEtiqueta(nombre)` → id. */
   etiquetas: Map<string, string>;
   /** `slug` del campo propio → su id y su tipo. */
   campos: Map<string, { id: string; tipo: string }>;
@@ -61,6 +68,8 @@ export interface Resumen {
   /** Para el historial: los contactos creados y actualizados, con su nombre. */
   creadosIds: { id: string; nombre: string }[];
   actualizadosIds: { id: string; nombre: string }[];
+  /** Las etiquetas de la planilla que no existían y se crearon. */
+  etiquetasCreadas: string[];
 }
 
 export const ELIMINADO = "Ese contacto está en Eliminados: restauralo desde ahí y volvé a importar.";
@@ -109,7 +118,8 @@ export async function importarFilas(
   almacen: AlmacenDeContactos,
   opciones: { asignarA: string | null; etiquetaOrigenId?: string | null },
 ): Promise<Resumen> {
-  const r: Resumen = { creados: 0, actualizados: 0, conError: 0, usaronCodigo: 0, lineas: [], creadosIds: [], actualizadosIds: [] };
+  const r: Resumen = { creados: 0, actualizados: 0, conError: 0, usaronCodigo: 0, lineas: [], creadosIds: [], actualizadosIds: [], etiquetasCreadas: [] };
+  const etiquetas = new Map(catalogos.etiquetas);
   for (const f of filas) {
     const nombre = f.nombre ?? f.correo ?? f.telefono ?? f.pipedrive ?? `Fila ${f.numero}`;
     if (f.error) {
@@ -172,10 +182,18 @@ export async function importarFilas(
     // La etiqueta de origen de «Opciones» (retrabajo del 09/11, a): en cada
     // contacto creado o actualizado.
     const tagIds: string[] = opciones.etiquetaOrigenId ? [opciones.etiquetaOrigenId] : [];
+    // Decisión de Marcos del 09/11 (b): una etiqueta de la planilla que no
+    // existe se crea, una sola vez por importación; antes se busca la
+    // existente sin distinguir mayúsculas ni tildes.
     for (const t of f.etiquetas) {
-      const tagId = catalogos.etiquetas.get(t.toLowerCase());
-      if (tagId) tagIds.push(tagId);
-      else avisos.push(`La etiqueta «${t}» no existe: no se creó. Creala en Configuración y volvé a importar.`);
+      const clave = claveDeEtiqueta(t);
+      let tagId = etiquetas.get(clave);
+      if (!tagId) {
+        tagId = await almacen.crearEtiqueta(t);
+        etiquetas.set(clave, tagId);
+        r.etiquetasCreadas.push(t);
+      }
+      if (!tagIds.includes(tagId)) tagIds.push(tagId);
     }
     if (tagIds.length) await almacen.ponerEtiquetas(id, tagIds);
 

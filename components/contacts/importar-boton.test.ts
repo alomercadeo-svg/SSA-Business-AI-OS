@@ -27,3 +27,10 @@ describe("la etiqueta de origen viaja aparte (retrabajo del 09/11, a)", () => {
     expect(pantalla).not.toContain("[...mapeo, \"etiquetas\"]");
   });
 });
+
+describe("el resumen dice qué etiquetas se crearon (decisión del 09/11, b)", () => {
+  const pantalla = readFileSync(resolve(__dirname, "importar-contactos.tsx"), "utf8");
+  it("muestra «Etiquetas creadas: …» cuando hubo", () => {
+    expect(pantalla).toMatch(/Etiquetas creadas: \{resultado\.etiquetasCreadas\.join\(", "\)\}/);
+  });
+});

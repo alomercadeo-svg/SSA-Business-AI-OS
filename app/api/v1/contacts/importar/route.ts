@@ -5,7 +5,7 @@ import { origenPermitido } from "@/lib/asignacion";
 import { miembrosDelEspacio } from "@/lib/miembros";
 import { actorDe, registrarAuditoria, type EventoAuditoria } from "@/lib/auditoria";
 import { MAX_FILAS_PARTE_1, prepararFila, type Campo } from "@/lib/importacion-csv";
-import { importarFilas, type AlmacenDeContactos, type DatosDeContacto } from "@/lib/importacion-contactos";
+import { claveDeEtiqueta, importarFilas, type AlmacenDeContactos, type DatosDeContacto } from "@/lib/importacion-contactos";
 
 /**
  * F37, parte 1 (09/11/2026): `POST /api/v1/contacts/importar`.
@@ -90,10 +90,10 @@ export async function POST(request: NextRequest) {
   // La etiqueta de origen de «Opciones» se crea la primera vez si no existe
   // (retrabajo del 09/11, a, decisión de la revisión, vetable): la propuso el
   // importador. Las de la planilla solo se usan si ya existen.
-  const etiquetas = new Map((tags.data ?? []).map((t) => [String(t.name).toLowerCase(), t.id as string]));
+  const etiquetas = new Map((tags.data ?? []).map((t) => [claveDeEtiqueta(String(t.name)), t.id as string]));
   let etiquetaOrigenId: string | null = null;
   if (pedido.etiquetaOrigen) {
-    etiquetaOrigenId = etiquetas.get(pedido.etiquetaOrigen.toLowerCase()) ?? null;
+    etiquetaOrigenId = etiquetas.get(claveDeEtiqueta(pedido.etiquetaOrigen)) ?? null;
     if (!etiquetaOrigenId) {
       const { data: nueva, error: errEtiqueta } = await supabase
         .from("tags")
@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
         .single();
       if (errEtiqueta || !nueva) return NextResponse.json({ error: "No se pudo crear la etiqueta de origen. Probá de nuevo." }, { status: 503 });
       etiquetaOrigenId = nueva.id as string;
+      etiquetas.set(claveDeEtiqueta(pedido.etiquetaOrigen), etiquetaOrigenId);
     }
   }
 
@@ -147,6 +148,11 @@ export async function POST(request: NextRequest) {
         .from("contact_tags")
         .upsert(tagIds.map((tag_id) => ({ contact_id: id, tag_id })), { onConflict: "contact_id,tag_id", ignoreDuplicates: true });
       if (error) throw new Error(`contact_tags: ${error.message}`);
+    },
+    async crearEtiqueta(nombre) {
+      const { data, error } = await supabase.from("tags").insert({ workspace_id: workspaceId, name: nombre.slice(0, 60) }).select("id").single();
+      if (error || !data) throw new Error(`tags: ${error?.message ?? "sin id"}`);
+      return data.id as string;
     },
     async ponerCampos(id, valores) {
       const ahora = new Date().toISOString();
@@ -198,6 +204,7 @@ export async function POST(request: NextRequest) {
     actualizados: resumen.actualizados,
     conError: resumen.conError,
     usaronCodigo: resumen.usaronCodigo,
+    etiquetasCreadas: resumen.etiquetasCreadas,
     lineas: resumen.lineas,
   });
 }
