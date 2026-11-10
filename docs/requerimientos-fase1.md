@@ -954,7 +954,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción.** Reemplazan a la ventana de 24 horas en WhatsApp. Son configuración del canal y las hace cumplir el sistema, no el hábito de quien lo usa. Existen porque el seguimiento automático saliente es justamente el comportamiento que Meta busca para bloquear un número.
 
-**Estado: no construido** (inspeccionado el 22 de septiembre de 2026). `lib/sequence-processor.ts` solo cancela la inscripción si la secuencia se pausó o se borró. No hay corte por silencio, ni espaciado aleatorio, ni franja horaria, ni variación de texto: ninguna de las seis reglas existe.
+**Actualizado el 09/11/2026, hacia las 22:45: 2 de 8 tildados** (el opt-out duro y la configuración por canal), decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 09/11/2026, decididas por Marcos»). Construidas el 09/11/2026 la configuración, la pantalla y las reglas (ítem 10 del plan maestro, migración 00055). Sin tildar: 1, 2, 3, 4 y 6, construidos y probados en tests, porque nada los usa hasta el motor de la Fase 2 (criterio 8); el 4 además usa la zona horaria del negocio. **Antes decía:** **Estado: no construido** (inspeccionado el 22 de septiembre de 2026). `lib/sequence-processor.ts` solo cancela la inscripción si la secuencia se pausó o se borró. No hay corte por silencio, ni espaciado aleatorio, ni franja horaria, ni variación de texto: ninguna de las seis reglas existe.
 
 **Criterios de aceptación:**
 
@@ -962,22 +962,22 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [ ] Texto variable: el sistema interpola datos del contacto y rota entre variantes. Se advierte si un paso manda texto idéntico a muchos destinatarios, porque eso es una huella de envío masivo
 - [ ] Envíos espaciados: separación aleatoria configurable entre mensajes de un mismo grupo. Nunca todo junto
 - [ ] Horario comercial: franja horaria configurable, respetando la zona horaria del contacto. Fuera de ella el envío se pospone, no se cancela
-- [ ] Opt-out duro: un pedido de no contacto corta para siempre, sin opción de forzarlo desde ninguna pantalla
+- [x] Opt-out duro: un pedido de no contacto corta para siempre, sin opción de forzarlo desde ninguna pantalla
 - [ ] Proporción de respuesta como señal de salud: se calcula y se muestra qué porcentaje de los seguimientos recibe respuesta. Si cae por debajo de un umbral configurable, se avisa. Es mejor que un tope arbitrario de mensajes, porque mide si lo que mandás le sirve a alguien
-- [ ] Todo es configuración por canal, no condicionales en el código
+- [x] Todo es configuración por canal, no condicionales en el código
 - [ ] La Fase 2 construye el motor que las consume
 
 #### F34: Marca de no contactar
 
 **Descripción:** respetar a quien pidió no recibir más mensajes.
 
-**Actualizado el 06/11/2026, a las 19:1x: 5 de 7 tildados**, decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 06/11/2026»). Construida el 06/11/2026, ítem 8 del plan maestro (migración 00053). Quedan la pausa de las secuencias activas (sin prueba) y el bloqueo por WhatsApp (espera a F42). **Antes decía:** **Estado: parcial, y es la más cubierta del Bloque 4** (inspeccionado el 22 de septiembre de 2026). **El fork cubre:** la columna `contacts.is_subscribed`, respetada por el listado de contactos (`/api/v1/contacts`) y por el envío de difusiones. **Falta:** el opt-out duro desde la bandeja, las frases de baja configurables, y que las secuencias lo respeten.
+**Actualizado el 09/11/2026, hacia las 22:45: 6 de 7 tildados** (ver `docs/estado-fase1.md`, «Las tildes del 09/11/2026, decididas por Marcos»): el 3, la pausa de las secuencias, con `verify-no-contactar` en producción. Queda el 6 (el bloqueo del envío). **Antes decía:** **Actualizado el 06/11/2026, a las 19:1x: 5 de 7 tildados**, decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 06/11/2026»). Construida el 06/11/2026, ítem 8 del plan maestro (migración 00053). Quedan la pausa de las secuencias activas (sin prueba) y el bloqueo por WhatsApp (espera a F42). **Antes decía:** **Estado: parcial, y es la más cubierta del Bloque 4** (inspeccionado el 22 de septiembre de 2026). **El fork cubre:** la columna `contacts.is_subscribed`, respetada por el listado de contactos (`/api/v1/contacts`) y por el envío de difusiones. **Falta:** el opt-out duro desde la bandeja, las frases de baja configurables, y que las secuencias lo respeten.
 
 **Criterios de aceptación:**
 
 - [x] Lista de frases de baja configurable por espacio de trabajo
 - [x] La lista viene cargada con: "no me escribas más", "dejá de mandar mensajes", "no quiero recibir mensajes", "stop", "unsubscribe", "basta", "no me contactes" (devuelto el 23/09/2026, auditoría #92b)
-- [ ] Al detectar una: se marca el contacto, se registra el motivo y la fecha, se pausan las secuencias activas y queda en el historial de auditoría
+- [x] Al detectar una: se marca el contacto, se registra el motivo y la fecha, se pausan las secuencias activas y queda en el historial de auditoría
 - [x] Marca roja visible en la bandeja y en la ficha
 - [x] Un Admin o el Owner puede revertirla, con registro
 - [ ] Al intentar enviar a un contacto marcado se bloquea el envío, sin opción de forzarlo. Con Evolution una denuncia pesa más que cien mensajes
@@ -1038,7 +1038,7 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 
 **Descripción:** textos reutilizables que el operador inserta escribiendo una barra.
 
-**Actualizado el 06/11/2026, a las 19:1x: 5 de 6 tildados**, decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 06/11/2026»). Construida el 06/11/2026, ítem 6 del plan maestro (migración 00052). Queda el borrado a los 30 días por la tarea real. **Antes decía:** **Estado: no construido, y la tabla hay que crearla** (verificado el 22 de septiembre de 2026). **El 20/10/2026 suma un criterio**, decidido por Marcos: el borrado suave de las respuestas rápidas, que es el dueño de esa parte del criterio de `deleted_at` de F30. F36 es del Bloque 4: no toca la línea de base del Bloque 3.
+**Actualizado el 09/11/2026, hacia las 22:45: 6 de 6 tildados, completa** (ver `docs/estado-fase1.md`, «Las tildes del 09/11/2026, decididas por Marcos»): la purga real borró la respuesta rápida eliminada hace más de 30 días. **Antes decía:** **Actualizado el 06/11/2026, a las 19:1x: 5 de 6 tildados**, decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 06/11/2026»). Construida el 06/11/2026, ítem 6 del plan maestro (migración 00052). Queda el borrado a los 30 días por la tarea real. **Antes decía:** **Estado: no construido, y la tabla hay que crearla** (verificado el 22 de septiembre de 2026). **El 20/10/2026 suma un criterio**, decidido por Marcos: el borrado suave de las respuestas rápidas, que es el dueño de esa parte del criterio de `deleted_at` de F30. F36 es del Bloque 4: no toca la línea de base del Bloque 3.
 
 > **`response_templates` no es una tabla del fork que el `CLAUDE.md` recordara mal: es un nombre que elegimos nosotros para una tabla que no existe.**
 >
@@ -1055,26 +1055,26 @@ Como el número todavía no está conectado, no sabemos con qué frecuencia pasa
 - [x] Interpolación de datos del contacto; si un dato falta, queda vacío
 - [x] Al seleccionar, se inserta el contenido con las variables interpoladas: `{{contact.display_name}}`, `{{contact.email}}`, `{{contact.phone}}`, `{{workspace.name}}` (devuelto el 23/09/2026, auditoría #88b)
 - [x] En la interfaz se llaman "respuestas rápidas", nunca "plantillas", para no confundirlas con las plantillas de WhatsApp del plan B
-- [ ] Eliminar una respuesta rápida marca la fecha y no la borra (`deleted_at` en `response_templates`). Las listas y la seguridad por filas excluyen las eliminadas, y la purga diaria de F30 (`lib/purga.ts`) también las borra a los 30 días. (Agregado el 20/10/2026, decidido por Marcos: es el dueño de la parte de respuestas rápidas del criterio de `deleted_at` de F30)
+- [x] Eliminar una respuesta rápida marca la fecha y no la borra (`deleted_at` en `response_templates`). Las listas y la seguridad por filas excluyen las eliminadas, y la purga diaria de F30 (`lib/purga.ts`) también las borra a los 30 días. (Agregado el 20/10/2026, decidido por Marcos: es el dueño de la parte de respuestas rápidas del criterio de `deleted_at` de F30)
 
 #### F37: Importación de contactos desde planilla
 
 **Descripción:** cargar contactos que ya existen en otro lado.
 
-**Estado: no construido** (inspeccionado el 22 de septiembre de 2026). No existe ninguna pantalla de importación; los únicos usos de "import" en la interfaz son sentencias de JavaScript.
+**Actualizado el 09/11/2026, hacia las 22:45: 6 de 10 tildados**, decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 09/11/2026, decididas por Marcos»). Construida la parte 1 el 09/11/2026 (ítem 11 del plan maestro, migración 00054: hasta 500 filas, solo Owner y Admin). Sin tildar: 2, 7, 8 y 9 (parte 2). **Antes decía:** **Estado: no construido** (inspeccionado el 22 de septiembre de 2026). No existe ninguna pantalla de importación; los únicos usos de "import" en la interfaz son sentencias de JavaScript.
 
 **Criterios de aceptación:**
 
-- [ ] Botón "Importar CSV" en `/contacts` (devuelto el 23/09/2026, auditoría #99)
+- [x] Botón "Importar CSV" en `/contacts` (devuelto el 23/09/2026, auditoría #99)
 - [ ] Archivo de hasta 10 MB y 10.000 filas, con vista previa y asignación de columnas
-- [ ] Preview con las primeras 5 filas y mapeo de columnas sugerido (devuelto el 23/09/2026, auditoría #101b)
-- [ ] El usuario ajusta el mapeo, incluyendo setter, vendedor, tags y custom fields (devuelto el 23/09/2026, auditoría #102)
-- [ ] **Cada fila necesita al menos un identificador que permita deduplicar, de los enumerados en la sección 14.** El correo se valida con formato y el teléfono se normaliza a E.164 según §14, pero los dos son ejemplos, no la lista: un identificador único del sistema de origen sirve igual, y de hecho sirve mejor, porque allá ya se garantizó que es único. Una fila sin ningún identificador no se puede deduplicar y se rechaza con su motivo (devuelto el 23/09/2026, auditoría #103c)
-- [ ] Deduplicación por cualquiera de los identificadores que traiga la fila: identificador de origen, correo o teléfono, en ese orden de confianza. Si ya existe, actualiza en vez de duplicar. **El importador no decide qué cuenta como identificador:** la lista está en la sección 14 y admitir uno nuevo se escribe ahí primero
+- [x] Preview con las primeras 5 filas y mapeo de columnas sugerido (devuelto el 23/09/2026, auditoría #101b)
+- [x] El usuario ajusta el mapeo, incluyendo setter, vendedor, tags y custom fields (devuelto el 23/09/2026, auditoría #102)
+- [x] **Cada fila necesita al menos un identificador que permita deduplicar, de los enumerados en la sección 14.** El correo se valida con formato y el teléfono se normaliza a E.164 según §14, pero los dos son ejemplos, no la lista: un identificador único del sistema de origen sirve igual, y de hecho sirve mejor, porque allá ya se garantizó que es único. Una fila sin ningún identificador no se puede deduplicar y se rechaza con su motivo (devuelto el 23/09/2026, auditoría #103c)
+- [x] Deduplicación por cualquiera de los identificadores que traiga la fila: identificador de origen, correo o teléfono, en ese orden de confianza. Si ya existe, actualiza en vez de duplicar. **El importador no decide qué cuenta como identificador:** la lista está en la sección 14 y admitir uno nuevo se escribe ahí primero
 - [ ] Más de 500 filas se procesan en segundo plano, no en el momento
 - [ ] Cuando una importación corre en segundo plano, quien importó recibe una notificación por correo al terminar, vía F23 (devuelto el 23/09/2026, auditoría #105c)
 - [ ] Barra de progreso y resumen final con importados, actualizados y errores con detalle
-- [ ] Todo queda en el historial de auditoría
+- [x] Todo queda en el historial de auditoría
 
 #### F38: Migración desde Pipedrive
 
@@ -1176,20 +1176,20 @@ El argumento decisivo es la asimetría del error: **dejar afuera es irreversible
 
 **Descripción:** que se pueda contestar por WhatsApp desde la bandeja, en una conversación que ya existe.
 
-**Estado: no construido** (7 de octubre de 2026). Depende de F27 (guardado de mensajes), F32 (estado de la sesión), F34 (no contactar) y del número vinculado. Hoy el único envío de la bandeja es por Zernio (`app/api/v1/messages/route.ts:142`, `:150` y `:167`), y en el repositorio no hay ninguna función que envíe por Evolution: verificado el 07/10/2026.
+**Actualizado el 09/11/2026, hacia las 22:45: 8 de 10 tildados**, decididos por Marcos (ver `docs/estado-fase1.md`, «Las tildes del 09/11/2026, decididas por Marcos»). Construida el 09/11/2026 (ítem 9 del plan maestro). Sin tildar: el 5 (el campo deshabilitado con la sesión caída, no visto en pantalla) y el 7 (el error claro, solo en tests). **Antes decía:** **Estado: no construido** (7 de octubre de 2026). Depende de F27 (guardado de mensajes), F32 (estado de la sesión), F34 (no contactar) y del número vinculado. Hoy el único envío de la bandeja es por Zernio (`app/api/v1/messages/route.ts:142`, `:150` y `:167`), y en el repositorio no hay ninguna función que envíe por Evolution: verificado el 07/10/2026.
 
 **Criterios de aceptación:**
 
-- [ ] En una conversación de WhatsApp que ya existe, el campo de escritura envía texto por Evolution, desde el servidor, con la clave de la instancia leída de Vault
-- [ ] El mensaje enviado se guarda en messages con from_me = true y el identificador que devuelve Evolution, y no se guarda dos veces cuando llega el aviso de ese mismo mensaje
-- [ ] Las respuestas rápidas («/») funcionan igual que en Instagram
-- [ ] No hay ventana de 24 horas: WhatsApp por Evolution no tiene ventana
+- [x] En una conversación de WhatsApp que ya existe, el campo de escritura envía texto por Evolution, desde el servidor, con la clave de la instancia leída de Vault
+- [x] El mensaje enviado se guarda en messages con from_me = true y el identificador que devuelve Evolution, y no se guarda dos veces cuando llega el aviso de ese mismo mensaje
+- [x] Las respuestas rápidas («/») funcionan igual que en Instagram
+- [x] No hay ventana de 24 horas: WhatsApp por Evolution no tiene ventana
 - [ ] Si la sesión de WhatsApp está caída, con los intentos agotados o sin vincular, el campo se deshabilita y dice «WhatsApp no está conectado. Los mensajes no pueden salir ni entrar por este canal hasta reconectarlo.»
-- [ ] A un contacto marcado «no contactar» no se le puede escribir por este camino (F34)
+- [x] A un contacto marcado «no contactar» no se le puede escribir por este camino (F34)
 - [ ] Un envío que falla muestra un error claro, y el mensaje no aparece como enviado
-- [ ] Un Member solo puede enviar en conversaciones de sus leads, controlado en el servidor
-- [ ] Control positivo, con respuestas simuladas de Evolution: con la sesión conectada, el envío se hace y el mensaje queda guardado una sola vez aunque llegue su aviso; con la sesión caída, el envío no se intenta
-- [ ] Control positivo en la puesta en marcha, con el número vinculado: un mensaje enviado desde la bandeja llega a un teléfono de prueba y queda guardado una sola vez
+- [x] Un Member solo puede enviar en conversaciones de sus leads, controlado en el servidor
+- [x] Control positivo, con respuestas simuladas de Evolution: con la sesión conectada, el envío se hace y el mensaje queda guardado una sola vez aunque llegue su aviso; con la sesión caída, el envío no se intenta
+- [x] Control positivo en la puesta en marcha, con el número vinculado: un mensaje enviado desde la bandeja llega a un teléfono de prueba y queda guardado una sola vez
 
 *Fuera de alcance de F42: adjuntos (el prototipo no tiene botón para adjuntar) e iniciar una conversación nueva desde el sistema. El primer mensaje por WhatsApp se escribe desde WhatsApp Business en el teléfono, y llega a la bandeja por el guardado de F27.*
 
