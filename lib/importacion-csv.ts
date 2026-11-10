@@ -82,6 +82,15 @@ export type Campo =
   | "setter"
   | "vendedor"
   | "etiquetas"
+  // F38 (10/11/2026): el estado comercial que viene de Pipedrive, ya aplanado
+  // por `scripts/pipedrive-unir.mjs`, y una nota del contacto.
+  | "etapa"
+  | "estado_trato"
+  | "valor"
+  | "moneda"
+  | "fecha_cierre"
+  | "pipedrive_trato"
+  | "nota"
   | `campo:${string}`
   | "no_importar";
 
@@ -90,6 +99,15 @@ const sinTildes = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, 
 /** El campo sugerido para un encabezado (paso 2 de §11). Los campos propios se sugieren por nombre o por su `slug`. */
 export function sugerirCampo(encabezado: string, camposPropios: { slug: string; name: string }[] = []): Campo {
   const e = sinTildes(encabezado).replace(/[^a-z0-9]+/g, " ").trim();
+  // F38: antes que el id de persona («Id de trato de Pipedrive» también dice
+  // «pipedrive») y antes que el nombre («Nota del contacto» dice «contacto»).
+  if (/\b(deal id|id de trato|trato id)\b/.test(e)) return "pipedrive_trato";
+  if (/^(nota|notas|nota del contacto)$/.test(e)) return "nota";
+  if (/^(etapa|stage|etapa del trato)$/.test(e)) return "etapa";
+  if (/^(estado|estado del trato|status)$/.test(e)) return "estado_trato";
+  if (/^(valor|valor del trato|value)$/.test(e)) return "valor";
+  if (/^(moneda|currency)$/.test(e)) return "moneda";
+  if (/^(fecha de cierre|cierre|close date)$/.test(e)) return "fecha_cierre";
   if (/\b(person id|pipedrive|id de pipedrive|id pipedrive)\b/.test(e)) return "pipedrive";
   if (/\b(e mail|email|correo|mail)\b/.test(e)) return "correo";
   if (/\b(telefono|tel|celular|movil|phone|whatsapp)\b/.test(e)) return "telefono";
@@ -112,8 +130,24 @@ export interface FilaPreparada {
   vendedor: string | null;
   etiquetas: string[];
   campos: Record<string, string>;
+  /** F38: crudos; el valor y la fecha se validan al importar. */
+  etapa: string | null;
+  estadoTrato: string | null;
+  valor: string | null;
+  moneda: string | null;
+  fechaCierre: string | null;
+  pipedriveTrato: string | null;
+  nota: string | null;
   usoCodigoPorDefecto: boolean;
   error: string | null;
+}
+
+/** Caracteres invisibles de dirección de texto (marcas, incrustaciones y aislamientos). */
+const INVISIBLES_DE_DIRECCION = /[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
+
+/** F38: quita los invisibles de dirección y el apóstrofe inicial de planilla. */
+export function limpiarTelefono(crudo: string): string {
+  return crudo.replace(INVISIBLES_DE_DIRECCION, "").trim().replace(/^'+/, "").trim();
 }
 
 const CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -140,6 +174,13 @@ export function prepararFila(
     vendedor: null,
     etiquetas: [],
     campos: {},
+    etapa: null,
+    estadoTrato: null,
+    valor: null,
+    moneda: null,
+    fechaCierre: null,
+    pipedriveTrato: null,
+    nota: null,
     usoCodigoPorDefecto: false,
     error: null,
   };
@@ -154,6 +195,13 @@ export function prepararFila(
     else if (campo === "setter") f.setter = v;
     else if (campo === "vendedor") f.vendedor = v;
     else if (campo === "etiquetas") f.etiquetas = v.split(",").map((t) => t.trim()).filter(Boolean);
+    else if (campo === "etapa") f.etapa = v;
+    else if (campo === "estado_trato") f.estadoTrato = v.toLowerCase();
+    else if (campo === "valor") f.valor = v;
+    else if (campo === "moneda") f.moneda = v.toUpperCase();
+    else if (campo === "fecha_cierre") f.fechaCierre = v;
+    else if (campo === "pipedrive_trato") f.pipedriveTrato = v;
+    else if (campo === "nota") f.nota = v;
     else if (campo.startsWith("campo:")) f.campos[campo.slice(6)] = v;
   });
 
@@ -162,7 +210,10 @@ export function prepararFila(
     return f;
   }
   if (telefonoCrudo !== null) {
-    const crudo: string = telefonoCrudo;
+    // F38: la basura de planilla que rompe la normalización en silencio. Los
+    // invisibles de dirección de texto primero (pueden ir antes del apóstrofe),
+    // después el apóstrofe inicial.
+    const crudo: string = limpiarTelefono(telefonoCrudo);
     const sinEspacios = crudo.replace(/[\s\-.()]/g, "");
     let candidato = sinEspacios;
     if (candidato.startsWith("00")) candidato = `+${candidato.slice(2)}`;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ELIMINADO, importarFilas, valorDeCampo, type AlmacenDeContactos, type Catalogos, type DatosDeContacto } from "./importacion-contactos";
+import { ELIMINADO, MARCA_MIGRACION, RechazoDeLaBase, controlDeMigracion, importarFilas, valorDeCampo, type AlmacenDeContactos, type Catalogos, type DatosDeContacto } from "./importacion-contactos";
 import { prepararFila, type Campo } from "./importacion-csv";
 
 /** Un almacén en memoria con la misma regla de búsqueda que el de Supabase. */
@@ -176,5 +176,86 @@ describe("las etiquetas de la planilla se crean si no existen (decisión del 09/
       ["nuevo-2", "creada-Pauta"],
     ]);
     expect(r.etiquetasCreadas).toEqual(["Pauta"]);
+  });
+});
+
+describe("F38: la migración desde Pipedrive", () => {
+  const mapeoPd: Campo[] = ["nombre", "pipedrive", "etapa", "estado_trato", "valor", "moneda", "fecha_cierre", "pipedrive_trato", "nota"];
+  const filaPd = (valores: string[], numero = 2) => prepararFila(valores, mapeoPd, { codigoPais: "+506", numero });
+
+  function conNotas(iniciales: Array<DatosDeContacto & { id: string }> = []) {
+    const m = almacenEnMemoria(iniciales);
+    const notas: Array<{ contacto: string; marca: string; texto: string }> = [];
+    const almacen = m.almacen as AlmacenDeContactos;
+    almacen.ponerNota = async (contacto, marca, texto) => {
+      if (notas.some((n) => n.contacto === contacto && n.marca === marca && n.texto === texto)) return false;
+      notas.push({ contacto, marca, texto });
+      return true;
+    };
+    return { ...m, notas };
+  }
+
+  it("los datos del trato se guardan al crear y al actualizar", async () => {
+    const m = conNotas([{ id: "c-77", pipedrive_person_id: "77" }]);
+    await importarFilas(
+      [
+        filaPd(["Ana", "77", "3. Respondió", "abierto", "1500", "USD", "2025-03-14", "901", ""], 2),
+        filaPd(["Luis", "78", "14. Repesca", "perdido", "", "", "", "902", ""], 3),
+      ],
+      catalogos,
+      m.almacen,
+      { asignarA: null },
+    );
+    expect(m.contactos.find((c) => c.id === "c-77")).toMatchObject({
+      pipeline_stage: "3. Respondió",
+      deal_status: "abierto",
+      deal_value: 1500,
+      deal_currency: "USD",
+      deal_closed_at: "2025-03-14",
+      pipedrive_deal_id: "901",
+    });
+    const luis = m.contactos.find((c) => c.pipedrive_person_id === "78");
+    expect(luis).toMatchObject({ pipeline_stage: "14. Repesca", deal_status: "perdido", pipedrive_deal_id: "902" });
+    expect(luis).not.toHaveProperty("deal_value");
+  });
+
+  it("un valor o una fecha que no se leen no se inventan: la fila entra sin ese dato y lo dice", async () => {
+    const m = conNotas();
+    const r = await importarFilas([filaPd(["Ana", "77", "", "", "mil", "", "30/02/2025", "901", ""])], catalogos, m.almacen, { asignarA: null });
+    expect(r.creados).toBe(1);
+    expect(m.contactos[0]).not.toHaveProperty("deal_value");
+    expect(m.contactos[0]).not.toHaveProperty("deal_closed_at");
+    expect(r.lineas[0].que).toContain("«mil»");
+    expect(r.lineas[0].que).toContain("«30/02/2025»");
+  });
+
+  it("la nota entra una sola vez aunque se importe dos veces, con la marca de la migración", async () => {
+    const m = conNotas();
+    const f = () => [filaPd(["Ana", "77", "", "perdido", "", "", "", "901", "Motivo de pérdida en Pipedrive: precio"])];
+    await importarFilas(f(), catalogos, m.almacen, { asignarA: null });
+    await importarFilas(f(), catalogos, m.almacen, { asignarA: null });
+    expect(m.notas).toEqual([{ contacto: m.contactos[0].id, marca: MARCA_MIGRACION, texto: "Motivo de pérdida en Pipedrive: precio" }]);
+  });
+
+  it("si la base rechaza la fila (una etapa fuera de la lista), esa fila lo dice y las demás siguen", async () => {
+    const m = conNotas();
+    const crear = m.almacen.crear;
+    m.almacen.crear = async (datos) => {
+      if (datos.pipeline_stage === "99. Inventada") throw new RechazoDeLaBase("pipeline_stage");
+      return crear(datos);
+    };
+    const r = await importarFilas(
+      [filaPd(["Mala", "70", "99. Inventada", "", "", "", "", "900", ""], 2), filaPd(["Buena", "71", "1. Nuevo contacto", "", "", "", "", "901", ""], 3)],
+      catalogos,
+      m.almacen,
+      { asignarA: null },
+    );
+    expect(r).toMatchObject({ creados: 1, conError: 1 });
+    expect(r.lineas.find((l) => l.numero === 2)?.que).toContain("«99. Inventada»");
+  });
+
+  it("el control cuenta ids de trato distintos encontrados en el espacio, no contactos", () => {
+    expect(controlDeMigracion(["901", "902", "902", "903"], ["901", "901", "902", "950"])).toEqual({ enArchivo: 3, encontrados: 2, enEspacio: 3 });
+    expect(controlDeMigracion([], ["901"])).toEqual({ enArchivo: 0, encontrados: 0, enEspacio: 1 });
   });
 });

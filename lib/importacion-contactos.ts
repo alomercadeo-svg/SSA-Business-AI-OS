@@ -27,6 +27,41 @@ export interface DatosDeContacto {
   pipedrive_person_id?: string | null;
   setter_id?: string | null;
   vendedor_id?: string | null;
+  // F38: las siete columnas de `00030` (con `pipedrive_person_id`).
+  pipeline_stage?: string | null;
+  deal_status?: string | null;
+  deal_value?: number | null;
+  deal_currency?: string | null;
+  deal_closed_at?: string | null;
+  pipedrive_deal_id?: string | null;
+}
+
+/** F38: la marca de una nota que vino de la migración (va en `contact_notes.author_label`). */
+export const MARCA_MIGRACION = "Migración de Pipedrive";
+/** La marca de una nota de una planilla que no es la migración. */
+export const MARCA_PLANILLA = "Importación de planilla";
+
+/**
+ * F38: la base rechazó la fila por una de sus restricciones (`00030`: la etapa
+ * o el estado fuera de su lista). El almacén la tira; `importarFilas` deja esa
+ * fila con su motivo y sigue con las demás.
+ */
+export class RechazoDeLaBase extends Error {
+  constructor(public campo: "pipeline_stage" | "deal_status" | null) {
+    super(`rechazo de la base: ${campo ?? "otra restricción"}`);
+  }
+}
+
+/**
+ * F38, criterio de control: ids de trato **distintos** del archivo, cuántos
+ * de esos están en el espacio, y cuántos distintos hay en todo el espacio.
+ */
+export function controlDeMigracion(idsDelArchivo: string[], idsDelEspacio: string[]) {
+  const archivo = new Set(idsDelArchivo.filter(Boolean));
+  const espacio = new Set(idsDelEspacio.filter(Boolean));
+  let encontrados = 0;
+  for (const id of archivo) if (espacio.has(id)) encontrados++;
+  return { enArchivo: archivo.size, encontrados, enEspacio: espacio.size };
 }
 
 export interface AlmacenDeContactos {
@@ -37,6 +72,12 @@ export interface AlmacenDeContactos {
   ponerCampos(id: string, valores: { fieldId: string; value: string }[]): Promise<void>;
   /** Crea una etiqueta del espacio y devuelve su id (decisión de Marcos del 09/11, b). */
   crearEtiqueta(nombre: string): Promise<string>;
+  /**
+   * F38: una nota con su marca, salvo que ese contacto ya tenga una con la
+   * misma marca y el mismo texto (también eliminada: reimportar no la
+   * resucita). Devuelve si la creó.
+   */
+  ponerNota?(contactoId: string, marca: string, texto: string): Promise<boolean>;
 }
 
 /** La clave con que se compara una etiqueta: sin mayúsculas ni tildes («VIP» es «vip»). */
@@ -153,6 +194,22 @@ export async function importarFilas(
       datos.phone_resolved = true;
     }
     if (f.pipedrive) datos.pipedrive_person_id = f.pipedrive;
+    // F38: el estado comercial. La etapa y el estado los valida la base
+    // (`00030`); el valor y la fecha que no se leen no se inventan.
+    if (f.etapa) datos.pipeline_stage = f.etapa;
+    if (f.estadoTrato) datos.deal_status = f.estadoTrato;
+    if (f.moneda) datos.deal_currency = f.moneda;
+    if (f.pipedriveTrato) datos.pipedrive_deal_id = f.pipedriveTrato;
+    if (f.valor) {
+      const v = valorDeCampo("number", f.valor);
+      if (v === null) avisos.push(`El valor «${f.valor}» no es un número: no se cargó.`);
+      else datos.deal_value = Number(v);
+    }
+    if (f.fechaCierre) {
+      const v = valorDeCampo("date", f.fechaCierre);
+      if (v === null) avisos.push(`La fecha de cierre «${f.fechaCierre}» no es una fecha (día/mes/año): no se cargó.`);
+      else datos.deal_closed_at = v;
+    }
     const miembro = (texto: string | null, rol: string) => {
       if (!texto) return undefined;
       const id = catalogos.miembros.get(texto.toLowerCase());
@@ -166,17 +223,34 @@ export async function importarFilas(
     if (vendedor) datos.vendedor_id = vendedor;
 
     let id: string;
+    try {
+      if (existente) {
+        id = existente.id;
+        if (Object.keys(datos).length) await almacen.actualizar(id, datos);
+      } else {
+        if (!datos.display_name) datos.display_name = nombre;
+        id = await almacen.crear(datos);
+      }
+    } catch (e) {
+      if (!(e instanceof RechazoDeLaBase)) throw e;
+      r.conError++;
+      const que =
+        e.campo === "pipeline_stage"
+          ? `La etapa «${f.etapa}» no es una de las etapas del sistema: la base la rechazó y esta fila no se importó.`
+          : e.campo === "deal_status"
+            ? `El estado «${f.estadoTrato}» no es abierto, ganado ni perdido: la base lo rechazó y esta fila no se importó.`
+            : "La base rechazó esta fila y no se importó.";
+      r.lineas.push({ numero: f.numero, nombre, que });
+      continue;
+    }
     if (existente) {
-      id = existente.id;
-      if (Object.keys(datos).length) await almacen.actualizar(id, datos);
       r.actualizados++;
       r.actualizadosIds.push({ id, nombre });
     } else {
-      if (!datos.display_name) datos.display_name = nombre;
-      id = await almacen.crear(datos);
       r.creados++;
       r.creadosIds.push({ id, nombre });
     }
+    if (f.nota && almacen.ponerNota) await almacen.ponerNota(id, f.pipedrive ? MARCA_MIGRACION : MARCA_PLANILLA, f.nota.slice(0, 5000));
     if (f.usoCodigoPorDefecto) r.usaronCodigo++;
 
     // La etiqueta de origen de «Opciones» (retrabajo del 09/11, a): en cada

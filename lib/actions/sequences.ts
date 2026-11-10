@@ -97,6 +97,20 @@ export async function enrollContact(
   const steps = (sequence.steps as unknown as SequenceStep[]) || [];
   if (steps.length === 0) return { error: "Sequence has no steps" };
 
+  // F38 (10/11/2026): un contacto sin ningún canal no entra en una secuencia
+  // (145 de los 526 de Pipedrive no tienen teléfono ni correo). Se escribe
+  // explícito en vez de suponerlo del motor. Falla cerrado si no se puede leer.
+  // El otro camino de alta, el nodo del motor de flujos, no se toca hoy.
+  const [{ data: contacto, error: errContacto }, { data: identidades, error: errIdentidades }] = await Promise.all([
+    supabase.from("contacts").select("id, phone, email").eq("id", contactId).eq("workspace_id", workspace.id).maybeSingle(),
+    supabase.from("contact_channels").select("id").eq("contact_id", contactId).limit(1),
+  ]);
+  if (errContacto || errIdentidades) return { error: "No se pudo comprobar el contacto. Probá de nuevo." };
+  if (!contacto) return { error: "No encontramos ese contacto en este espacio." };
+  if (!contacto.phone && !contacto.email && !(identidades?.length)) {
+    return { error: "Este contacto no tiene teléfono, correo ni ningún canal: no se le puede escribir, así que no entra en una secuencia." };
+  }
+
   // Calculate next_step_at based on first step
   let nextStepAt: string;
   const firstStep = steps[0];

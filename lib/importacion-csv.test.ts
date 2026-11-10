@@ -88,3 +88,48 @@ describe("prepararFila (F37): identificadores de §14 y el teléfono", () => {
     expect(prepararFila(["Ana", "", "", "1234", ""], mapeo, op)).toMatchObject({ pipedrive: "1234", error: null });
   });
 });
+
+describe("F38: la migración desde Pipedrive", () => {
+  it("sugiere los encabezados del script de unión; el id de trato no se confunde con el de persona", () => {
+    expect(sugerirCampo("Id de persona de Pipedrive")).toBe("pipedrive");
+    expect(sugerirCampo("Id de trato de Pipedrive")).toBe("pipedrive_trato");
+    expect(sugerirCampo("Etapa")).toBe("etapa");
+    expect(sugerirCampo("Estado del trato")).toBe("estado_trato");
+    expect(sugerirCampo("Valor")).toBe("valor");
+    expect(sugerirCampo("Moneda")).toBe("moneda");
+    expect(sugerirCampo("Fecha de cierre")).toBe("fecha_cierre");
+    expect(sugerirCampo("Nota del contacto")).toBe("nota");
+  });
+
+  it("el teléfono se limpia antes de normalizar: el apóstrofe inicial y los invisibles de dirección", () => {
+    const m: Campo[] = ["nombre", "telefono"];
+    const conApostrofe = prepararFila(["Ana", "'+506 8888 1111"], m, { codigoPais: "+506", numero: 2 });
+    expect(conApostrofe).toMatchObject({ telefono: "+50688881111", usoCodigoPorDefecto: false, error: null });
+    const invisibles = prepararFila(["Luis", "‪8888-2222‬"], m, { codigoPais: "+506", numero: 3 });
+    expect(invisibles).toMatchObject({ telefono: "+50688882222", usoCodigoPorDefecto: true, error: null });
+    const ambos = prepararFila(["Eva", "‎'88883333"], m, { codigoPais: "+506", numero: 4 });
+    expect(ambos).toMatchObject({ telefono: "+50688883333", error: null });
+  });
+
+  it("los datos del trato llegan a la fila; el estado en minúsculas", () => {
+    const m: Campo[] = ["pipedrive", "etapa", "estado_trato", "valor", "moneda", "fecha_cierre", "pipedrive_trato", "nota"];
+    const f = prepararFila(["77", "3. Respondió", "Perdido", "1500", "USD", "2025-03-14", "901", "Motivo de pérdida en Pipedrive: precio"], m, { codigoPais: "+506", numero: 2 });
+    expect(f).toMatchObject({
+      pipedrive: "77",
+      etapa: "3. Respondió",
+      estadoTrato: "perdido",
+      valor: "1500",
+      moneda: "USD",
+      fechaCierre: "2025-03-14",
+      pipedriveTrato: "901",
+      nota: "Motivo de pérdida en Pipedrive: precio",
+      error: null,
+    });
+  });
+
+  it("el id de trato queda en la fila aunque la fila tenga error (el control la cuenta como faltante)", () => {
+    const f = prepararFila(["8856-12", "905"], ["telefono", "pipedrive_trato"], { codigoPais: "+506", numero: 2 });
+    expect(f.error).not.toBeNull();
+    expect(f.pipedriveTrato).toBe("905");
+  });
+});

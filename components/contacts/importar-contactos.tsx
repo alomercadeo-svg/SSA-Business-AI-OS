@@ -23,6 +23,15 @@ const OPCIONES_FIJAS: { valor: Campo; texto: string }[] = [
   { valor: "setter", texto: "Setter" },
   { valor: "vendedor", texto: "Vendedor" },
   { valor: "etiquetas", texto: "Etiquetas" },
+  // F38: la migración desde Pipedrive (§11, paso 2: «etapa, estado del trato,
+  // valor, identificador de Pipedrive»; el motivo de pérdida, a la nota).
+  { valor: "etapa", texto: "Etapa" },
+  { valor: "estado_trato", texto: "Estado del trato" },
+  { valor: "valor", texto: "Valor del trato" },
+  { valor: "moneda", texto: "Moneda" },
+  { valor: "fecha_cierre", texto: "Fecha de cierre" },
+  { valor: "pipedrive_trato", texto: "Id de trato de Pipedrive" },
+  { valor: "nota", texto: "Nota del contacto" },
 ];
 
 interface Resultado {
@@ -33,6 +42,8 @@ interface Resultado {
   usaronCodigo: number;
   etiquetasCreadas: string[];
   lineas: { numero: number; nombre: string; que: string }[];
+  /** F38: solo cuando se mapeó «Id de trato de Pipedrive». */
+  control?: { medido: true; enArchivo: number; encontrados: number; enEspacio: number } | { medido: false } | null;
 }
 
 export function ImportarContactos({ camposPropios, miembros }: { camposPropios: { slug: string; name: string }[]; miembros: Miembro[] }) {
@@ -252,6 +263,31 @@ export function ImportarContactos({ camposPropios, miembros }: { camposPropios: 
               </div>
             ))}
           </div>
+          {resultado.control && !resultado.control.medido && (
+            <p className="mt-3 rounded-lg border border-destructive/40 p-3 text-sm text-destructive">
+              No se pudo contar el control de la migración. La importación se hizo; volvé a importar el mismo archivo para medirlo (no duplica).
+            </p>
+          )}
+          {resultado.control?.medido && (
+            <div
+              className={cn(
+                "mt-3 rounded-lg border p-3 text-sm",
+                resultado.control.encontrados === resultado.control.enArchivo ? "border-border" : "border-destructive/40",
+              )}
+            >
+              <p className="font-medium">
+                Control de la migración: {resultado.control.encontrados} de {resultado.control.enArchivo} tratos
+                {resultado.control.encontrados < resultado.control.enArchivo && (
+                  <span className="text-destructive"> · Faltan {resultado.control.enArchivo - resultado.control.encontrados}</span>
+                )}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Los contactos con identificador de trato de Pipedrive coinciden con los tratos del archivo (sin contar los «IG DM»). Si no coincidieran, la
+                migración no se da por buena: la tabla de abajo dice qué filas no entraron y por qué.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">En todo el espacio hay {resultado.control.enEspacio} tratos de Pipedrive distintos.</p>
+            </div>
+          )}
           {resultado.etiquetasCreadas?.length > 0 && (
             <p className="mt-3 text-sm text-muted-foreground">Etiquetas creadas: {resultado.etiquetasCreadas.join(", ")}</p>
           )}

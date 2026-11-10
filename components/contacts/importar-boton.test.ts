@@ -34,3 +34,25 @@ describe("el resumen dice qué etiquetas se crearon (decisión del 09/11, b)", (
     expect(pantalla).toMatch(/Etiquetas creadas: \{resultado\.etiquetasCreadas\.join\(", "\)\}/);
   });
 });
+
+describe("F38: la migración desde Pipedrive en la pantalla", () => {
+  const pantalla = readFileSync(resolve(__dirname, "importar-contactos.tsx"), "utf8");
+  it("el selector de columnas ofrece las siete columnas comerciales y la nota", () => {
+    for (const [valor, texto] of [
+      ["etapa", "Etapa"],
+      ["estado_trato", "Estado del trato"],
+      ["valor", "Valor del trato"],
+      ["moneda", "Moneda"],
+      ["fecha_cierre", "Fecha de cierre"],
+      ["pipedrive_trato", "Id de trato de Pipedrive"],
+      ["nota", "Nota del contacto"],
+    ]) {
+      expect(pantalla).toContain(`{ valor: "${valor}", texto: "${texto}" }`);
+    }
+  });
+  it("el resumen muestra el control de §11, con lo que falta, y dice cuando no se pudo medir", () => {
+    expect(pantalla).toContain("Control de la migración: {resultado.control.encontrados} de {resultado.control.enArchivo} tratos");
+    expect(pantalla).toContain("Faltan {resultado.control.enArchivo - resultado.control.encontrados}");
+    expect(pantalla).toContain("No se pudo contar el control de la migración");
+  });
+});

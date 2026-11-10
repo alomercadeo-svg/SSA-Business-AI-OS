@@ -4,8 +4,16 @@ import { getWorkspaceOrNull, esManager } from "@/lib/workspace";
 import { origenPermitido } from "@/lib/asignacion";
 import { miembrosDelEspacio } from "@/lib/miembros";
 import { actorDe, registrarAuditoria, type EventoAuditoria } from "@/lib/auditoria";
+import type { Database } from "@/lib/types/database";
 import { MAX_FILAS_PARTE_1, prepararFila, type Campo } from "@/lib/importacion-csv";
-import { claveDeEtiqueta, importarFilas, type AlmacenDeContactos, type DatosDeContacto } from "@/lib/importacion-contactos";
+import {
+  RechazoDeLaBase,
+  claveDeEtiqueta,
+  controlDeMigracion,
+  importarFilas,
+  type AlmacenDeContactos,
+  type DatosDeContacto,
+} from "@/lib/importacion-contactos";
 
 /**
  * F37, parte 1 (09/11/2026): `POST /api/v1/contacts/importar`.
@@ -23,7 +31,44 @@ import { claveDeEtiqueta, importarFilas, type AlmacenDeContactos, type DatosDeCo
  * solo el servidor (00054: sin políticas de escritura).
  */
 const PATRON_CODIGO = /^\+[1-9][0-9]{0,3}$/;
-const CAMPOS_FIJOS = new Set(["nombre", "correo", "telefono", "pipedrive", "setter", "vendedor", "etiquetas", "no_importar"]);
+const CAMPOS_FIJOS = new Set([
+  "nombre",
+  "correo",
+  "telefono",
+  "pipedrive",
+  "setter",
+  "vendedor",
+  "etiquetas",
+  "no_importar",
+  // F38
+  "etapa",
+  "estado_trato",
+  "valor",
+  "moneda",
+  "fecha_cierre",
+  "pipedrive_trato",
+  "nota",
+]);
+
+/**
+ * F38: un rechazo por una restricción de `00030` (código 23514) es de la fila,
+ * no de la importación. Cualquier otro error sigue cortando, como antes.
+ */
+/**
+ * La etapa y el estado llegan como texto de la planilla y los valida la base
+ * (`00030`), a propósito: el rechazo se muestra por fila. Por eso el tipo se
+ * afirma acá, en el borde, y no se filtra antes con una copia de la lista.
+ */
+type ContactoInsert = Database["public"]["Tables"]["contacts"]["Insert"];
+type ContactoUpdate = Database["public"]["Tables"]["contacts"]["Update"];
+
+function errorDeContacto(error: { code?: string; message: string } | null, respaldo: string): Error {
+  if (error?.code === "23514") {
+    if (error.message.includes("contacts_pipeline_stage_check")) return new RechazoDeLaBase("pipeline_stage");
+    if (error.message.includes("contacts_deal_status_check")) return new RechazoDeLaBase("deal_status");
+  }
+  return new Error(`contacts: ${error?.message ?? respaldo}`);
+}
 
 interface Pedido {
   nombreArchivo: string;
@@ -125,15 +170,15 @@ export async function POST(request: NextRequest) {
       return c ? { id: c.id, eliminado: c.deleted_at !== null } : null;
     },
     async crear(datos) {
-      const { data, error } = await supabase.from("contacts").insert({ workspace_id: workspaceId, ...datos }).select("id").single();
-      if (error || !data) throw new Error(`contacts: ${error?.message ?? "sin id"}`);
+      const { data, error } = await supabase.from("contacts").insert({ workspace_id: workspaceId, ...datos } as ContactoInsert).select("id").single();
+      if (error || !data) throw errorDeContacto(error, "sin id");
       return data.id as string;
     },
     async actualizar(id, datos) {
       const campos = Object.keys(datos) as (keyof DatosDeContacto)[];
       const { data: antes } = await supabase.from("contacts").select(campos.join(", ")).eq("id", id).maybeSingle();
-      const { error } = await supabase.from("contacts").update(datos).eq("id", id);
-      if (error) throw new Error(`contacts: ${error.message}`);
+      const { error } = await supabase.from("contacts").update(datos as ContactoUpdate).eq("id", id);
+      if (error) throw errorDeContacto(error, "");
       const cambios: Record<string, { antes: unknown; despues: unknown }> = {};
       for (const c of campos) {
         const previo = (antes as Record<string, unknown> | null)?.[c] ?? null;
@@ -161,6 +206,24 @@ export async function POST(request: NextRequest) {
         .upsert(valores.map((v) => ({ contact_id: id, field_id: v.fieldId, value: v.value, updated_at: ahora })), { onConflict: "contact_id,field_id" });
       if (error) throw new Error(`contact_custom_fields: ${error.message}`);
     },
+    // F38: la nota va con la clave de servicio para que el disparador de
+    // `contact_notes` (00038) conserve la marca en `author_label`; con la
+    // sesión, pondría el nombre de quien importa. Se busca antes, también
+    // entre las eliminadas, para no duplicarla ni resucitarla.
+    async ponerNota(contactoId, marca, texto) {
+      const { data: previa, error: errPrevia } = await servicio
+        .from("contact_notes")
+        .select("id")
+        .eq("contact_id", contactoId)
+        .eq("author_label", marca)
+        .eq("body", texto)
+        .limit(1);
+      if (errPrevia) throw new Error(`contact_notes: ${errPrevia.message}`);
+      if (previa?.length) return false;
+      const { error } = await servicio.from("contact_notes").insert({ workspace_id: workspaceId, contact_id: contactoId, author_label: marca, body: texto });
+      if (error) throw new Error(`contact_notes: ${error.message}`);
+      return true;
+    },
   };
 
   const filas = pedido.filas.map((valores, i) => prepararFila(valores, pedido.mapeo, { codigoPais: pedido.codigoPais, numero: i + 2 }));
@@ -174,6 +237,28 @@ export async function POST(request: NextRequest) {
     almacen,
     { asignarA: pedido.asignarA, etiquetaOrigenId },
   );
+
+  // F38, el control afirmativo: ids de trato distintos del archivo (también los
+  // de filas con error) contra los del espacio, contados en la base.
+  // El total del espacio es aparte: la API de la base devuelve hasta 1000
+  // filas por pedido, así que el control del archivo se cuenta con su propia
+  // lista de ids (hasta 500) y no depende de ese tope.
+  let control: (ReturnType<typeof controlDeMigracion> & { medido: true }) | { medido: false } | null = null;
+  if (pedido.mapeo.includes("pipedrive_trato")) {
+    const idsDelArchivo = [...new Set(filas.map((f) => f.pipedriveTrato ?? "").filter(Boolean))];
+    const base = () =>
+      servicio.from("contacts").select("pipedrive_deal_id").eq("workspace_id", workspaceId).is("deleted_at", null).not("pipedrive_deal_id", "is", null);
+    const [enArchivo, enEspacio] = await Promise.all([
+      idsDelArchivo.length ? base().in("pipedrive_deal_id", idsDelArchivo) : Promise.resolve({ data: [], error: null }),
+      base().limit(1000),
+    ]);
+    if (enArchivo.error || enEspacio.error) control = { medido: false };
+    else {
+      const encontrados = controlDeMigracion(idsDelArchivo, (enArchivo.data ?? []).map((c) => String(c.pipedrive_deal_id)));
+      const total = controlDeMigracion([], (enEspacio.data ?? []).map((c) => String(c.pipedrive_deal_id)));
+      control = { medido: true, enArchivo: encontrados.enArchivo, encontrados: encontrados.encontrados, enEspacio: total.enEspacio };
+    }
+  }
 
   for (const c of resumen.creadosIds) {
     eventos.push({ workspaceId, actor, accion: "contacto.creado", entidad: { tipo: "contacto", id: c.id, etiqueta: c.nombre }, detalle: { importacion: registro.id } });
@@ -206,5 +291,6 @@ export async function POST(request: NextRequest) {
     usaronCodigo: resumen.usaronCodigo,
     etiquetasCreadas: resumen.etiquetasCreadas,
     lineas: resumen.lineas,
+    control,
   });
 }
