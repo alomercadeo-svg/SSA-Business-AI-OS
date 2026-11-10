@@ -2727,6 +2727,15 @@
     "texto": "- [x] Un filtro deja afuera de la lista de Contactos a los contactos que nunca escribieron: sin ningún mensaje del lead en ninguna de sus conversaciones. Control positivo: con el filtro, un contacto que escribió aparece y uno que nunca escribió no; sin el filtro, aparecen los dos (agregado el 05/11/2026, decidido por Marcos: los contactos que deja la bienvenida de ManyChat sin que la persona escriba llenan la lista de «Sin nombre»)."
   },
   {
+    "seccion": "F43: Lista de contactos completa",
+    "ruta": [
+      "5. Funcionalidades y criterios de aceptación",
+      "Bloque 4: Bandeja, herramientas y reglas de seguridad",
+      "F43: Lista de contactos completa"
+    ],
+    "texto": "- [ ] En Contactos, tocar el encabezado de Nombre, Correo, Última interacción o Setter ordena la lista por esa columna, de forma ascendente o descendente, en el servidor, sobre todos los contactos y con los filtros y la búsqueda puestos; el orden queda en la dirección. Sin nombre van al final; las tildes no cambian el orden. En el teléfono, un selector «Ordenar por». Control positivo: ordenar por nombre ascendente y descendente da el mismo conjunto invertido, y la segunda página sigue a la primera sin repetir ni saltear. (pedido por Marcos el 09/11/2026; estaba como pregunta abierta en §15 desde el 05/11)"
+  },
+  {
     "seccion": "F44: Contenido del hilo: compartidos, historias y fotos",
     "ruta": [
       "5. Funcionalidades y criterios de aceptación",
