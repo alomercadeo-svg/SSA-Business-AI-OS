@@ -1,6 +1,6 @@
 import { esManager, getWorkspace } from "@/lib/workspace";
 import { miembrosParaLaBandeja } from "@/lib/miembros-bandeja";
-import { filtrosDeContactos, filtrosDeContactosParaElRol, leerContactos, paginaDeContactos } from "@/lib/contactos";
+import { filtrosDeContactos, filtrosDeContactosParaElRol, leerContactos, paginaDeContactos, settersEnOrden } from "@/lib/contactos";
 import { ContactsView } from "./contacts-view";
 import { ContactosEliminados } from "@/components/contacts/contactos-eliminados";
 
@@ -28,11 +28,14 @@ export default async function ContactsPage({ searchParams }: { searchParams: Pro
   }
 
   const filtros = filtrosDeContactosParaElRol(filtrosDeContactos(params), manager, user.id);
+  // F43, criterio 7: para ordenar por setter, la base necesita los setters ya ordenados por nombre.
+  const pedidoDeMiembros = miembrosParaLaBandeja(role, user, workspace.id);
+  const setters = filtros.orden.campo === "setter" ? settersEnOrden(await pedidoDeMiembros) : [];
   const [lista, tagsRes, miembros] = await Promise.all([
-    leerContactos(supabase, workspace.id, filtros, paginaDeContactos(params.pagina)),
+    leerContactos(supabase, workspace.id, filtros, paginaDeContactos(params.pagina), setters),
     supabase.from("tags").select("*").eq("workspace_id", workspace.id).order("name"),
     // F43 (pendiente de S8): a un Member, solo él mismo; no se lee el equipo con la clave de servicio.
-    miembrosParaLaBandeja(role, user, workspace.id),
+    pedidoDeMiembros,
   ]);
   if (lista.error) throw new Error("No se pudieron leer los contactos.");
 

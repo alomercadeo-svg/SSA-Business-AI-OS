@@ -50,7 +50,8 @@ describe("filtrosDeContactos: la dirección", () => {
   it("lee la búsqueda, los cinco filtros y la página", () => {
     const p = new URLSearchParams({ q: "  ana  ", seguimiento: "semana", etapa: "3. Respondió", setter: "sin", vendedor: ID, etiqueta: OTRO });
     // Cambiado el 06/11/2026: suma `escribieron` (F43, el filtro de los que escribieron).
-    expect(filtrosDeContactos(p)).toEqual({ q: "ana", seguimiento: "semana", etapa: "3. Respondió", setter: { tipo: "sin" }, vendedor: { tipo: "persona", id: ID }, etiqueta: OTRO, escribieron: false });
+    // Cambiado el 09/11/2026: suma el orden de siempre (F43, criterio 7); lo que se prueba acá no cambia.
+    expect(filtrosDeContactos(p)).toEqual({ q: "ana", seguimiento: "semana", etapa: "3. Respondió", setter: { tipo: "sin" }, vendedor: { tipo: "persona", id: ID }, etiqueta: OTRO, escribieron: false, orden: { campo: "interaccion", dir: "desc" } });
   });
 
   it("descarta lo que no entiende", () => {
@@ -96,7 +97,8 @@ describe("filtrosDeContactosParaElRol", () => {
 
 describe("paraLaBaseDeContactos y la dirección", () => {
   // Cambiado el 06/11/2026: suma `escribieron` apagado (lo que se prueba acá no cambia).
-  const f = { q: "ana", seguimiento: "hoy" as const, etapa: "3. Respondió", setter: { tipo: "sin" as const }, vendedor: { tipo: "persona" as const, id: ID }, etiqueta: OTRO, escribieron: false };
+  // Cambiado el 09/11/2026: suma el orden de siempre (lo que se prueba acá no cambia).
+  const f = { q: "ana", seguimiento: "hoy" as const, etapa: "3. Respondió", setter: { tipo: "sin" as const }, vendedor: { tipo: "persona" as const, id: ID }, etiqueta: OTRO, escribieron: false, orden: { campo: "interaccion" as const, dir: "desc" as const } };
   it("arma el jsonb, sin `ahora`", () => {
     expect(paraLaBaseDeContactos(f)).toEqual({ q: "ana", seguimiento: "hoy", etapa: "3. Respondió", setter: "sin", vendedor: ID, etiqueta: OTRO });
     expect(paraLaBaseDeContactos(SIN_FILTROS_DE_CONTACTOS)).toEqual({});
@@ -134,9 +136,12 @@ describe("leerContactos: los pedidos a la base", () => {
     responder = (url) => (url.pathname.endsWith("contactos_cantidad") ? 130 : [{ id: "a" }]);
     const r = await leerContactos(cliente as never, "ws-1", SIN_FILTROS_DE_CONTACTOS, 2);
     const pagina = pedidos.find((p) => p.url.pathname === "/rest/v1/rpc/contactos_pagina");
-    expect(pagina?.cuerpo).toEqual({ p_workspace: "ws-1", p_filtros: {}, p_pagina: 2, p_por_pagina: CONTACTOS_POR_PAGINA });
+    // Cambiado el 09/11/2026 (F43, criterio 7, 00056): el orden lo decide la
+    // función con las claves `orden` y `dir`; antes lo repetía PostgREST con
+    // `order=last_interaction_at.desc.nullslast,id.desc`, que ahora pisaría el orden.
+    expect(pagina?.cuerpo).toEqual({ p_workspace: "ws-1", p_filtros: { orden: "interaccion", dir: "desc" }, p_pagina: 2, p_por_pagina: CONTACTOS_POR_PAGINA });
     expect(pagina?.url.searchParams.get("select")).toBe("*,contact_tags(tag_id,tags(*)),contact_channels(platform_sender_id,platform_username)");
-    expect(pagina?.url.searchParams.get("order")).toBe("last_interaction_at.desc.nullslast,id.desc");
+    expect(pagina?.url.searchParams.get("order")).toBeNull();
     expect(pedidos.filter((p) => p.url.pathname === "/rest/v1/rpc/contactos_cantidad")).toHaveLength(1);
     expect(r).toMatchObject({ cantidad: 130, total: 130, pagina: 2, paginas: 3, error: null });
     expect(r.contactos).toEqual([{ id: "a" }]);

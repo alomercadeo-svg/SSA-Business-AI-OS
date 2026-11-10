@@ -24,6 +24,7 @@ import {
   direccionDeContactos,
   hayFiltrosDeContactos,
   numerosDePagina,
+  type CampoDeOrden,
   type ContactoDeLaLista,
   type FiltrosDeContactos,
   type ListaDeContactos,
@@ -124,6 +125,18 @@ export function ContactsView({
     setFiltros(nuevos);
     pedidos.pedirYa({ filtros: nuevos, pagina: 1 });
   }
+
+  // F43, criterio 7 (09/11/2026): el primer toque ordena ascendente (la
+  // interacción, descendente) y el segundo invierte. Vuelve a la página 1.
+  function ordenarPor(campo: CampoDeOrden) {
+    const actual = elegidos.current.orden;
+    const dir = actual.campo === campo ? (actual.dir === "asc" ? "desc" : "asc") : campo === "interaccion" ? "desc" : "asc";
+    filtrar({ orden: { campo, dir } });
+  }
+  const ariaSort = (campo: CampoDeOrden): "ascending" | "descending" | "none" =>
+    filtros.orden.campo === campo ? (filtros.orden.dir === "asc" ? "ascending" : "descending") : "none";
+  const flecha = (campo: CampoDeOrden) => (filtros.orden.campo === campo ? (filtros.orden.dir === "asc" ? " ↑" : " ↓") : "");
+  const claseDelEncabezado = "inline-flex items-center gap-0.5 uppercase hover:text-foreground";
 
   function limpiar() {
     elegidos.current = SIN_FILTROS_DE_CONTACTOS;
@@ -263,6 +276,25 @@ export function ContactsView({
             <option value="">Mostrar: todos</option>
             <option value="si">Solo los que escribieron</option>
           </select>
+          {/* F43, criterio 7: en el teléfono, el orden con un selector (la tabla con encabezados es de la computadora). */}
+          <select
+            aria-label="Ordenar por"
+            value={`${filtros.orden.campo}:${filtros.orden.dir}`}
+            onChange={(e) => {
+              const [campo, dir] = e.target.value.split(":") as [CampoDeOrden, "asc" | "desc"];
+              filtrar({ orden: { campo, dir } });
+            }}
+            className={cn(claseDelSelector, "md:hidden")}
+          >
+            <option value="interaccion:desc">Ordenar por: interacción, la más reciente</option>
+            <option value="interaccion:asc">Ordenar por: interacción, la más vieja</option>
+            <option value="nombre:asc">Ordenar por: nombre, A a Z</option>
+            <option value="nombre:desc">Ordenar por: nombre, Z a A</option>
+            <option value="correo:asc">Ordenar por: correo, A a Z</option>
+            <option value="correo:desc">Ordenar por: correo, Z a A</option>
+            <option value="setter:asc">Ordenar por: setter, A a Z</option>
+            <option value="setter:desc">Ordenar por: setter, Z a A</option>
+          </select>
           </div>
           {conFiltros && (
             <button onClick={limpiar} className="text-sm font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
@@ -289,12 +321,20 @@ export function ContactsView({
               <table className="w-full min-w-[48rem]">
                 <thead>
                   <tr className="border-b border-border bg-muted/50 text-left">
-                    <th className="px-4 py-3 text-xs font-medium uppercase text-muted-foreground sm:px-8">Nombre</th>
-                    <th className="px-4 py-3 text-xs font-medium uppercase text-muted-foreground">Correo</th>
-                    <th className="px-4 py-3 text-xs font-medium uppercase text-muted-foreground">Última interacción</th>
+                    <th aria-sort={ariaSort("nombre")} className="px-4 py-3 text-xs font-medium uppercase text-muted-foreground sm:px-8">
+                      <button type="button" onClick={() => ordenarPor("nombre")} className={claseDelEncabezado}>Nombre{flecha("nombre")}</button>
+                    </th>
+                    <th aria-sort={ariaSort("correo")} className="px-4 py-3 text-xs font-medium uppercase text-muted-foreground">
+                      <button type="button" onClick={() => ordenarPor("correo")} className={claseDelEncabezado}>Correo{flecha("correo")}</button>
+                    </th>
+                    <th aria-sort={ariaSort("interaccion")} className="px-4 py-3 text-xs font-medium uppercase text-muted-foreground">
+                      <button type="button" onClick={() => ordenarPor("interaccion")} className={claseDelEncabezado}>Última interacción{flecha("interaccion")}</button>
+                    </th>
                     <th className="px-4 py-3 text-xs font-medium uppercase text-muted-foreground">Etiquetas</th>
                     <th className="px-4 py-3 text-xs font-medium uppercase text-muted-foreground">Suscripto</th>
-                    <th className="px-4 py-3 text-xs font-medium uppercase text-muted-foreground">Setter</th>
+                    <th aria-sort={ariaSort("setter")} className="px-4 py-3 text-xs font-medium uppercase text-muted-foreground">
+                      <button type="button" onClick={() => ordenarPor("setter")} className={claseDelEncabezado}>Setter{flecha("setter")}</button>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>

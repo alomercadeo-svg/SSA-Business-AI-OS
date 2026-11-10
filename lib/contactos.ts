@@ -55,7 +55,17 @@ export interface FiltrosDeContactos {
    * en el sistema, y con el filtro puesto de entrada parecerían perdidos.
    */
   escribieron: boolean;
+  /** F43, criterio 7 (09/11/2026, 00056): el orden. No es un filtro: no cambia la cantidad. */
+  orden: OrdenDeContactos;
 }
+
+export type CampoDeOrden = "nombre" | "correo" | "interaccion" | "setter";
+export interface OrdenDeContactos {
+  campo: CampoDeOrden;
+  dir: "asc" | "desc";
+}
+/** El orden de antes de la 00056: la última interacción, la más reciente primero. */
+export const ORDEN_POR_DEFECTO: OrdenDeContactos = { campo: "interaccion", dir: "desc" };
 
 export const SIN_FILTROS_DE_CONTACTOS: FiltrosDeContactos = {
   q: "",
@@ -65,6 +75,7 @@ export const SIN_FILTROS_DE_CONTACTOS: FiltrosDeContactos = {
   vendedor: { tipo: "todos" },
   etiqueta: null,
   escribieron: false,
+  orden: ORDEN_POR_DEFECTO,
 };
 
 export type Contacto = Database["public"]["Tables"]["contacts"]["Row"];
@@ -93,7 +104,16 @@ export function filtrosDeContactos(p: Parametros): FiltrosDeContactos {
     vendedor: filtroDeAsignacion(leer(p, "vendedor")),
     etiqueta: etiqueta && UUID.test(etiqueta) ? etiqueta.toLowerCase() : null,
     escribieron: leer(p, "escribieron") === "si",
+    orden: ordenDeLaDireccion(leer(p, "orden"), leer(p, "dir")),
   };
+}
+
+const CAMPOS_DE_ORDEN: CampoDeOrden[] = ["nombre", "correo", "interaccion", "setter"];
+/** El orden pedido; un campo desconocido vuelve al de siempre. Sin sentido válido: ascendente, salvo la interacción. */
+function ordenDeLaDireccion(campo: string | undefined, dir: string | undefined): OrdenDeContactos {
+  if (!CAMPOS_DE_ORDEN.includes(campo as CampoDeOrden)) return ORDEN_POR_DEFECTO;
+  const c = campo as CampoDeOrden;
+  return { campo: c, dir: dir === "asc" || dir === "desc" ? dir : c === "interaccion" ? "desc" : "asc" };
 }
 
 /** La página pedida: un entero desde 1. Lo demás es la 1. */
@@ -131,6 +151,16 @@ export function paraLaBaseDeContactos(f: FiltrosDeContactos): Record<string, str
   return j;
 }
 
+/** Las claves de orden de `contactos_pagina` (00056), con los setters ya ordenados por nombre. */
+export function ordenParaLaBase(f: FiltrosDeContactos, setters: string[]): Record<string, unknown> {
+  return { orden: f.orden.campo, dir: f.orden.dir, ...(f.orden.campo === "setter" ? { setters } : {}) };
+}
+
+/** Los ids de los setters, ordenados por su nombre visible, para ordenar por setter (00056). */
+export function settersEnOrden(miembros: { id: string; etiqueta: string }[]): string[] {
+  return [...miembros].sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, "es", { sensitivity: "base" })).map((m) => m.id);
+}
+
 export function hayFiltrosDeContactos(f: FiltrosDeContactos): boolean {
   return Object.keys(paraLaBaseDeContactos(f)).length > 0;
 }
@@ -138,6 +168,10 @@ export function hayFiltrosDeContactos(f: FiltrosDeContactos): boolean {
 /** La dirección de la página con esos filtros, para compartirla. La página 1 no se escribe. */
 export function direccionDeContactos(f: FiltrosDeContactos, pagina: number): string {
   const p = new URLSearchParams(paraLaBaseDeContactos(f));
+  if (f.orden.campo !== ORDEN_POR_DEFECTO.campo || f.orden.dir !== ORDEN_POR_DEFECTO.dir) {
+    p.set("orden", f.orden.campo);
+    p.set("dir", f.orden.dir);
+  }
   if (pagina > 1) p.set("pagina", String(pagina));
   const q = p.toString();
   return q ? `/dashboard/contacts?${q}` : "/dashboard/contacts";
@@ -177,12 +211,14 @@ async function cantidad(supabase: Cliente, workspaceId: string, filtros: Record<
   return { n: Number(data ?? 0), error: error?.message ?? null };
 }
 
-async function pagina(supabase: Cliente, workspaceId: string, filtros: Record<string, string>, n: number) {
+/**
+ * Una página, en el orden de la función (00056). Sin `.order(...)` de PostgREST
+ * encima: pisaría el orden por nombre visible, que no es una columna.
+ */
+async function pagina(supabase: Cliente, workspaceId: string, filtros: Record<string, string>, n: number, f: FiltrosDeContactos, setters: string[]) {
   const { data, error } = await supabase
-    .rpc("contactos_pagina", { p_workspace: workspaceId, p_filtros: filtros as Json, p_pagina: n, p_por_pagina: CONTACTOS_POR_PAGINA })
-    .select(SELECCION_DE_LA_LISTA)
-    .order("last_interaction_at", { ascending: false, nullsFirst: false })
-    .order("id", { ascending: false });
+    .rpc("contactos_pagina", { p_workspace: workspaceId, p_filtros: { ...filtros, ...ordenParaLaBase(f, setters) } as Json, p_pagina: n, p_por_pagina: CONTACTOS_POR_PAGINA })
+    .select(SELECCION_DE_LA_LISTA);
   return { filas: (data ?? []) as unknown as ContactoDeLaLista[], error: error?.message ?? null };
 }
 
@@ -191,11 +227,12 @@ async function pagina(supabase: Cliente, workspaceId: string, filtros: Record<st
  * filtros, la cantidad es el total y se pide una sola vez. Una página más
  * allá de la última muestra la última.
  */
-export async function leerContactos(supabase: Cliente, workspaceId: string, f: FiltrosDeContactos, n: number): Promise<ListaDeContactos> {
+/** `setters`: los ids de los setters ordenados por nombre, para ordenar por setter (00056). */
+export async function leerContactos(supabase: Cliente, workspaceId: string, f: FiltrosDeContactos, n: number, setters: string[] = []): Promise<ListaDeContactos> {
   const filtros = paraLaBaseDeContactos(f);
   const conFiltros = Object.keys(filtros).length > 0;
   const [p, c, t] = await Promise.all([
-    pagina(supabase, workspaceId, filtros, n),
+    pagina(supabase, workspaceId, filtros, n, f, setters),
     cantidad(supabase, workspaceId, filtros),
     conFiltros ? cantidad(supabase, workspaceId, {}) : Promise.resolve(null),
   ]);
@@ -205,7 +242,7 @@ export async function leerContactos(supabase: Cliente, workspaceId: string, f: F
   let filas = p.filas;
   if (!error && n > paginas) {
     actual = paginas;
-    const ultima = await pagina(supabase, workspaceId, filtros, paginas);
+    const ultima = await pagina(supabase, workspaceId, filtros, paginas, f, setters);
     if (ultima.error) return { contactos: [], cantidad: c.n, total: t?.n ?? c.n, pagina: actual, paginas, error: ultima.error };
     filas = ultima.filas;
   }

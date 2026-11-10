@@ -38,7 +38,8 @@ describe("GET /api/v1/contacts", () => {
   it("lee con el cliente del usuario y el espacio elegido, y devuelve la página, la cantidad y el total", async () => {
     const res = await pedir("?q=ana&pagina=2");
     expect(res.status).toBe(200);
-    expect(h.leer).toHaveBeenCalledWith(CLIENTE, "ws-1", { ...SIN_FILTROS_DE_CONTACTOS, q: "ana" }, 2);
+    // Cambiado el 09/11/2026 (F43, criterio 7): el quinto argumento son los setters en orden, vacío si no se ordena por setter.
+    expect(h.leer).toHaveBeenCalledWith(CLIENTE, "ws-1", { ...SIN_FILTROS_DE_CONTACTOS, q: "ana" }, 2, []);
     expect(await res.json()).toEqual({ contactos: [{ id: "a" }], cantidad: 12, total: 743, pagina: 1, paginas: 1 });
   });
 
@@ -52,7 +53,7 @@ describe("GET /api/v1/contacts", () => {
   it("un Member con el id de otro en setter: se ignora", async () => {
     h.contexto!.role = "member";
     await pedir(`?setter=${OTRO}`);
-    expect(h.leer).toHaveBeenCalledWith(CLIENTE, "ws-1", SIN_FILTROS_DE_CONTACTOS, 1);
+    expect(h.leer).toHaveBeenCalledWith(CLIENTE, "ws-1", SIN_FILTROS_DE_CONTACTOS, 1, []);
   });
 
   it("un error de la base: 500, sin el detalle", async () => {

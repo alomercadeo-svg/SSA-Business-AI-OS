@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { esManager, getWorkspaceOrNull } from "@/lib/workspace";
-import { filtrosDeContactos, filtrosDeContactosParaElRol, leerContactos, paginaDeContactos } from "@/lib/contactos";
+import { filtrosDeContactos, filtrosDeContactosParaElRol, leerContactos, paginaDeContactos, settersEnOrden } from "@/lib/contactos";
+import { miembrosParaLaBandeja } from "@/lib/miembros-bandeja";
 
 /**
  * GET /api/v1/contacts (F43, tramo B de S9): la lista de Contactos.
@@ -34,7 +35,9 @@ export async function GET(request: NextRequest) {
   const p = request.nextUrl.searchParams;
   const filtros = filtrosDeContactosParaElRol(filtrosDeContactos(p), esManager(role), user.id);
   const desde = performance.now();
-  const lista = await leerContactos(supabase, workspace.id, filtros, paginaDeContactos(p.get("pagina") ?? undefined));
+  // F43, criterio 7: para ordenar por setter, los setters ordenados por nombre.
+  const setters = filtros.orden.campo === "setter" ? settersEnOrden(await miembrosParaLaBandeja(role, user, workspace.id)) : [];
+  const lista = await leerContactos(supabase, workspace.id, filtros, paginaDeContactos(p.get("pagina") ?? undefined), setters);
   const tLista = ms(desde);
   if (lista.error) {
     console.error("[contacts] no se pudo leer la lista:", lista.error);
