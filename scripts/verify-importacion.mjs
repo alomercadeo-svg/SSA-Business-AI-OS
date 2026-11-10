@@ -47,11 +47,11 @@ function cookieDe(u, espacio) {
   return partes.join("; ");
 }
 
-async function importar(u, espacio, filas) {
+async function importar(u, espacio, filas, etiquetaOrigen = null) {
   const res = await fetch(`${APP_URL}/api/v1/contacts/importar`, {
     method: "POST",
     headers: { Cookie: cookieDe(u, espacio), "Content-Type": "application/json", Origin: APP_URL },
-    body: JSON.stringify({ nombreArchivo: `verify-${sufijo}.csv`, codigoPais: "+506", asignarA: null, mapeo: ["nombre", "correo", "telefono", "pipedrive", "etiquetas"], filas }),
+    body: JSON.stringify({ nombreArchivo: `verify-${sufijo}.csv`, codigoPais: "+506", asignarA: null, etiquetaOrigen, mapeo: ["nombre", "correo", "telefono", "pipedrive", "etiquetas"], filas }),
     redirect: "manual",
   });
   return { status: res.status, cuerpo: await res.json().catch(() => null) };
@@ -114,10 +114,20 @@ await correr(async () => {
   check(r2.status === 200 && r2.cuerpo?.creados === 0, "0 creados", JSON.stringify(r2.cuerpo));
   check((await vivos()) === antes + 2, "siguen 4 contactos vivos");
 
+  titulo("La etiqueta de origen se crea la primera vez y va en cada importado (retrabajo del 09/11, a)");
+  const ORIGEN = `Origen ${sufijo}`;
+  const tagsAntes = await contar(`tags?select=id&workspace_id=eq.${espacio}`);
+  const r3 = await importar(owner, espacio, filas, ORIGEN);
+  const tagOrigen = (await admin(`tags?select=id&workspace_id=eq.${espacio}&name=eq.${encodeURIComponent(ORIGEN)}`)).data ?? [];
+  check(r3.status === 200 && tagOrigen.length === 1 && (await contar(`tags?select=id&workspace_id=eq.${espacio}`)) === tagsAntes + 1, "se creó una sola etiqueta, la de origen", JSON.stringify({ status: r3.status, tagOrigen }));
+  check(tagOrigen.length === 1 && (await contar(`contact_tags?select=contact_id&tag_id=eq.${tagOrigen[0]?.id}`)) === 4, "va en los 4 importados (no en las 3 filas con error)");
+  const r4 = await importar(owner, espacio, filas, ORIGEN);
+  check(r4.status === 200 && (await contar(`tags?select=id&workspace_id=eq.${espacio}`)) === tagsAntes + 1, "la segunda vez no crea otra");
+
   titulo("El registro y el historial");
   const imp = (await admin(`csv_imports?select=estado,filas,creados,actualizados,con_error&workspace_id=eq.${espacio}&order=created_at.asc`)).data ?? [];
-  check(imp.length === 2 && imp[0].estado === "terminada" && imp[0].filas === 7 && imp[0].creados === 2, "dos importaciones en csv_imports, la primera terminada con sus totales", JSON.stringify(imp));
-  check((await contar(`audit_log?select=id&workspace_id=eq.${espacio}&action=eq.importacion.completada`)) === 2, "importacion.completada en el historial, una por importación");
+  check(imp.length === 4 && imp[0].estado === "terminada" && imp[0].filas === 7 && imp[0].creados === 2, "cuatro importaciones en csv_imports, la primera terminada con sus totales", JSON.stringify(imp));
+  check((await contar(`audit_log?select=id&workspace_id=eq.${espacio}&action=eq.importacion.completada`)) === 4, "importacion.completada en el historial, una por importación");
   check((await contar(`audit_log?select=id&workspace_id=eq.${espacio}&action=eq.contacto.creado`)) === 2, "contacto.creado por cada creado");
 }, async () => {
   // La limpieza de `correr` borra los espacios: `csv_imports` se va en cascada.
