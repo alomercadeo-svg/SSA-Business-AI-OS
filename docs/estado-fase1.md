@@ -3515,6 +3515,41 @@ Revisión **completa** (migración, receptor de avisos). Nada construido. Estima
 
 - **La purga de F36: «retroceder» con el OK de Marcos** (19:57), de 20:02:38 a 20:02:41, **salida 0, 15 de 15**: las 7 filas escritas y releídas con las fechas listadas, y la marca `purga_eliminados:a0bbe251…` de `tareas_estado` borrada (1 fila). «Comprobar» corre esperando la tarea real.
 - **El bloqueo de `git stash`, con el OK de Marcos:** en `.claude/settings.local.json`, `Bash(git stash:*)` salió de **allow** (346 → 345 reglas) y **deny** suma `Bash(git stash)` y `Bash(git stash *)`. **Control, un solo intento autorizado de `git stash list`, a las 20:02: bloqueado** («Permission to use Bash with command git stash list has been denied»). **Con eso queda verificado en la práctica lo que la documentación no decía:** la deny le gana al conjunto de comandos de solo lectura.
+- **Subida de los 5 commits de docs** (`d1f0dc7` a `8a47e21`): suite 1497 de 1497; `verificar-despliegue.mjs`, **salida 0**, lectura previa a las 20:03:28 (build `uV7Xt3CdC2uLwsk9VrtXI`), push `3c627e4..8a47e21`, el build pasó a `yZz__xXR5sNdpjEGf2Tt5` a las 20:05:03, con `/login` en 200. Los ocho de la sección 9 corren después.
+- **Ítem 9 (F42), estimación escrita a las 20:05, antes de leer código:** el plan corto para la revisión, **25 min**; la construcción, **90 min** (la del plan maestro era 180; lo medido el 06/11 fue entre el 8 % y el 16 % de lo estimado, pero este ítem tiene un servicio externo, envío real y un verificador nuevo). Con la revisión de Marcos en el medio, termina antes de la 01:00 si la aprobación llega antes de las 22:30.
+
+#### Ítem 9 (F42): el plan corto para la revisión de Marcos (20:1x)
+
+**Revisión completa** (servicio externo, secreto de Vault, envío real). **Sin migración** (inferencia, verificada en el código: no hace falta ninguna columna nueva; `channels.session_state` existe desde F32, el token de la instancia está en Vault desde F22, `messages` ya tiene todo). **No toca los receptores** de Zernio ni de Evolution: el eco del envío ya lo guarda el receptor de Evolution como hoy.
+
+**Cómo envía un texto Evolution 2.3.7, verificado en su código público** (bajado de GitHub, etiqueta `2.3.7`):
+- `POST {EVOLUTION_API_URL}/message/sendText/{instanceName}` (`index.router.ts:218` monta `/message`; `sendMessage.router.ts:54`; `abstract.router.ts:22-26` suma `/:instanceName`), responde **201**.
+- Encabezado `apikey`: vale la clave global **o el token de la instancia** (`auth.guard.ts:10-35`). Se usa el token de la instancia, leído de Vault con `evolutionInstanceTokenName(canal)`, como ya hace la descarga de adjuntos (`lib/adjuntos.ts:221` y `:321`).
+- Cuerpo `{ number, text }` (`sendMessage.dto.ts:39-52`). `number` acepta un JID entero: si trae `@s.whatsapp.net` o `@lid`, se usa tal cual (`createJid.ts`). Se manda el `raw_jid` del contacto en ese canal (00031). Antes de enviar, Evolution comprueba que el número exista en WhatsApp y si no, responde 400 (`whatsapp.baileys.service.ts`, `sendMessageWithTyping`, 2289-2299).
+- La respuesta es el mensaje armado, con `key.id` (`:2557`, `prepareMessage` `:4652-4657`). El aviso de ese envío vuelve como `send.message` con el mismo `key.id` (ya anotado en `lib/evolution-guardado.ts:29-32`).
+
+**El cambio:**
+1. `lib/evolution-envio.ts` (nuevo): `enviarTextoPorEvolution({ base, instancia, token, numero, texto })`, con tiempo máximo de 15 s; devuelve el `key.id` o un error clasificado (rechazo del número, credenciales, conexión). Sin registrar el token en ningún log.
+2. `app/api/v1/messages/route.ts`, para `provider = "evolution"`, en este orden: la conversación con la sesión del usuario (el alcance del Member, como hoy); «no contactar» (como hoy); **la sesión del canal: con `caido`, `agotado` o `sin_vincular`, 409 `whatsapp_desconectado` sin llamar a Evolution** (con `sin_verificar` se intenta: «no se pudo verificar» no es una caída, como en el aviso de F32; decisión de la revisión, vetable); sin ventana; el token de Vault con la clave de servicio (sin token, 503 sin llamar); el envío; el guardado con `guardarEnvioDeLaBandeja` y `platform_message_id = key.id` (`upsert` con `ignoreDuplicates` por conversación, `platform_message_id` y dirección: el eco no lo duplica); la vista previa. Un fallo: 502 «No se envió: WhatsApp rechazó el mensaje.» y nada guardado.
+3. El hilo: en una conversación de WhatsApp con la sesión `caido`, `agotado` o `sin_vincular`, el campo se deshabilita con el texto del criterio. «/» es el mismo campo que en Instagram.
+
+**El riesgo que solo la prueba real ve:** si el contacto está guardado con un JID `@lid` y Evolution responde el eco con el JID `@s.whatsapp.net`, el eco podría no encontrar la misma conversación y guardarse aparte. **No verificado.** Lo controla la prueba real: el mensaje tiene que quedar una sola vez.
+
+**El verificador nuevo `verify-respuesta-whatsapp.mjs`** (espacio fantasma, **sin llamar a Evolution**): un canal de WhatsApp falso (`provider = evolution`, instancia inventada, sin token en Vault) y una conversación con su contacto.
+1. Sesión `caido` → 409 `whatsapp_desconectado`, ningún mensaje guardado. **El rojo:** hoy la ruta responde 400 «No Zernio conversation ID» (no existe el portón).
+2. `agotado` y `sin_vincular` → lo mismo (rojo igual).
+3. Control: contacto «no contactar» → 409 `no_contactar` (ya existe: control, no se ve en rojo).
+4. Un Member sin el lead → 403 (ya existe: control).
+5. Sesión `conectado` y sin token → 503 sin llamar (rojo hoy: responde 400 de Zernio).
+- Los envíos que salen de verdad no los prueba el verificador: los prueban los tests con respuestas simuladas de Evolution y la prueba real.
+
+**Tests nuevos (en rojo antes):** el cliente de envío con `fetch` simulado (la dirección, el encabezado, el cuerpo, el `key.id`, el 400, el tiempo máximo); el orden de los portones en la ruta (la sesión antes de Vault y del proveedor); que el guardado usa el `key.id`; el campo deshabilitado con el texto exacto en los tres estados, y habilitado con `conectado` y `sin_verificar`.
+
+**La prueba real (autorizada por adelantado por Marcos):** desde la bandeja, en la conversación «Marcos Pitti» de WhatsApp, un texto «prueba F42 1»; tiene que llegar al WhatsApp personal de Marcos y verse una sola vez en el hilo, también después de recargar. **Lectura que se pedirá antes:** cuántos mensajes tienen ese `platform_message_id` (tiene que ser 1), solo la cantidad.
+
+**Lo que mira Marcos:** (1) la conversación «Marcos Pitti»: el campo habilitado, enviar «prueba F42 2», llega al teléfono, se ve una vez, también al recargar; (2) «/» con una respuesta rápida en esa conversación; (3) en la lista, la vista previa con su texto; (4) en el iPhone, lo mismo.
+
+**Estimación de la construcción: 90 min** (escrita antes, a las 20:05). Sube antes de la 01:15 si la aprobación llega antes de las 23:00.
 
 ### Plan maestro, tercer retrabajo del ítem 4 (Bloque 4, medido, subido)
 
