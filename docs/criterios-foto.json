@@ -2184,7 +2184,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F35: Bandeja y filtros"
     ],
-    "texto": "- [ ] En el teléfono, la bandeja (la lista, el hilo y el panel del contacto) y la ficha se pueden usar: el menú se oculta detrás de un botón, se ve una sola columna por vez y siempre hay forma de volver a la anterior. Control positivo: con el ancho de un teléfono, abrir una conversación desde la lista, contestar y volver a la lista, sin que nada se salga de la pantalla (agregado el 05/11/2026, decidido por Marcos: probada desde el teléfono, la app no se podía usar)."
+    "texto": "- [x] En el teléfono, la bandeja (la lista, el hilo y el panel del contacto) y la ficha se pueden usar: el menú se oculta detrás de un botón, se ve una sola columna por vez y siempre hay forma de volver a la anterior. Control positivo: con el ancho de un teléfono, abrir una conversación desde la lista, contestar y volver a la lista, sin que nada se salga de la pantalla (agregado el 05/11/2026, decidido por Marcos: probada desde el teléfono, la app no se podía usar)."
   },
   {
     "seccion": "F36: Respuestas rápidas",

@@ -1362,5 +1362,12 @@
     "texto": "- [ ] Interpolación de datos del contacto; si un dato falta, queda vacío",
     "nuevo": "- [x] Interpolación de datos del contacto; si un dato falta, queda vacío",
     "motivo": "Tildado por Marcos el 06/11/2026. Visto por Marcos el 06/11 hacia las 19:10: una respuesta «Tu correo: {{contact.email}}.» en «Marcos Pitti music», que no tiene correo, insertó «Tu correo: .»; la eliminó después."
+  },
+  {
+    "destino": "reescrito",
+    "fecha": "2026-11-09",
+    "texto": "- [ ] En el teléfono, la bandeja (la lista, el hilo y el panel del contacto) y la ficha se pueden usar: el menú se oculta detrás de un botón, se ve una sola columna por vez y siempre hay forma de volver a la anterior. Control positivo: con el ancho de un teléfono, abrir una conversación desde la lista, contestar y volver a la lista, sin que nada se salga de la pantalla (agregado el 05/11/2026, decidido por Marcos: probada desde el teléfono, la app no se podía usar).",
+    "nuevo": "- [x] En el teléfono, la bandeja (la lista, el hilo y el panel del contacto) y la ficha se pueden usar: el menú se oculta detrás de un botón, se ve una sola columna por vez y siempre hay forma de volver a la anterior. Control positivo: con el ancho de un teléfono, abrir una conversación desde la lista, contestar y volver a la lista, sin que nada se salga de la pantalla (agregado el 05/11/2026, decidido por Marcos: probada desde el teléfono, la app no se podía usar).",
+    "motivo": "Tildado por Marcos el 09/11/2026. Visto por Marcos el 09/11, hacia las 19:30 a 19:45, en el iPhone, en Chrome, recargando: el menú detrás de su botón; una columna por vez; «Marcos Pitti music» abierta desde la lista tres veces, siempre en el último mensaje; las fotos enteras, a pantalla completa y cerradas con «X» y con el gesto; subir por el hilo sin que vuelva solo al final; una respuesta enviada desde el iPhone y la vuelta con «← Conversaciones» con la vista previa nueva, sin nada fuera de la pantalla; la vista previa también al volver con el teléfono en pausa. En la computadora, las tres columnas sin cambios. verify-hilo-telefono 20 de 20 (WebKit de Playwright con iPhone emulado), última corrida el 09/11/2026 de 19:07 a 19:08 (hora de Costa Rica)."
   }
 ]
