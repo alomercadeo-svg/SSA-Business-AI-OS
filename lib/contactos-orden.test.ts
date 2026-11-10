@@ -47,3 +47,22 @@ describe("la pantalla del orden", () => {
     expect(vista).toContain('aria-label="Ordenar por"');
   });
 });
+
+/**
+ * Retrabajo del 10/11/2026 (pedido por Marcos, decisiones de la revisión,
+ * vetables). Por la fuente: no prueba el diseño; el teléfono lo prueba
+ * `scripts/verify-contactos-telefono.mjs` (Playwright) y Marcos.
+ */
+describe("retrabajo de Contactos (10/11)", () => {
+  const vista = readFileSync(resolve(__dirname, "../app/(dashboard)/dashboard/contacts/contacts-view.tsx"), "utf8");
+  it("(a) los encabezados que ordenan muestran el ícono neutro ↕ desde el principio", () => {
+    expect(vista).toMatch(/:\s*" ↕"/);
+  });
+  it("(b) en el teléfono, «Filtros · N» abre el panel de los selectores; «Ordenar por» queda afuera, siempre visible", () => {
+    expect(vista).toContain("aria-expanded={filtrosAbiertos}");
+    expect(vista).toContain("`Filtros · ${filtrosPuestos}`");
+    expect(vista).toMatch(/filtrosAbiertos \? "grid" : "hidden"/);
+    const panel = vista.slice(vista.indexOf('filtrosAbiertos ? "grid" : "hidden"'));
+    expect(panel.slice(0, panel.indexOf("</div>"))).not.toContain('aria-label="Ordenar por"');
+  });
+});

@@ -24,6 +24,7 @@ import {
   direccionDeContactos,
   hayFiltrosDeContactos,
   numerosDePagina,
+  paraLaBaseDeContactos,
   type CampoDeOrden,
   type ContactoDeLaLista,
   type FiltrosDeContactos,
@@ -76,6 +77,7 @@ export function ContactsView({
 }) {
   const [lista, setLista] = useState<Lista>(inicial);
   const [filtros, setFiltros] = useState<FiltrosDeContactos>(filtrosIniciales);
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
   const [search, setSearch] = useState(filtrosIniciales.q);
   const [buscando, setBuscando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -135,7 +137,8 @@ export function ContactsView({
   }
   const ariaSort = (campo: CampoDeOrden): "ascending" | "descending" | "none" =>
     filtros.orden.campo === campo ? (filtros.orden.dir === "asc" ? "ascending" : "descending") : "none";
-  const flecha = (campo: CampoDeOrden) => (filtros.orden.campo === campo ? (filtros.orden.dir === "asc" ? " ↑" : " ↓") : "");
+  // Retrabajo del 10/11 (a): el ícono neutro desde el principio, para que se entienda que se puede ordenar.
+  const flecha = (campo: CampoDeOrden) => (filtros.orden.campo === campo ? (filtros.orden.dir === "asc" ? " ↑" : " ↓") : " ↕");
   const claseDelEncabezado = "inline-flex items-center gap-0.5 uppercase hover:text-foreground";
 
   function limpiar() {
@@ -151,6 +154,8 @@ export function ContactsView({
   }
 
   const conFiltros = hayFiltrosDeContactos(filtros);
+  // Retrabajo del 10/11 (b): los filtros puestos, sin contar la búsqueda (va aparte, siempre visible).
+  const filtrosPuestos = Object.keys(paraLaBaseDeContactos({ ...filtros, q: "" })).length;
   const nombreDe = (id: string | null) => etiquetaDeMiembro(id, miembros, equipoCompleto);
 
   const asignacion = (campo: "setter" | "vendedor", titulo: string) => (
@@ -221,6 +226,8 @@ export function ContactsView({
             abajo cuando no entran. En el teléfono, el buscador a todo el ancho
             y los filtros debajo, en dos columnas. */}
         <div className="mt-4 flex flex-wrap items-center gap-3">
+          {/* Retrabajo del 10/11 (b): en el teléfono, como en la bandeja: el buscador,
+              «Filtros · N» (abre el panel de abajo) y «Ordenar por», siempre visibles. */}
           <div className="relative w-full sm:w-auto sm:min-w-[20rem] sm:flex-[1_1_20rem]">
             {buscando ? (
               <Loader2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
@@ -236,7 +243,38 @@ export function ContactsView({
               className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
-          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:gap-3">
+          <div className="flex w-full items-center gap-2 md:hidden">
+            <button
+              type="button"
+              aria-expanded={filtrosAbiertos}
+              onClick={() => setFiltrosAbiertos((a) => !a)}
+              className={cn(
+                "shrink-0 rounded-lg border px-3 py-2 text-sm font-medium",
+                filtrosPuestos ? "border-primary text-primary" : "border-input text-muted-foreground",
+              )}
+            >
+              {filtrosPuestos ? `Filtros · ${filtrosPuestos}` : "Filtros"}
+            </button>
+            <select
+              aria-label="Ordenar por"
+              value={`${filtros.orden.campo}:${filtros.orden.dir}`}
+              onChange={(e) => {
+                const [campo, dir] = e.target.value.split(":") as [CampoDeOrden, "asc" | "desc"];
+                filtrar({ orden: { campo, dir } });
+              }}
+              className={cn(claseDelSelector, "min-w-0 flex-1")}
+            >
+              <option value="interaccion:desc">Interacción, la más reciente</option>
+              <option value="interaccion:asc">Interacción, la más vieja</option>
+              <option value="nombre:asc">Nombre, A a Z</option>
+              <option value="nombre:desc">Nombre, Z a A</option>
+              <option value="correo:asc">Correo, A a Z</option>
+              <option value="correo:desc">Correo, Z a A</option>
+              <option value="setter:asc">Setter, A a Z</option>
+              <option value="setter:desc">Setter, Z a A</option>
+            </select>
+          </div>
+          <div className={cn(filtrosAbiertos ? "grid" : "hidden", "w-full grid-cols-1 gap-2 md:flex md:w-auto md:flex-wrap md:items-center md:gap-3")}>
           <select
             aria-label="Seguimiento"
             value={filtros.seguimiento ?? ""}
@@ -276,28 +314,9 @@ export function ContactsView({
             <option value="">Mostrar: todos</option>
             <option value="si">Solo los que escribieron</option>
           </select>
-          {/* F43, criterio 7: en el teléfono, el orden con un selector (la tabla con encabezados es de la computadora). */}
-          <select
-            aria-label="Ordenar por"
-            value={`${filtros.orden.campo}:${filtros.orden.dir}`}
-            onChange={(e) => {
-              const [campo, dir] = e.target.value.split(":") as [CampoDeOrden, "asc" | "desc"];
-              filtrar({ orden: { campo, dir } });
-            }}
-            className={cn(claseDelSelector, "md:hidden")}
-          >
-            <option value="interaccion:desc">Ordenar por: interacción, la más reciente</option>
-            <option value="interaccion:asc">Ordenar por: interacción, la más vieja</option>
-            <option value="nombre:asc">Ordenar por: nombre, A a Z</option>
-            <option value="nombre:desc">Ordenar por: nombre, Z a A</option>
-            <option value="correo:asc">Ordenar por: correo, A a Z</option>
-            <option value="correo:desc">Ordenar por: correo, Z a A</option>
-            <option value="setter:asc">Ordenar por: setter, A a Z</option>
-            <option value="setter:desc">Ordenar por: setter, Z a A</option>
-          </select>
           </div>
           {conFiltros && (
-            <button onClick={limpiar} className="text-sm font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+            <button onClick={limpiar} className={cn(filtrosAbiertos ? "inline" : "hidden md:inline", "text-sm font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline")}>
               Limpiar filtros
             </button>
           )}
