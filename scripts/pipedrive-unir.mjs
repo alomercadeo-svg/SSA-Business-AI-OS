@@ -31,7 +31,7 @@
  *   node scripts/pipedrive-unir.mjs
  *   node scripts/pipedrive-unir.mjs --personas <csv> --tratos <csv> --salida <carpeta>
  * Por defecto busca en `herramientas-locales/pipedrive/` un archivo con
- * «person» o «persona» en el nombre y otro con «deal» o «trato», y escribe ahí
+ * «person», «persona» o «people» en el nombre y otro con «deal» o «trato», y escribe ahí
  * `migracion-A.csv` y `migracion-B.csv`. Sale con 1 si frena.
  */
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
@@ -197,13 +197,13 @@ export function unir(textoPersonas, textoTratos) {
   const t = {
     id: columna(T.columnas, ["id", "deal id", "id de trato"]),
     titulo: columna(T.columnas, ["titulo", "title"]),
-    persona: columna(T.columnas, ["id de persona", "persona de contacto id", "person id", "contact person id", "persona id"]),
+    persona: columna(T.columnas, ["id de la persona de contacto", "id de persona", "persona de contacto id", "person id", "contact person id", "persona id"]),
     etapa: columna(T.columnas, ["etapa", "stage"]),
     estado: columna(T.columnas, ["estado", "status"]),
     valor: columna(T.columnas, ["valor", "value"]),
-    moneda: columna(T.columnas, ["moneda", "currency", "moneda del valor"]),
-    cierre: columna(T.columnas, ["fecha de cierre", "close time", "fecha de cierre real"]),
-    motivo: columna(T.columnas, ["motivo de perdida", "lost reason", "razon de perdida"]),
+    moneda: columna(T.columnas, ["moneda de valor", "moneda", "currency", "moneda del valor"]),
+    cierre: columna(T.columnas, ["trato cerrado el", "fecha de cierre", "close time", "fecha de cierre real"]),
+    motivo: columna(T.columnas, ["motivo de la perdida", "motivo de perdida", "lost reason", "razon de perdida"]),
   };
   for (const [k, que] of [
     ["id", "id del trato"],
@@ -316,7 +316,7 @@ function buscar(carpeta, patron) {
 
 async function principal() {
   const carpeta = resolve(argumento("salida") ?? "herramientas-locales/pipedrive");
-  const personas = argumento("personas") ?? buscar(carpeta, /person|persona/);
+  const personas = argumento("personas") ?? buscar(carpeta, /person|persona|people/);
   const tratos = argumento("tratos") ?? buscar(carpeta, /deal|trato/);
   const r = unir(readFileSync(personas, "utf8"), readFileSync(tratos, "utf8"));
   const k = r.conteos;
