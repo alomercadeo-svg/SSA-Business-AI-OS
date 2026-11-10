@@ -3845,6 +3845,92 @@ Las flechas ↕ desde el principio y ↑ o ↓ al tocar; en el iPhone, la lista 
 
 - **Los ocho después de la subida de docs de las 00:32** (`1a121c3`): de 00:33 a 00:37, siete en verde (43, 135, 99, 63, 64, 122, 18) y `verify-seguimiento-bandeja` **49 pasaron, 0 fallaron, 1 no concluyente, por la hora** (entre las 00:00 y las 04:00 de Costa Rica, en Pacific/Kiritimati es el mismo día y el paso no distingue).
 
+### Cierre del 10/11/2026, día de la entrega (hasta las 13:05, hora de Costa Rica, según `date`)
+
+Producción venía congelada desde la noche (`6ec54fd`). La revisión de las 08:00 de Marcos, completa, en la computadora y en el iPhone, dio todo bien. Apertura a las 11:10: sin commits sin subir contra `origin/bloque-1-foundation`.
+
+#### Lo hecho
+
+- **Ítem 1, F38 (migración desde Pipedrive), revisión completa.** Plan aprobado a las 11:22 por el chat de revisión, con siete condiciones. Subido a las 11:36 (`8a472fc`, `dd748b7`).
+    - El importador mapea las siete columnas comerciales y la «Nota del contacto», y limpia el teléfono antes de normalizar (el apóstrofe inicial y los invisibles de dirección).
+    - Una fila que la base rechaza (una etapa o un estado fuera de su lista, `00030`) queda con su motivo y las demás siguen. Antes cortaba la importación entera.
+    - El motivo de pérdida entra como nota con `author_label = 'Migración de Pipedrive'`, escrita con la clave de servicio para que el disparador conserve la marca (`00038`, líneas 115 a 121). **Sin columna nueva ni migración.** No se duplica: antes de escribir se busca una igual, también entre las eliminadas.
+    - El control de la pantalla cuenta **ids de trato distintos** del archivo encontrados en el espacio, más el total del espacio.
+    - Script de unión: `scripts/pipedrive-unir.mjs`. Está fuera de `app/`, `lib/` y del `package.json`, los datos reales quedan en `herramientas-locales/pipedrive/` (ignorada por git, `.gitignore:50`) y nunca imprime filas.
+    - `enrollContact` rechaza un contacto sin teléfono, sin correo y sin ninguna identidad de canal.
+- **Parte A (decisión de Marcos del 10/11/2026): las personas con más de un trato que no es «IG DM».** Subida a las 12:26 (`32ff1a0`).
+    - A la ficha va el abierto. Entre varios abiertos, el creado más recientemente. Sin abiertos, el cerrado más reciente según «Trato cerrado el», o la creación si falta esa fecha.
+    - Los demás tratos entran como notas «Trato anterior en Pipedrive: …» con la misma marca y la misma regla de no duplicar. El importador acepta varias columnas de nota.
+    - La cuenta del script tiene que cerrar, o frena.
+- **Parte B: el Embudo**, tablero de solo lectura por etapa. **Pantalla fuera del plano, decidida por Marcos el 10/11/2026 para la entrega; criterios a escribir después.** Subido a las 13:00 (`5e9ea94`).
+    - Lee con la sesión del usuario (decide la seguridad por filas), hasta 1000 contactos, y lo dice si hay más.
+    - Una columna por etapa en el orden de `00030`, con la suma por moneda sin mezclar.
+    - Filtro por estado en la dirección y entrada en el menú al lado de Contactos.
+
+#### La unión con los exports reales (12:32, solo conteos)
+
+Personas 529 (el plano decía 526); tratos 601 (517); «IG DM» 199, todos con esa grafía (118). Prefijos de título que se repiten 5 veces o más: solo «IG DM» (198; uno de los 199 no lleva « - » después). Tratos que no son «IG DM»: 402 (399): 4 abiertos, 54 ganados, 344 perdidos. Personas con varios tratos: 15, ninguna con un trato abierto; las 15 se resolvieron por el cerrado más reciente según «Trato cerrado el», sin usar la fecha de creación. Sin persona: 3. **La cuenta: 380 en la ficha + 19 como nota + 3 sin persona = 402.** Archivos: `migracion-A.csv` (500 filas, las 380 con trato; el control tiene que dar 380 de 380) y `migracion-B.csv` (29 filas), con 4 columnas de nota. Sin teléfono ni correo: 148.
+
+#### Verificadores
+
+- `verify-migracion-pipedrive` (nuevo): **rojo de carga antes del ítem 1** (400 «Pedido inválido.»; no cuenta por su motivo). Después, 22 de 22; con la parte A, 23 de 23, antes y después. **Para el cambio de la parte A no distingue:** pasaba también con el código viejo, porque en sus datos ninguna fila trae dos notas con texto. Ese rojo lo da Vitest.
+- `verify-importacion`: 24 de 24 antes y después de las subidas de F38. El camino de F37 sigue bien con el rechazo por fila.
+- Los ocho de la sección 9, antes y después de las tres subidas: en verde todas las veces (43, 135, 51, 99, 63, 64, 122 y 18).
+- `/dashboard/embudo` sin sesión: 307 al ingreso, sin 404 ni 500. `next build` local, bien, antes de subir el Embudo.
+- **Las tres subidas: «salida 0, pantallas sin mirar»** hasta que Marcos confirme.
+
+#### Tests vistos en rojo antes del cambio
+
+- **Ítem 1:** 13. Son 9 del importador (4 de `importacion-csv`, 5 de `importacion-contactos`), 2 de la pantalla y 2 de `enrollContact`; sus 2 controles positivos pasaban antes, como corresponde.
+- **Parte A:** 6. Son 5 del script (los dos desempates, el de la fecha faltante, la nota de trato anterior y la cuenta) y 1 del importador (varias notas sin duplicar). **La sugerencia de «Nota del contacto 2» no se vio en rojo:** se sumó junto con el cambio.
+- **Embudo:** 10. Son 5 de `lib/embudo` (vistos por su motivo con un esqueleto vacío; antes caían al cargar), 3 de la pantalla por la fuente y 2 del menú.
+
+#### Choques con el plano y hallazgos (sin decisión salvo donde se dice)
+
+- **F38, el control:** **choque con el plano, decidido por Marcos el 10/11/2026; reescritura del criterio pendiente para después de la entrega.** El plano pide que las filas con `pipedrive_deal_id` coincidan con los tratos no «IG DM» del export; con 15 personas con varios tratos y 3 tratos sin persona, eso no puede pasar. El control cuenta sobre los tratos que van a la ficha (380), y la cuenta del script explica el resto.
+- **F38, criterios 14 y 15 (el contacto sin canal en secuencias):** construido en la acción; el camino real es el motor de flujos, sin tocar hoy. `enrollContact` no la llama ninguna pantalla. Que en el motor el contacto siempre tenga canal es **inferencia, no verificada**. **No se proponen para tilde.**
+- **Los «IG DM» pasaron de 118 (17/09) a 199 hoy.** Es coherente con que siga encendida la automatización que crea un trato en Pipedrive por cada conversación de Instagram, la que el plano (§13) dice que hay que apagar como parte de la migración real. **Inferencia, no verificada.**
+- **Hallazgo, no decisión (pedido por Marcos el 10/11/2026):** el alcance deja «CRM con vista Kanban» para una etapa futura sin asignar y el «Dashboard de pipeline comercial» en la Etapa 4, Fase 3, opcional. Sin una vista de embudo, la Fase 1 no reemplaza a Pipedrive. Hay que replantear el orden con Alejandra. El Embudo de hoy es de solo lectura y no cierra esa pregunta.
+- **La hora del plan del ítem 1:** el plan decía «11:35» y se recibió antes de las 11:20; se corrigió con `date`. Del lado de Marcos la aprobación del Embudo figura a las 12:33; `date` de este lado marcaba 12:36 al presentar el plan.
+
+#### La importación del archivo A en «Pruebas de correo» (Marcos, 12:52), leída a las 13:08 sin escribir nada
+
+- **La pantalla dijo «No se pudo importar. Probá de nuevo.», pero el servidor terminó.** La fila de `csv_imports` está `terminada`: 500 filas, 496 creados, 4 actualizados, 0 con error, de 12:52:10 a 12:57:26 (5 min 16 s, entre 56 y 113 filas por minuto; unas 95 de promedio).
+- **En la base:** 500 contactos no eliminados (los 4 de las pruebas de F37 más 496 nuevos); 496 con `pipedrive_person_id`; **control 380 de 380**; 360 notas con la marca (el archivo trae 360 celdas de nota con texto); 496 contactos con «Importado 10/11/2026».
+- **La causa del mensaje: inferencia, no verificada** (no hay CLI de Railway acá, y leer sus logs es pedir algo). El pedido tardó más de 5 minutos en una sola respuesta. Lo coherente es que la conexión entre el navegador y el servidor se cortara antes (un límite de tiempo del borde de Railway o del navegador) mientras el servidor seguía y terminaba. **Hallazgo para la parte 2 de F37:** una importación de 500 filas no entra en un solo pedido; hace falta segundo plano o tandas.
+- **Hallazgo: 4 personas de Pipedrive se fundieron con otra del mismo archivo.** Los 4 «actualizados» son filas que encontraron un contacto creado unas filas antes por el mismo correo o teléfono: en el archivo hay 1 correo y 1 teléfono repetidos (comparados en crudo; los otros 2 casos, **inferencia**: pueden ser números iguales una vez agregado el +506). Al actualizar, el `pipedrive_person_id` del primero se reemplazó por el del segundo, por eso hay 496 de 500 personas del archivo. El control de tratos no se movió (380 de 380). Es la deduplicación de §14 funcionando como está escrita. Qué hacer con dos personas de Pipedrive que comparten un dato queda para decidir.
+
+#### Lo pendiente, para después de la entrega (agregado hoy)
+
+- **(a) El historial de tratos por cliente** (varios tratos por contacto, ganados y perdidos incluidos) en una estructura propia, pedido por Marcos el 10/11/2026. Hasta entonces viven como notas con la marca de la migración.
+- **(b) Replantear con Alejandra el orden** del Kanban y del dashboard de pipeline (ver el hallazgo de arriba), pedido por Marcos el 10/11/2026.
+- La reescritura del criterio de control de F38; los criterios del Embudo; el nodo de secuencia del motor de flujos (criterios 14 y 15).
+- Los textos en inglés (Canales, ingreso, registro, invitación, «[Attachment]»): no entraron hoy.
+- Del pendiente de anoche siguen igual: F37 parte 2 y la importación del Member, el nombre y el apellido por separado, 3c, el ítem 7, F33, F35, 1a y 1b.
+
+#### Lo que hace Marcos (en «Pruebas de correo», nunca en el espacio real)
+
+1. Contactos › «Importar CSV» › `herramientas-locales/pipedrive/migracion-A.csv`. En «Columnas», que cada una caiga en su campo; las cuatro «Nota del contacto…» en «Nota del contacto».
+2. «Opciones»: +506, «Migrado de Pipedrive 10/11/2026», «Nadie por ahora». Importar.
+3. El resumen: **«Control de la migración: 380 de 380 tratos»**. Si dice menos, la tabla dice qué filas no entraron y por qué (lo esperable: teléfonos que no se normalizan).
+4. Lo mismo con `migracion-B.csv` (29 filas, sin tratos): el total del espacio sigue en 380.
+5. Importar A otra vez: 0 creados, el control igual, y en una ficha con varios tratos, las notas sin duplicar.
+6. **El Embudo**, en la computadora y recargando: la entrada al lado de Contactos; las 13 columnas en orden, con cantidades y sumas (USD y CRC aparte; «Sin contactos» en las vacías); el filtro con sus cantidades, «Ganados» y recargar (sigue elegido); tocar una tarjeta abre la ficha.
+7. **El Embudo en el iPhone, en Chrome, recargando:** las columnas de costado, cada una casi del ancho; el filtro sin cortar; una tarjeta abre la ficha.
+
+#### Propuesta de tildes (las decide Marcos)
+
+F38, **conviene decidirlas después del paso 3 de arriba**: 1 (las siete columnas), 2 (la unión fuera del sistema), 3 (la limpieza del teléfono), 4 (Móvil y, si está vacío, Trabajo), 5, 6, 7 y 8 (ya cubiertos por F37 y vistos en el verificador), 9 (la etiqueta de origen), 10 (la base rechaza; visto en el verificador), 12 (repetible) y 13 (el motivo como nota con marca). **Sin proponer:** 11 (choque con el plano), 14 y 15 (ver arriba). El Embudo no tiene criterios que tildar.
+
+#### La medición del día, por categoría (aproximada, hora de Costa Rica según `date`)
+
+| Categoría | Tramos | Suma |
+|---|---|---|
+| **Planes** | La apertura y el plan del ítem 1 (11:10–11:20); el plan del Embudo (12:32–12:36) | unos 15 min |
+| **Revisiones del chat de Marcos y decisiones** | El plan del ítem 1 (hasta las 11:22); la decisión de los varios tratos (11:43–12:15); la aprobación del Embudo (12:36–12:50) | unos 50 min |
+| **Construcción** | El ítem 1 (11:22–11:34); la parte A (12:15–12:23); el Embudo (12:50–12:57); este cierre (13:05–) | unos 30 min, más el cierre |
+| **Verificadores, subidas y Railway** | 11:34–11:43; 12:23–12:32; 12:57–13:05 | unos 25 min |
+
 ### Cierre final de la noche del 09 al 10/11/2026
 
 #### Lo hecho en la jornada (desde las 17:16 del 09/11)
