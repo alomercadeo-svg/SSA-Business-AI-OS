@@ -155,6 +155,30 @@ await correr(async () => {
   const historial = await admin(`audit_log?select=action&workspace_id=eq.${espacio2}&action=eq.contacto.no_contactar`);
   check((historial.data ?? []).length === 1, "queda una vez en el historial", JSON.stringify(historial.data));
 
+  // F34, criterio 3 (09/11/2026): al marcarlo por un aviso, se pausan sus
+  // secuencias activas. Las inscripciones se crean antes del aviso de baja.
+  titulo("Al marcarlo por un aviso, se pausan sus secuencias activas (F34, criterio 3)");
+  const leadPausa = `vNp${String(Date.now()).slice(-6)}${sufijo}`;
+  const rHola = await aviso(leadPausa, "hola, quería info");
+  const cPausa = await contactoDelLead(espacio2, leadPausa);
+  const secuencia2 = (await admin("sequences", { method: "POST", body: JSON.stringify({ workspace_id: espacio2, name: `b3-pausa-${sufijo}`, status: "active", steps: [] }) })).data?.[0]?.id;
+  const inscribir = async (contactoId) =>
+    (await admin("sequence_enrollments", { method: "POST", body: JSON.stringify({ sequence_id: secuencia2, contact_id: contactoId, channel_id: canal2 }) })).data?.[0]?.id ?? null;
+  const insPausa = cPausa && secuencia2 ? await inscribir(cPausa.id) : null;
+  const insControl = cControl && secuencia2 ? await inscribir(cControl.id) : null;
+  const estadoIns = async (id) => (id ? (await admin(`sequence_enrollments?select=status&id=eq.${id}`)).data?.[0]?.status ?? null : null);
+  const presentes = check(
+    rHola.status === 200 && cPausa?.do_not_contact === false && (await estadoIns(insPausa)) === "active" && (await estadoIns(insControl)) === "active",
+    "presencia: el contacto existe sin marca y las dos inscripciones arrancan activas",
+    JSON.stringify({ status: rHola.status, cPausa, insPausa, insControl }),
+  );
+  const rBaja2 = await aviso(leadPausa, "no me escribas más");
+  if (!presentes) noConcluyente("la pausa de sus secuencias", "falló la presencia: no había inscripciones activas que pausar");
+  else {
+    check(rBaja2.status === 200 && (await contactoDelLead(espacio2, leadPausa))?.do_not_contact === true && (await estadoIns(insPausa)) === "paused", "el marcado queda con la marca y su inscripción pasa a «paused»", `HTTP ${rBaja2.status}, estado ${await estadoIns(insPausa)}`);
+    check((await estadoIns(insControl)) === "active", "control: la inscripción del otro contacto sigue activa", `estado ${await estadoIns(insControl)}`);
+  }
+
   titulo("Escribirle a un marcado desde la bandeja: 409, sin llamar a Zernio");
   const conv = async (contactoId) => (await admin(`conversations?select=id&contact_id=eq.${contactoId}`)).data?.[0]?.id ?? null;
   const enviar = async (conversationId) => {

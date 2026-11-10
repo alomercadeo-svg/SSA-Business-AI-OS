@@ -3665,6 +3665,11 @@ Revisión **completa** (migración, receptor de avisos). Nada construido. Estima
 - **Cómo quedan los criterios de F33 (propuesta, las tildes las decide Marcos):** 1, corte con el silencio: la decisión de cortar, probada; **registrar el corte es del motor (Fase 2)**. 2, texto variable: rotación estable y aviso de texto idéntico, probados; la interpolación ya existía. 3, espaciado: probado. **4, horario comercial: parcial**, porque usa la zona del negocio y el `CLAUDE.md` pide la del contacto, que no existe. 5, opt-out: ya existía (F34 y la 00053) y la regla corta siempre; en pantalla, sin forma de apagarlo. 6, proporción de respuesta: el cálculo y el umbral, probados; **no hay dato que mostrar** hasta que la Fase 2 mande seguimientos. 7, configuración por canal: probada (la 00055, la pantalla y el verificador). 8: el motor es de la Fase 2.
 - **Suposiciones para confirmar con Alejandra después de la entrega:** el horario (08:00 a 20:00, lunes a sábado) y el umbral de la proporción de respuesta (15 % sobre los últimos 50).
 
+#### Decidido por Marcos a las 22:3x: F34, criterio 3, y el cierre a las 23:15
+
+- **F34, criterio 3** (la pausa de las secuencias de un contacto marcado): solo tests y verificador, en un espacio fantasma, sin tocar código de producción; si hace falta tocarlo, se frena. **Estimación, escrita a las 22:3x antes de leer código: 30 min; corte a los 45.**
+- **Cierre adelantado a las 23:15:** subir los docs, el estado al día, la lista de las 08:00 y la propuesta de tildes de la noche (F42, F37, F33, F36 6 y F34 3 si da verde). **No se sube código después de F34 3.**
+
 - **Pendiente para después de la entrega (F37):** la importación del Member (con la decisión del choque de §11 con la 00038 y la búsqueda de duplicados fuera de su alcance) y la parte 2 (más de 500 filas en segundo plano, el progreso real y el correo de F23).
 
 ### Plan maestro, tercer retrabajo del ítem 4 (Bloque 4, medido, subido)

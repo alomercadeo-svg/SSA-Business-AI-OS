@@ -136,3 +136,54 @@ describe("si la marca falla, el aviso igual se acusa (pedido de Marcos del 06/11
     }
   });
 });
+
+/**
+ * F34, criterio 3 (09/11/2026): al marcar, se pausan las secuencias activas
+ * del contacto. Prueban código que ya existía (ítem 8): no hay versión sin la
+ * pausa, así que **no se vieron en rojo** (Marcos pidió no tocar código de
+ * producción para esto).
+ */
+describe("marcarSiPideBaja pausa las secuencias activas del contacto (F34, criterio 3)", () => {
+  type Op = { tabla: string; valores?: unknown; filtros: Array<[string, unknown]> };
+  function base(contactoYaMarcado = false) {
+    const ops: Op[] = [];
+    const supabase = {
+      from(tabla: string) {
+        const op: Op = { tabla, filtros: [] };
+        const c: Record<string, unknown> = {};
+        Object.assign(c, {
+          select: () => c,
+          update: (v: unknown) => ((op.valores = v), ops.push(op), c),
+          eq: (k: string, v: unknown) => (op.filtros.push([k, v]), c),
+          maybeSingle: async () => ({ data: { frases_de_baja: ["no me escribas más"] }, error: null }),
+          then: (ok: (r: unknown) => unknown) =>
+            Promise.resolve(tabla === "contacts" ? { data: contactoYaMarcado ? [] : [{ id: "ct-1", display_name: "Ana" }], error: null } : { data: null, error: null }).then(ok),
+        });
+        return c;
+      },
+    };
+    return { ops, supabase };
+  }
+
+  it("una frase de baja marca al contacto y pausa solo sus inscripciones activas", async () => {
+    const { marcarSiPideBaja } = await import("./no-contactar");
+    const { ops, supabase } = base();
+    await expect(marcarSiPideBaja(supabase as never, { workspaceId: "ws-1", contactId: "ct-1", texto: "No me escribas más" })).resolves.toBe(true);
+    const pausa = ops.find((o) => o.tabla === "sequence_enrollments");
+    expect(pausa).toEqual({ tabla: "sequence_enrollments", valores: { status: "paused" }, filtros: [["contact_id", "ct-1"], ["status", "active"]] });
+  });
+
+  it("control: un mensaje sin frase de baja no toca las secuencias", async () => {
+    const { marcarSiPideBaja } = await import("./no-contactar");
+    const { ops, supabase } = base();
+    await expect(marcarSiPideBaja(supabase as never, { workspaceId: "ws-1", contactId: "ct-1", texto: "hola, ¿qué precio tiene?" })).resolves.toBe(false);
+    expect(ops.some((o) => o.tabla === "sequence_enrollments")).toBe(false);
+  });
+
+  it("un contacto que ya estaba marcado no vuelve a pausar ni a registrar (una sola vez)", async () => {
+    const { marcarSiPideBaja } = await import("./no-contactar");
+    const { ops, supabase } = base(true);
+    await expect(marcarSiPideBaja(supabase as never, { workspaceId: "ws-1", contactId: "ct-1", texto: "no me escribas más" })).resolves.toBe(false);
+    expect(ops.some((o) => o.tabla === "sequence_enrollments")).toBe(false);
+  });
+});
