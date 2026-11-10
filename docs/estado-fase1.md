@@ -3670,6 +3670,102 @@ Revisión **completa** (migración, receptor de avisos). Nada construido. Estima
 - **F34, criterio 3** (la pausa de las secuencias de un contacto marcado): solo tests y verificador, en un espacio fantasma, sin tocar código de producción; si hace falta tocarlo, se frena. **Estimación, escrita a las 22:3x antes de leer código: 30 min; corte a los 45.**
 - **Cierre adelantado a las 23:15:** subir los docs, el estado al día, la lista de las 08:00 y la propuesta de tildes de la noche (F42, F37, F33, F36 6 y F34 3 si da verde). **No se sube código después de F34 3.**
 
+#### F34, criterio 3: hecho (09/11/2026, de 22:28 a 22:31, medido)
+
+- **Sin tocar código de producción:** `dafa339`. Tres tests de `marcarSiPideBaja` en `lib/no-contactar.test.ts` (una frase de baja marca y pausa solo las inscripciones activas del contacto; control: un mensaje sin frase no toca las secuencias; uno ya marcado no vuelve a pausar). **No se vieron en rojo:** prueban código que existe desde el ítem 8 y no hay versión sin la pausa; verlos en rojo exigía alterar código de producción, que Marcos pidió no tocar. `npm test` 1582 de 1582.
+- **`verify-no-contactar` suma el paso 5:** un lead escribe «hola» (contacto sin marca), se lo inscribe en una secuencia activa junto con otro contacto (control), y escribe «no me escribas más»: **su inscripción pasa a «paused» y la del otro sigue activa.** Corrida contra producción **de 22:29:59 a 22:30:22, salida 0, 18 de 18** (avisos firmados con un secreto generado por el script). No se vio en rojo por lo mismo.
+- **Medición:** 3 min contra 30 estimados.
+
+#### La purga de F36 (pregunta de Marcos de las 22:3x)
+
+Terminó a las 20:11: «comprobar» de 20:02:48 a 20:11:10, **salida 0, 31 de 31**, con la tarea real corrida sobre el espacio fantasma a las **20:10:53** (el detalle, más arriba en esta sección, en «La purga de F36, comprobar»).
+
+### Cierre de la noche del 09/11/2026 (adelantado a las 23:15; hecho desde las 22:31)
+
+#### Lo hecho
+
+- **A y B** (el chat que no abría en el último mensaje y la lista sin refrescar): arreglados, subidos y vistos por Marcos en Chrome en el iPhone. **F35 tildada** (31 de 32).
+- **F36, criterio 6:** la purga con la tarea real, 31 de 31.
+- **`git stash` bloqueado** en la configuración de permisos, con el intento de control bloqueado.
+- **Ítem 9, F42, respuesta por WhatsApp desde la bandeja:** construido, subido, probado por Marcos con dos envíos reales (cada uno guardado una vez) y la prueba real de «no contactar» por WhatsApp.
+- **Ítem 11, F37, parte 1, importación desde planilla:** hasta 500 filas, solo Owner y Admin; la 00054 aplicada; visto por Marcos en «Pruebas de correo»; retrabajos (a) y (b) (etiquetas de origen y de la planilla) subidos, sin mirar en pantalla.
+- **Ítem 10, F33, reglas de seguridad de secuencia:** configuración, pantalla y funciones; la 00055 aplicada; sin mirar en pantalla.
+- **F34, criterio 3:** la pausa de las secuencias, con tests y verificador en producción.
+- **Un error del test de conteos, arreglado** (contaba «public» como tabla); §14c en 34 tablas y 55 migraciones.
+
+#### Lo pendiente
+
+- **Después de la entrega, en el orden de Marcos:** 3c («Respondió a tu historia»; el detalle está escrito; con la 00054 y la 00055 usadas, su migración pasa a la **00056**), el ítem 7 (primer paso: la lectura de `comment_logs` de hoy después de las 19:30, pedida a Marcos), F33 (las tildes y las suposiciones con Alejandra), F38 (Pipedrive, con los exports reales).
+- **F37:** la importación del Member (el choque de §11 con la 00038 y los duplicados fuera de su alcance) y la parte 2 (más de 500 filas en segundo plano, el progreso real y el correo).
+- **F33:** confirmar con Alejandra el horario (08:00 a 20:00, lunes a sábado) y el umbral de la proporción (15 % sobre los últimos 50); la zona horaria del contacto (criterio 4) y el registro del corte (criterio 1) son del motor de la Fase 2.
+- **F42:** el campo deshabilitado con la sesión caída no se vio en pantalla (la sesión real está conectada; se prueba en el servidor y por la fuente).
+- **Pantallas sin mirar:** los retrabajos (a) y (b) de F37 y la pantalla de F33 (en la lista de las 08:00).
+- 1a y 1b (los avisos al Member), con su disparador de antes de invitar al primer Member.
+
+#### La propuesta de tildes de la noche (las decide Marcos en su chat)
+
+Hora de Costa Rica, 09/11/2026.
+
+| Criterio | Propuesta | Prueba | Última corrida |
+|---|---|---|---|
+| **F42, 1.** Envía texto por Evolution, desde el servidor, con la clave de la instancia leída de Vault | **Tildar** | Tests de la ruta (la dirección, el `apikey`, el cuerpo); envíos reales de Marcos «prueba F42 2» (computadora, 20:45) y «prueba F42 3» (iPhone, 20:47), recibidos en su WhatsApp | Suite 22:30; pruebas 20:45 y 20:47 |
+| **F42, 2.** Se guarda con el id de Evolution, una sola vez aunque llegue el aviso | **Tildar** | Lectura autorizada: cada envío, 1 fila con su id en toda la base (20:50:46 y 20:51:02); tests del receptor (`send.message` con el `key.id` ya guardado no se guarda); `verify-guardado-whatsapp` 43 de 43 | Lectura 20:51; `verify-guardado-whatsapp` 20:30 |
+| **F42, 3.** Respuestas rápidas igual que en Instagram | **Tildar** | Marcos: «/correo» cargado en «Marcos Pitti» (WhatsApp) | Pantalla 20:4x |
+| **F42, 4.** Sin ventana de 24 horas | **Tildar** | Test de la ruta: con la ventana vencida, igual envía | Suite 22:30 |
+| **F42, 5.** Con la sesión caída, agotada o sin vincular, el campo se deshabilita con el texto del criterio | **Decide Marcos** | `verify-respuesta-whatsapp`, pasos 1 a 3 (409 con el texto, sin llamar a Evolution); test del hilo por la fuente. **En pantalla no se vio**: la sesión real está conectada | `verify-respuesta-whatsapp` 11 de 11, 20:29 |
+| **F42, 6.** «No contactar» no se puede escribir por este camino | **Tildar** | `verify-respuesta-whatsapp`, paso 4 (409); prueba real de Marcos: marca roja y aviso en lugar del campo; historial `contacto.no_contactar` 20:50:12 y revertido 20:51:19 | 20:29; prueba 20:50 |
+| **F42, 7.** Un envío que falla muestra un error claro y no aparece como enviado | **Tildar** | Tests de la ruta (400: «No se envió: WhatsApp rechazó el mensaje.»; 15 s: «WhatsApp no respondió a tiempo…»; nada guardado) y del hilo («No se envió»). No se vio en pantalla | Suite 22:30 |
+| **F42, 8.** Un Member solo envía en sus leads, en el servidor | **Tildar** | `verify-respuesta-whatsapp`, paso 5 (403 para el Member sin el lead) | 20:29 |
+| **F42, 9.** Control positivo con respuestas simuladas | **Tildar** | Tests de la ruta (envía y guarda con el `key.id`; sesión caída, no llama) y del receptor (el aviso con el mismo `key.id` no duplica) | Suite 22:30 |
+| **F42, 10.** Control positivo con el número vinculado | **Tildar** | Los dos envíos reales de Marcos, recibidos y guardados una vez cada uno (lectura) | 20:45–20:51 |
+| **F37, 1.** «Importar CSV» en `/contacts` | **Tildar** | Marcos, en «Pruebas de correo» | Pantalla 21:40 |
+| **F37, 2.** Hasta 10 MB y 10.000 filas, con vista previa y asignación | **No tildar** | Hoy hasta 500 filas (la parte 2 hace el resto) | — |
+| **F37, 3.** Las primeras 5 filas y el mapeo sugerido | **Tildar** | Marcos (21:40); `lib/importacion-csv.test.ts` (`sugerirCampo`) | Pantalla 21:40; suite 22:30 |
+| **F37, 4.** Ajustar el mapeo, con setter, vendedor, tags y campos propios | **Tildar** | Marcos, el mapeo (21:40); `lib/importacion-contactos.test.ts` (setter del equipo, etiquetas —que desde la decisión (b) se crean—, campos propios con su tipo); `verify-importacion` (las etiquetas). Setter, vendedor y campos propios no se vieron en pantalla | Suite 22:30; `verify-importacion` 24 de 24, 22:20 |
+| **F37, 5.** Cada fila necesita un identificador de §14; sin ninguno se rechaza con su motivo | **Tildar** | `verify-importacion` (la fila sin identificador y «8856-12»); Marcos: «Diego Sin Datos» y «Ana Teléfono Malo» con su motivo | 22:20; pantalla 21:40 |
+| **F37, 6.** Deduplicación por id de origen, correo o teléfono, en ese orden; actualiza | **Tildar** | `verify-importacion` (A por correo sin distinguir mayúsculas, B por teléfono sin código, el eliminado no se duplica, otra vez 0 creados); Marcos: la segunda importación, 0 creados y 4 actualizados | 22:20; pantalla 21:40 |
+| **F37, 7.** Más de 500 filas en segundo plano | **No tildar** | Parte 2 | — |
+| **F37, 8.** Correo al terminar en segundo plano (F23) | **No tildar** | Parte 2 | — |
+| **F37, 9.** Barra de progreso y resumen final con importados, actualizados y errores | **Decide Marcos** | El resumen, completo (Marcos, 21:40); la barra es indeterminada (el progreso real es de la parte 2) | Pantalla 21:40 |
+| **F37, 10.** Todo queda en el historial | **Tildar** | `verify-importacion` (`importacion.completada` por importación y `contacto.creado` por contacto); `contacto.editado` con antes y después en la ruta | 22:20 |
+| **F33, 1.** Corte con el silencio, configurable, por defecto 3; «se detiene sola y lo registra» | **No tildar todavía** | La decisión de cortar, probada (`lib/reglas-seguridad.test.ts`); **detenerla y registrarlo es del motor (Fase 2)** | Suite 22:30 |
+| **F33, 2.** Texto variable: interpola y rota; avisa con texto idéntico a muchos | **Tildar** | Tests de `elegirVariante` y `avisoDeTextoIdentico`; la interpolación existía (F36) | Suite 22:30 |
+| **F33, 3.** Envíos espaciados, configurables | **Tildar** | Test de `demoraEspaciada`; la pantalla lo configura (sin mirar) | Suite 22:30 |
+| **F33, 4.** Horario comercial con la zona del contacto; fuera se pospone | **Parcial: decide Marcos** | Tests con el reloj fijado (domingo a la noche, sábado 20:00, madrugada). **Usa la zona del negocio**: el contacto no tiene una, y el `CLAUDE.md` pide la del contacto | Suite 22:30 |
+| **F33, 5.** Opt-out duro, sin forma de forzarlo | **Tildar** | La regla corta siempre (test); la pantalla lo muestra fijo, sin control; F34 y el disparador de la 00053 | Suite 22:30; `verify-no-contactar` 22:30 |
+| **F33, 6.** Proporción de respuesta: se calcula, se muestra y avisa bajo un umbral | **No tildar todavía** | El cálculo y el umbral, probados; **no hay dato que mostrar** hasta que la Fase 2 mande seguimientos | Suite 22:30 |
+| **F33, 7.** Todo es configuración por canal | **Tildar** | La 00055 (`channels.safety_config`), la pantalla y `verify-reglas-seguridad` (valores por defecto, el Owner escribe, el Member no, el `check`) | `verify-reglas-seguridad` 5 de 5, 22:20 |
+| **F33, 8.** La Fase 2 construye el motor | **No tildar** | Es de la Fase 2 | — |
+| **F36, 6.** Eliminar marca la fecha; listas y seguridad por filas las excluyen; la purga las borra a los 30 días | **Tildar** | `verify-purga` 31 de 31 con la tarea real (R1 a los 31 días se fue; R2 a los 29 y R3 viva quedaron); `verify-respuestas-rapidas`; `lib/purga.test.ts` | `verify-purga` 20:02–20:11 |
+| **F34, 3.** Al detectar: marca, motivo, fecha, pausa de las secuencias activas, historial | **Tildar** | `verify-no-contactar` 18 de 18: marca, motivo, historial (paso 4) y **la pausa de las secuencias (paso 5)**; tests de `marcarSiPideBaja` (no vistos en rojo) | 22:29:59–22:30:22 |
+
+#### Lo que revisa Marcos a las 08:00, antes de entregar (recargando, en la computadora y en el iPhone)
+
+**En la computadora:**
+1. Entrar con su cuenta y abrir la **bandeja**: carga, la lista y un chat de Instagram abren bien, en el último mensaje.
+2. **«Marcos Pitti» de WhatsApp:** abre en el último mensaje; el campo habilitado. (No enviar nada si no hace falta para la entrega.)
+3. **Contactos:** la lista, el buscador y el filtro; abrir una ficha.
+4. **Contactos › «Importar CSV»**, en «Pruebas de correo»: el archivo de ejemplo de nuevo (`herramientas-locales/ejemplos/importacion-prueba-f37.csv`) con una etiqueta de origen nueva: el resumen tiene que decir 0 creados y 4 actualizados, y la etiqueta de origen tiene que quedar en los 4. Para ver «Etiquetas creadas», una planilla con una etiqueta nueva y otra en mayúsculas de una existente.
+5. **Configuración › Reglas de WhatsApp:** las seis reglas con sus valores por defecto y sus explicaciones; el opt-out fijo. Cambiar el corte con el silencio a 4, guardar, recargar y verlo; volver a 3 si se prefiere.
+6. **Configuración › Historial de cambios:** el cambio de las reglas con antes y después, y las importaciones («Planilla importada: …»).
+7. **Configuración › Frases de baja** y **Respuestas rápidas**: cargan.
+
+**En el iPhone, en Chrome:**
+8. La bandeja: el menú, una conversación desde la lista, en el último mensaje, y volver.
+9. «Importar CSV» y «Reglas de WhatsApp»: que se puedan usar en el ancho del teléfono.
+
+Si algo de esto no funciona, lo primero es decirlo: no se arregla nada sin el plan de siempre.
+
+#### La medición del día, por categoría (aproximada, hora de Costa Rica)
+
+| Categoría | Tramos | Suma |
+|---|---|---|
+| **Planes** | La apertura y el plan (17:16–17:26); el plan del ítem 9 (20:05–20:1x); el plan del ítem 11 (20:11–20:2x) y su agregado (20:5x); el plan de F33 (21:52–21:5x) | unos 45 min |
+| **Revisiones del chat de Marcos** | Llegaron por mensaje, sin hora de inicio: quedan dentro de las esperas | — |
+| **Construcción** | Vitest y Playwright (17:27–17:4x); la prueba de A y B (18:2x–18:46); el arreglo de A y B (18:50–19:13); la purga y el bloqueo (20:02–20:05); F42 (20:13–20:36); F37 parte 1 (21:02–21:25); los retrabajos (21:4x–22:10); F33 (22:06–22:25); F34, criterio 3 (22:28–22:31); el cierre (22:31–) | unas 3 h 10 min |
+| **Pruebas de Marcos** | A y B en el iPhone (19:2x–19:47); F42 (20:45–20:51); F37 (21:40) | unos 35 min, más las que no tienen hora |
+| **Esperas** | Lo demás, incluidas las de Railway (de 2 a 4 min por subida) y las revisiones | el resto |
+
 - **Pendiente para después de la entrega (F37):** la importación del Member (con la decisión del choque de §11 con la 00038 y la búsqueda de duplicados fuera de su alcance) y la parte 2 (más de 500 filas en segundo plano, el progreso real y el correo de F23).
 
 ### Plan maestro, tercer retrabajo del ítem 4 (Bloque 4, medido, subido)
