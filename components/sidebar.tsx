@@ -19,6 +19,7 @@ import {
   Moon,
   Sun,
   X,
+  Columns3,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -57,6 +58,8 @@ function subscribeToThemeClass(callback: () => void) {
 const navigation = [
   { name: "Bandeja", href: "/dashboard/inbox", icon: MessageSquare },
   { name: "Contactos", href: "/dashboard/contacts", icon: Users },
+  // 10/11/2026: pantalla fuera del plano, decidida por Marcos para la entrega. Para todos: cada uno ve lo suyo.
+  { name: "Embudo", href: "/dashboard/embudo", icon: Columns3 },
   { name: "Canales", href: "/dashboard/channels", icon: Plug, soloManagers: true },
   { name: "Integraciones", href: "/dashboard/settings/integrations", icon: KeyRound, soloManagers: true },
   { name: "Respuestas rápidas", href: "/dashboard/settings/response-templates", icon: MessageSquareText, soloManagers: true },

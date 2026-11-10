@@ -26,14 +26,15 @@ const fuente = readFileSync(join(process.cwd(), "components/sidebar.tsx"), "utf8
 
 describe("quién ve qué en el menú", () => {
   it("un Member ve Bandeja y Contactos, y nada de managers; sin rol, igual", () => {
-    expect(nombres("member")).toEqual(["Bandeja", "Contactos"]);
-    expect(nombres(undefined)).toEqual(["Bandeja", "Contactos"]);
+    // Embudo (10/11/2026, pantalla fuera del plano decidida por Marcos): para todos, cada uno ve lo suyo.
+    expect(nombres("member")).toEqual(["Bandeja", "Contactos", "Embudo"]);
+    expect(nombres(undefined)).toEqual(["Bandeja", "Contactos", "Embudo"]);
   });
 
   // Cambiado el 06/11/2026 (F36, ítem 6): suma «Respuestas rápidas», en el orden de §11.1.
   it("control positivo: Owner y Admin ven también Canales, Integraciones, Respuestas rápidas y Configuración", () => {
     for (const rol of ["owner", "admin"]) {
-      expect(nombres(rol)).toEqual(["Bandeja", "Contactos", "Canales", "Integraciones", "Respuestas rápidas", "Configuración"]);
+      expect(nombres(rol)).toEqual(["Bandeja", "Contactos", "Embudo", "Canales", "Integraciones", "Respuestas rápidas", "Configuración"]);
     }
   });
 
