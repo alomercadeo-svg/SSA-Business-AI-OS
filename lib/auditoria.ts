@@ -44,10 +44,11 @@ export const ACCIONES_AUDITORIA = [
   "equipo.ingreso",
   "equipo.rol_cambiado",
   "equipo.removido",
+  "importacion.completada",
 ] as const;
 export type AccionAuditoria = (typeof ACCIONES_AUDITORIA)[number];
 
-export const TIPOS_DE_ENTIDAD = ["contacto", "canal", "espacio", "integracion", "miembro", "invitacion"] as const;
+export const TIPOS_DE_ENTIDAD = ["contacto", "canal", "espacio", "integracion", "miembro", "invitacion", "importacion"] as const;
 export type TipoDeEntidad = (typeof TIPOS_DE_ENTIDAD)[number];
 
 export interface Actor {
@@ -305,6 +306,8 @@ export function textoDeEvento(fila: FilaAuditoria): string {
       return con(`Rol cambiado: ${quien}`);
     case "equipo.removido":
       return `Removido del equipo: ${quien}`;
+    case "importacion.completada":
+      return `Planilla importada: ${quien || "sin nombre"}${typeof d.creados === "number" ? ` · ${d.creados} creados, ${d.actualizados ?? 0} actualizados, ${d.con_error ?? 0} con error` : ""}`;
     default:
       return con(fila.action);
   }

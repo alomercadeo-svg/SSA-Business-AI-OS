@@ -55,10 +55,12 @@ export function tablasDeclaradas(): Set<string> {
   const tablas = new Set<string>();
   for (const archivo of migracionesNumeradas()) {
     const sql = readFileSync(resolve(MIGRACIONES, archivo), "utf8");
-    for (const m of sql.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*)/gi)) {
+    // Con o sin `public.` (09/11/2026: sin esto, la 00052 y la 00054 sumaban
+    // «public» como tabla y tapaban a `response_templates` y `csv_imports`).
+    for (const m of sql.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?([a-z_][a-z0-9_]*)/gi)) {
       tablas.add(m[1].toLowerCase());
     }
-    for (const m of sql.matchAll(/drop\s+table\s+(?:if\s+exists\s+)?([a-z_][a-z0-9_]*)/gi)) {
+    for (const m of sql.matchAll(/drop\s+table\s+(?:if\s+exists\s+)?(?:public\.)?([a-z_][a-z0-9_]*)/gi)) {
       tablas.delete(m[1].toLowerCase());
     }
   }

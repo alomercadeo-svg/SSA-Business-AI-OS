@@ -687,6 +687,52 @@ export interface Database {
         ];
       };
       /** F36 (00052). Respuestas rápidas: las leen los miembros (sin las eliminadas), las cambian Owner y Admin. */
+      /** F37, parte 1 (00054). La escribe solo el servidor, con la clave de servicio. */
+      csv_imports: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          created_by: string | null;
+          nombre_archivo: string | null;
+          filas: number;
+          creados: number;
+          actualizados: number;
+          con_error: number;
+          estado: "en_curso" | "terminada" | "fallida";
+          created_at: string;
+          terminada_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          created_by?: string | null;
+          nombre_archivo?: string | null;
+          filas?: number;
+          creados?: number;
+          actualizados?: number;
+          con_error?: number;
+          estado?: "en_curso" | "terminada" | "fallida";
+          created_at?: string;
+          terminada_at?: string | null;
+        };
+        Update: {
+          filas?: number;
+          creados?: number;
+          actualizados?: number;
+          con_error?: number;
+          estado?: "en_curso" | "terminada" | "fallida";
+          terminada_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "csv_imports_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       response_templates: {
         Row: {
           id: string;

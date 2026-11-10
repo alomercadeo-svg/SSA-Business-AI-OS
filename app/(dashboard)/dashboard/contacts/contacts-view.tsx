@@ -187,12 +187,20 @@ export function ContactsView({
               <p className="mt-2 text-sm text-green-700 dark:text-green-400">Contacto eliminado. Podés restaurarlo durante 30 días.</p>
             )}
           </div>
-          <Link
-            href="/dashboard/contacts?vista=eliminados"
-            className="shrink-0 rounded-lg border border-input px-3 py-2 text-sm font-medium hover:bg-accent"
-          >
-            Eliminados
-          </Link>
+          <div className="flex shrink-0 gap-2">
+            {/* F37, parte 1 (09/11/2026): esta noche, importar es solo de Owner y Admin. */}
+            {equipoCompleto && (
+              <Link href="/dashboard/contacts/importar" className="rounded-lg border border-input px-3 py-2 text-sm font-medium hover:bg-accent">
+                Importar CSV
+              </Link>
+            )}
+            <Link
+              href="/dashboard/contacts?vista=eliminados"
+              className="rounded-lg border border-input px-3 py-2 text-sm font-medium hover:bg-accent"
+            >
+              Eliminados
+            </Link>
+          </div>
         </div>
 
         {/* Ítem 5 del plan maestro (06/11/2026): el buscador ocupa el ancho que
