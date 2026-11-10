@@ -3433,6 +3433,60 @@ No hubo sesión el 07/11 ni el 08/11 (ningún commit esos días), así que «Lo 
 
 **Corrección del 09/11/2026, dicha por Marcos:** **Marcos nunca usa Safari; todas sus pruebas en el iPhone fueron en Chrome.** La sesión había dicho Safari en esta lista y en el chat sin verificarlo. Donde este estado dice «Safari» como el navegador de las pruebas de Marcos (el diagnóstico de A del 06/11, punto 4, y los retrabajos del ítem 4), era una suposición de la sesión. **Inferencia, no verificada hoy contra la documentación de Apple:** Chrome en el iPhone usa por dentro WebKit, el motor de Safari (exigencia de Apple fuera de la Unión Europea), así que el diagnóstico de A sigue en pie; lo que cambia entre los dos son las barras (y con ellas el alto visible) y cómo se pausa la página en segundo plano. La prueba se hace en Chrome.
 
+#### Pantallas vistas por Marcos, el 09/11/2026 hasta las 19:47 (en Chrome, en el iPhone, y en la computadora)
+
+Los siete pasos de la lista: **los siete «funciona»** (mensaje de Marcos leído a las 19:47:12; la hora de inicio no está anotada, fue después de las 19:17). **A y B pasan a «pantallas vistas por Marcos».**
+
+**Propuesta de tilde (la decide Marcos):**
+
+| Criterio | Propuesta | Prueba | Última corrida |
+|---|---|---|---|
+| **F35, el teléfono.** La bandeja y la ficha usables, con el control positivo «abrir desde la lista, contestar y volver» | **Tildar** | `verify-hilo-telefono` (A, el hilo en el último mensaje en 5 de 5; B1 y B2, la lista con la vista previa de la base al volver, con Realtime y sin él); Marcos en el iPhone, en Chrome: el chat abre en el último mensaje (tres veces), las fotos, leer sin que vuelva solo, **enviar una respuesta desde el iPhone y volver a la lista con la vista previa propia**, la pausa del teléfono y la computadora. Condición del 06/11 cumplida: el chat abre en el último mensaje | `verify-hilo-telefono` 20 de 20, 19:07–19:08; los ocho de la sección 9, 19:08–19:13; pantallas hasta 19:47 |
+
+### Ítem 3c, «Respondió a tu historia» (F44, criterio 3): el detalle para la revisión de Marcos (09/11/2026, 19:5x)
+
+Revisión **completa** (migración, receptor de avisos). Nada construido. Estimación de la construcción: **60 min** (la del plan era 90; lo medido el 06/11 fue entre el 8 % y el 16 % de lo estimado, y esto tiene migración, receptor, importación, ruta, burbuja y verificador). Sin contar la revisión ni las esperas de Railway.
+
+**Lo verificado antes de escribir esto:**
+- El aviso `message.received` trae la marca en **`metadata.storyReply`**, con `storyId` (texto) y `storyUrl` (opcional, de `lookaside.fbsbx.com`, «expira aproximadamente 24 horas después de publicada la historia»): la entrega real de las 15:41:23 del 06/11 y `@zernio/node` 0.2.519 `dist/index.d.ts:7723-7735`. Nuestro tipo del aviso (`lib/zernio-aviso.ts:66-71`) no lo declara todavía.
+- **La importación del historial:** según los tipos (`dist/index.d.ts:16819-16822`), cada mensaje del listado trae `storyReply` **como verdadero o falso, sin id ni enlace**. **Pero la forma real anotada en `lib/zernio-message-map.ts:15-26`** (medida al construir F27) **no lo lista**, y ese mismo archivo documenta que los tipos del SDK mienten en ese listado. **No verificado con datos reales:** verificarlo pide una llamada de lectura a Zernio (compuerta 2). Propuesta: la importación lo lee **si viene**, y si no viene no inventa nada.
+- La vista previa de la lista es la columna `conversations.last_message_preview`, que escribe el receptor (`route.ts:334-341`, `messagePreview`); la lista la muestra tal cual.
+- La ruta del hilo elige sus columnas una por una (`app/api/v1/messages/route.ts:91-92`), así que la columna nueva no viaja sola.
+
+**1. La migración `00054_respuesta_historia.sql`** (idempotente, sin políticas, sin tocar filas):
+- `alter table public.messages add column if not exists historia jsonb;` — nula si el mensaje no es una respuesta a una historia; si lo es, `{"id": <storyId o null>, "enlace": <storyUrl o null>}`. Una sola columna, como decidió Marcos el 06/11.
+- Un `check` en un bloque `do $$ … $$` con control previo: `historia is null or jsonb_typeof(historia) = 'object'`.
+- `comment on column` con qué es, de dónde viene y que el enlace vence.
+- Al final de `ALL_MIGRATIONS.sql` (lo exige `lib/platforms.test.ts`), y el tipo en `lib/types/database.ts`.
+- Seguridad por filas: la de `messages`, que ya existe; la columna no la cambia.
+
+**2. Condiciones del OK adelantado del push** (las del ítem 5, adaptadas):
+- `supabase db push --dry-run` lista solo la 00054.
+- `npm test` y `typecheck` en verde antes.
+- Antes de las 20:15, o con el OK de Marcos en el momento.
+- Después: el catálogo muestra la columna `historia`, `jsonb`, nula permitida, con su `check`; las políticas de `messages`, las mismas que antes (nombre y cantidad); `messages` con `historia` no nula: **0** (no tocó filas).
+- La migración sube **antes** del código: así el verificador se ve en rojo por su motivo (la columna existe y nadie la escribe), no por una columna que falta.
+
+**3. El receptor** (`lib/zernio-aviso.ts`, `mensajeDelAviso`): si es un entrante y `metadata.storyReply` trae algo, `historia = { id: storyId ?? null, enlace }`, con el enlace solo si es `https` y su host es `lookaside.fbsbx.com`; si no, `null`. **Decisión de la revisión, vetable:** solo los entrantes. Un eco saliente con esa marca diría «Respondió a tu historia» al revés (la del lead); no hay muestra real de ese caso. La vista previa: `Historia: <texto>` (por `messagePreview`, así se recorta igual que las demás).
+
+**4. La importación** (`lib/zernio-message-map.ts`): `storyReply === true` → `historia = { id: null, enlace: null }`: se ve «Respondió a tu historia» sin «Ver historia». La vista previa de una conversación importada sale del listado de conversaciones (`lib/inbox-sync.ts:400`), que no trae la marca: **no empieza con «Historia:»**. Es un límite, no un error; se dice así.
+
+**5. La ruta del hilo** (`GET /api/v1/messages`): suma `historia` al `select` y la devuelve como `historia: { enlace }` o `null`. **El enlace viaja solo si el mensaje tiene menos de 24 horas** (decisión de la revisión de Marcos): se calcula en el servidor con `created_at`; después viaja `historia: { enlace: null }` y la burbuja muestra solo la marca. **Excepción aprobada por Marcos:** `lookaside.fbsbx.com` sale del servidor solo para este enlace, como con los reels el 05/11. **Inferencia, no verificada:** el enlace vence 24 horas después de **publicada la historia**, no de la respuesta, así que dentro de las 24 horas del mensaje puede dar error igual.
+
+**6. El hilo:** arriba del mensaje, la línea en gris «Respondió a tu historia» (§11); debajo, «Ver historia» (abre en otra pestaña, `rel="noopener noreferrer"`) solo si viene el enlace. No se baja ni se guarda la imagen de la historia (criterio). En la lista, «Historia: …» (§11).
+
+**7. El verificador nuevo `verify-respuesta-historia.mjs`**, en un espacio fantasma, con avisos firmados simulados, como `verify-contenido-hilo` (el secreto de prueba se le pone al espacio fantasma, no se lee ninguno real):
+1. Control: un aviso sin `storyReply` se guarda con `historia` nula y la vista previa sin «Historia:».
+2. Un aviso con `storyReply` (id y enlace de `lookaside`): `historia` con los dos, y la vista previa «Historia: Poderosa!». **El rojo:** con la 00054 subida y el código viejo, la columna queda nula.
+3. El mismo, con un enlace de otro host: `historia.enlace` nulo, la marca sí.
+4. `GET /api/v1/messages` como el Owner: el de 2 trae el enlace.
+5. Un mensaje con `historia` y `created_at` de hace 25 horas (escrito por la clave de servicio): la ruta devuelve la marca y `enlace` nulo. Control: el de 4, con menos de 24 horas, sí lo trae.
+6. Limpieza en cero y recuento.
+
+**Tests nuevos (en rojo antes):** `mensajeDelAviso` con y sin la marca, con un host ajeno; el mapa de la importación con `storyReply` verdadero, falso y ausente; la vista previa; la regla de las 24 horas de la ruta; la burbuja (con y sin enlace, y que nunca dice «plantilla» ni baja nada).
+
+**Pantallas para Marcos:** una respuesta nueva a una historia de @poderosascomunidad desde @marcospittimusic: en el hilo, «Respondió a tu historia» y «Ver historia»; en la lista, «Historia: …»; al día siguiente, sin «Ver historia».
+
 ### Plan maestro, tercer retrabajo del ítem 4 (Bloque 4, medido, subido)
 
 **06/11/2026, de 17:57 a 17:59** (hora de Costa Rica; fin de la construcción, 17:59). Liviana. Commits `086010d` y `f55de20`. Pedido por Marcos a las 17:4x, después de mirar el segundo retrabajo.
