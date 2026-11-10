@@ -56,3 +56,28 @@ describe("F38: la migración desde Pipedrive en la pantalla", () => {
     expect(pantalla).toContain("No se pudo contar el control de la migración");
   });
 });
+
+describe("F37, parte 2 (ítem 2 de la sesión de cierre): la pantalla con más de 500 filas", () => {
+  const pantalla = readFileSync(resolve(__dirname, "importar-contactos.tsx"), "utf8");
+  const pagina = readFileSync(resolve(__dirname, "../../app/(dashboard)/dashboard/contacts/importar/page.tsx"), "utf8");
+  it("acepta hasta 10.000 filas (no 500) y lo dice", () => {
+    expect(pantalla).toContain("MAX_FILAS");
+    expect(pantalla).not.toContain("MAX_FILAS_PARTE_1");
+    expect(pantalla).toContain("Hasta 10.000 filas por importación");
+  });
+  it("sube el archivo en tandas a /api/v1/contacts/importar/tandas y después pide procesar", () => {
+    expect(pantalla).toContain('"/api/v1/contacts/importar/tandas"');
+    expect(pantalla).toMatch(/accion: "empezar"/);
+    expect(pantalla).toMatch(/accion: "tanda"/);
+    expect(pantalla).toMatch(/accion: "procesar"/);
+  });
+  it("la barra es real: su ancho sale del porcentaje que informa el servidor, no de una animación", () => {
+    expect(pantalla).toMatch(/style=\{\{ width: `\$\{[a-zA-Z.]*porcentaje\}%` \}\}/);
+    expect(pantalla).not.toContain("w-1/2 animate-pulse");
+    expect(pantalla).toContain("/api/v1/contacts/importar/${");
+  });
+  it("en segundo plano avisa que llega un correo, y desde el correo se vuelve al resumen (?importacion=)", () => {
+    expect(pantalla).toContain("te avisamos por correo");
+    expect(pagina).toContain("importacion");
+  });
+});

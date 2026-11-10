@@ -166,16 +166,32 @@ export async function importarFilas(
   filas: FilaPreparada[],
   catalogos: Catalogos,
   almacen: AlmacenDeContactos,
-  opciones: { asignarA: string | null; etiquetaOrigenId?: string | null },
+  opciones: {
+    asignarA: string | null;
+    etiquetaOrigenId?: string | null;
+    /**
+     * Ítem 2 (F37, parte 2): cuántas filas van a la vez. Las filas que
+     * comparten un identificador (id de Pipedrive, correo o teléfono) van
+     * siempre una detrás de otra, en el orden del archivo, para que la
+     * segunda encuentre a la primera y no la duplique. Por defecto, 1.
+     */
+    concurrencia?: number;
+    /** Cuántas filas van terminadas, para la barra de progreso. */
+    alAvanzar?: (procesadas: number) => void;
+  },
 ): Promise<Resumen> {
   const r: Resumen = { creados: 0, actualizados: 0, conError: 0, usaronCodigo: 0, lineas: [], creadosIds: [], actualizadosIds: [], etiquetasCreadas: [] };
   const etiquetas = new Map(catalogos.etiquetas);
-  for (const f of filas) {
+  // Una etiqueta nueva se crea una sola vez aunque la pidan varias filas a la vez.
+  const etiquetasEnCreacion = new Map<string, Promise<string>>();
+  let procesadas = 0;
+
+  const procesar = async (f: FilaPreparada): Promise<void> => {
     const nombre = f.nombre ?? f.correo ?? f.telefono ?? f.pipedrive ?? `Fila ${f.numero}`;
     if (f.error) {
       r.conError++;
       r.lineas.push({ numero: f.numero, nombre, que: f.error });
-      continue;
+      return;
     }
 
     let existente: { id: string; eliminado: boolean; pipedrivePersonId?: string | null } | null = null;
@@ -191,7 +207,7 @@ export async function importarFilas(
     if (existente?.eliminado) {
       r.conError++;
       r.lineas.push({ numero: f.numero, nombre, que: ELIMINADO });
-      continue;
+      return;
     }
 
     const avisos: string[] = [];
@@ -254,7 +270,7 @@ export async function importarFilas(
             ? `El estado «${f.estadoTrato}» no es abierto, ganado ni perdido: la base lo rechazó y esta fila no se importó.`
             : "La base rechazó esta fila y no se importó.";
       r.lineas.push({ numero: f.numero, nombre, que });
-      continue;
+      return;
     }
     if (existente) {
       r.actualizados++;
@@ -279,9 +295,14 @@ export async function importarFilas(
       const clave = claveDeEtiqueta(t);
       let tagId = etiquetas.get(clave);
       if (!tagId) {
-        tagId = await almacen.crearEtiqueta(t);
+        let enCreacion = etiquetasEnCreacion.get(clave);
+        if (!enCreacion) {
+          enCreacion = almacen.crearEtiqueta(t);
+          etiquetasEnCreacion.set(clave, enCreacion);
+          r.etiquetasCreadas.push(t);
+        }
+        tagId = await enCreacion;
         etiquetas.set(clave, tagId);
-        r.etiquetasCreadas.push(t);
       }
       if (!tagIds.includes(tagId)) tagIds.push(tagId);
     }
@@ -300,6 +321,40 @@ export async function importarFilas(
     const base = existente ? "Actualizado." : "Creado.";
     const codigo = f.usoCodigoPorDefecto ? " Usó el código de país por defecto." : "";
     if (avisos.length || f.usoCodigoPorDefecto) r.lineas.push({ numero: f.numero, nombre, que: `${base}${codigo}${avisos.length ? ` ${avisos.join(" ")}` : ""}` });
-  }
+  };
+
+  // Grupos de filas que comparten un identificador (unión transitiva): dentro
+  // de un grupo, en orden; entre grupos, en paralelo.
+  const padre = filas.map((_, i) => i);
+  const raiz = (i: number): number => (padre[i] === i ? i : (padre[i] = raiz(padre[i])));
+  const duenos = new Map<string, number>();
+  filas.forEach((f, i) => {
+    if (f.error) return;
+    for (const k of [f.pipedrive && `p:${f.pipedrive}`, f.correo && `c:${f.correo.toLowerCase()}`, f.telefono && `t:${f.telefono}`]) {
+      if (!k) continue;
+      const otro = duenos.get(k);
+      if (otro === undefined) duenos.set(k, i);
+      else padre[raiz(i)] = raiz(otro);
+    }
+  });
+  const grupos = new Map<number, FilaPreparada[]>();
+  filas.forEach((f, i) => {
+    const g = raiz(i);
+    if (!grupos.has(g)) grupos.set(g, []);
+    grupos.get(g)!.push(f);
+  });
+  const cola = [...grupos.values()];
+  const trabajar = async () => {
+    for (let grupo = cola.shift(); grupo; grupo = cola.shift()) {
+      for (const f of grupo) {
+        await procesar(f);
+        procesadas++;
+        opciones.alAvanzar?.(procesadas);
+      }
+    }
+  };
+  const n = Math.max(1, Math.min(opciones.concurrencia ?? 1, cola.length));
+  await Promise.all(Array.from({ length: n }, trabajar));
+  r.lineas.sort((a, b) => a.numero - b.numero);
   return r;
 }

@@ -315,3 +315,67 @@ describe("ítem 1: nunca se reemplaza un pipedrive_person_id guardado (decisión
     expect(m.notas).toEqual([]);
   });
 });
+
+describe("ítem 2: importar en paralelo sin duplicar (F37, parte 2)", () => {
+  const conDemora = (iniciales: Array<DatosDeContacto & { id: string }> = [], ms = 20) => {
+    const m = almacenEnMemoria(iniciales);
+    let enVuelo = 0;
+    let maximo = 0;
+    const esperar = () => new Promise((r) => setTimeout(r, ms));
+    const envolver = <A extends unknown[], R>(fn: (...a: A) => Promise<R>) => async (...a: A) => {
+      enVuelo++;
+      maximo = Math.max(maximo, enVuelo);
+      await esperar();
+      try {
+        return await fn(...a);
+      } finally {
+        enVuelo--;
+      }
+    };
+    m.almacen.buscarPor = envolver(m.almacen.buscarPor);
+    m.almacen.crear = envolver(m.almacen.crear);
+    m.almacen.actualizar = envolver(m.almacen.actualizar);
+    let creadas = 0;
+    m.almacen.crearEtiqueta = envolver(async (nombre: string) => `creada-${nombre}-${++creadas}`);
+    return { ...m, maximo: () => maximo, creadas: () => creadas };
+  };
+
+  it("con concurrencia, varias filas van a la vez", async () => {
+    const m = conDemora();
+    const filas = Array.from({ length: 12 }, (_, i) => fila([`P${i}`, `p${i}@x.com`, "", "", "", "", "", ""], i + 2));
+    const r = await importarFilas(filas, catalogos, m.almacen, { asignarA: null, concurrencia: 6 });
+    expect(r.creados).toBe(12);
+    expect(m.maximo()).toBeGreaterThan(1);
+  });
+
+  it("dos filas con el mismo correo, o el mismo teléfono, no crean dos contactos aunque vayan en paralelo", async () => {
+    const m = conDemora();
+    const filas = [
+      fila(["Ana", "ana@x.com", "", "", "", "", "", ""], 2),
+      fila(["Ana bis", "ANA@x.com", "", "", "", "", "", ""], 3),
+      fila(["Luis", "", "7000 1111", "", "", "", "", ""], 4),
+      fila(["Luis bis", "", "+506 7000 1111", "", "", "", "", ""], 5),
+      fila(["Otra", "otra@x.com", "", "", "", "", "", ""], 6),
+    ];
+    const r = await importarFilas(filas, catalogos, m.almacen, { asignarA: null, concurrencia: 5 });
+    expect(r).toMatchObject({ creados: 3, actualizados: 2 });
+    expect(m.contactos).toHaveLength(3);
+  });
+
+  it("una etiqueta nueva se crea una sola vez aunque la traigan varias filas en paralelo", async () => {
+    const m = conDemora();
+    const filas = Array.from({ length: 6 }, (_, i) => fila([`P${i}`, `q${i}@x.com`, "", "", "", "Nueva", "", ""], i + 2));
+    const r = await importarFilas(filas, catalogos, m.almacen, { asignarA: null, concurrencia: 6 });
+    expect(m.creadas()).toBe(1);
+    expect(r.etiquetasCreadas).toEqual(["Nueva"]);
+  });
+
+  it("las líneas del resumen quedan en el orden de las filas, y el avance se informa", async () => {
+    const m = conDemora();
+    const avances: number[] = [];
+    const filas = [fila(["", "", "", "", "", "", "", ""], 2), fila(["B", "b@x.com", "", "", "", "", "", ""], 3), fila(["", "", "", "", "", "", "", ""], 4)];
+    const r = await importarFilas(filas, catalogos, m.almacen, { asignarA: null, concurrencia: 3, alAvanzar: (n) => avances.push(n) });
+    expect(r.lineas.map((l) => l.numero)).toEqual([2, 4]);
+    expect(avances.at(-1)).toBe(3);
+  });
+});

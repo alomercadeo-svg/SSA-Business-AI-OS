@@ -11,6 +11,11 @@ import { NextRequest } from "next/server";
 const correrTareas = vi.fn(async () => ({ espacios: 1, fallidas: 0, ocupadas: 0 }));
 vi.mock("@/lib/tareas-programadas", () => ({ correrTareas }));
 vi.mock("@/lib/supabase/server", () => ({ createServiceClient: async () => ({}) }));
+// F37, parte 2: la tarea retoma las importaciones cortadas después de responder.
+const reanudarImportaciones = vi.fn(async () => 1);
+vi.mock("@/lib/importacion-proceso", () => ({ reanudarImportaciones }));
+const despues: Array<() => Promise<unknown>> = [];
+vi.mock("next/server", async (original) => ({ ...(await original<typeof import("next/server")>()), after: (fn: () => Promise<unknown>) => despues.push(fn) }));
 
 const { POST } = await import("./route");
 
@@ -20,6 +25,8 @@ const pedido = (headers: Record<string, string> = {}, url = "https://app.ejemplo
 
 beforeEach(() => {
   correrTareas.mockClear();
+  reanudarImportaciones.mockClear();
+  despues.length = 0;
   vi.stubEnv("CRON_SECRET", SECRETO);
 });
 afterEach(() => vi.unstubAllEnvs());
@@ -61,5 +68,19 @@ describe("POST /api/cron/tareas", () => {
     correrTareas.mockResolvedValueOnce({ espacios: 2, fallidas: 1, ocupadas: 0 });
     const res = await POST(pedido({ authorization: `Bearer ${SECRETO}` }));
     expect(res.status).toBe(500);
+  });
+
+  it("F37: con el secreto, después de responder retoma las importaciones que esperan (sin hacer esperar a curl)", async () => {
+    const res = await POST(pedido({ authorization: `Bearer ${SECRETO}` }));
+    expect(res.status).toBe(200);
+    expect(reanudarImportaciones).not.toHaveBeenCalled();
+    expect(despues).toHaveLength(1);
+    await despues[0]();
+    expect(reanudarImportaciones).toHaveBeenCalledTimes(1);
+  });
+
+  it("F37: sin secreto no retoma ninguna importación", async () => {
+    await POST(pedido());
+    expect(despues).toHaveLength(0);
   });
 });

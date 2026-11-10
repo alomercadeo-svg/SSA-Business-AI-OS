@@ -40,7 +40,9 @@ export type IntegrationTipo = "canal" | "correo" | "ia";
  * migración. `sesion_whatsapp` es el de F32 (00041). Igual al último `check`
  * de las migraciones: lo comprueba `lib/sesion-whatsapp-migracion.test.ts`.
  */
-export const EMAIL_TIPOS = ["invitacion", "alerta_webhook", "sesion_whatsapp"] as const;
+export const EMAIL_TIPOS = ["invitacion", "alerta_webhook", "sesion_whatsapp", "importacion"] as const;
+/** Estados de `csv_imports` (00054 y 00057). */
+export type CsvImportEstado = "subiendo" | "en_cola" | "en_curso" | "terminada" | "fallida";
 export type EmailTipo = (typeof EMAIL_TIPOS)[number];
 /**
  * Estado de la sesión de un canal de WhatsApp (F32, 00041). «sin_vincular» es
@@ -702,9 +704,23 @@ export interface Database {
           creados: number;
           actualizados: number;
           con_error: number;
-          estado: "en_curso" | "terminada" | "fallida";
+          estado: CsvImportEstado;
           created_at: string;
           terminada_at: string | null;
+          // 00057 (F37, parte 2)
+          en_segundo_plano: boolean;
+          procesadas: number;
+          lotes: number;
+          opciones: Json | null;
+          lineas: Json;
+          usaron_codigo: number;
+          control: Json | null;
+          trabajando_hasta: string | null;
+          empezada_at: string | null;
+          error: string | null;
+          intentos: number;
+          aviso_enviado_at: string | null;
+          etiquetas_creadas: string[];
         };
         Insert: {
           id?: string;
@@ -715,17 +731,43 @@ export interface Database {
           creados?: number;
           actualizados?: number;
           con_error?: number;
-          estado?: "en_curso" | "terminada" | "fallida";
+          estado?: CsvImportEstado;
           created_at?: string;
           terminada_at?: string | null;
+          en_segundo_plano?: boolean;
+          procesadas?: number;
+          lotes?: number;
+          opciones?: Json | null;
+          lineas?: Json;
+          usaron_codigo?: number;
+          control?: Json | null;
+          trabajando_hasta?: string | null;
+          empezada_at?: string | null;
+          error?: string | null;
+          intentos?: number;
+          aviso_enviado_at?: string | null;
+          etiquetas_creadas?: string[];
         };
         Update: {
           filas?: number;
           creados?: number;
           actualizados?: number;
           con_error?: number;
-          estado?: "en_curso" | "terminada" | "fallida";
+          estado?: CsvImportEstado;
           terminada_at?: string | null;
+          en_segundo_plano?: boolean;
+          procesadas?: number;
+          lotes?: number;
+          opciones?: Json | null;
+          lineas?: Json;
+          usaron_codigo?: number;
+          control?: Json | null;
+          trabajando_hasta?: string | null;
+          empezada_at?: string | null;
+          error?: string | null;
+          intentos?: number;
+          aviso_enviado_at?: string | null;
+          etiquetas_creadas?: string[];
         };
         Relationships: [
           {
@@ -733,6 +775,37 @@ export interface Database {
             columns: ["workspace_id"];
             isOneToOne: false;
             referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      csv_import_lotes: {
+        Row: {
+          import_id: string;
+          numero: number;
+          filas: Json;
+          cantidad: number;
+          procesado_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          import_id: string;
+          numero: number;
+          filas: Json;
+          cantidad?: number;
+          procesado_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          filas?: Json;
+          procesado_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "csv_import_lotes_import_id_fkey";
+            columns: ["import_id"];
+            isOneToOne: false;
+            referencedRelation: "csv_imports";
             referencedColumns: ["id"];
           },
         ];

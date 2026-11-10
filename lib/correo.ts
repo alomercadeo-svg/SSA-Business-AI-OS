@@ -596,3 +596,65 @@ export function contenidoDeInvitacion(datos: {
     ],
   };
 }
+
+// ── El fin de una importación en segundo plano (F37, criterio 8) ────────────
+
+/** Qué dice el correo de fin de una importación. Exportada para el test. */
+export function contenidoDeFinDeImportacion(d: {
+  id: string;
+  nombreArchivo: string;
+  filas: number;
+  creados: number;
+  actualizados: number;
+  conError: number;
+  estado: "terminada" | "fallida";
+  control: unknown;
+}): { asunto: string; parrafos: string[] } {
+  const detalle = `${urlApp()}/dashboard/contacts/importar?importacion=${d.id}`;
+  if (d.estado === "fallida") {
+    return {
+      asunto: `No se pudo terminar la importación de «${d.nombreArchivo}»`,
+      parrafos: [
+        `La importación de «${d.nombreArchivo}» se cortó después de tres intentos. Hasta ahí quedaron ${d.creados} contactos creados y ${d.actualizados} actualizados; lo demás no se importó.`,
+        `Podés volver a importar el mismo archivo: no duplica, actualiza lo que ya está.`,
+        `El detalle: ${detalle}`,
+      ],
+    };
+  }
+  const parrafos = [`Terminó la importación de «${d.nombreArchivo}»: ${d.filas} filas: ${d.creados} creados, ${d.actualizados} actualizados y ${d.conError} con error.`];
+  const c = d.control as { medido?: boolean; enArchivo?: number; encontrados?: number } | null;
+  if (c?.medido && typeof c.enArchivo === "number" && typeof c.encontrados === "number") {
+    parrafos.push(
+      `Control de la migración: ${c.encontrados} de ${c.enArchivo} tratos.${c.encontrados < c.enArchivo ? ` Faltan ${c.enArchivo - c.encontrados}.` : ""}`,
+    );
+  }
+  if (d.conError > 0) parrafos.push("Las filas con error no se importaron; el detalle dice por qué.");
+  parrafos.push(`El detalle: ${detalle}`);
+  return { asunto: `Terminó la importación de «${d.nombreArchivo}»`, parrafos };
+}
+
+/** El correo de quien importó: el aviso de una acción va a quien la hizo (F23). */
+export async function destinatarioDeImportacion(servicio: Cliente, usuarioId: string | null): Promise<string[]> {
+  if (!usuarioId) return [];
+  const { data } = await servicio.auth.admin.getUserById(usuarioId);
+  const email = data?.user?.email?.trim().toLowerCase();
+  return email ? [email] : [];
+}
+
+export async function notificarFinDeImportacion(
+  servicio: Cliente,
+  d: Parameters<typeof contenidoDeFinDeImportacion>[0] & { workspaceId: string; usuarioId: string | null },
+): Promise<ResultadoEnvio | null> {
+  try {
+    const para = await destinatarioDeImportacion(servicio, d.usuarioId);
+    if (para.length === 0) return null;
+    const { asunto, parrafos } = contenidoDeFinDeImportacion(d);
+    return await enviarCorreo(
+      { workspaceId: d.workspaceId, tipo: "importacion", para, paraEtiqueta: para[0], asunto, texto: parrafos.join("\n\n"), html: aHtml(parrafos) },
+      { servicio },
+    );
+  } catch (e) {
+    console.error("[correo] no se pudo avisar el fin de la importación:", e instanceof Error ? e.message : "desconocido");
+    return null;
+  }
+}

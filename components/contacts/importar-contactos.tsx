@@ -1,17 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { MAX_BYTES, MAX_FILAS_PARTE_1, leerCsv, sugerirCampo, type Campo, type Planilla } from "@/lib/importacion-csv";
+import { MAX_BYTES, leerCsv, sugerirCampo, type Campo, type Planilla } from "@/lib/importacion-csv";
+import { FILAS_POR_TANDA, LIMITE_EN_EL_MOMENTO, MAX_FILAS } from "@/lib/importacion-segundo-plano";
+import type { ResumenDeImportacion } from "@/lib/importacion-progreso";
 import type { Miembro } from "@/lib/miembros";
 
 /**
- * F37, parte 1 (09/11/2026): la pantalla de cinco pasos de §11 (Archivo,
- * Columnas, Opciones, Importando, Resumen), hasta 500 filas en el momento.
- * El archivo se lee en el navegador para la vista previa y el mapeo; el
- * servidor vuelve a preparar cada fila (`POST /api/v1/contacts/importar`).
+ * F37 (09/11/2026, y la parte 2 del 10/11/2026): la pantalla de cinco pasos
+ * de §11 (Archivo, Columnas, Opciones, Importando, Resumen), hasta 10 MB y
+ * 10.000 filas. El archivo se lee en el navegador para la vista previa y el
+ * mapeo, y se sube en tandas de 500 filas (`POST
+ * /api/v1/contacts/importar/tandas`); el servidor vuelve a preparar cada fila.
+ * Hasta 500 filas se procesa en el momento; con más, en segundo plano, y llega
+ * un correo al terminar. La barra sale de lo que el servidor ya procesó
+ * (`GET /api/v1/contacts/importar/<id>`).
  */
 const PASOS = ["Archivo", "Columnas", "Opciones", "Importando", "Resumen"] as const;
 
@@ -34,20 +40,28 @@ const OPCIONES_FIJAS: { valor: Campo; texto: string }[] = [
   { valor: "nota", texto: "Nota del contacto" },
 ];
 
-interface Resultado {
-  filas: number;
-  creados: number;
-  actualizados: number;
-  conError: number;
-  usaronCodigo: number;
-  etiquetasCreadas: string[];
-  lineas: { numero: number; nombre: string; que: string }[];
-  /** F38: solo cuando se mapeó «Id de trato de Pipedrive». */
+type Resultado = ResumenDeImportacion & {
   control?: { medido: true; enArchivo: number; encontrados: number; enEspacio: number } | { medido: false } | null;
+};
+
+const TANDAS_URL = "/api/v1/contacts/importar/tandas";
+
+async function pedir(cuerpo: Record<string, unknown>): Promise<{ ok: boolean; status: number; datos: Record<string, unknown> | null }> {
+  const res = await fetch(TANDAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) });
+  return { ok: res.ok, status: res.status, datos: await res.json().catch(() => null) };
 }
 
-export function ImportarContactos({ camposPropios, miembros }: { camposPropios: { slug: string; name: string }[]; miembros: Miembro[] }) {
-  const [paso, setPaso] = useState(0);
+export function ImportarContactos({
+  camposPropios,
+  miembros,
+  importacionInicial = null,
+}: {
+  camposPropios: { slug: string; name: string }[];
+  miembros: Miembro[];
+  /** Desde el correo de fin de importación: `?importacion=<id>`. */
+  importacionInicial?: string | null;
+}) {
+  const [paso, setPaso] = useState(importacionInicial ? 3 : 0);
   const [archivo, setArchivo] = useState<string>("");
   const [planilla, setPlanilla] = useState<Planilla | null>(null);
   const [mapeo, setMapeo] = useState<Campo[]>([]);
@@ -56,6 +70,50 @@ export function ImportarContactos({ camposPropios, miembros }: { camposPropios: 
   const [asignarA, setAsignarA] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [resultado, setResultado] = useState<Resultado | null>(null);
+  const [avance, setAvance] = useState<Resultado | null>(null);
+  const [subiendo, setSubiendo] = useState<{ hecho: number; total: number } | null>(null);
+  const [segundoPlano, setSegundoPlano] = useState(false);
+  const seguido = useRef<string | null>(null);
+
+  /** Pregunta el avance cada 2 segundos hasta que termina (o falla). */
+  function seguir(id: string) {
+    seguido.current = id;
+    const vuelta = async () => {
+      if (seguido.current !== id) return;
+      try {
+        const res = await fetch(`/api/v1/contacts/importar/${encodeURIComponent(id)}`, { cache: "no-store" });
+        const datos = (await res.json().catch(() => null)) as Resultado | null;
+        if (res.ok && datos) {
+          setAvance(datos);
+          setSegundoPlano(datos.enSegundoPlano);
+          if (datos.terminada || datos.fallida) {
+            seguido.current = null;
+            setResultado(datos);
+            setPaso(4);
+            return;
+          }
+        } else if (res.status === 404) {
+          seguido.current = null;
+          setError("Esa importación no existe.");
+          setPaso(0);
+          return;
+        }
+      } catch {
+        // Sin red por un momento: se vuelve a preguntar.
+      }
+      setTimeout(vuelta, 2000);
+    };
+    void vuelta();
+  }
+
+  useEffect(() => {
+    if (importacionInicial) seguir(importacionInicial);
+    return () => {
+      seguido.current = null;
+    };
+    // Solo al abrir la pantalla.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function elegir(f: File | undefined) {
     setError(null);
@@ -63,7 +121,7 @@ export function ImportarContactos({ camposPropios, miembros }: { camposPropios: 
     if (f.size > MAX_BYTES) return setError("El archivo pasa de 10 MB.");
     const p = leerCsv(await f.text());
     if (p.columnas.length === 0 || p.filas.length === 0) return setError("La planilla no tiene filas para importar.");
-    if (p.filas.length > MAX_FILAS_PARTE_1) return setError(`Tiene ${p.filas.length} filas. Por ahora, hasta 500 filas por importación.`);
+    if (p.filas.length > MAX_FILAS) return setError(`Tiene ${p.filas.length} filas. Hasta 10.000 filas por importación.`);
     setArchivo(f.name);
     setPlanilla(p);
     setMapeo(p.columnas.map((c) => sugerirCampo(c, camposPropios)));
@@ -74,28 +132,55 @@ export function ImportarContactos({ camposPropios, miembros }: { camposPropios: 
     if (!planilla) return;
     setPaso(3);
     setError(null);
+    setAvance(null);
+    const volver = (texto: string) => {
+      seguido.current = null;
+      setSubiendo(null);
+      setError(texto);
+      setPaso(2);
+    };
     const filas = planilla.filas.map((f) => planilla.columnas.map((_, i) => f[i] ?? ""));
     try {
-      const res = await fetch("/api/v1/contacts/importar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombreArchivo: archivo, codigoPais, asignarA: asignarA || null, etiquetaOrigen: etiquetaOrigen.trim() || null, mapeo, filas }),
+      const inicio = await pedir({
+        accion: "empezar",
+        nombreArchivo: archivo,
+        codigoPais,
+        asignarA: asignarA || null,
+        etiquetaOrigen: etiquetaOrigen.trim() || null,
+        mapeo,
+        total: filas.length,
       });
-      const datos = await res.json().catch(() => null);
-      if (!res.ok) {
-        setError(datos?.error ?? "No se pudo importar. Probá de nuevo.");
-        setPaso(2);
-        return;
+      const id = inicio.datos?.importacion;
+      if (!inicio.ok || typeof id !== "string") return volver(String(inicio.datos?.error ?? "No se pudo importar. Probá de nuevo."));
+      setSegundoPlano(Boolean(inicio.datos?.enSegundoPlano));
+      const tandas = Math.ceil(filas.length / FILAS_POR_TANDA);
+      for (let n = 0; n < tandas; n++) {
+        setSubiendo({ hecho: n, total: tandas });
+        const cuerpo = { accion: "tanda", importacion: id, numero: n, filas: filas.slice(n * FILAS_POR_TANDA, (n + 1) * FILAS_POR_TANDA) };
+        // Un reintento por tanda: repetirla la reemplaza, no la duplica.
+        let r = await pedir(cuerpo);
+        if (!r.ok && r.status >= 500) r = await pedir(cuerpo);
+        if (!r.ok) return volver(String(r.datos?.error ?? "No se pudo subir el archivo. Probá de nuevo."));
       }
-      setResultado(datos as Resultado);
-      setPaso(4);
+      setSubiendo(null);
+      // Hasta 500 filas el pedido espera el proceso; la barra se sigue igual.
+      seguir(id);
+      const fin = await pedir({ accion: "procesar", importacion: id });
+      if (!fin.ok && fin.status !== 202) {
+        // Si el pedido se cortó pero la importación sigue en el servidor, la
+        // barra lo va a mostrar; solo un rechazo claro vuelve atrás.
+        if (fin.status < 500 && fin.status !== 0) return volver(String(fin.datos?.error ?? "No se pudo importar. Probá de nuevo."));
+      }
     } catch {
-      setError("No se pudo importar. Probá de nuevo.");
-      setPaso(2);
+      // Un corte de red mientras procesa no quiere decir que falló: la barra
+      // sigue preguntando. Si todavía no había empezado, vuelve atrás.
+      if (!seguido.current) volver("No se pudo importar. Probá de nuevo.");
     }
   }
 
   const filasValidas = planilla?.filas.length ?? 0;
+  /** Lo que el servidor ya procesó, de 0 a 100. */
+  const porcentaje = avance?.porcentaje ?? 0;
 
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-6">
@@ -136,7 +221,7 @@ export function ImportarContactos({ camposPropios, miembros }: { camposPropios: 
         >
           <Upload className="h-8 w-8 text-muted-foreground" />
           <span className="mt-2 text-sm font-medium">Arrastrá la planilla acá o elegila</span>
-          <span className="mt-1 text-xs text-muted-foreground">CSV de hasta 10 MB y {MAX_FILAS_PARTE_1} filas por ahora</span>
+          <span className="mt-1 text-xs text-muted-foreground">CSV de hasta 10 MB. Hasta 10.000 filas por importación; con más de {LIMITE_EN_EL_MOMENTO}, se importa en segundo plano y te avisamos por correo.</span>
           <span className="mt-3 rounded-lg border border-input px-3 py-1.5 text-sm font-medium">Elegir archivo</span>
           <input type="file" accept=".csv,text/csv" className="sr-only" onChange={(e) => void elegir(e.target.files?.[0])} />
         </label>
@@ -240,11 +325,36 @@ export function ImportarContactos({ camposPropios, miembros }: { camposPropios: 
       )}
 
       {paso === 3 && (
-        <div className="mt-6" role="status">
-          <p className="text-sm font-medium">Importando {filasValidas} filas…</p>
-          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-            <div className="h-full w-1/2 animate-pulse rounded-full bg-primary" />
-          </div>
+        <div className="mt-6" role="status" aria-live="polite">
+          {subiendo ? (
+            <>
+              <p className="text-sm font-medium">
+                Subiendo el archivo: parte {subiendo.hecho + 1} de {subiendo.total}…
+              </p>
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${Math.floor((subiendo.hecho / subiendo.total) * 100)}%` }} />
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium">
+                {avance ? `Importando: ${avance.procesadas} de ${avance.filas} filas (${avance.porcentaje} %)` : `Importando ${filasValidas || ""} filas…`}
+              </p>
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${porcentaje}%` }} />
+              </div>
+              {avance && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {avance.creados} creados · {avance.actualizados} actualizados · {avance.conError} con error
+                </p>
+              )}
+            </>
+          )}
+          {(segundoPlano || (filasValidas > LIMITE_EN_EL_MOMENTO && !importacionInicial)) && (
+            <p className="mt-3 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+              Son más de {LIMITE_EN_EL_MOMENTO} filas: se importan en segundo plano. Podés cerrar esta pantalla; te avisamos por correo cuando termine.
+            </p>
+          )}
         </div>
       )}
 
@@ -255,7 +365,7 @@ export function ImportarContactos({ camposPropios, miembros }: { camposPropios: 
               ["Creados", resultado.creados],
               ["Actualizados", resultado.actualizados],
               ["Con error", resultado.conError],
-              [`Usaron ${codigoPais} por defecto`, resultado.usaronCodigo],
+              ["Usaron el código de país por defecto", resultado.usaronCodigo],
             ].map(([t, n]) => (
               <div key={String(t)} className="rounded-lg border border-border p-3">
                 <div className="text-2xl font-bold">{n}</div>
@@ -263,6 +373,11 @@ export function ImportarContactos({ camposPropios, miembros }: { camposPropios: 
               </div>
             ))}
           </div>
+          {resultado.fallida && (
+            <p className="mt-3 rounded-lg border border-destructive/40 p-3 text-sm text-destructive" role="alert">
+              {resultado.error ?? "La importación no se pudo terminar."} Hasta ahí quedó lo que dicen los números. Podés volver a importar el mismo archivo: no duplica.
+            </p>
+          )}
           {resultado.control && !resultado.control.medido && (
             <p className="mt-3 rounded-lg border border-destructive/40 p-3 text-sm text-destructive">
               No se pudo contar el control de la migración. La importación se hizo; volvé a importar el mismo archivo para medirlo (no duplica).
@@ -285,7 +400,7 @@ export function ImportarContactos({ camposPropios, miembros }: { camposPropios: 
                 Los contactos con identificador de trato de Pipedrive coinciden con los tratos del archivo (sin contar los «IG DM»). Si no coincidieran, la
                 migración no se da por buena: la tabla de abajo dice qué filas no entraron y por qué.
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">En todo el espacio hay {resultado.control.enEspacio} tratos de Pipedrive distintos.</p>
+              <p className="mt-1 text-xs text-muted-foreground">En todo el espacio hay {resultado.control.enEspacio} contactos con un trato de Pipedrive.</p>
             </div>
           )}
           {resultado.etiquetasCreadas?.length > 0 && (

@@ -4186,7 +4186,7 @@ Sin fecha: el Flujo 4 del plano, la conexión en vivo de WhatsApp. Espera el nú
 
 ### Casillas
 
-- [ ] **Mapa real** de los criterios sin tildar de los bloques 2 a 4 (tabla abajo).
+- [x] **Mapa real** de los criterios sin tildar de los bloques 2 a 4 (tabla abajo). Hecho a las 17:2x.
 - [ ] **Ítem 1:** personas de Pipedrive que comparten correo o teléfono (script de unión, protección en el importador, criterio 11 de F38 reescrito, archivos regenerados).
 - [ ] **Ítem 2:** importación de planillas, parte 2 (F37, criterios 2, 7, 8 y 9).
 - [ ] **Ítem 3:** los criterios chicos que el mapa marque sin construir.
@@ -4195,6 +4195,35 @@ Sin fecha: el Flujo 4 del plano, la conexión en vivo de WhatsApp. Espera el nú
 - [ ] **Ítem 6:** la respuesta privada a un comentario (F40).
 - [ ] **Ítem 7:** las deudas sin resolver de §15.
 - [ ] **Ítem 8:** el cierre (criterios del Embudo propuestos, lista de verificación de F1 a F4 y §14b, reporte final).
+
+### El mapa real de los criterios sin tildar, bloques 2 a 4 (10/11/2026, 17:2x)
+
+**Cómo se armó:** leyendo el código (un agente de solo lectura, con grep y lectura de archivos; sin correr verificadores ni llamar a servicios). Cada fila dice dónde está. **«Verificado» es por lectura del código, no por una corrida;** lo que dice «suposición» o «inferencia» lo es. Lo que el mapa muestra construido no se vuelve a construir.
+
+| Funcionalidad, criterio | Estado | Dónde | Test o verificador |
+|---|---|---|---|
+| F24, el estado en tiempo real con la detección al fallar una llamada a IA | A medias: falta la IA (`lib/flow-engine/nodes/ai-response.ts:143` no registra el fallo) | `integrations-view.tsx:94-97`, `lib/integraciones-estado.ts:295` y `:319` | `lib/integraciones-estado.test.ts`. **No se construye: su dueño escrito es la Fase 2** (sección 5 del pedido) |
+| F25, `last_click` en cada interacción con parámetros | A medias: solo WhatsApp (click-to-WhatsApp, `lib/evolution-guardado.ts:394-412`); Instagram no escribe toques | `lib/atribucion.ts:50` y `:91` | `lib/atribucion.test.ts`, `lib/evolution-guardado.test.ts:360`. **Va al ítem 3** |
+| F26, la identidad del canal | Construido; espera el caso real | `lib/channel-rules.ts:174`, `:241`, `:264-277`; `sync/route.ts:136` | `lib/channel-identidad.test.ts`, `verify-identidad-canal.mjs`. No se toca (sección 5) |
+| F31, los tipos de entrada del historial | Construido para los tipos que enumera; huecos dentro de «canal con error»: la caída de la sesión de WhatsApp y los fallos de envío por Zernio o Resend no dejan entrada | `lib/auditoria.ts`, check en `00054:56-79` (22 acciones) | `lib/auditoria.test.ts`, `verify-auditoria.mjs`. **Va al ítem 3** (la caída de la sesión) |
+| F33, criterios 1, 2, 3, 4 y 6 | Lógica construida y probada, sin motor que la use; el 4 usa la zona del negocio | `lib/reglas-seguridad.ts` | `lib/reglas-seguridad.test.ts`, `verify-reglas-seguridad.mjs`. No se construye (Fase 2) |
+| F33, criterio 8 (el motor) | No construido | — | Fase 2 |
+| F34, el bloqueo del envío a un contacto marcado | Construido en la bandeja, para Instagram y WhatsApp (409 `no_contactar`, `app/api/v1/messages/route.ts:221-231`); **el motor de flujos, las secuencias del fork, las difusiones y `cron/jobs` no revisan la marca** | ídem | `verify-no-contactar.mjs` paso 5, `verify-respuesta-whatsapp.mjs:96`. **Va al ítem 3** (el motor de flujos, que sí corre en producción con los avisos de Zernio) |
+| F35, con más de una conversación el filtro muestra todas | Construido: `bandeja_filtrada` (`00048:123-136`) filtra por conversación con `exists` sobre el contacto | `00048:51` | `verify-filtros-bandeja.mjs:344-346`. **No se construye;** se propone tilde con la prueba que falte |
+| F37, criterio 2 (10 MB y 10.000 filas) | A medias: 10 MB solo en el cliente, tope de 500 filas | `importar-contactos.tsx:63`, `importar/route.ts:87` | Ítem 2 |
+| F37, criterios 7 y 8 (segundo plano y correo) | No construidos | — | Ítem 2 |
+| F37, criterio 9 (barra y resumen) | A medias: el resumen está; la barra es indeterminada (`importar-contactos.tsx:242-248`) | — | Ítem 2 |
+| F38, criterios 1 a 10, 12 y 13 | Construidos el 10/11 | `lib/importacion-*.ts`, `scripts/pipedrive-unir.mjs` | `lib/importacion-*.test.ts`, `verify-migracion-pipedrive.mjs` |
+| F38, criterio 6 (el código de país como ajuste del espacio) | **A medias:** se cambia por importación, pero el valor inicial está fijo en `"+506"` en `importar-contactos.tsx:54`; no hay ajuste del espacio | — | **Va al ítem 3** |
+| F38, criterio 11 (el control) | Construido con la regla nueva; criterio reescrito hoy (ítem 1) | `importar/route.ts:241-261` | `lib/importacion-contactos.test.ts:257` |
+| F38, criterios 14 y 15 (sin canal no entra a una secuencia) | A medias: solo `enrollContact`, que ninguna pantalla llama | `lib/actions/sequences.ts:100-111` | No se construye (Fase 2, sección 5) |
+| F40, «Escribir por WhatsApp», el texto sin conversación y su control | Construidos | `components/inbox/ventana-cerrada.tsx:19-56`, `message-thread.tsx:762-769` | `ventana-pantalla.test.ts:110-131` (por la fuente). Se proponen tildes con la pantalla |
+| F40, el error claro por ventana vencida | Construido: 409 `ventana_cerrada` antes de llamar, y el rechazo de Zernio por ventana con el mismo aviso (`lib/ventana-instagram.ts:128` y `:143`). **Que el rechazo real traiga el subcódigo 2018278 es suposición:** nunca se vio uno | `app/api/v1/messages/route.ts:238-242`, `:345-348`; `message-thread.tsx:542-546` | `route.test.ts:366-398`, `verify-ventana-instagram.mjs:322-335`. **No se reconstruye** |
+| F40, la respuesta privada (7 días, una vez) | A medias: una vez por comentario de hecho (índice único de `comment_logs`), sin control de 7 días; no hay envío desde la bandeja | `lib/flow-engine/engine.ts:395`, `:952` | Ítem 6 |
+| F42, el campo con la sesión caída y el error claro | Construidos; falta verlos en pantalla | `message-thread.tsx:316-332`, `:540-566`, `:757-761` | `whatsapp-campo.test.ts`, `route.test.ts:446-497` |
+| F44, «Respondió a tu historia» | No construido | `lib/zernio-aviso.ts:38` (solo un comentario) | Ítem 5 |
+
+**Datos que salieron del mapa y sirven para el ítem 2:** `app/api/cron/tareas/route.ts` no procesa importaciones ni exporta `maxDuration`; `webhook_alerts` no tiene `check` sobre `alert_condition` (la definición es `00022:105-116`), así que un tipo de alerta nuevo no necesita migración.
 
 ### Ítem 1 de la sesión de cierre: personas de Pipedrive que comparten correo o teléfono (F38)
 
@@ -4212,3 +4241,44 @@ Sin fecha: el Flujo 4 del plano, la conexión en vivo de WhatsApp. Espera el nú
 **Hecho (17:10 a 17:13).** Tests nuevos: 9, **vistos en rojo 7** (5 de la fusión en el script, el de la normalización igual a la importación, y el de la protección en el importador). **Los 2 controles positivos no se vieron en rojo, y es lo esperado:** «dos personas sin correo ni teléfono no se unen; una sin conflicto queda igual» y «un contacto sin ID guardado, o con el mismo, se actualiza normalmente» pasaban antes y después. Suite 1631 de 1631, `typecheck` y `lint` en verde (0 errores, 45 avisos, los de antes).
 
 **Los archivos regenerados (17:12, solo conteos):** personas 529, tratos 601, «IG DM» 199, no «IG DM» 402. **4 grupos de personas que comparten correo o teléfono, 4 personas fusionadas en la primera.** La cuenta: 380 en la ficha + 19 como nota + 3 sin persona = 402. `migracion-A.csv`: 500 filas, 380 con trato. `migracion-B.csv`: **25 filas** (antes 29). 4 columnas de nota. Sin teléfono ni correo: 148.
+
+### Ítem 2 de la sesión de cierre: importación de planillas, parte 2 (F37, criterios 2, 7, 8 y 9)
+
+**Plan (revisión completa: migración, escrituras en producción, una tarea programada y un correo real; aprobado de antemano por Marcos para esta sesión).** Escrito a las 17:2x.
+
+**Lo verificado antes de elegir cómo se sube el archivo:**
+- **Next.js 16.1.6:** con `middleware.ts` (este proyecto lo tiene), el cuerpo de un pedido se guarda hasta `proxyClientMaxBodySize`, por defecto 10 MB, y **lo que pasa de eso se corta en silencio**: el pedido sigue con el cuerpo parcial y no da error. Verificado en la documentación oficial (`nextjs.org/docs/app/api-reference/config/next-config-js/proxyClientMaxBodySize`) y en el código instalado (`node_modules/next/dist/server/config-shared.js:220`, `proxyClientMaxBodySize: 10485760`). Un CSV de 10 MB pasado a JSON pesa más de 10 MB.
+- **Railway:** un pedido puede durar hasta 15 minutos si siguen pasando datos, y **se cierra a los 5 minutos sin datos**; el cuerpo tiene que terminar de subir en 5 minutos; no hay tope de tamaño de cuerpo. Verificado en la documentación oficial (`docs.railway.com/networking/public-networking/specs-and-limits`). **Inferencia:** eso explica el «No se pudo importar» del 10/11 a las 12:57 (5 min 16 s sin responder nada).
+- **La tarea programada:** el servicio «vigilancia-cron» llama a `POST /api/cron/tareas` cada 10 minutos con `curl --max-time 60` (estado, líneas 763 y 764). Verificado en el estado y en el código de la ruta; la configuración de Railway no la puedo ver.
+
+**El diseño:**
+- La pantalla lee el archivo (hasta 10 MB y 10.000 filas) y lo sube en **tandas de 500 filas** a `POST /api/v1/contacts/importar/tandas` (`empezar`, `tanda`, `procesar`). Cada pedido es chico: ninguno se acerca al tope de 10 MB ni a los 5 minutos.
+- **Hasta 500 filas**, el pedido de `procesar` espera el proceso (en el momento, como pide el criterio 7). **Con más**, responde enseguida (202) y el proceso corre después de la respuesta, con `after()` de Next.js, en el mismo servidor de Railway.
+- **Más rápido:** dentro de cada tanda van 8 filas a la vez. Las que comparten id de Pipedrive, correo o teléfono van en orden, para no duplicar. La ruta de la parte 1 usa lo mismo.
+- **Si el servidor se reinicia a mitad de camino** (un despliegue), el reclamo del proceso vence a los 3 minutos y lo retoma la tarea de cada 10 minutos, desde la primera tanda sin procesar. **Sin tocar Railway.**
+- **La barra** sale de `csv_imports.procesadas`, que la pantalla pregunta cada 2 segundos (`GET /api/v1/contacts/importar/<id>`). **El resumen** trae creados, actualizados, con error, los que usaron el código por defecto, el detalle por fila (hasta 2000 líneas), el control de la migración y las etiquetas creadas.
+- **Al terminar en segundo plano**, un correo a quien importó por la función de F23 (`notificarFinDeImportacion`, tipo `importacion`), con el enlace al resumen (`/dashboard/contacts/importar?importacion=<id>`). Sale una sola vez (`aviso_enviado_at`). Al tercer fallo, la importación queda «fallida» y el correo lo dice.
+- **Migración 00057** (idempotente): las columnas nuevas de `csv_imports`, la tabla `csv_import_lotes` (seguridad por filas activada, sin políticas: solo el servidor) y el tipo `importacion` en `email_log`.
+
+**Decidí yo (vetable):**
+- 8 filas a la vez, tandas de 500 y un reclamo de 3 minutos. Son supuestos iniciales: se miden con la prueba de 10.000 filas.
+- El proceso en segundo plano escribe con la clave de servicio, acotado al espacio, porque ya no hay sesión. El rol de Owner o Admin se comprueba en cada pedido de la subida. Importar sigue siendo solo de managers, así que la seguridad por filas no cambiaría lo que se ve.
+- Una tanda que se cortó a mitad de camino se reprocesa entera: no duplica, pero lo que ya había creado cuenta como «actualizado».
+- El total del espacio del control pasa a contar contactos con un trato de Pipedrive, sin el tope de 1000 de antes, y la pantalla lo dice así.
+
+**La copia antes de migrar (red de seguridad 1 del `CLAUDE.md`) falló a las 17:28.** `npx supabase db dump --linked` (CLI 2.117.0) necesita Docker, que no está instalado («docker: command not found»). El CLI oficial 3.1.0 (`npx supabase@3.1.0 db dump --remote`) pide un token de acceso de `supabase login`. **Por la regla, no se migró.** Marcos ofreció iniciar sesión a las 17:3x.
+
+**Tests nuevos: 23, vistos en rojo 20.**
+- 2 de la concurrencia: «varias filas van a la vez» y «las líneas en orden y el avance».
+- 6 del proceso: todas las tandas con un solo aviso, los números de fila a través de las tandas, reclamada por otro, retoma, fallo y tercer fallo, el avance.
+- 3 del correo y 5 de los pedidos por tandas, que cayeron por función inexistente o por un esqueleto vacío.
+- 2 de la barra.
+- 1 de la tarea programada que retoma.
+- 4 de la pantalla, por la fuente. **No prueban la pantalla:** eso lo mira Marcos.
+
+**No se vieron en rojo, y por qué:**
+- «dos filas con el mismo correo o teléfono no se duplican en paralelo» y «una etiqueta nueva se crea una sola vez en paralelo». Pasaban con el código de antes, que iba de a una fila. Son la guardia de la versión en paralelo: con un paralelo ingenuo fallarían, pero no lo probé.
+- «en el momento no manda correo». Es una comprobación por ausencia; su control positivo es el primer test del proceso.
+- «sin secreto no retoma ninguna importación». Pasaba antes, porque no se retomaba nada.
+
+Suite 1658 de 1658, `typecheck` y `lint` en verde, `next build` local bien.

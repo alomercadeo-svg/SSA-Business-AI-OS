@@ -1,8 +1,9 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/server";
 import { correrTareas } from "@/lib/tareas-programadas";
+import { reanudarImportaciones } from "@/lib/importacion-proceso";
 
 /**
  * POST /api/cron/tareas: corre las tareas programadas (`lib/tareas-programadas.ts`).
@@ -29,6 +30,16 @@ export async function POST(request: NextRequest) {
 
   const servicio = (await createServiceClient()) as unknown as SupabaseClient;
   const resumen = await correrTareas({ servicio, ahora: new Date() });
+  // F37, parte 2: las importaciones en segundo plano que se cortaron (un
+  // reinicio a mitad de camino) se retoman acá, después de responder, para no
+  // hacer esperar a `curl --max-time 60` del servicio de Railway.
+  after(async () => {
+    try {
+      await reanudarImportaciones(servicio as never);
+    } catch (e) {
+      console.error("[tareas] no se pudieron retomar las importaciones:", e instanceof Error ? e.message : String(e));
+    }
+  });
   // Un espacio fallido responde 500: `curl --fail` lo marca como fallido en
   // Railway. La marca de última ejecución no avanza para ese espacio.
   return NextResponse.json(resumen, { status: resumen.fallidas > 0 ? 500 : 200 });
