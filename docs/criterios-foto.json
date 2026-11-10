@@ -2427,7 +2427,7 @@
       "Bloque 4: Bandeja, herramientas y reglas de seguridad",
       "F38: Migración desde Pipedrive"
     ],
-    "texto": "- [ ] **Control de la migración, afirmativo:** la cantidad de filas con `pipedrive_deal_id` no nulo coincide con la cantidad de tratos no \"IG DM\" del export. Si no coinciden, falta algo y se sabe cuánto. Sin esta comprobación, \"el importador dijo 399 filas\" no distingue entre 399 de 399 y 399 de 412"
+    "texto": "- [ ] Control de la migración, afirmativo: el script de unión cuenta los tratos del export que no son «IG DM» y los reparte en tres grupos: los que van a la ficha de un contacto, los que entran como nota «Trato anterior en Pipedrive» y los que no tienen persona. Si la suma de los tres no da el total, el script frena. Después de importar, la cantidad de ids de trato distintos del archivo que aparecen en `pipedrive_deal_id` dentro del espacio coincide con el grupo que va a la ficha. Si no coinciden, falta algo y se sabe cuánto. Sin esta comprobación, «el importador dijo 380 filas» no distingue entre 380 de 380 y 380 de 402"
   },
   {
     "seccion": "F38: Migración desde Pipedrive",

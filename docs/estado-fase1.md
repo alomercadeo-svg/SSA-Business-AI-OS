@@ -4175,3 +4175,40 @@ Sin fecha: el Flujo 4 del plano, la conexión en vivo de WhatsApp. Espera el nú
 - **B, los filtros:** etiquetas, asignación, canal, fecha, ventana de Instagram, teléfono sin resolver, seguimiento con sus bordes, combinables en la dirección, y búsqueda dentro de los mensajes.
 - **C, el selector de próximo seguimiento en el panel**, con el panel en voseo.
 - **D, cerrar y reabrir**, la reapertura sola, el seguimiento al cerrar, los no leídos y las 315 conversaciones de ManyChat.
+
+## Plan de la sesión de cierre (one shot)
+
+**Este es el documento con el que se retoma esta sesión.** Si se corta o se compacta, se sigue desde la primera casilla sin marcar. Pedido por Marcos el 10/11/2026 en «modo one shot», con las decisiones escritas en su prompt. **Todos los planes de esta sesión quedan aprobados de antemano** (decidido por Marcos el 10/11/2026, solo para esta sesión): cada uno se escribe acá antes de construir, con su tipo de revisión, y no se espera el OK. Horas leídas con `date` (`TZ=America/Costa_Rica`).
+
+- **Apertura, 17:06.** `node scripts/commits-sin-subir.mjs`: 1 commit sin subir contra `origin/bloque-1-foundation` (`93cd60e`, el cierre de docs del 10/11), el más viejo del 10/11/2026 a la 1:45:46 p. m.; salida 0. En el árbol había cambios de Marcos sin commitear (`CLAUDE.md`, `.gitignore`, `docs/contactos-prueba.md`, `docs/historia-reglas.md`): no son de esta sesión y no van en sus commits.
+- **Migraciones:** la próxima libre es la **00057** (la última aplicada en el repositorio es la 00056).
+- **`docs/contactos-prueba.md` está vacío.** El `CLAUDE.md` dice que así no se prueba ningún envío; el prompt de Marcos de hoy autoriza dos envíos puntuales (la respuesta privada a su comentario y el correo de fin de importación al usuario que importa en «Pruebas de correo»). **Decisión:** el prompt manda para esta sesión, porque los nombra uno por uno; nada más se envía.
+
+### Casillas
+
+- [ ] **Mapa real** de los criterios sin tildar de los bloques 2 a 4 (tabla abajo).
+- [ ] **Ítem 1:** personas de Pipedrive que comparten correo o teléfono (script de unión, protección en el importador, criterio 11 de F38 reescrito, archivos regenerados).
+- [ ] **Ítem 2:** importación de planillas, parte 2 (F37, criterios 2, 7, 8 y 9).
+- [ ] **Ítem 3:** los criterios chicos que el mapa marque sin construir.
+- [ ] **Ítem 4:** el aviso al Member y los roles (1a y 1b).
+- [ ] **Ítem 5:** «Respondió a tu historia» (F44, criterio 3).
+- [ ] **Ítem 6:** la respuesta privada a un comentario (F40).
+- [ ] **Ítem 7:** las deudas sin resolver de §15.
+- [ ] **Ítem 8:** el cierre (criterios del Embudo propuestos, lista de verificación de F1 a F4 y §14b, reporte final).
+
+### Ítem 1 de la sesión de cierre: personas de Pipedrive que comparten correo o teléfono (F38)
+
+**Plan (revisión completa: toca el importador que escribe en producción y un criterio del plano; aprobado de antemano por Marcos para esta sesión).** Escrito a las 17:10, junto con los tests en rojo.
+
+- **Script de unión** (`scripts/pipedrive-unir.mjs`): antes de armar las filas, une por correo (sin mayúsculas) o por teléfono ya limpio y normalizado con el código de país por defecto (`--codigo-pais`, por defecto +506, el mismo valor que la pantalla propone). La unión es transitiva. Gana la persona con el ID más bajo, comparado como número. El trato de la ficha sale con la regla de la parte A entre los tratos de todo el grupo; los demás, «Trato anterior en Pipedrive: …»; por cada persona fusionada, «Otra persona de Pipedrive con el mismo correo o teléfono: <nombre>, ID <id>». La cuenta sigue cerrando o frena.
+- **El teléfono, «el mismo código» que la importación:** el script corre con `node` sin compilar TypeScript, así que la normalización está copiada de `prepararFila` (`lib/importacion-csv.ts`) y un test las compara con doce formas de planilla. Si una cambia, ese test se pone en rojo.
+- **Importador** (`lib/importacion-contactos.ts`, `app/api/v1/contacts/importar/route.ts`): `buscarPor` devuelve también el `pipedrive_person_id` guardado; si la fila trae otro, se conserva el guardado y el de la fila entra como nota con la marca de la migración y la regla de no duplicar.
+- **Criterio 11 de F38** reescrito con el texto exacto de Marcos, registrado en `criterios-bajas.json`, foto regenerada.
+
+**Decidí yo (vetable):**
+- El correo y el teléfono de la fila fusionada son los de la primera persona; si le faltan, los de la siguiente del grupo (por ID) que los tenga. Si dos personas del grupo tienen teléfonos distintos, el segundo no entra a la ficha; queda en Pipedrive.
+- En el importador, ante un ID distinto solo se protege el ID, como dice el pedido: el resto de la fila (nombre, trato, notas) actualiza normalmente. Así la importación sigue siendo repetible y el control cuenta el trato de esa fila.
+
+**Hecho (17:10 a 17:13).** Tests nuevos: 9, **vistos en rojo 7** (5 de la fusión en el script, el de la normalización igual a la importación, y el de la protección en el importador). **Los 2 controles positivos no se vieron en rojo, y es lo esperado:** «dos personas sin correo ni teléfono no se unen; una sin conflicto queda igual» y «un contacto sin ID guardado, o con el mismo, se actualiza normalmente» pasaban antes y después. Suite 1631 de 1631, `typecheck` y `lint` en verde (0 errores, 45 avisos, los de antes).
+
+**Los archivos regenerados (17:12, solo conteos):** personas 529, tratos 601, «IG DM» 199, no «IG DM» 402. **4 grupos de personas que comparten correo o teléfono, 4 personas fusionadas en la primera.** La cuenta: 380 en la ficha + 19 como nota + 3 sin persona = 402. `migracion-A.csv`: 500 filas, 380 con trato. `migracion-B.csv`: **25 filas** (antes 29). 4 columnas de nota. Sin teléfono ni correo: 148.

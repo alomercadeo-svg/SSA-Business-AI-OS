@@ -65,7 +65,11 @@ export function controlDeMigracion(idsDelArchivo: string[], idsDelEspacio: strin
 }
 
 export interface AlmacenDeContactos {
-  buscarPor(campo: "pipedrive_person_id" | "email" | "phone", valor: string): Promise<{ id: string; eliminado: boolean } | null>;
+  /** `pipedrivePersonId`: el que ya tiene guardado (ítem 1: nunca se reemplaza). */
+  buscarPor(
+    campo: "pipedrive_person_id" | "email" | "phone",
+    valor: string,
+  ): Promise<{ id: string; eliminado: boolean; pipedrivePersonId?: string | null } | null>;
   crear(datos: DatosDeContacto): Promise<string>;
   actualizar(id: string, datos: DatosDeContacto): Promise<void>;
   ponerEtiquetas(id: string, tagIds: string[]): Promise<void>;
@@ -111,6 +115,11 @@ export interface Resumen {
   actualizadosIds: { id: string; nombre: string }[];
   /** Las etiquetas de la planilla que no existían y se crearon. */
   etiquetasCreadas: string[];
+}
+
+/** Ítem 1: el mismo texto que escribe `scripts/pipedrive-unir.mjs` para una persona fusionada. */
+export function notaDeOtraPersona(nombre: string, id: string): string {
+  return `Otra persona de Pipedrive con el mismo correo o teléfono: ${nombre}, ID ${id}`;
 }
 
 export const ELIMINADO = "Ese contacto está en Eliminados: restauralo desde ahí y volvé a importar.";
@@ -169,7 +178,7 @@ export async function importarFilas(
       continue;
     }
 
-    let existente: { id: string; eliminado: boolean } | null = null;
+    let existente: { id: string; eliminado: boolean; pipedrivePersonId?: string | null } | null = null;
     for (const [campo, valor] of [
       ["pipedrive_person_id", f.pipedrive],
       ["email", f.correo],
@@ -193,7 +202,11 @@ export async function importarFilas(
       datos.phone = f.telefono;
       datos.phone_resolved = true;
     }
-    if (f.pipedrive) datos.pipedrive_person_id = f.pipedrive;
+    // Ítem 1 (decisión de Marcos del 10/11/2026): un `pipedrive_person_id` ya
+    // guardado nunca se reemplaza. Si la fila trae otro, se conserva el
+    // guardado y el de la fila entra como nota (sin duplicar, como las demás).
+    const otraPersona = Boolean(f.pipedrive && existente?.pipedrivePersonId && existente.pipedrivePersonId !== f.pipedrive);
+    if (f.pipedrive && !otraPersona) datos.pipedrive_person_id = f.pipedrive;
     // F38: el estado comercial. La etapa y el estado los valida la base
     // (`00030`); el valor y la fecha que no se leen no se inventan.
     if (f.etapa) datos.pipeline_stage = f.etapa;
@@ -252,6 +265,7 @@ export async function importarFilas(
     }
     if (almacen.ponerNota) {
       for (const nota of f.notas) await almacen.ponerNota(id, f.pipedrive ? MARCA_MIGRACION : MARCA_PLANILLA, nota.slice(0, 5000));
+      if (otraPersona) await almacen.ponerNota(id, MARCA_MIGRACION, notaDeOtraPersona(f.nombre ?? nombre, f.pipedrive as string));
     }
     if (f.usoCodigoPorDefecto) r.usaronCodigo++;
 

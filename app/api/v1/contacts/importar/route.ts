@@ -162,12 +162,12 @@ export async function POST(request: NextRequest) {
   const eventos: EventoAuditoria[] = [];
   const almacen: AlmacenDeContactos = {
     async buscarPor(campo, valor) {
-      let q = servicio.from("contacts").select("id, deleted_at").eq("workspace_id", workspaceId);
+      let q = servicio.from("contacts").select("id, deleted_at, pipedrive_person_id").eq("workspace_id", workspaceId);
       q = campo === "email" ? q.ilike("email", escaparLike(valor)) : q.eq(campo, valor);
       const { data, error } = await q.order("deleted_at", { ascending: false, nullsFirst: true }).limit(1);
       if (error) throw new Error(`contacts: ${error.message}`);
-      const c = data?.[0] as { id: string; deleted_at: string | null } | undefined;
-      return c ? { id: c.id, eliminado: c.deleted_at !== null } : null;
+      const c = data?.[0] as { id: string; deleted_at: string | null; pipedrive_person_id: string | null } | undefined;
+      return c ? { id: c.id, eliminado: c.deleted_at !== null, pipedrivePersonId: c.pipedrive_person_id } : null;
     },
     async crear(datos) {
       const { data, error } = await supabase.from("contacts").insert({ workspace_id: workspaceId, ...datos } as ContactoInsert).select("id").single();

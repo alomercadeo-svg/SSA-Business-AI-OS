@@ -23,6 +23,18 @@
  *     pérdida como «Nota del contacto».
  *   - El teléfono sale de «Móvil» y, si está vacío, de «Trabajo». La limpieza
  *     (apóstrofe e invisibles) la hace el importador, no este script.
+ *   - Personas que comparten correo o teléfono (ítem 1 de la sesión de cierre,
+ *     decisión de Marcos del 10/11/2026): gana la primera, la del ID de
+ *     Pipedrive más bajo. El correo se compara sin mayúsculas y el teléfono ya
+ *     limpio y normalizado con el mismo código de país por defecto que usa la
+ *     importación (`telefonoParaComparar`, con un test que lo compara contra
+ *     `prepararFila`). La unión es transitiva. El grupo queda en una sola
+ *     fila con el ID de la primera; el trato de la ficha sale con la regla de
+ *     arriba entre los tratos de todo el grupo, los demás son notas «Trato
+ *     anterior en Pipedrive: …», y por cada persona fusionada va una nota
+ *     «Otra persona de Pipedrive con el mismo correo o teléfono: <nombre>, ID
+ *     <id>». El correo y el teléfono de la fila son los de la primera; si le
+ *     faltan, los de la siguiente del grupo que los tenga.
  *   - Antes de escribir, compara cada etapa y cada estado con las listas de la
  *     base (`00030`, líneas 41 a 60) y frena si alguno no coincide; lo mismo si
  *     un valor no es un número o una fecha no se puede leer. No mapea nada que
@@ -33,7 +45,7 @@
  *
  * Uso:
  *   node scripts/pipedrive-unir.mjs
- *   node scripts/pipedrive-unir.mjs --personas <csv> --tratos <csv> --salida <carpeta>
+ *   node scripts/pipedrive-unir.mjs --personas <csv> --tratos <csv> --salida <carpeta> [--codigo-pais +506]
  * Por defecto busca en `herramientas-locales/pipedrive/` un archivo con
  * «person», «persona» o «people» en el nombre y otro con «deal» o «trato», y escribe ahí
  * `migracion-A.csv` y `migracion-B.csv`. Sale con 1 si frena.
@@ -165,6 +177,39 @@ const forma = (v) => v.replace(/[0-9]/g, "9").replace(/[A-Za-zÀ-ÿ]/g, "a").sli
 
 class Freno extends Error {}
 
+// ---------- Teléfono, igual que la importación ----------
+// Copia de `limpiarTelefono` y de la rama del teléfono de `prepararFila`
+// (`lib/importacion-csv.ts`) y de `normalizarTelefono` (`lib/telefono.ts`).
+// Está copiada porque este script corre con `node` sin compilar TypeScript; el
+// test «el teléfono se normaliza igual que en la importación» la compara
+// contra `prepararFila` y se pone en rojo si una de las dos cambia.
+const INVISIBLES_DE_DIRECCION = /[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
+const SEPARADORES = /[\s\-.()]/g;
+const E164 = /^\+[1-9][0-9]{0,14}$/;
+
+/** El teléfono E.164 que guardaría la importación con ese código por defecto, o null. */
+export function telefonoParaComparar(entrada, codigoPais) {
+  if (typeof entrada !== "string" || !entrada.trim()) return null;
+  const crudo = entrada.trim().replace(INVISIBLES_DE_DIRECCION, "").trim().replace(/^'+/, "").trim();
+  const sinEspacios = crudo.replace(/[\s\-.()]/g, "");
+  let candidato = sinEspacios;
+  let usoCodigo = false;
+  if (candidato.startsWith("00")) candidato = `+${candidato.slice(2)}`;
+  else if (!candidato.startsWith("+")) {
+    candidato = `${codigoPais}${candidato}`;
+    usoCodigo = true;
+  }
+  const limpio = candidato.replace(SEPARADORES, "");
+  const normalizado = E164.test(limpio) ? limpio : null;
+  const nacional = usoCodigo ? sinEspacios.replace(/^\+/, "") : null;
+  const corto = nacional !== null ? nacional.length < 7 : (normalizado ?? "").length - 1 < 8;
+  if (!normalizado || corto || !/^\+?[0-9\s\-.()]+$/.test(crudo)) return null;
+  return normalizado;
+}
+
+/** El orden de los ID de Pipedrive: numérico si los dos son números («9» antes que «10»). */
+const compararId = (a, b) => (/^\d+$/.test(a) && /^\d+$/.test(b) ? Number(a) - Number(b) : a < b ? -1 : a > b ? 1 : 0);
+
 /** Lee una fecha de Pipedrive y la devuelve como AAAA-MM-DD, o null. */
 function fecha(v) {
   const iso = /^(\d{4})-(\d{2})-(\d{2})(?:[ T]\d{2}:\d{2}(?::\d{2})?)?$/.exec(v);
@@ -187,7 +232,7 @@ function instante(v) {
  * La unión. Recibe el texto de los dos CSV y devuelve las filas de salida y
  * los conteos; tira `Freno` con el motivo (sin datos) si algo no cuadra.
  */
-export function unir(textoPersonas, textoTratos) {
+export function unir(textoPersonas, textoTratos, { codigoPais = "+506" } = {}) {
   const P = leerCsv(textoPersonas);
   const T = leerCsv(textoTratos);
   const falta = (archivo, cols, que) => {
@@ -249,6 +294,7 @@ export function unir(textoPersonas, textoTratos) {
     sinTelefonoNiCorreo: 0,
     conVarios: { personas: 0, conUnAbierto: 0, conVariosAbiertos: 0, conAbiertoYCerrado: 0, sinAbiertos: 0 },
     desempates: { unAbiertoEntreVarios: 0, variosAbiertosPorCreacion: 0, cerradoMasReciente: 0, cierreFaltanteUsoCreacion: 0 },
+    fusion: { grupos: 0, personasFusionadas: 0 },
   };
   const sumar = (m, k) => m.set(k, (m.get(k) ?? 0) + 1);
   const idsDePersona = new Set(P.filas.map((f) => (f[p.id] ?? "").trim()));
@@ -334,19 +380,50 @@ export function unir(textoPersonas, textoTratos) {
     return `Trato anterior en Pipedrive: ${partes.join(", ")}${x.motivo ? `. Motivo de pérdida: ${x.motivo}` : ""}`;
   };
 
-  const salida = [];
-  for (const f of P.filas) {
+  // Las personas que comparten correo o teléfono (ítem 1): unión transitiva.
+  const personas = P.filas.map((f) => {
     const v = (i) => (i >= 0 ? (f[i] ?? "").trim() : "");
-    const id = v(p.id);
     const movil = v(p.movil);
     const trabajo = v(p.trabajo);
     if (movil && trabajo) c.conLosDosTelefonos++;
     const telefono = movil || trabajo;
     const correo = p.correos.map((i) => v(i)).find(Boolean) ?? "";
     if (!telefono && !correo) c.sinTelefonoNiCorreo++;
-    const fila = [v(p.nombre), correo, telefono, id, "", "", "", "", "", ""];
+    const claves = [];
+    if (correo) claves.push(`c:${correo.toLowerCase()}`);
+    const tel = telefonoParaComparar(telefono, codigoPais);
+    if (tel) claves.push(`t:${tel}`);
+    return { id: v(p.id), nombre: v(p.nombre), correo, telefono, claves };
+  });
+  const padre = personas.map((_, i) => i);
+  const raiz = (i) => (padre[i] === i ? i : (padre[i] = raiz(padre[i])));
+  const duenoDeClave = new Map();
+  personas.forEach((x, i) => {
+    for (const k of x.claves) {
+      if (duenoDeClave.has(k)) padre[raiz(i)] = raiz(duenoDeClave.get(k));
+      else duenoDeClave.set(k, i);
+    }
+  });
+  const grupos = new Map();
+  personas.forEach((x, i) => {
+    const r = raiz(i);
+    if (!grupos.has(r)) grupos.set(r, []);
+    grupos.get(r).push(x);
+  });
+
+  const salida = [];
+  for (const grupo of grupos.values()) {
+    grupo.sort((a, b) => compararId(a.id, b.id));
+    const [primera, ...otras] = grupo;
+    if (otras.length) {
+      c.fusion.grupos++;
+      c.fusion.personasFusionadas += otras.length;
+    }
+    const correo = grupo.map((x) => x.correo).find(Boolean) ?? "";
+    const telefono = grupo.map((x) => x.telefono).find(Boolean) ?? "";
+    const fila = [primera.nombre, correo, telefono, primera.id, "", "", "", "", "", ""];
     const notas = [];
-    const tratos = (tratosPorPersona.get(id) ?? []).map(leerTrato);
+    const tratos = grupo.flatMap((x) => tratosPorPersona.get(x.id) ?? []).map(leerTrato);
     if (tratos.length) {
       const ficha = elegir(tratos);
       fila[4] = ficha.etapa;
@@ -363,6 +440,7 @@ export function unir(textoPersonas, textoTratos) {
         c.comoNota++;
       }
     }
+    for (const x of otras) notas.push(`Otra persona de Pipedrive con el mismo correo o teléfono: ${x.nombre}, ID ${x.id}`);
     salida.push({ fila, notas });
   }
   const problemas = [];
@@ -410,7 +488,9 @@ async function principal() {
   const carpeta = resolve(argumento("salida") ?? "herramientas-locales/pipedrive");
   const personas = argumento("personas") ?? buscar(carpeta, /person|persona|people/);
   const tratos = argumento("tratos") ?? buscar(carpeta, /deal|trato/);
-  const r = unir(readFileSync(personas, "utf8"), readFileSync(tratos, "utf8"));
+  const codigoPais = argumento("codigo-pais") ?? "+506";
+  if (!/^\+[1-9][0-9]{0,3}$/.test(codigoPais)) throw new Freno("El código de país tiene que ser como +506.");
+  const r = unir(readFileSync(personas, "utf8"), readFileSync(tratos, "utf8"), { codigoPais });
   const k = r.conteos;
   console.log(`Columnas de Personas: ${r.columnasPersonas.join(" | ")}`);
   console.log(`Columnas de Tratos: ${r.columnasTratos.join(" | ")}`);
@@ -423,6 +503,7 @@ async function principal() {
   console.log(`Desempates usados: ${JSON.stringify(k.desempates)}`);
   console.log(`Sin persona: ${k.sinPersona}; con una persona que no está en el export: ${k.personaInexistente}`);
   console.log(`La cuenta: ${k.aplanados} en la ficha + ${k.comoNota} como nota + ${k.sinPersona} sin persona + ${k.personaInexistente} con persona inexistente = ${k.aplanados + k.comoNota + k.sinPersona + k.personaInexistente} (no «IG DM»: ${k.noIgdm})`);
+  console.log(`Personas que comparten correo o teléfono (código por defecto ${codigoPais}): ${k.fusion.grupos} grupos, ${k.fusion.personasFusionadas} personas fusionadas en la primera de su grupo`);
   console.log(`Personas con Móvil y Trabajo a la vez: ${k.conLosDosTelefonos} (se usó Móvil); sin teléfono ni correo: ${k.sinTelefonoNiCorreo}`);
   const rutaA = join(carpeta, "migracion-A.csv");
   const rutaB = join(carpeta, "migracion-B.csv");

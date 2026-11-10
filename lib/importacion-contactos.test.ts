@@ -11,7 +11,7 @@ function almacenEnMemoria(iniciales: Array<DatosDeContacto & { id: string; elimi
   const almacen: AlmacenDeContactos = {
     async buscarPor(campo, valor) {
       const c = contactos.find((x) => (x as Record<string, unknown>)[campo] === valor);
-      return c ? { id: c.id, eliminado: Boolean(c.eliminado) } : null;
+      return c ? { id: c.id, eliminado: Boolean(c.eliminado), pipedrivePersonId: c.pipedrive_person_id ?? null } : null;
     },
     async crear(datos) {
       const id = `nuevo-${++n}`;
@@ -275,5 +275,43 @@ describe("F38, parte A: varias notas por fila (los tratos anteriores)", () => {
     await importarFilas(f(), catalogos, m.almacen, { asignarA: null });
     expect(notas.map((n) => n[2])).toEqual(["Motivo de pérdida en Pipedrive: precio", "Trato anterior en Pipedrive: ganado"]);
     expect(notas.every((n) => n[1] === MARCA_MIGRACION)).toBe(true);
+  });
+});
+
+describe("ítem 1: nunca se reemplaza un pipedrive_person_id guardado (decisión de Marcos del 10/11/2026)", () => {
+  const mapeoP: Campo[] = ["nombre", "correo", "telefono", "pipedrive", "nota"];
+  const conNotas = (iniciales: Array<DatosDeContacto & { id: string }>) => {
+    const m = almacenEnMemoria(iniciales);
+    const notas: Array<[string, string, string]> = [];
+    m.almacen.ponerNota = async (c, marca, texto) => {
+      if (notas.some((n) => n[0] === c && n[1] === marca && n[2] === texto)) return false;
+      notas.push([c, marca, texto]);
+      return true;
+    };
+    return { ...m, notas };
+  };
+  const filaP = (v: string[], n = 2) => prepararFila(v, mapeoP, { codigoPais: "+506", numero: n });
+
+  it("una fila con otro ID para un contacto que ya tiene uno: se conserva el guardado y el de la fila entra como nota, una sola vez", async () => {
+    const m = conNotas([{ id: "c-1", pipedrive_person_id: "9", email: "uno@x.com", display_name: "Nueve" }]);
+    const f = () => [filaP(["Diez", "uno@x.com", "", "10", ""])];
+    const r1 = await importarFilas(f(), catalogos, m.almacen, { asignarA: null });
+    const r2 = await importarFilas(f(), catalogos, m.almacen, { asignarA: null });
+    expect(m.contactos.find((c) => c.id === "c-1")?.pipedrive_person_id).toBe("9");
+    expect(m.notas).toEqual([["c-1", MARCA_MIGRACION, "Otra persona de Pipedrive con el mismo correo o teléfono: Diez, ID 10"]]);
+    expect(r1).toMatchObject({ creados: 0, actualizados: 1, conError: 0 });
+    expect(r2).toMatchObject({ creados: 0, actualizados: 1, conError: 0 });
+    expect(m.contactos).toHaveLength(1);
+  });
+
+  it("control positivo: un contacto sin ID guardado, o con el mismo, se actualiza normalmente", async () => {
+    const m = conNotas([
+      { id: "c-sin", email: "dos@x.com", display_name: "Viejo" },
+      { id: "c-igual", pipedrive_person_id: "20", display_name: "Veinte viejo" },
+    ]);
+    await importarFilas([filaP(["Dos", "dos@x.com", "", "12", ""], 2), filaP(["Veinte", "", "", "20", ""], 3)], catalogos, m.almacen, { asignarA: null });
+    expect(m.contactos.find((c) => c.id === "c-sin")).toMatchObject({ pipedrive_person_id: "12", display_name: "Dos" });
+    expect(m.contactos.find((c) => c.id === "c-igual")).toMatchObject({ pipedrive_person_id: "20", display_name: "Veinte" });
+    expect(m.notas).toEqual([]);
   });
 });
