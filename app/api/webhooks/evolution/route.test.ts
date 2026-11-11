@@ -811,3 +811,14 @@ describe("un canal que existe pero está inactivo", () => {
   });
 });
 
+/** Deuda de §15 (ítem 7): lo que falla después del acuse queda a la vista (ver el test igual del receptor de Zernio). */
+describe("si el procesamiento después del acuse falla", () => {
+  it("abre aviso_no_procesado en el espacio del canal", async () => {
+    procesarEventoEvolution.mockRejectedValueOnce(new Error("falla simulada"));
+    const res = await POST(pedido(cuerpo(), await firmar()));
+    expect(res.status).toBe(200);
+    await correrPendientes();
+    expect(alertasRegistradas().map((a) => a.args)).toContainEqual(expect.objectContaining({ p_condition: "aviso_no_procesado", p_workspace_id: "ws-1", p_detail: "Etapa: procesamiento" }));
+  });
+});
+

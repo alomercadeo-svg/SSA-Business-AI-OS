@@ -78,6 +78,8 @@ function titulo(condicion: WebhookAlertCondition): string {
       return "A la suscripción de avisos de Instagram le falta un evento";
     case "auditoria_rechazada":
       return "El historial de cambios no pudo guardar una entrada";
+    case "aviso_no_procesado":
+      return "Un mensaje entró, pero lo que corre después falló";
     case "zernio_canal_inactivo":
       return "Están llegando mensajes de Instagram a un canal apagado: activalo";
     case "zernio_cuenta_desconocida":

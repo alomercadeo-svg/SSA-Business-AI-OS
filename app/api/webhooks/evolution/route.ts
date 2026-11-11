@@ -14,6 +14,7 @@ import {
 import { guardarEventoEvolution, procesarEventoEvolution } from "@/lib/evolution-processor";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { notificarAlerta } from "@/lib/correo";
+import { alertarAvisoNoProcesado } from "@/lib/aviso-no-procesado";
 import { alCambiarLaSesion } from "@/lib/sesion-caida";
 import { lecturaDeAviso, registrarLectura, type Transicion } from "@/lib/sesion-whatsapp";
 import { auditarAlertaSiEsNueva } from "@/lib/auditoria";
@@ -323,6 +324,8 @@ async function manejarWebhook(request: NextRequest) {
       await procesarEventoEvolution({ ...evento, data: payload.data });
     } catch (err) {
       console.error("[evolution] error procesando el evento:", err);
+      // Deuda de §15: Evolution ya recibió el 200 y no reintenta; queda a la vista.
+      await alertarAvisoNoProcesado(supabase as unknown as SupabaseClient, { fuente: "evolution", workspaceId: canal.workspace_id, channelId: canal.id, etapa: "procesamiento" });
     }
   });
 

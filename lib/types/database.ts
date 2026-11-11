@@ -33,7 +33,9 @@ export type WebhookAlertCondition =
   /** Un aviso de Zernio firmado para un canal inactivo (deuda de §15, 10/11/2026). Fuente `zernio`. */
   | "zernio_canal_inactivo"
   /** Un aviso de Zernio para una cuenta sin ningún canal; sin espacio (deuda de §15, 10/11/2026). Fuente `zernio`. */
-  | "zernio_cuenta_desconocida";
+  | "zernio_cuenta_desconocida"
+  /** Lo que corre después del acuse falló; el proveedor no reintenta (deuda de §15, 10/11/2026). */
+  | "aviso_no_procesado";
 
 /**
  * Estado de una integración (F24, migración 00024). `sin_verificar` es "no se

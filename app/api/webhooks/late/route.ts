@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { auditarAlertaSiEsNueva } from "@/lib/auditoria";
 import { notificarAlerta } from "@/lib/correo";
+import { alertarAvisoNoProcesado } from "@/lib/aviso-no-procesado";
 import { after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { executeFlow } from "@/lib/flow-engine/engine";
@@ -340,6 +341,8 @@ async function handleWebhook(request: NextRequest) {
         await correrFlujos(supabase, payload, channel, guardado);
       } catch (err) {
         console.error("Webhook message processing error:", err);
+        // Deuda de §15: Zernio ya recibió el 200 y no reintenta; queda a la vista.
+        await alertarAvisoNoProcesado(supabase as unknown as SupabaseClient, { fuente: "zernio", workspaceId: channel.workspace_id, channelId: channel.id, etapa: "flujos" });
       }
     });
   }
@@ -587,6 +590,7 @@ async function handleCommentWebhook(
       });
     } catch (err) {
       console.error("Webhook comment processing error:", err);
+      await alertarAvisoNoProcesado(supabase as unknown as SupabaseClient, { fuente: "zernio", workspaceId: channel.workspace_id, channelId: channel.id, etapa: "comentario" });
     }
   });
 

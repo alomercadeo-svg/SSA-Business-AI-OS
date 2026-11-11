@@ -851,3 +851,28 @@ describe("un aviso para una cuenta sin canal activo", () => {
   });
 });
 
+/**
+ * Deuda de §15 (ítem 7 de la sesión de cierre): «un aviso que falla después de
+ * reclamado se pierde». Desde `b4470a3` el mensaje se guarda antes del acuse;
+ * lo que corre después (los flujos, los comentarios) fallaba solo al log, y
+ * Zernio ya recibió el 200, así que no reintenta. Ahora deja la alerta
+ * `aviso_no_procesado` del espacio, que se ve en Canales.
+ */
+describe("lo que falla después del acuse queda a la vista", () => {
+  it("si los flujos fallan, la alerta aviso_no_procesado del espacio, con la etapa", async () => {
+    matchTrigger.mockRejectedValue(new Error("falla simulada"));
+    const body = eventoMensaje({ plataforma: "instagram" });
+    const res = await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    expect(res.status).toBe(200);
+    await correrPendientes();
+    const alertas = estado.rpcs.filter((r) => r.fn === "record_webhook_alert").map((r) => r.args as Record<string, unknown>);
+    expect(alertas).toEqual([expect.objectContaining({ p_source: "zernio", p_condition: "aviso_no_procesado", p_workspace_id: "ws-1", p_detail: "Etapa: flujos" })]);
+  });
+  it("control: si todo anda, ninguna alerta", async () => {
+    const body = eventoMensaje({ plataforma: "instagram" });
+    await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    await correrPendientes();
+    expect(estado.rpcs.filter((r) => r.fn === "record_webhook_alert")).toEqual([]);
+  });
+});
+

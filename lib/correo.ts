@@ -397,6 +397,16 @@ export function contenidoDeAlerta(
           `Revisalo en Canales: ${canales}`,
         ],
       };
+    case "aviso_no_procesado":
+      return {
+        asunto: "Un mensaje entró, pero lo que corre después falló",
+        parrafos: [
+          "Un aviso llegó y el mensaje quedó guardado en la bandeja, pero lo que corre después de recibirlo falló, y el proveedor no lo vuelve a mandar.",
+          ...(detalle ? [detalle] : []),
+          "Si la etapa es «flujos» o «comentario», puede faltar una respuesta automática: conviene revisar esa conversación a mano.",
+          `Revisalo en Canales: ${canales}`,
+        ],
+      };
     case "zernio_canal_inactivo":
       return {
         asunto: "Están llegando mensajes de Instagram a un canal apagado",
