@@ -4193,8 +4193,8 @@ Sin fecha: el Flujo 4 del plano, la conexión en vivo de WhatsApp. Espera el nú
 - [x] **Ítem 4:** el aviso al Member y los roles (1a y 1b). `b92cb90`, 00058 y 00059, en producción desde las 18:05:02. El paso 2 de 1a va en el ítem 7, al final.
 - [x] **Ítem 5:** «Respondió a tu historia» (F44, criterio 3). `5e64944` y la 00060, en producción desde las 18:05:02.
 - [x] **Ítem 6:** la respuesta privada a un comentario (F40), sin el bloque de la bandeja. `e3d0501` y la 00061; la respuesta real salió a las 18:15:25.
-- [ ] **Ítem 7:** las deudas sin resolver de §15.
-- [ ] **Ítem 8:** el cierre (criterios del Embudo propuestos, lista de verificación de F1 a F4 y §14b, reporte final).
+- [x] **Ítem 7:** las deudas sin resolver de §15. Ocho deudas y el paso 2 de 1a, en producción (tabla del ítem 7).
+- [x] **Ítem 8:** el cierre (criterios del Embudo propuestos, lista de verificación de F1 a F4 y §14b, reporte final).
 
 ### El mapa real de los criterios sin tildar, bloques 2 a 4 (10/11/2026, 17:2x)
 
@@ -4401,3 +4401,195 @@ Se importaron `migracion-A.csv` y `migracion-B.csv` (los regenerados) dos veces,
 - **Resend:** un correo de fin de importación a `delivered+f37-<sufijo>@resend.dev`, la dirección de prueba de Resend, que no le llega a ninguna persona (18:16). Para deshacerlo no hay nada que hacer: queda en `email_log` de «Pruebas de correo».
 - **Instagram, por Zernio:** una respuesta privada de @poderosascomunidad al comentario de Marcos del 09/11 (18:15:25), confirmada por Marcos en el momento. Se deshace borrándola a mano desde la app de Instagram de @poderosascomunidad (**no verifiqué** que Zernio permita borrarla por la API). Queda `respuesta_privada_at` en ese comentario de `comment_logs`.
 - **Zernio, lectura:** el registro de entregas (17:56), sin escribir nada.
+
+### Ítem 8 de la sesión de cierre, parte 1: criterios del Embudo, solo como propuesta (no van al plano)
+
+Escritos desde lo que Alejandra necesita para seguir sus leads, no desde lo que hace el código. Para cada uno, si el Embudo de hoy (`app/(dashboard)/dashboard/embudo/page.tsx`, `lib/embudo.ts`) lo cumple. **Lo de «cumple» sale de leer el código y de lo que Marcos vio el 10/11; no corrí nada nuevo.**
+
+| # | Criterio propuesto | ¿El Embudo de hoy lo cumple? |
+|---|---|---|
+| 1 | Ver todos los leads que tienen etapa, repartidos en columnas en el orden del embudo de `00030` | **Sí**, hasta 1000 contactos, y lo dice si hay más |
+| 2 | Cada columna dice cuántos leads tiene y cuánto suman sus tratos, por moneda y sin mezclar USD con CRC | **Sí** |
+| 3 | Filtrar por estado del trato (abierto, ganado, perdido, todos); el filtro queda en la dirección y sobrevive a recargar | **Sí** |
+| 4 | Tocar un lead abre su ficha | **Sí** |
+| 5 | Cada tarjeta muestra lo que hace falta para decidir a quién escribir: el valor, la fecha del próximo seguimiento y si está vencida | **A medias:** muestra nombre, valor y moneda; **no lee `next_followup_date`** (la consulta no la trae) |
+| 6 | Mover un lead de etapa desde el tablero (arrastrar, o un selector en el teléfono), con su entrada en el historial de cambios | **No:** el tablero es de solo lectura |
+| 7 | Filtrar por setter o vendedor; un Member ve solo sus leads | **A medias:** el Member ve solo lo suyo porque lee con su sesión (la seguridad por filas decide); **no hay filtro por persona** |
+| 8 | Con más de 1000 leads con etapa, verlos todos (por columna, o paginado) | **No:** corta en 1000 y lo avisa |
+| 9 | En el teléfono, una columna por vez de costado, cada una casi del ancho | **Sí**, según lo que pidió Marcos mirar el 10/11 (la pantalla no la miró nadie todavía) |
+| 10 | Vacío claro: una columna sin leads dice «Sin contactos»; un espacio sin ninguna etapa explica de dónde salen (la importación de Pipedrive) | **A medias:** las columnas vacías dicen «Sin contactos»; **no verifiqué** el texto del vacío total |
+
+**Recomendación:** 1 a 4, 9 y 10 entran tal cual. El 5 y el 7 son chicos. El 6 y el 8 son la diferencia entre un tablero para mirar y un CRM para trabajar; van con la decisión pendiente con Alejandra sobre el orden del Kanban.
+
+### Ítem 8, parte 2: lista de verificación para Marcos, F1 a F4 y §14b (no se tilda nada)
+
+**Cuentas:**
+- **Owner:** la tuya, en «Ale Admin's Workspace», sin tocar nada de @alomercadeo.
+- **Member:** uno de prueba que invitás desde Equipo a «Pruebas de correo» con un correo tuyo, nunca en el espacio real.
+- **Instagram:** @marcospittimusic hacia @poderosascomunidad.
+
+En la computadora y en el iPhone con Chrome, recargando antes de cada pantalla.
+
+**F1, fork y despliegue**
+1. **Repositorio forkeado y clonado:** en GitHub, el repositorio dice «forked from zernio-dev/zernflow».
+2. **Railway con un solo servicio de app:** en el proyecto de Railway, un servicio Next.js. Evolution, su PostgreSQL y vigilancia-cron son servicios aparte que el plano agregó después.
+3. **Supabase en plan Pro:** en el panel de Supabase, la organización. **Tu captura de hoy dice FREE y NANO: así no se cumple** (va a «Necesita tu decisión»).
+4. **Las 16 migraciones del fork y sus 24 tablas:** en Supabase › Database › Migrations figuran de la 00001 a la 00016. Hoy son 61 migraciones y 35 tablas (§14c).
+5. **Variables de entorno:** en Railway › SSA-Business-AI-OS › Variables, las cinco del criterio. Solo mirar los nombres, no los valores.
+6. **`@zernio/node` con la versión fija:** en `package.json`, sin `^`.
+7. **La app carga y permite registrarse:** `/register` en una ventana privada. **Ojo:** §14b pide el registro público desactivado, y este criterio pide registrarse; las dos cosas chocan y es tu decisión cuál vale.
+8. **Al registrarse se crea un espacio con el usuario como Owner:** se ve en el selector de espacios después del alta. Mejor no lo pruebes con un alta real.
+9. **Las pantallas cargan sin errores:** bandeja, Contactos, Configuración. Flujos y Secuencias ahora son solo de Owner y Admin, y un Member vuelve a la bandeja con un aviso.
+
+**F2, Vault**
+1. **Vault y sus funciones:** se prueban con `verify-vault` (lo corro yo si me lo pedís).
+2. **Los secretos aislados por espacio, solo Owner y Admin:** en Integraciones con el Member, la pantalla no abre y lo manda a la bandeja.
+3. **Las claves viejas migradas y sus columnas borradas:** en Supabase › Table editor › `workspaces` no hay `late_api_key_encrypted` ni `ai_api_key`. **Hallazgo de hoy:** quedaba `webhook_secret`. El paso 1 lo copió a Vault, y el paso 2 lo vacía (en el reporte, si se pudo).
+4. **Todas las lecturas apuntan a Vault:** se revisa en el código, no en pantalla.
+
+**F3, roles y alcance**
+1. **Invitar desde Equipo, vence en 7 días, el invitado entra como Member:** en «Pruebas de correo» › Configuración › Equipo, invitás un correo tuyo y aceptás.
+2. **Cambiar el rol, y que solo el Owner remueva:** desde la misma pantalla, con tu cuenta y con la del Member.
+3. **El Member no entra a Configuración, Canales, Equipo ni Integraciones:** con el Member, escribí cada dirección. **Tiene que volver a la bandeja con «Esa sección es solo para Owner y Admin. Te llevamos a la bandeja.»** (nuevo de hoy).
+4. **El Member ve solo sus contactos y conversaciones:** asignale un contacto de prueba desde tu cuenta y mirá Contactos y la bandeja con el Member. Por la API lo prueban `verify-lead-scope` (24 de 24 hoy, ya en espacio fantasma) y `verify-realtime-scope` (7 de 7).
+5. **Reasignar cambia quién lo ve enseguida, y si se lo sacás con la pantalla abierta aparece un mensaje claro:** con las dos cuentas abiertas a la vez.
+
+**F4, Instagram**
+1. **Conectar con la clave de Zernio y ver el estado en Integraciones:** solo mirar Integraciones y Canales, sin apretar Sincronizar ni Conectar.
+2. **Los mensajes directos llegan en tiempo real:** escribí desde @marcospittimusic y mirá la bandeja abierta.
+3. **Las respuestas a historias llegan a la bandeja:** respondé una historia nueva de @poderosascomunidad, y el hilo tiene que mostrar «Respondió a tu historia» (nuevo de hoy).
+4. **Los comentarios se reciben y se pueden responder:** comentá una publicación. **Hoy se responde en privado solo por la ruta; el bloque de la bandeja no está construido.**
+5. **Los mensajes van al contacto correcto y se puede responder desde la bandeja:** en la conversación de @marcospittimusic.
+
+**§14b, la lista para la IA constructora:** la mayoría se comprueba en el código o con los verificadores, no en pantalla. Lo que mirás vos:
+- **HTTPS en producción:** el candado en `app.alomercadeo.com`.
+- **`.env` fuera de git:** en GitHub, el archivo no aparece.
+- **El bucket privado:** en Supabase › Storage, el bucket de adjuntos sin «Public».
+- **Los encabezados de seguridad en `next.config.ts`:** **hoy no hay ninguno** (`next.config.ts` solo tiene `redirects` e `images`; leído hoy). **No se cumple.**
+- **Limitar pedidos en los receptores y CORS con dominio:** **no verifiqué** que estén; no encontré nada que los configure.
+- **El registro público desactivado:** chocaría con F1, punto 7 (arriba).
+
+### Ítem 7 de la sesión de cierre: las deudas sin resolver de §15
+
+**Plan (revisión completa: receptores, alertas, secretos y verificadores; aprobado de antemano).** Una deuda por commit. Las que tocan los receptores o los secretos se subieron de a una, con los ocho verificadores después de cada subida. Si §15 traía propuesta, se aplicó esa; si no, la que recomiendo, con el porqué.
+
+| Deuda de §15 | Qué se eligió y por qué | Commit | Tests vistos en rojo |
+|---|---|---|---|
+| El registro del webhook de Zernio puede apuntar a localhost | **La propuesta de §15:** el registro se niega con una dirección que no sea https y pública (`direccionPublica`, `lib/zernio-webhook.ts`) | `1ef75a9` | 5 (localhost por http y por https, http público, 127.0.0.1, `.localhost`); el control positivo no se vio en rojo |
+| Un rechazo de `registrarAuditoria` solo deja rastro en el log | **La propuesta de §15:** abre la alerta `auditoria_rechazada` del espacio, que se ve en Canales y avisa por correo. **Verificado** que `webhook_alerts` no acota la condición con un `check` (`00022:105-116`) | `1a21a33` | 1, y su control |
+| Crear un espacio desde el selector nunca funcionó y falla callado | **Lo que no es decisión de producto:** el selector ya no se traga el error, y el motivo es claro («Por ahora no se pueden crear espacios de trabajo desde acá»). **Si el producto necesita crear espacios desde la interfaz queda para Marcos** (§15 lo dejó «para decidir») | `04a2146` | 2, por la fuente |
+| `verify-lead-scope` y `verify-realtime-scope` escriben en el espacio real | Los dos trabajan en el espacio fantasma de un dueño de prueba. Las políticas que prueban son las mismas en todos los espacios; lo que se pierde es mirar la configuración del espacio real, que acá no se toca. Corridos: 24 de 24 y 7 de 7. La primera corrida de Realtime dio rojo en el canario (el pipe no entregó el evento de prueba), y la segunda dio 7 de 7 | `1269452` | 2, por la fuente |
+| El receptor de Evolution describe mal un canal inactivo | Busca el canal sin el filtro de activo (`instance_name` es único, `00022:43`). Con el token verificado y el canal apagado: 503 y la alerta propia `webhook_canal_inactivo` del espacio, que manda a «Activar». Sin token válido, 401 como siempre | `14898c2` | 1 (el control del token mal no se vio en rojo) |
+| El receptor de Zernio pierde sin rastro lo que llega a un canal que no encuentra | Con un canal inactivo de esa cuenta y la firma verificada: 503 y la alerta `zernio_canal_inactivo` del espacio. Sin ningún canal: la alerta `zernio_cuenta_desconocida` sin espacio, sin correo (se abre antes de verificar, como la instancia desconocida) y 404 como antes. **Que Zernio reintente un 5xx no está verificado** | `de4792f` | 3 |
+| A quién se avisa la alerta de instancia desconocida | **La propuesta de §15:** solo a los Owner de los espacios con un canal de Evolution activo, con el texto de §15 que no afirma la causa. **Un test viejo cambió** («no avisa por correo» pasó a «pasa el aviso a `notificarAlerta`»), porque la decisión cambió | `63d425a` | 3 (2 de `lib/correo-instancia.test.ts` y el test cambiado) |
+| Un aviso que falla después de reclamado se pierde | **§15 no traía propuesta; la recomendada:** el mensaje ya se guarda antes del acuse desde `b4470a3`. Lo que falla después (los flujos y el comentario en Zernio, el procesamiento en Evolution) abre la alerta `aviso_no_procesado` del espacio, con la etapa. El proveedor ya recibió el 200 y no reintenta, así que lo que sirve es que se vea | `49434da` | 2 (el control «si todo anda, ninguna alerta» no se vio en rojo) |
+| 1a, paso 2: vaciar la columna del secreto de Zernio | La condición se cumplió: `scripts/verify-secreto-vault.mjs`, 7 de 7 a las 18:29 (un aviso firmado con el secreto solo en Vault entra; uno con otro secreto, 401). La **00062** vacía `workspaces.webhook_secret` y `channels.webhook_secret` solo donde el secreto ya está en Vault. **Aplicada de 19:08:18 a 19:08:21.** Antes: 1 espacio con el secreto en la columna, 0 canales y 1 en Vault. Después: 0, 0 y 1 (el segundo de las 18:00 era el huérfano del espacio fantasma). Después: `verify-secreto-vault` 7 de 7, y `verify-contenido-hilo`, `verify-no-contactar`, `verify-bandeja` y `verify-ventana-instagram` en verde (19:08 a 19:10). **Control real:** Marcos mandó un mensaje de @marcospittimusic a @poderosascomunidad y entró a las 19:32:20 (1 entrante desde las 19:08, contado sin contenido) | `0ce4662` | — (`verify-secreto-vault` se escribió después del paso 1 y nunca se vio en rojo) |
+
+**Fuera de este ítem, como pidió el pedido:** los candidatos de §15 (unir duplicados viejos, completar el usuario de los contactos viejos, el filtro por letras, el nombre y el apellido separados) van a la lista final. **También queda afuera «un espacio con `contact_channels` no se puede borrar entero»:** está como «sin resolver», no como deuda.
+
+**Un error mío, sin consecuencias:** en la batería de las 18:33 incluí `verify-evolution-webhook`, que trabaja contra el canal real de Evolution. Su propia guarda lo frenó antes de mandar nada («el workspace de este canal tiene Resend configurado… No se mandó nada»). Lo saqué de las baterías siguientes.
+
+### Ítem 8, parte 3: el reporte final de la sesión de cierre (10/11/2026, de 17:06 a 19:1x, hora de Costa Rica según `date`)
+
+#### 1. Lo hecho, ítem por ítem
+
+Todo en `bloque-1-foundation`, subido con `verificar-despliegue.mjs`. Cada subida dio salida 0, y los ocho verificadores corrieron después de cada una.
+
+| Ítem | Commits | Producción | Tests nuevos vistos en rojo |
+|---|---|---|---|
+| Mapa real | (en el estado) | — | — |
+| 1. Personas de Pipedrive que comparten correo o teléfono, y criterio 11 de F38 reescrito | `c151612`, `ed65a18` (la prueba) | Desde las 17:16:53. Dos vueltas iguales en «Pruebas de correo», 8 de 8 | 7 de 9; no se vieron en rojo los 2 controles positivos |
+| 2. Importación de planillas, parte 2 (F37, 2, 7, 8 y 9) | `f2d9ea1` y la 00057 | Desde las 17:54:57. 10.000 filas en 7,2 minutos y el correo de fin enviado | 20 de 24; no se vieron en rojo 4 (ver su sección) |
+| 3. Criterios chicos: F25 `last_click` en Instagram, F34 en el motor de flujos, F31 la caída de la sesión | `e3655af` | Desde las 17:54:57 | 5 de 7 |
+| 4. Aviso al Member y roles (1a paso 1, 1b) | `b92cb90`, la 00058 y la 00059 | Desde las 18:05:02 | 9 de 10 |
+| 5. «Respondió a tu historia» (F44, 3) | `5e64944` y la 00060 | Desde las 18:05:02 | 6 de 6 |
+| 6. Respuesta privada a un comentario (F40), sin el bloque de la bandeja | `e3d0501` y la 00061 | Desde las 18:24:40. Respuesta real a las 18:15:25; el segundo intento dio 409 sin llamar a Zernio | 8 de 10 |
+| 7. Deudas de §15 | `1ef75a9`, `1a21a33`, `04a2146`, `1269452`, `14898c2`, `de4792f`, `63d425a`, `49434da`, `0ce4662` (la 00062) | Las ocho, de a una o en tandas sin receptores; ver la tabla del ítem 7 | Ver la tabla del ítem 7 |
+| 8. Cierre | este commit | — | — |
+
+**Migraciones aplicadas hoy:** de la 00057 a la 00062, todas con `supabase db push` y comprobadas en la base después. Antes de la primera, la copia de las 17:49, decidida por Marcos (sin Docker).
+
+#### 2. Pantallas para mirar
+
+En la computadora y en el iPhone con Chrome, recargando antes de cada una. **Todas están «salida 0, pantallas sin mirar».**
+
+1. **Contactos › Importar CSV, en «Pruebas de correo»:**
+   - Con un CSV de 600 filas o más: la barra avanza con el número de filas, y el aviso dice que llega un correo.
+   - Al terminar: el resumen, con las filas con error en su número.
+   - El correo de fin te llega a vos (sos quien importa).
+   - Abrí el enlace del correo: tiene que mostrar el mismo resumen.
+   - Con un CSV de 500 filas o menos: termina en el momento.
+2. **La bandeja, con @marcospittimusic → @poderosascomunidad:**
+   - Respondé una historia nueva. El hilo tiene que decir «Respondió a tu historia» arriba del texto, con «Ver historia» (solo las primeras 24 horas), y la lista «Historia: …».
+3. **Con una cuenta de Member** (una invitación tuya en «Pruebas de correo»):
+   - Escribí `/dashboard/channels`, `/dashboard/settings` y `/dashboard/flows`. Tenés que volver a la bandeja con el aviso «Esa sección es solo para Owner y Admin. Te llevamos a la bandeja.»
+   - `/dashboard` tiene que llevar a la bandeja.
+4. **Canales, como Owner:** que el aviso de alertas se vea bien. Hoy no debería haber ninguna abierta de las nuevas.
+5. **El selector de espacios:** «Create» con un nombre tiene que mostrar «Por ahora no se pueden crear espacios de trabajo desde acá.» en vez de no hacer nada.
+6. **Tu Instagram @marcospittimusic:** el mensaje directo de @poderosascomunidad de las 18:15, «¡Gracias por comentar! Esta es una respuesta privada de prueba del sistema.».
+
+#### 3. Tildes propuestas (las decide Marcos)
+
+- **F38, la migración desde Pipedrive, criterio 11** (el control afirmativo, reescrito hoy): la cuenta del script cierra (380 + 19 + 3 = 402), y el control dio **380 de 380** en las dos vueltas de hoy, en «Pruebas de correo» (18:18 a 18:19).
+- **F38, criterio 12** (repetible): la segunda vuelta dio 0 creados, los mismos ids (misma huella) y las mismas notas, sin duplicados (18:19).
+- **F37, la importación de planillas, criterio 7** (más de 500 filas en segundo plano): 1.200 filas respondieron 202 en menos de 1 segundo y terminaron en el servidor; 10.000, en 7,2 minutos (`verify-importacion-segundo-plano`, 24 de 24, 18:05 a 18:17). **Conviene después de mirar la pantalla 1.**
+- **F37, criterio 8** (el correo de fin a quien importó, vía F23): «enviado» por Resend a la dirección de quien importó, y a nadie más (18:16). **Conviene después de que te llegue el tuyo en la pantalla 1.**
+- **F37, criterios 2** (10 MB y 10.000 filas) **y 9** (barra y resumen): probados en producción, pero **son de pantalla**; después de la pantalla 1.
+- **F35, la bandeja, «con más de una conversación, el filtro muestra todas»:** construido desde la 00048 (`bandeja_filtrada` filtra por conversación con `exists` sobre el contacto). `verify-filtros-bandeja`, 135 de 135, lo prueba por Instagram y por WhatsApp (S_HOY), con la última corrida a las 18:52.
+- **F40, la ventana de Instagram, «un mensaje que falla por ventana expirada muestra un error claro»:** construido (409 `ventana_cerrada` antes de llamar, y el rechazo de Zernio con el mismo aviso). **Ojo:** que el rechazo real traiga el subcódigo 2018278 es suposición; nunca se vio uno real. Propongo tildarlo por el camino del 409, que es el que se usa siempre.
+- **F40, «la respuesta privada se permite hasta 7 días y una sola vez, y el sistema lo controla con `comment_logs`»:** la respuesta real salió (18:15:25) y el segundo intento dio 409 sin llamar a Zernio (una sola llamada en total). **Sin el bloque de la bandeja**, que es pantalla de §11 y no está en el texto de este criterio.
+- **F44, el contenido del hilo, criterio 3:** **no se propone todavía.** Falta ver una respuesta a una historia real llegar con lo nuevo subido.
+- **F31, el historial de auditoría, el criterio de los tipos de entrada:** con la caída de la sesión de WhatsApp sumada hoy, todos los tipos que enumera tienen su entrada (mapa de arriba). **Queda abierto** si «canal con error» tiene que incluir también los fallos de envío por Zernio o Resend, que hoy marcan `integration_configs` y no el historial. Tu decisión.
+- **F25, el modelo de contacto, `last_click`:** **no se propone.** El camino de Instagram sigue los tipos de Zernio, pero no llegó ningún aviso real con un anuncio.
+- **F34, no contactar, el bloqueo del envío:** la bandeja bloquea en los dos canales (`verify-no-contactar`, 18 de 18) y desde hoy también el motor de flujos. Siguen sin la guardia las secuencias y difusiones del fork, que no corren en producción. Lo tildaría con esa nota.
+
+#### 4. Lo que no se pudo, y por qué
+
+- **El bloque de §11 para los comentarios en la bandeja** («Comentario en tu publicación…», «Quedan N días», «Responder en privado»). Necesita que cada comentario sea una conversación de la bandeja, y hoy no lo es. Es una pieza propia; la ruta y el control ya están.
+- **F38, criterio 6: el código de país como ajuste del espacio.** Hace falta una columna nueva en `workspaces`. No entró por tiempo, y el valor por defecto sigue fijo en +506 en la pantalla.
+- **Que el motor de flujos escriba `respuesta_privada_at`** cuando manda una respuesta privada, como la ruta nueva.
+- **La guardia de no contactar en las secuencias y difusiones del fork.** Hoy no corren en producción.
+- **La copia con `supabase db dump`:** necesita Docker, que no está instalado. Se hizo la copia sin Docker, por decisión tuya.
+
+#### 5. Decisiones que tomé yo (para que las confirmes o las cambies)
+
+1. **Los dos envíos autorizados en el pedido valen aunque `docs/contactos-prueba.md` esté vacío.** Cambia que el `CLAUDE.md` diría «no se prueba ningún envío». Recomiendo cargar ese archivo con tus contactos, así la regla y el pedido coinciden.
+2. **La fusión de Pipedrive toma el correo y el teléfono de la primera persona y, si le faltan, de la siguiente del grupo.** Un segundo teléfono distinto no entra a la ficha. Recomiendo dejarlo: son 4 grupos.
+3. **El importador protege solo el `pipedrive_person_id`**, como dice el pedido; el resto de la fila actualiza igual. Recomiendo dejarlo.
+4. **La importación en segundo plano: 8 filas a la vez, tandas de 500 y un reclamo de 3 minutos**, escribiendo con la clave de servicio. Recomiendo dejarlo: 10.000 filas en 7,2 minutos.
+5. **El correo de la prueba de 10.000 filas fue a la dirección de prueba de Resend** (`delivered+…@resend.dev`), no a tu casilla. Así fue un envío real sin llegarle a nadie y sin rebote. Para verlo vos, la pantalla 1.
+6. **«Ver historia» se muestra solo las primeras 24 horas.**
+7. **La respuesta privada es solo de Owner y Admin.**
+8. **Las pantallas del fork (Flujos, Secuencias, Difusiones, Analíticas, Growth) siguen abriendo para Owner y Admin si se escribe la dirección.**
+9. **Que el comentario del 09/11 era el tuyo:** inferencia por la hora y por ser el único de esa cuenta.
+10. **La deuda del aviso no procesado se resolvió con una alerta visible, no con un reintento**, porque §15 no traía propuesta.
+11. **La alerta de instancia desconocida ahora manda correo** a los Owner de los espacios con Evolution activo (la propuesta de §15). **Cambia:** cualquiera que conozca la dirección del receptor puede provocar un correo por hora a esos Owner. Si preferís que no, se vuelve atrás con un commit chico.
+12. **El paso 2 de 1a vacía la columna, pero no la borra.** Borrar columnas del fork es otra decisión.
+
+#### 6. Lo revertido
+
+Nada. Ninguna subida quedó en rojo. La única falla de un verificador después de una subida la causé yo: la 00058 corrió mientras corría `verify-ventana-instagram` y le dejó un secreto huérfano en Vault. Se borró, y el verificador dio 63 de 63 en las corridas siguientes.
+
+#### 7. Necesita tu decisión
+
+- **Supabase en plan FREE y NANO** (tu captura), y el `CLAUDE.md` y F1 dicen Pro. Sin Pro no hay copias automáticas (lo recuerdo de la documentación de Supabase; no lo leí hoy).
+- **La copia antes de migrar:** instalar Docker Desktop, o escribir en el `CLAUDE.md` el camino sin Docker de hoy como alternativa válida.
+- **El registro público:** §14b lo pide desactivado y F1 pide «permite registrarse».
+- **Los encabezados de seguridad** de §14b no existen en `next.config.ts`.
+- **Crear espacios desde el selector:** ¿el producto lo necesita? Hoy da un mensaje claro y no crea nada.
+- **F31:** ¿«canal con error» incluye los fallos de envío por Zernio o Resend?
+- **Los criterios del Embudo** (parte 1 de este ítem): cuáles van al plano.
+
+#### 8. Verificadores al cierre, y la medición
+
+- **Después de cada una de las ocho subidas** corrieron los ocho de la sección 9 y `verify-hilo-telefono`. Todos en verde, salvo dos tropiezos que se repitieron y dieron verde:
+  - `verify-realtime-scope`: el canario de las 18:21 no recibió el evento; a las 18:22 dio 7 de 7.
+  - `verify-hilo-telefono`: la bandeja tardó más de 30 segundos en cargar a las 19:06; a las 19:07 dio 20 de 20.
+- **La medición (hora de Costa Rica, según `date`, sin segundos):**
+  - Lectura y mapa: 17:06 a 17:2x.
+  - Ítems 1 a 3: 17:10 a 17:4x.
+  - La copia y el login de Marcos: 17:28 a 17:52, con las esperas de Marcos.
+  - Ítems 4 a 6: 17:52 a 18:20.
+  - Ítem 7: 18:16 a 19:10, la mayor parte esperando subidas y verificadores de a una.
+  - Cierre: 18:58 a 19:3x.
+- **Lo que hizo Marcos durante la sesión:** el login del CLI, cuatro respuestas y el mensaje de control de las 19:32.
