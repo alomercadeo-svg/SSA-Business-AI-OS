@@ -16,6 +16,7 @@
  * infiere un índice parcial sin su predicado. Probado el 08/10/2026 contra la
  * base, con tablas temporales (ver la cabecera de la 00032).
  */
+import type { RespuestaHistoria } from "./respuesta-historia";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { seDescarga } from "./adjuntos";
 
@@ -52,6 +53,8 @@ export interface MensajeParaGuardar {
   /** Fecha del proveedor, en ISO. */
   createdAt: string;
   sentByUserId?: string | null;
+  /** F44, criterio 3: la marca de respuesta a una historia (00060). */
+  respuestaHistoria?: RespuestaHistoria | null;
 }
 
 /** Tipo a partir de los adjuntos que manda el proveedor. Sin adjunto, texto. */
@@ -88,6 +91,7 @@ function fila(m: MensajeParaGuardar, opciones: { marcarDescarga?: boolean } = {}
     status: "sent",
     created_at: m.createdAt,
     ...(m.sentByUserId ? { sent_by_user_id: m.sentByUserId } : {}),
+    ...(m.respuestaHistoria ? { respuesta_historia: m.respuestaHistoria } : {}),
   };
 }
 

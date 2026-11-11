@@ -1,6 +1,7 @@
 "use client";
 
 import { avisoDelHistorial, type EstadoDelHistorial } from "@/lib/historial-aviso";
+import { TEXTO_HISTORIA, enlaceDeHistoria, type RespuestaHistoria } from "@/lib/respuesta-historia";
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { refrescarHilo, sumarAnteriores } from "@/lib/hilo";
 import { cambiaDeDia, horaDelMensaje, separadorDeDia } from "@/lib/fechas-bandeja";
@@ -129,6 +130,26 @@ function ArchivoDelMensaje({ message }: { message: Message }) {
   );
 }
 
+/**
+ * F44, criterio 3 (ítem 5 de la sesión de cierre): la marca de una respuesta a
+ * una historia, arriba del texto. «Ver historia» solo si el aviso trajo el
+ * enlace y todavía no venció (`lib/respuesta-historia.ts`). No se guarda ni se
+ * muestra la imagen.
+ */
+function HistoriaDelMensaje({ message }: { message: Message }) {
+  const enlace = enlaceDeHistoria(message.respuesta_historia as RespuestaHistoria | null, message.created_at, new Date());
+  return (
+    <div className="mb-1">
+      <p className="text-xs opacity-70">{TEXTO_HISTORIA}</p>
+      {enlace && (
+        <a href={enlace} target="_blank" rel="noopener noreferrer" className="text-xs underline">
+          Ver historia
+        </a>
+      )}
+    </div>
+  );
+}
+
 export function MessageBubble({ message }: { message: Message }) {
   const isInbound = message.direction === "inbound";
   const isBot = message.sent_by_flow_id !== null;
@@ -155,8 +176,9 @@ export function MessageBubble({ message }: { message: Message }) {
               : "rounded-tr-md bg-primary text-primary-foreground"
           )}
         >
+          {message.respuesta_historia && <HistoriaDelMensaje message={message} />}
           {message.text && <p className="whitespace-pre-wrap">{message.text}</p>}
-          {!message.text && !message.attachments && (
+          {!message.text && !message.attachments && !message.respuesta_historia && (
             <p className="italic opacity-70">{TEXTO_SIN_CONTENIDO}</p>
           )}
           {message.attachments && <ArchivoDelMensaje message={message} />}
@@ -506,6 +528,7 @@ export function MessageThread({
       direction: "outbound",
       text,
       attachments: null,
+      respuesta_historia: null,
       quick_reply_payload: null,
       postback_payload: null,
       callback_data: null,

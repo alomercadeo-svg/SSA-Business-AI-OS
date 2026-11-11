@@ -38,6 +38,8 @@
  *   nulo. La respuesta a una historia es otro campo (`metadata.storyReply`) y
  *   no se guarda.
  */
+import { PREFIJO_VISTA_PREVIA, respuestaHistoriaDe } from "./respuesta-historia";
+import { messagePreview } from "./message-preview";
 import { toqueDe, type Toque } from "./atribucion";
 import { tipoPorAdjuntos, type AdjuntoCrudo, type MensajeParaGuardar } from "./mensajes-guardado";
 
@@ -69,6 +71,8 @@ export interface AvisoDeMensajeZernio {
     callbackData?: string;
     postbackPayload?: string;
     quotedMessageId?: string;
+    /** F44, criterio 3: la respuesta a una historia (forma real leída el 10/11/2026). */
+    storyReply?: { storyId?: string; storyUrl?: string };
     /**
      * F25: la referencia del anuncio, solo en el primer mensaje después del
      * clic (`@zernio/node` 0.2.519, `dist/index.d.ts:7743-7790`). No se vio
@@ -141,6 +145,8 @@ export function mensajeDelAviso(
     attachments: adjuntos,
     messageType: tipoPorAdjuntos(adjuntos),
     quotedMessageId: aviso.metadata?.quotedMessageId || null,
+    // F44, criterio 3: la marca, el id y el enlace; la imagen no se baja.
+    respuestaHistoria: respuestaHistoriaDe(aviso.metadata?.storyReply),
     remoteJid,
     createdAt: aviso.message.sentAt || new Date().toISOString(),
   };
@@ -164,4 +170,10 @@ export function toqueDelAviso(aviso: AvisoDeMensajeZernio): Toque | null {
     canal: aviso.account.platform || "instagram",
     cuando: aviso.message.sentAt || new Date().toISOString(),
   });
+}
+
+/** La vista previa de la conversación: «Historia: …» si es una respuesta a una historia (F44). */
+export function vistaPreviaDelAviso(aviso: AvisoDeMensajeZernio): string {
+  const texto = messagePreview(aviso.message.text);
+  return respuestaHistoriaDe(aviso.metadata?.storyReply) ? messagePreview(`${PREFIJO_VISTA_PREVIA}${aviso.message.text ?? ""}`) : texto;
 }

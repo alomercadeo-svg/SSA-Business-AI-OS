@@ -1173,6 +1173,8 @@ export interface Database {
           /** F27 (00032). Nulo en los que escribía el fork antes. */
           message_type: string | null;
           quoted_message_id: string | null;
+          /** F44, criterio 3 (00060): la marca de respuesta a una historia. */
+          respuesta_historia: Json | null;
           /** F28: ruta en Storage y estado del adjunto. Nulo = sin adjunto. */
           media_path: string | null;
           media_status: MediaStatus | null;
@@ -1200,6 +1202,7 @@ export interface Database {
           remote_jid?: string | null;
           message_type?: string | null;
           quoted_message_id?: string | null;
+          respuesta_historia?: Json | null;
           media_path?: string | null;
           media_status?: MediaStatus | null;
           media_intentos?: number | null;

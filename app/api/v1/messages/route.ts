@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
   let consulta = supabase
     .from("messages")
     .select(
-      "id, conversation_id, direction, text, attachments, quick_reply_payload, postback_payload, callback_data, platform_message_id, remote_jid, message_type, quoted_message_id, media_path, media_status, media_mime, sent_by_flow_id, sent_by_node_id, sent_by_user_id, status, created_at"
+      "id, conversation_id, direction, text, attachments, quick_reply_payload, postback_payload, callback_data, platform_message_id, remote_jid, message_type, quoted_message_id, respuesta_historia, media_path, media_status, media_mime, sent_by_flow_id, sent_by_node_id, sent_by_user_id, status, created_at"
     )
     .eq("conversation_id", conversationId);
   // Los valores van entre comillas: la hora trae «:», «.» y «+».

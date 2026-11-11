@@ -11,7 +11,7 @@ import { messagePreview } from "@/lib/message-preview";
 import { guardarMensajes } from "@/lib/mensajes-guardado";
 import { alEscribirElLead, conversacionDelMensaje } from "@/lib/estado-por-mensaje";
 import { moverVentana, reglaDeVentana, venceEn } from "@/lib/ventana-instagram";
-import { contactoDelAviso, esSaliente, mensajeDelAviso, toqueDelAviso, type AvisoDeMensajeZernio } from "@/lib/zernio-aviso";
+import { contactoDelAviso, esSaliente, mensajeDelAviso, toqueDelAviso, vistaPreviaDelAviso, type AvisoDeMensajeZernio } from "@/lib/zernio-aviso";
 import { aplicarToque } from "@/lib/atribucion";
 import { rellenarPerfilSiFalta } from "@/lib/relleno-perfil";
 import { claveDeImportacion } from "@/lib/importacion-historial";
@@ -332,7 +332,8 @@ async function guardarAviso(
   });
   if (!contact) throw new Error("no se pudo crear el contacto");
 
-  const preview = messagePreview(payload.message.text);
+  // F44, criterio 3: «Historia: …» en la vista previa de una respuesta a una historia.
+  const preview = vistaPreviaDelAviso(payload);
   // F35, tramo D: la que nace de un mensaje del negocio nace cerrada, y un
   // mensaje no le cambia el estado ni los no leídos a una que existe
   // (lib/estado-por-mensaje.ts). Lo del lead va después de guardar el mensaje.

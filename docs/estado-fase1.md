@@ -4328,3 +4328,22 @@ Suite 1658 de 1658, `typecheck` y `lint` en verde, `next build` local bien.
 - 4 del secreto en Vault (`lib/zernio-webhook.test.ts`).
 
 Dos tests viejos del secreto **se cambiaron**, porque pedían que el secreto nuevo se escribiera en la columna: ahora piden Vault. **No visto en rojo:** «un Admin sí crea y publica», que es el control positivo. Suite 1673 de 1673, `typecheck` y `lint` en verde.
+
+### Ítem 5 de la sesión de cierre: «Respondió a tu historia» (F44, criterio 3)
+
+**Plan (revisión completa: lectura en un servicio externo, migración y el receptor de Zernio; aprobado de antemano).**
+
+**La lectura autorizada (17:56).** Una sola entrega del registro de Zernio, de la cuenta @poderosascomunidad, con la marca de historia.
+- **Cómo se hizo:** con una ruta temporal en el servidor local, que nunca se commiteó y se borró a las 17:57. La clave de Zernio salió por el mismo camino del servidor que usa la app (`getZernioApiKey`, Vault con la clave de servicio), como en la prueba del 08/10.
+- **El registro no filtra por cuenta** (`getWebhookLogs` filtra solo por evento, estado, id y webhook: `@zernio/node`, `dist/index.d.ts:15950-15977`). Por eso la ruta pidió de a 100 los avisos `message.received`, descartó en memoria todo lo que no era de @poderosascomunidad con `storyReply`, y devolvió **solo la forma** de la primera que encontró. Revisó 200, sin imprimir ninguna otra ni ningún texto.
+- **Lo encontrado:** una entrega del **06/11/2026 a las 15:41** (hora de Costa Rica), estado `success`. `metadata` trae solo `storyReply = { storyId: texto de 17 caracteres, storyUrl: enlace de lookaside.fbsbx.com, de 307 caracteres }`, y `attachments` viene vacío. **No encontré la respuesta de hoy:** o no llegó todavía, o el registro no viene del más nuevo al más viejo (no lo verifiqué).
+- **Coincide con los tipos de `@zernio/node`** (`dist/index.d.ts:7723-7735`), que además dicen que `storyUrl` vence unas 24 horas después de publicada la historia. En el listado de mensajes que usa la importación, `storyReply` es solo un sí o no (`:16822`).
+
+**Construido:**
+- La **00060**: `messages.respuesta_historia jsonb` (`{ storyId, storyUrl }`), nula en lo que ya existe. Aplicada junto con las 00058 y 00059, de 17:59:59 a 18:00:02.
+- La escriben el receptor (`mensajeDelAviso`, `lib/zernio-aviso.ts`) y la importación (`mapearMensajesDeZernio` e `importacion-historial`), esta con `{ storyId: null, storyUrl: null }`.
+- La muestran el hilo («Respondió a tu historia» y «Ver historia», `components/inbox/message-thread.tsx`) y la vista previa («Historia: …», `vistaPreviaDelAviso`). No se guarda la imagen.
+
+**Decidí yo (vetable):** «Ver historia» aparece solo durante las 24 horas siguientes al mensaje, porque después el enlace del CDN de Meta vence (según los tipos de Zernio; no lo medí). Pasado ese plazo queda solo la marca.
+
+**Tests nuevos: 6, vistos en rojo 6.** Suite 1679 de 1679, `typecheck` y `lint` en verde. **Falta el caso real en pantalla:** una respuesta a una historia que llegue después de subir esto.

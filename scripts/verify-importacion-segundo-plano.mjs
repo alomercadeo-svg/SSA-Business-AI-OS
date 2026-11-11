@@ -108,8 +108,17 @@ await correr(async () => {
   const member = await crearUsuario("f37b-member");
   const espacio = owner.espacio;
   await sumarAlEspacio(espacio, member, "member");
-  const vivos = async (ws, patron) =>
-    (await admin(`contacts?select=id&workspace_id=eq.${ws}&deleted_at=is.null&email=ilike.${encodeURIComponent(patron)}`, { headers: { Prefer: "count=exact" } })).data?.length ?? -1;
+  // Por páginas: la API de la base devuelve hasta 1000 filas por pedido (la
+  // primera corrida, a las 17:56, contó 1000 de 1197 por eso; no era el producto).
+  const vivos = async (ws, patron) => {
+    let n = 0;
+    for (let off = 0; ; off += 1000) {
+      const { data } = await admin(`contacts?select=id&workspace_id=eq.${ws}&deleted_at=is.null&email=ilike.${encodeURIComponent(patron)}&order=id&limit=1000&offset=${off}`);
+      if (!Array.isArray(data)) return -1;
+      n += data.length;
+      if (data.length < 1000) return n;
+    }
+  };
 
   titulo("El rol y los límites");
   const m = await tandas(member, espacio, { accion: "empezar", mapeo: MAPEO, total: 10, codigoPais: "+506" });
@@ -204,6 +213,8 @@ await correr(async () => {
       check(Boolean(r.fin?.terminada), `termina (estado ${r.fin?.estado})`);
       check((Date.now() - t0) < 30 * 60_000, `en menos de 30 minutos (${min} min)`);
       check(r.fin?.creados === 10_000 && r.fin?.conError === 0, `10.000 creados, 0 con error (${r.fin?.creados}, ${r.fin?.conError})`);
+      const enBase10 = await vivos(PRUEBAS, `d-${sufijo}-%`);
+      check(enBase10 === 10_000, `en la base, 10.000 contactos de la prueba (${enBase10})`);
       let enviado = null;
       for (let k = 0; k < 20 && !enviado; k++) {
         const c = await admin(`email_log?select=estado,para&workspace_id=eq.${PRUEBAS}&tipo=eq.importacion&order=created_at.desc&limit=5`);

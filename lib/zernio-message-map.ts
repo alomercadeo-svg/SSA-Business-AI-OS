@@ -39,6 +39,7 @@
  *     de la `refreshUrl` de los adjuntos.
  *   * El campo `sentVia` llega y no está declarado.
  */
+import { respuestaHistoriaDe, type RespuestaHistoria } from "./respuesta-historia";
 
 /** Forma de la bandeja. Es la de la tabla `messages` del fork. */
 export interface MensajeDeBandeja {
@@ -58,6 +59,8 @@ export interface MensajeDeBandeja {
   sent_by_user_id: string | null;
   status: string;
   created_at: string;
+  /** F44, criterio 3: en el listado, `storyReply` es solo un sí o no (`dist/index.d.ts:16822`). */
+  respuesta_historia: RespuestaHistoria | null;
 }
 
 /** Adjunto tal como llega, no como lo declara el SDK. */
@@ -78,6 +81,7 @@ interface MensajeDeZernio {
   attachments?: AdjuntoDeZernio[] | null;
   /** Libre según el SDK; de acá solo se lee `quotedMessageId` (`dist/index.d.ts:16877-16884`). */
   metadata?: { quotedMessageId?: unknown } | null;
+  storyReply?: boolean | null;
 }
 
 /**
@@ -253,5 +257,6 @@ export function mapearMensajesDeZernio(
     sent_by_user_id: null,
     status: "sent",
     created_at: elegirFecha(m),
+    respuesta_historia: respuestaHistoriaDe(m.storyReply === true ? true : null),
   }));
 }
