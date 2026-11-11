@@ -44,6 +44,8 @@ const { pendientes, estado } = vi.hoisted(() => ({
     conversacionExiste: false,
     mensajeNuevo: true,
     rpcs: [] as Array<{ fn: string; args: unknown }>,
+    // Deuda de §15 (ítem 7): la fila inactiva de la misma ranura de Zernio.
+    canalInactivo: null as Record<string, unknown> | null,
   },
 }));
 
@@ -129,7 +131,11 @@ function crearSupabaseFalso() {
       is: () => cadena,
       or: () => cadena,
       single: async () => resolver(tabla, "single", ultimaOp),
-      maybeSingle: async () => resolver(tabla, "maybeSingle", ultimaOp),
+      maybeSingle: async () =>
+        tabla === "channels" && filtros.some(([c, v]) => c === "is_active" && v === false)
+          ? { data: estado.canalInactivo, error: null }
+          : resolver(tabla, "maybeSingle", ultimaOp),
+      limit: () => cadena,
       insert: async (fila: Record<string, unknown>) => {
         if (tabla === "webhook_events") {
           const id = String(fila.event_id);
@@ -292,6 +298,7 @@ beforeEach(() => {
   estado.conversacionExiste = false;
   estado.mensajeNuevo = true;
   estado.rpcs = [];
+  estado.canalInactivo = null;
   upsertContactForSender.mockReset();
   descargarAdjunto.mockClear();
   upsertContactForSender.mockResolvedValue({ contactId: "contact-1", existed: false });
@@ -803,3 +810,44 @@ describe("F40: la ventana de Instagram", () => {
     expect(ventanas()).toEqual([]);
   });
 });
+
+/**
+ * Deuda de §15 (ítem 7 de la sesión de cierre): «el receptor de Zernio pierde
+ * sin rastro lo que llega a un canal que no encuentra». Ahora deja rastro: un
+ * canal inactivo de esa cuenta, con la firma verificada contra su espacio, abre
+ * la alerta `zernio_canal_inactivo` del espacio y responde 503; una cuenta sin
+ * ningún canal abre `zernio_cuenta_desconocida`, sin espacio (se abre antes de
+ * verificar la firma, como la instancia desconocida de Evolution: sin correo),
+ * y responde 404 como antes.
+ */
+describe("un aviso para una cuenta sin canal activo", () => {
+  const alertas = () => estado.rpcs.filter((r) => r.fn === "record_webhook_alert").map((r) => r.args as Record<string, unknown>);
+
+  it("sin ningún canal de esa cuenta: 404 y la alerta zernio_cuenta_desconocida, sin espacio", async () => {
+    estado.channel = null;
+    const body = eventoMensaje({ plataforma: "instagram" });
+    const res = await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    expect(res.status).toBe(404);
+    expect(alertas()).toEqual([expect.objectContaining({ p_source: "zernio", p_condition: "zernio_cuenta_desconocida", p_workspace_id: null, p_detail: "acct-1" })]);
+  });
+
+  it("con un canal inactivo y la firma bien: 503 y la alerta zernio_canal_inactivo del espacio; no guarda nada", async () => {
+    estado.canalInactivo = { ...estado.channel!, is_active: false };
+    estado.channel = null;
+    const body = eventoMensaje({ plataforma: "instagram" });
+    const res = await POST(pedido(body, { "x-late-signature": firmar(body) }));
+    expect(res.status).toBe(503);
+    expect(alertas()).toEqual([expect.objectContaining({ p_condition: "zernio_canal_inactivo", p_workspace_id: "ws-1", p_channel_id: "ch-1" })]);
+    expect(estado.escrituras.filter((e) => e.tabla === "messages")).toEqual([]);
+  });
+
+  it("con un canal inactivo y la firma mal: 401, sin la alerta del espacio", async () => {
+    estado.canalInactivo = { ...estado.channel!, is_active: false };
+    estado.channel = null;
+    const body = eventoMensaje({ plataforma: "instagram" });
+    const res = await POST(pedido(body, { "x-late-signature": firmar(body, "otro-secreto") }));
+    expect(res.status).toBe(401);
+    expect(alertas().map((a) => a.p_condition)).not.toContain("zernio_canal_inactivo");
+  });
+});
+

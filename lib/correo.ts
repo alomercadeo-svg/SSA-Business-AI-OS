@@ -372,6 +372,15 @@ export function contenidoDeAlerta(
           `Revisalo en Canales: ${canales}`,
         ],
       };
+    case "zernio_canal_inactivo":
+      return {
+        asunto: "Están llegando mensajes de Instagram a un canal apagado",
+        parrafos: [
+          "Zernio mandó mensajes de una cuenta de Instagram cuyo canal está inactivo en el sistema, así que no entraron a la bandeja.",
+          "No sabemos si Zernio los vuelve a mandar: lo seguro es activar el canal cuanto antes y revisar la conversación desde la app de Instagram.",
+          `Activalo en Canales: ${canales}`,
+        ],
+      };
     case "webhook_canal_inactivo":
       return {
         asunto: "Están llegando mensajes de WhatsApp a un canal apagado",

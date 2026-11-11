@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { auditarAlertaSiEsNueva } from "@/lib/auditoria";
+import { notificarAlerta } from "@/lib/correo";
 import { after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { executeFlow } from "@/lib/flow-engine/engine";
@@ -133,6 +136,62 @@ function verificarFirma(
 }
 
 /**
+ * Deuda de §15 (ítem 7 de la sesión de cierre, 10/11/2026): «el receptor de
+ * Zernio pierde sin rastro lo que llega a un canal que no encuentra». Antes
+ * respondía 404 sin log ni alerta. Ahora:
+ *   - Si la cuenta tiene un canal INACTIVO y la firma verifica contra su
+ *     espacio, el aviso es nuestro: alerta `zernio_canal_inactivo` del
+ *     espacio (se ve en Canales, deja «canal con error» y avisa por correo) y
+ *     503, por si Zernio reintenta un 5xx (no está verificado que lo haga).
+ *   - Si no hay ningún canal de esa cuenta, alerta `zernio_cuenta_desconocida`
+ *     sin espacio, con el id de la cuenta (lo manda quien llama: se acota y no
+ *     avisa por correo, como la instancia desconocida de Evolution), y 404.
+ */
+async function sinCanalActivo(
+  supabase: Awaited<ReturnType<typeof createServiceClient>>,
+  cuentaId: string,
+  body: string,
+  signature: string | null,
+): Promise<NextResponse> {
+  const { data: inactivo } = await supabase
+    .from("channels")
+    .select("*")
+    .eq("late_account_id", cuentaId)
+    .eq("is_active", false)
+    .limit(1)
+    .maybeSingle();
+  if (inactivo) {
+    if (!verificarFirma(await resolveWebhookSecret(supabase, inactivo), body, signature, inactivo)) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+    const { data: alertaId } = await supabase.rpc("record_webhook_alert", {
+      p_source: "zernio",
+      p_condition: "zernio_canal_inactivo",
+      p_workspace_id: inactivo.workspace_id,
+      p_channel_id: inactivo.id,
+      p_detail: null,
+    });
+    console.error(`[webhook] aviso de Zernio para el canal inactivo ${inactivo.id}: no entró a la bandeja.`);
+    if (typeof alertaId === "string") {
+      after(async () => {
+        await auditarAlertaSiEsNueva(supabase as unknown as SupabaseClient, alertaId);
+        await notificarAlerta(alertaId);
+      });
+    }
+    return NextResponse.json({ error: "Inactive channel" }, { status: 503 });
+  }
+  await supabase.rpc("record_webhook_alert", {
+    p_source: "zernio",
+    p_condition: "zernio_cuenta_desconocida",
+    p_workspace_id: null,
+    p_channel_id: null,
+    p_detail: cuentaId.slice(0, 100),
+  });
+  console.error(`[webhook] aviso de Zernio para una cuenta sin canal (${cuentaId.slice(0, 40)}): no entró a la bandeja.`);
+  return NextResponse.json({ error: "Channel not found" }, { status: 404 });
+}
+
+/**
  * Claim an event id for processing. Returns false when another delivery of the
  * same event already claimed it (Zernio retries with the same id), so retries
  * and redeliveries never re-run a flow. Events without an id are processed
@@ -198,9 +257,7 @@ async function handleWebhook(request: NextRequest) {
     .eq("is_active", true)
     .single();
 
-  if (!channel) {
-    return NextResponse.json({ error: "Channel not found" }, { status: 404 });
-  }
+  if (!channel) return sinCanalActivo(supabase, account.id, body, signature);
 
   // Dos cuentas conectadas del mismo espacio que se escriben (pasa en pruebas):
   // el mensaje es real y se guarda, pero no dispara flujos, que es el bucle que
@@ -489,9 +546,7 @@ async function handleCommentWebhook(
     .eq("is_active", true)
     .single();
 
-  if (!channel) {
-    return NextResponse.json({ error: "Channel not found" }, { status: 404 });
-  }
+  if (!channel) return sinCanalActivo(supabase, payload.account.id, rawBody, signature);
 
   // Prevent loops: our own comments (e.g. the configured public reply) also
   // arrive as comment.received and must never re-trigger a flow.

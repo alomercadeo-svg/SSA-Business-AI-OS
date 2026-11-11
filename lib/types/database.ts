@@ -29,7 +29,11 @@ export type WebhookAlertCondition =
   /** Un rechazo de `registrarAuditoria` (deuda de §15, 10/11/2026). Fuente `auditoria`. */
   | "auditoria_rechazada"
   /** Un aviso de Evolution verificado para un canal inactivo (deuda de §15, 10/11/2026). Fuente `evolution`. */
-  | "webhook_canal_inactivo";
+  | "webhook_canal_inactivo"
+  /** Un aviso de Zernio firmado para un canal inactivo (deuda de §15, 10/11/2026). Fuente `zernio`. */
+  | "zernio_canal_inactivo"
+  /** Un aviso de Zernio para una cuenta sin ningún canal; sin espacio (deuda de §15, 10/11/2026). Fuente `zernio`. */
+  | "zernio_cuenta_desconocida";
 
 /**
  * Estado de una integración (F24, migración 00024). `sin_verificar` es "no se
