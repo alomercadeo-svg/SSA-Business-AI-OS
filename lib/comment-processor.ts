@@ -14,6 +14,8 @@ export interface IncomingComment {
   postId: string;
   text: string;
   author: { id?: string; name?: string; username?: string };
+  /** F40 (00061): la hora del comentario según el aviso; los 7 días se cuentan desde acá. */
+  createdAt?: string | null;
 }
 
 export type CommentForMatching = Pick<IncomingComment, "postId"> & { text: string };
@@ -321,6 +323,7 @@ async function logComment({
       author_name: comment.author.name || null,
       author_username: comment.author.username || null,
       comment_text: comment.text,
+      ...(comment.createdAt ? { comentado_at: comment.createdAt } : {}),
       matched_trigger_id: triggerId,
       dm_sent: dmSent,
       reply_sent: replySent,

@@ -1459,6 +1459,9 @@ export interface Database {
           reply_sent: boolean;
           error: string | null;
           created_at: string;
+          comentado_at: string | null;
+          respuesta_privada_at: string | null;
+          respuesta_privada_error: string | null;
         };
         Insert: {
           id?: string;
@@ -1475,12 +1478,18 @@ export interface Database {
           reply_sent?: boolean;
           error?: string | null;
           created_at?: string;
+          comentado_at?: string | null;
+          respuesta_privada_at?: string | null;
+          respuesta_privada_error?: string | null;
         };
         Update: {
           matched_trigger_id?: string | null;
           dm_sent?: boolean;
           reply_sent?: boolean;
           error?: string | null;
+          comentado_at?: string | null;
+          respuesta_privada_at?: string | null;
+          respuesta_privada_error?: string | null;
         };
         Relationships: [
           {

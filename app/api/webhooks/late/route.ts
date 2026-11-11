@@ -526,6 +526,8 @@ async function handleCommentWebhook(
           postId: payload.comment.postId || payload.comment.platformPostId,
           text: payload.comment.text,
           author: payload.comment.author,
+          // F40 (00061): la hora del comentario, para los 7 días de la respuesta privada.
+          createdAt: payload.comment.createdAt || null,
         },
       });
     } catch (err) {

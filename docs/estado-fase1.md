@@ -4347,3 +4347,30 @@ Dos tests viejos del secreto **se cambiaron**, porque pedían que el secreto nue
 **Decidí yo (vetable):** «Ver historia» aparece solo durante las 24 horas siguientes al mensaje, porque después el enlace del CDN de Meta vence (según los tipos de Zernio; no lo medí). Pasado ese plazo queda solo la marca.
 
 **Tests nuevos: 6, vistos en rojo 6.** Suite 1679 de 1679, `typecheck` y `lint` en verde. **Falta el caso real en pantalla:** una respuesta a una historia que llegue después de subir esto.
+
+### Ítem 6 de la sesión de cierre: la respuesta privada a un comentario (F40)
+
+**Plan (revisión completa: migración, receptor de Zernio y un envío real; aprobado de antemano).**
+
+**La lectura autorizada de `comment_logs` (18:00, solo cantidades):**
+
+| Cuenta | Total | Más viejo | Más nuevo | `dm_sent` | `reply_sent` | Últimos 7 días |
+|---|---|---|---|---|---|---|
+| @alomercadeo | 103 | 22/09 18:00 | 10/11 12:35 | 0 | 0 | 16 |
+| @poderosascomunidad | 1 | 09/11 19:52 | 09/11 19:52 | 0 | 0 | 1 |
+
+Marcos dijo (18:0x) que su último comentario fue «hace 22 horas», y el único de @poderosascomunidad se procesó el 09/11 a las 19:52. **Que sea el suyo es inferencia** (no se leyó el autor, que no estaba autorizado): coinciden la hora y que es el único de esa cuenta. Sigue dentro de los 7 días.
+
+**Construido:**
+- La **00061** (aplicada de 18:09:18 a 18:09:21): `comment_logs.comentado_at`, la hora del comentario según el aviso; `respuesta_privada_at`; y `respuesta_privada_error`. Las 104 filas que ya estaban quedan con `comentado_at` nulo y cuentan desde `created_at`.
+- El receptor guarda `comment.createdAt` (`app/api/webhooks/late/route.ts`, `lib/comment-processor.ts`).
+- `lib/respuesta-privada.ts`: los 7 días y la única vez. Si no corresponde, 409 sin llamar a Zernio. El comentario se reclama ANTES de llamar, así dos clics no mandan dos. Si Zernio lo rechaza, se suelta el reclamo y el error dice qué pasó.
+- La ruta `POST /api/v1/comentarios/<id>/respuesta-privada`, solo para Owner y Admin.
+
+**No construido: el bloque de §11 en la bandeja** («Comentario en tu publicación…», «Quedan N días», «Responder en privado»). Necesita que los comentarios sean conversaciones de la bandeja, y hoy no lo son (verificado el 06/11). Solo los que activan un flujo crean una conversación (`lib/comment-processor.ts`). Es una pieza aparte: una conversación por comentario, su cabecera, el bloque y la vista previa «Comentario:». Va a «No pude».
+
+**Decidí yo (vetable):**
+- La respuesta privada es solo de Owner y Admin, porque un comentario no tiene alcance por lead (§13).
+- El motor de flujos, que también manda respuestas privadas (`lib/flow-engine/engine.ts:414` y `:971`), todavía no escribe `respuesta_privada_at`. Va a la lista final.
+
+**Tests nuevos: 10, vistos en rojo 8** (los de `lib/respuesta-privada.test.ts`). **No vistos en rojo:** los 2 de la ruta («un Member recibe 403» y su control), escritos después de la ruta. Suite 1689 de 1689, `typecheck` y `lint` en verde.
