@@ -25,7 +25,9 @@ export type WebhookAlertCondition =
   /** F39: uno o más canales pasaron su límite de horas hábiles sin entrantes. Fuente `vigilancia`. Migración 00033. */
   | "canal_silencioso"
   /** F39: a la suscripción del webhook de Zernio le falta un evento de `WEBHOOK_EVENTS`. Fuente `zernio`. */
-  | "suscripcion_incompleta";
+  | "suscripcion_incompleta"
+  /** Un rechazo de `registrarAuditoria` (deuda de §15, 10/11/2026). Fuente `auditoria`. */
+  | "auditoria_rechazada";
 
 /**
  * Estado de una integración (F24, migración 00024). `sin_verificar` es "no se

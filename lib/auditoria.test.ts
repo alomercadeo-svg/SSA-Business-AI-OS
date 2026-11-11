@@ -237,3 +237,37 @@ describe("lo que muestra la pestaña", () => {
     expect(etiquetaDeCanal({ platform: "whatsapp", instance_name: "ssa" })).toBe("WhatsApp (instancia ssa)");
   });
 });
+
+/**
+ * Deuda de §15 (ítem 7 de la sesión de cierre): «un rechazo de
+ * `registrarAuditoria` solo deja rastro en el log». Propuesta escrita en §15,
+ * aplicada: el rechazo abre una alerta en `webhook_alerts` (una por condición
+ * abierta), que se ve en Canales y avisa a Owner y Admin.
+ */
+vi.mock("@/lib/correo", () => ({ notificarAlerta: vi.fn(async () => null) }));
+describe("un rechazo del historial deja una alerta", () => {
+  const evento = { workspaceId: "ws-1", actor: null, accion: "contacto.editado" as const, entidad: { tipo: "contacto" as const, id: "c-1" } };
+  it("si la base rechaza la entrada, abre `auditoria_rechazada` en el espacio, con las acciones", async () => {
+    const rpcs: Array<{ fn: string; args: Record<string, unknown> }> = [];
+    const f = clienteFalso({ errorAlInsertar: "violates check constraint" });
+    (servicio.cliente as { rpc?: unknown }).rpc = async (fn: string, args: Record<string, unknown>) => {
+      rpcs.push({ fn, args });
+      return { data: "alerta-1", error: null };
+    };
+    expect(await registrarAuditoria(evento)).toBe(false);
+    expect(f.insertados).toHaveLength(1);
+    expect(rpcs).toEqual([
+      { fn: "record_webhook_alert", args: { p_source: "auditoria", p_condition: "auditoria_rechazada", p_workspace_id: "ws-1", p_channel_id: null, p_detail: "No se guardó: contacto.editado" } },
+    ]);
+  });
+  it("control: si la entrada se guarda, no abre ninguna alerta", async () => {
+    const rpcs: string[] = [];
+    clienteFalso();
+    (servicio.cliente as { rpc?: unknown }).rpc = async (fn: string) => {
+      rpcs.push(fn);
+      return { data: null, error: null };
+    };
+    expect(await registrarAuditoria(evento)).toBe(true);
+    expect(rpcs).toEqual([]);
+  });
+});

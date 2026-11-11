@@ -119,12 +119,40 @@ export async function registrarAuditoria(eventos: EventoAuditoria | EventoAudito
     const { error } = await supabase.from("audit_log").insert(lista.map(filaDeAuditoria));
     if (error) {
       console.error("[auditoria] no se pudo registrar:", lista.map((e) => e.accion).join(", "), error.message);
+      await alertarRechazo(supabase, lista);
       return false;
     }
     return true;
   } catch (err) {
     console.error("[auditoria] no se pudo registrar:", err instanceof Error ? err.message : String(err));
     return false;
+  }
+}
+
+/**
+ * Deuda de §15 (ítem 7 de la sesión de cierre, 10/11/2026): un rechazo del
+ * historial ya no queda solo en el log. Abre (o suma a) la alerta
+ * `auditoria_rechazada` del espacio, una por condición abierta, que se ve en
+ * Canales y avisa por correo a Owner y Admin (F23, con su techo de uno por
+ * hora). El detalle lo arma este código: solo los nombres de las acciones.
+ * Nunca lanza: el que llamó sigue como antes.
+ */
+async function alertarRechazo(supabase: SupabaseClient, lista: EventoAuditoria[]): Promise<void> {
+  try {
+    const workspaceId = lista.find((e) => e.workspaceId)?.workspaceId ?? null;
+    const acciones = [...new Set(lista.map((e) => e.accion))].join(", ");
+    const { data: alertaId, error } = await supabase.rpc("record_webhook_alert", {
+      p_source: "auditoria",
+      p_condition: "auditoria_rechazada",
+      p_workspace_id: workspaceId,
+      p_channel_id: null,
+      p_detail: `No se guardó: ${acciones}`.slice(0, 500),
+    });
+    if (error || !alertaId) return;
+    const { notificarAlerta } = await import("@/lib/correo");
+    await notificarAlerta(String(alertaId), { servicio: supabase as never });
+  } catch (err) {
+    console.error("[auditoria] tampoco se pudo abrir la alerta:", err instanceof Error ? err.message : String(err));
   }
 }
 

@@ -372,6 +372,18 @@ export function contenidoDeAlerta(
           `Revisalo en Canales: ${canales}`,
         ],
       };
+    case "auditoria_rechazada":
+      return {
+        asunto: "El historial de cambios no pudo guardar una entrada",
+        parrafos: [
+          ocurrencias === 1
+            ? "Un cambio se hizo, pero el historial de cambios no pudo registrarlo."
+            : `${ocurrencias} cambios se hicieron, pero el historial de cambios no pudo registrarlos.`,
+          ...(detalle ? [detalle] : []),
+          "El cambio en sí quedó guardado; lo que falta es su entrada en el historial. Suele ser una actualización a medio aplicar o la base sin responder por un momento.",
+          `Revisalo en Configuración, Historial de cambios: ${urlApp()}/dashboard/settings/historial`,
+        ],
+      };
     case "zernio_sync_cero_cuentas":
       return {
         asunto: "Zernio no devolvió ninguna cuenta de Instagram",

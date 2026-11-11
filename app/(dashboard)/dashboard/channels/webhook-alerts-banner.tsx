@@ -76,6 +76,8 @@ function titulo(condicion: WebhookAlertCondition): string {
       return "Un canal pasó su límite de horas sin recibir mensajes";
     case "suscripcion_incompleta":
       return "A la suscripción de avisos de Instagram le falta un evento";
+    case "auditoria_rechazada":
+      return "El historial de cambios no pudo guardar una entrada";
     default:
       return "El receptor de mensajes reportó un problema";
   }
