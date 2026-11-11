@@ -407,3 +407,27 @@ describe("la lista de eventos vive en un solo lugar", () => {
     }
   });
 });
+
+/**
+ * Deuda de §15 (ítem 7 de la sesión de cierre): «el registro del webhook de
+ * Zernio puede apuntar a localhost». Propuesta escrita en §15, aplicada: el
+ * registro se niega con una dirección que no sea https o que sea local.
+ */
+describe("ensureWebhookRegistered nunca apunta a una dirección local", () => {
+  for (const appUrl of ["http://localhost:3000", "https://localhost:3000", "http://app.alomercadeo.com", "https://127.0.0.1", "https://dev.localhost"]) {
+    it(`se niega con ${appUrl} y no toca Zernio`, async () => {
+      const z = fakeZernio([]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await expect(ensureWebhookRegistered(z.client as any, { ...opts, appUrl, events: [...opts.events] })).rejects.toThrow(/https/);
+      expect(z.get).not.toHaveBeenCalled();
+      expect(z.create).not.toHaveBeenCalled();
+      expect(z.update).not.toHaveBeenCalled();
+    });
+  }
+  it("control: con la dirección https pública registra", async () => {
+    const z = fakeZernio([]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await ensureWebhookRegistered(z.client as any, { ...opts, events: [...opts.events] });
+    expect(z.create).toHaveBeenCalledTimes(1);
+  });
+});

@@ -117,11 +117,32 @@ function samePath(a: string | undefined, b: string): boolean {
  * so an unmatched entry belongs to another integration the user owns and
  * rewriting it would silently break that integration.
  */
+/**
+ * Deuda de §15 (ítem 7 de la sesión de cierre, 10/11/2026): un servidor de
+ * desarrollo conectado a la cuenta de producción podía registrar el aviso
+ * contra `http://localhost:3000` (el respaldo cuando falta
+ * `NEXT_PUBLIC_APP_URL`) y la bandeja dejaba de recibir sin ningún síntoma.
+ * Propuesta de §15, aplicada: solo una dirección https que no sea local.
+ */
+export function direccionPublica(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    if (u.protocol !== "https:") return false;
+    return !(host === "localhost" || host.endsWith(".localhost") || host === "127.0.0.1" || host === "[::1]" || host === "::1" || host === "0.0.0.0");
+  } catch {
+    return false;
+  }
+}
+
 export async function ensureWebhookRegistered(
   zernio: Zernio,
   opts: EnsureWebhookOptions,
 ): Promise<EnsureWebhookResult> {
   const url = webhookUrl(opts.appUrl);
+  if (!direccionPublica(url)) {
+    throw new Error("No se registra el aviso de Zernio: la dirección tiene que ser https y pública (revisá NEXT_PUBLIC_APP_URL).");
+  }
 
   const res = await zernio.webhooks.getWebhookSettings();
   const webhooks = (res?.data?.webhooks ?? []) as ZernioWebhook[];
