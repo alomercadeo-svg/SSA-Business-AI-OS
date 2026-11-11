@@ -175,10 +175,16 @@ async function crearUsuario(nombre) {
 // ── Verificación ────────────────────────────────────────────────────────────
 
 async function main() {
-  const { data: wss } = await admin("workspaces?select=id,name");
-  workspaceA = wss[0].id;
+  const { data: wss } = await admin("workspaces?select=id");
   const totalInicial = wss.length;
-  console.log(`Workspace: ${wss[0].name} (${workspaceA})`);
+  // Deuda de §15 (ítem 7 de la sesión de cierre, 10/11/2026): antes tomaba el
+  // primer espacio de la base (el del negocio) y escribía ahí. Ahora el
+  // escenario es el espacio fantasma de un dueño de prueba.
+  const dueno = await crearUsuario("dueno");
+  const { data: propios } = await admin(`workspace_members?select=workspace_id&user_id=eq.${dueno.id}`);
+  workspaceA = propios?.[0]?.workspace_id;
+  if (!workspaceA) throw new Error("el alta del dueño de prueba no creó su espacio");
+  console.log(`Workspace: espacio fantasma (${workspaceA})`);
   console.log(`Espera máxima por evento: ${ESPERA_MAX_MS} ms, gracia: ${GRACIA_MS} ms\n`);
 
   // ── Escenario ───────────────────────────────────────────────────────────

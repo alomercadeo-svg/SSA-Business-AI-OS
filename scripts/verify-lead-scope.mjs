@@ -191,11 +191,20 @@ async function crearContacto(campos) {
 // ── Verificación ────────────────────────────────────────────────────────────
 
 async function main() {
-  const { data: wsIniciales } = await admin("workspaces?select=id,name,unassigned_leads_visible_to_members");
-  workspaceA = wsIniciales[0].id;
-  flagOriginal = wsIniciales[0].unassigned_leads_visible_to_members;
+  const { data: wsIniciales } = await admin("workspaces?select=id");
   const totalInicial = wsIniciales.length;
-  console.log(`Workspace: ${wsIniciales[0].name} (${workspaceA})`);
+  // Deuda de §15 (ítem 7 de la sesión de cierre, 10/11/2026): antes tomaba el
+  // primer espacio de la base, que en producción es el del negocio, y escribía
+  // ahí. Ahora el escenario es el espacio fantasma de un dueño de prueba. Las
+  // políticas que se prueban son las mismas para todos los espacios; lo que se
+  // pierde es mirar la configuración del espacio real, que acá no se toca.
+  const dueno = await crearUsuario("dueno");
+  const { data: propios } = await admin(`workspace_members?select=workspace_id&user_id=eq.${dueno.id}`);
+  workspaceA = propios?.[0]?.workspace_id;
+  if (!workspaceA) throw new Error("el alta del dueño de prueba no creó su espacio");
+  const { data: wsA } = await admin(`workspaces?select=unassigned_leads_visible_to_members&id=eq.${workspaceA}`);
+  flagOriginal = wsA?.[0]?.unassigned_leads_visible_to_members ?? false;
+  console.log(`Workspace: espacio fantasma (${workspaceA})`);
   console.log(`Workspaces al empezar: ${totalInicial}\n`);
 
   // ── Escenario ───────────────────────────────────────────────────────────
