@@ -78,6 +78,8 @@ function titulo(condicion: WebhookAlertCondition): string {
       return "A la suscripción de avisos de Instagram le falta un evento";
     case "auditoria_rechazada":
       return "El historial de cambios no pudo guardar una entrada";
+    case "webhook_canal_inactivo":
+      return "Están llegando mensajes de WhatsApp a un canal apagado: activalo";
     default:
       return "El receptor de mensajes reportó un problema";
   }

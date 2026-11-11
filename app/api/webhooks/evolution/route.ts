@@ -90,11 +90,11 @@ interface MensajeEvolution {
 
 type CanalEvolution = Pick<
   Database["public"]["Tables"]["channels"]["Row"],
-  "id" | "workspace_id" | "platform" | "provider" | "instance_name"
+  "id" | "workspace_id" | "platform" | "provider" | "instance_name" | "is_active"
 >;
 
 /** Columnas del canal que necesita el receptor. Nunca `*`: la fila tiene secretos. */
-const COLUMNAS_CANAL = "id, workspace_id, platform, provider, instance_name";
+const COLUMNAS_CANAL = "id, workspace_id, platform, provider, instance_name, is_active";
 
 // ── Handler ─────────────────────────────────────────────────────────────────
 
@@ -138,7 +138,10 @@ async function manejarWebhook(request: NextRequest) {
     .select(COLUMNAS_CANAL)
     .eq("instance_name", instancia)
     .eq("provider", "evolution")
-    .eq("is_active", true)
+    // Deuda de §15 (ítem 7 de la sesión de cierre): SIN el filtro de activo.
+    // Un canal que existe pero está apagado no es una «instancia desconocida»:
+    // se autentica igual y abajo tiene su propia alerta, que manda a «Activar».
+    // `instance_name` es único (00022:43): nunca hay dos filas.
     .maybeSingle<CanalEvolution>();
 
   if (!canal) {
@@ -222,6 +225,23 @@ async function manejarWebhook(request: NextRequest) {
       `[evolution] la instancia "${instancia}" firmó con el secreto ANTERIOR. ` +
       `Si la rotación ya terminó, Evolution no tomó el nuevo: no borres el anterior todavía.`
     );
+  }
+
+  // ── 2b. El canal existe pero está inactivo (deuda de §15) ───────────────
+  //
+  // Recién acá, con el token verificado: el aviso viene de nuestro Evolution
+  // y el espacio es confiable, así que la alerta puede avisar por correo sin
+  // que cualquiera la abra desde afuera. 503 y no 404, por lo mismo que la
+  // instancia desconocida: Evolution reintenta unos 20 minutos, y activar el
+  // canal dentro de esa ventana recupera lo que entró mientras tanto.
+  if (canal.is_active === false) {
+    await registrarAlerta(supabase, EVOLUTION_ALERTS.inactiveChannel, {
+      workspaceId: canal.workspace_id,
+      channelId: canal.id,
+      detalle: instancia,
+    });
+    console.error(`[evolution] la instancia "${instancia}" es de un canal inactivo: activalo en Canales antes de ~20 minutos.`);
+    return NextResponse.json({ error: "Inactive channel" }, { status: 503 });
   }
 
   // ── 3. La alerta de autenticación se apaga sola. La de instancia

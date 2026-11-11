@@ -52,6 +52,8 @@ export const EVOLUTION_ALERTS = {
   authFailed: "webhook_auth_failed",
   /** Llegó un aviso para una instancia que no existe en nuestra base. */
   unknownInstance: "webhook_unknown_instance",
+  /** El aviso verificó, pero su canal está inactivo (deuda de §15, 10/11/2026). */
+  inactiveChannel: "webhook_canal_inactivo",
 } as const;
 
 /**

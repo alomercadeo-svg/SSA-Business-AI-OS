@@ -781,3 +781,31 @@ describe("cuerpo inválido", () => {
     expect(res.status).toBe(400);
   });
 });
+
+/**
+ * Deuda de §15 (ítem 7 de la sesión de cierre): «el receptor de Evolution
+ * describe mal un canal inactivo». Antes buscaba el canal con `is_active =
+ * true`, y un canal apagado caía en «instancia desconocida», que manda a
+ * corregir el nombre. Ahora se distingue: con el token verificado (sin eso
+ * cualquiera podría abrir la alerta y mandarle correos a la Owner), alerta
+ * propia del espacio que manda a «Activar», y 503 para que Evolution reintente
+ * mientras tanto.
+ */
+describe("un canal que existe pero está inactivo", () => {
+  it("con el token bien: 503, la alerta webhook_canal_inactivo del espacio, y no procesa", async () => {
+    estado.canal = { ...(estado.canal as object), is_active: false } as never;
+    const res = await POST(pedido(cuerpo(), await firmar()));
+    expect(res.status).toBe(503);
+    const alertas = alertasRegistradas();
+    expect(alertas.map((a) => a.args.p_condition)).toEqual(["webhook_canal_inactivo"]);
+    expect(alertas[0].args).toMatchObject({ p_workspace_id: "ws-1", p_channel_id: "ch-evo-1" });
+    expect(procesarEventoEvolution).not.toHaveBeenCalled();
+  });
+  it("con el token mal: 401 y la alerta de autenticación, como siempre (no se abre la de canal inactivo)", async () => {
+    estado.canal = { ...(estado.canal as object), is_active: false } as never;
+    const res = await POST(pedido(cuerpo(), await firmar(OTRO_SECRETO)));
+    expect(res.status).toBe(401);
+    expect(alertasRegistradas().map((a) => a.args.p_condition)).toEqual(["webhook_auth_failed"]);
+  });
+});
+

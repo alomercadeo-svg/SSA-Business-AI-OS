@@ -372,6 +372,15 @@ export function contenidoDeAlerta(
           `Revisalo en Canales: ${canales}`,
         ],
       };
+    case "webhook_canal_inactivo":
+      return {
+        asunto: "Están llegando mensajes de WhatsApp a un canal apagado",
+        parrafos: [
+          "Llegaron avisos de WhatsApp para un canal que está inactivo en el sistema, así que no entraron a la bandeja.",
+          "WhatsApp los reintenta durante unos 20 minutos: si activás el canal antes, se recuperan. Después se pierden.",
+          `Activalo en Canales: ${canales}`,
+        ],
+      };
     case "auditoria_rechazada":
       return {
         asunto: "El historial de cambios no pudo guardar una entrada",
