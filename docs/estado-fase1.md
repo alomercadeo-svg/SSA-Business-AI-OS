@@ -4187,12 +4187,12 @@ Sin fecha: el Flujo 4 del plano, la conexión en vivo de WhatsApp. Espera el nú
 ### Casillas
 
 - [x] **Mapa real** de los criterios sin tildar de los bloques 2 a 4 (tabla abajo). Hecho a las 17:2x.
-- [ ] **Ítem 1:** personas de Pipedrive que comparten correo o teléfono (script de unión, protección en el importador, criterio 11 de F38 reescrito, archivos regenerados).
-- [ ] **Ítem 2:** importación de planillas, parte 2 (F37, criterios 2, 7, 8 y 9).
+- [x] **Ítem 1:** personas de Pipedrive que comparten correo o teléfono (script de unión, protección en el importador, criterio 11 de F38 reescrito, archivos regenerados). `c151612`, en producción desde las 17:16:53; prueba de las dos vueltas en «Pruebas de correo», 8 de 8.
+- [x] **Ítem 2:** importación de planillas, parte 2 (F37, criterios 2, 7, 8 y 9). `f2d9ea1` y la 00057, en producción desde las 17:54:57; 10.000 filas en 7,2 minutos.
 - [ ] **Ítem 3:** los criterios chicos que el mapa marque sin construir.
-- [ ] **Ítem 4:** el aviso al Member y los roles (1a y 1b).
-- [ ] **Ítem 5:** «Respondió a tu historia» (F44, criterio 3).
-- [ ] **Ítem 6:** la respuesta privada a un comentario (F40).
+- [x] **Ítem 4:** el aviso al Member y los roles (1a y 1b). `b92cb90`, 00058 y 00059, en producción desde las 18:05:02. El paso 2 de 1a va en el ítem 7, al final.
+- [x] **Ítem 5:** «Respondió a tu historia» (F44, criterio 3). `5e64944` y la 00060, en producción desde las 18:05:02.
+- [x] **Ítem 6:** la respuesta privada a un comentario (F40), sin el bloque de la bandeja. `e3d0501` y la 00061; la respuesta real salió a las 18:15:25.
 - [ ] **Ítem 7:** las deudas sin resolver de §15.
 - [ ] **Ítem 8:** el cierre (criterios del Embudo propuestos, lista de verificación de F1 a F4 y §14b, reporte final).
 
@@ -4374,3 +4374,30 @@ Marcos dijo (18:0x) que su último comentario fue «hace 22 horas», y el único
 - El motor de flujos, que también manda respuestas privadas (`lib/flow-engine/engine.ts:414` y `:971`), todavía no escribe `respuesta_privada_at`. Va a la lista final.
 
 **Tests nuevos: 10, vistos en rojo 8** (los de `lib/respuesta-privada.test.ts`). **No vistos en rojo:** los 2 de la ruta («un Member recibe 403» y su control), escritos después de la ruta. Suite 1689 de 1689, `typecheck` y `lint` en verde.
+
+
+#### Ítem 1, la prueba en «Pruebas de correo» (18:18 a 18:19, `scripts/verify-pipedrive-repetible.mjs`, 8 de 8)
+
+Se importaron `migracion-A.csv` y `migracion-B.csv` (los regenerados) dos veces, por la subida por tandas de producción, con un Admin fantasma que se sumó al espacio y se quitó al final. Solo cantidades y huellas.
+- **Antes:** 529 contactos, 525 con id de persona y 360 notas de la migración (lo que dejó la importación de Marcos de las 12:52).
+- **Primera vuelta:** A dio 0 creados, 500 actualizados y 0 con error; control **380 de 380**. B dio 25 actualizados. **Después:** 529 contactos, 525 ids de persona (huella `6a09bb2fa6d4`) y 365 notas, 5 de ellas «Otra persona de Pipedrive…».
+- **Segunda vuelta:** 0 creados. Iguales: los contactos, los ids (misma huella), el control y las notas (365 y 5), sin duplicados.
+- **Control positivo:** 499 de 500 filas de A quedaron con su propio id de persona. La que no es la que protegió el importador: ese contacto ya tenía guardado otro id, de la importación de las 12:52, y el de la fila entró como nota. **Inferencia:** de las 5 notas «Otra persona…», 4 son de los 4 grupos que fusionó el script y 1 de esa protección.
+- El script se escribió después del cambio: **no se vio en rojo**. Con el importador de antes, la segunda vuelta habría cambiado los ids, pero no lo corrí.
+
+#### Ítem 2, las pruebas en producción
+
+- **El verificador nuevo** (`scripts/verify-importacion-segundo-plano.mjs`): **rojo de carga** antes de subir (17:34, 404: la ruta no existía; no cuenta por su motivo).
+- **Primera corrida después de subir (17:55):** 16 de 17. La falla era del verificador, no del producto: contaba los contactos con un pedido que la API de la base corta en 1000 filas, y dio 1000 de 1197. Se corrigió para contar por páginas, y eso no ablanda nada: el número esperado es el mismo.
+- **La corrida completa, con `--pruebas` (18:05 a 18:17): 24 de 24.**
+  - Espacio fantasma: el Member 403 y su control; más de 10.000 filas, 400; una tanda de 501 filas, 400; «procesar» con una tanda sin subir, 409; un Member no puede subir tandas a la importación del Owner.
+  - 1.200 filas: 202 en menos de 1 segundo; la barra pasó por 15 valores intermedios; 1.197 creados, 2 actualizados y 1 con error, en su fila (1201); 1.197 en la base, sin duplicados; el aviso de F23, una vez, «omitido_prueba» porque iba a una dirección de prueba; pedir «procesar» otra vez no vuelve a avisar.
+  - **10.000 filas en «Pruebas de correo»: de las 18:09:27 a las 18:16:41, 7,2 minutos** (el requisito era menos de 30). 10.000 creados, 0 con error, 10.000 en la base. **El correo de fin salió por Resend** («enviado» en `email_log`) a quien importó, el Admin fantasma con la dirección de prueba de Resend `delivered+f37-…@resend.dev`, y a nadie más. Después se borraron los 10.000 contactos (quedan 0), su etiqueta y la membresía del Admin fantasma.
+- **Lo que queda de esa prueba en «Pruebas de correo»:** las entradas del historial de auditoría de esas 10.000 altas (no se pueden borrar, F31) y la fila de `csv_imports`.
+- **Los ocho de la sección 9, `verify-hilo-telefono`, `verify-importacion`, `verify-migracion-pipedrive` y `verify-no-contactar`, después de subir (17:55 a 18:02):** todos en verde, salvo `verify-ventana-instagram`, 62 de 63. **La falla la causé yo:** apliqué la 00058 (17:59:59) mientras ese verificador corría, la 00058 copió a Vault el secreto de su espacio fantasma, y al borrar el espacio el secreto quedó huérfano («secretos de Vault de los espacios fantasma: quedan 1»). Se borró a las 18:0x con `delete_secret` (quedan 0). Se vuelve a correr después de la próxima subida.
+
+#### Registro de escrituras en servicios externos (hasta acá)
+
+- **Resend:** un correo de fin de importación a `delivered+f37-<sufijo>@resend.dev`, la dirección de prueba de Resend, que no le llega a ninguna persona (18:16). Para deshacerlo no hay nada que hacer: queda en `email_log` de «Pruebas de correo».
+- **Instagram, por Zernio:** una respuesta privada de @poderosascomunidad al comentario de Marcos del 09/11 (18:15:25), confirmada por Marcos en el momento. Se deshace borrándola a mano desde la app de Instagram de @poderosascomunidad (**no verifiqué** que Zernio permita borrarla por la API). Queda `respuesta_privada_at` en ese comentario de `comment_logs`.
+- **Zernio, lectura:** el registro de entregas (17:56), sin escribir nada.
