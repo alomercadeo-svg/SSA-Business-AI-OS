@@ -361,17 +361,19 @@ describe("aviso por correo de las alertas (F23)", () => {
   });
 
   // La instancia desconocida se abre ANTES de autenticar: cualquiera que
-  // conozca la URL la provoca. No tiene workspace y no avisa por correo
-  // (decidido con Marcos el 07/10/2026). La alerta sí se registra: es el
-  // control de que el camino corrió.
-  it("la instancia desconocida registra la alerta y no avisa por correo", async () => {
+  // conozca la URL la provoca. No tiene workspace. Hasta el 10/11/2026 no
+  // avisaba por correo (decidido con Marcos el 07/10/2026); desde la sesión de
+  // cierre se aplica la propuesta de §15: avisa, y `notificarAlerta` decide a
+  // quién (solo los Owner de los espacios con Evolution activo, con el techo
+  // de uno por hora). Este test cambió con esa decisión.
+  it("la instancia desconocida registra la alerta y pasa el aviso a notificarAlerta, que elige a los Owner", async () => {
     estado.canal = null;
     const res = await POST(pedido(cuerpo({ instancia: "inventada" }), await firmar()));
     expect(res.status).toBe(503);
     expect(alertasRegistradas()).toHaveLength(1);
 
     await correrPendientes();
-    expect(notificarAlerta).not.toHaveBeenCalled();
+    expect(notificarAlerta).toHaveBeenCalledTimes(1);
   });
 });
 

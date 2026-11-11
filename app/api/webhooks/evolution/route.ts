@@ -408,6 +408,15 @@ async function registrarAlerta(
       await auditarAlertaSiEsNueva(supabase as unknown as SupabaseClient, alertaId);
       await notificarAlerta(alertaId);
     });
+  } else if (condicion === EVOLUTION_ALERTS.unknownInstance && typeof data === "string") {
+    // §15, la propuesta del 07/10/2026, aplicada en la sesión de cierre:
+    // `notificarAlerta` la manda solo a los Owner de los espacios con un canal
+    // de Evolution activo, con el techo de uno por hora. Sin espacio no hay
+    // entrada de historial.
+    const alertaId = data;
+    after(async () => {
+      await notificarAlerta(alertaId);
+    });
   }
 }
 

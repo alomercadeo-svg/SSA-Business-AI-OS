@@ -52,6 +52,31 @@ export function esDireccionDePrueba(email: string): boolean {
   );
 }
 
+/** Los espacios con un canal de Evolution activo (para la alerta de instancia desconocida, §15). */
+async function espaciosConEvolutionActivo(servicio: Cliente): Promise<string[]> {
+  const { data } = await servicio.from("channels").select("workspace_id").eq("provider", "evolution").eq("is_active", true);
+  return [...new Set((data ?? []).map((c) => c.workspace_id as string))];
+}
+
+/** Los Owner de esos espacios, con su correo en minúsculas. */
+async function ownersDe(servicio: Cliente, espacios: string[]): Promise<string[]> {
+  if (!espacios.length) return [];
+  const { data: miembros } = await servicio.from("workspace_members").select("user_id").in("workspace_id", espacios).eq("role", "owner");
+  const correos = await Promise.all(
+    (miembros ?? []).map(async (m) => (await servicio.auth.admin.getUserById(m.user_id)).data?.user?.email ?? null),
+  );
+  return [...new Set(correos.filter((c): c is string => !!c).map((c) => c.trim().toLowerCase()))];
+}
+
+/**
+ * Pendiente de decisión de §15, resuelto el 10/11/2026 con su propuesta: la
+ * alerta de instancia desconocida va solo a los Owner de los espacios con un
+ * canal de Evolution activo. Exportada para el test.
+ */
+export async function destinatariosDeInstanciaDesconocida(servicio: Cliente): Promise<string[]> {
+  return (await ownersDe(servicio, await espaciosConEvolutionActivo(servicio))).filter((p) => !esDireccionDePrueba(p));
+}
+
 /** Owner y Admin del workspace, con su correo. Para los avisos del sistema. */
 export async function destinatariosManagers(servicio: Cliente, workspaceId: string): Promise<string[]> {
   // Con el cliente de servicio: la RLS de `workspace_members` solo deja ver la
@@ -402,6 +427,17 @@ export function contenidoDeAlerta(
           `Revisalo en Configuración, Historial de cambios: ${urlApp()}/dashboard/settings/historial`,
         ],
       };
+    case "webhook_unknown_instance":
+      // §15, la propuesta del 07/10/2026, aplicada el 10/11/2026: el texto no
+      // afirma la causa. El detalle (el nombre de la instancia) NO entra: lo
+      // elige quien manda el aviso.
+      return {
+        asunto: "Llegó un aviso de WhatsApp de una instancia que no reconocemos",
+        parrafos: [
+          "Llegó un aviso de WhatsApp de una instancia que no corresponde a ningún canal activo. Puede ser un nombre de instancia mal escrito o un canal apagado. WhatsApp lo reintenta durante unos 20 minutos: si se corrige antes, los mensajes se recuperan.",
+          `Revisalo en Canales: ${canales}`,
+        ],
+      };
     case "zernio_sync_cero_cuentas":
       return {
         asunto: "Zernio no devolvió ninguna cuenta de Instagram",
@@ -440,9 +476,25 @@ export async function notificarAlerta(alertaId: string, opciones: OpcionesEnvio 
       .maybeSingle();
     if (!alerta || alerta.resolved_at) return null;
 
-    // Sin workspace (la instancia desconocida) no hay Owner ni Admin de quién
-    // decir: queda sin correo hasta que se decida (§15, 07/10/2026).
-    if (!alerta.workspace_id) return null;
+    // Sin workspace: la instancia desconocida. Pendiente de decisión de §15,
+    // resuelto el 10/11/2026 con la propuesta escrita ahí: va solo a los Owner
+    // de los espacios con un canal de Evolution activo, uno por espacio y por
+    // hora (el techo de F23). Las demás alertas sin espacio, sin correo.
+    if (!alerta.workspace_id) {
+      if (alerta.alert_condition !== "webhook_unknown_instance") return null;
+      const { asunto, parrafos } = contenidoDeAlerta(alerta.alert_condition, alerta.occurrences);
+      let ultimo: ResultadoEnvio | null = null;
+      for (const ws of await espaciosConEvolutionActivo(servicio)) {
+        const para = (await ownersDe(servicio, [ws])).filter((p) => !esDireccionDePrueba(p));
+        if (!para.length) continue;
+        ultimo = await avisarAManagers(
+          servicio,
+          { workspaceId: ws, tipo: "alerta_webhook", claveTecho: `${alerta.source}:${alerta.alert_condition}`, alertaId: alerta.id, asunto, parrafos, para, paraEtiqueta: "Owner" },
+          opciones,
+        );
+      }
+      return ultimo;
+    }
 
     const { asunto, parrafos } = contenidoDeAlerta(alerta.alert_condition, alerta.occurrences, alerta.detail);
     return await avisarAManagers(
@@ -470,10 +522,11 @@ export async function notificarAlerta(alertaId: string, opciones: OpcionesEnvio 
  */
 async function avisarAManagers(
   servicio: Cliente,
-  aviso: { workspaceId: string; tipo: EmailTipo; claveTecho: string; alertaId: string | null; asunto: string; parrafos: string[] },
+  aviso: { workspaceId: string; tipo: EmailTipo; claveTecho: string; alertaId: string | null; asunto: string; parrafos: string[]; para?: string[]; paraEtiqueta?: string },
   opciones: OpcionesEnvio
 ): Promise<ResultadoEnvio | null> {
-  const para = (await destinatariosManagers(servicio, aviso.workspaceId)).filter((p) => !esDireccionDePrueba(p));
+  const para = (aviso.para ?? (await destinatariosManagers(servicio, aviso.workspaceId))).filter((p) => !esDireccionDePrueba(p));
+  const etiqueta = aviso.paraEtiqueta ?? "Owner y Admin";
 
   if (para.length === 0) {
     await servicio.from("email_log").insert({
@@ -482,7 +535,7 @@ async function avisarAManagers(
       clave_techo: aviso.claveTecho,
       alerta_id: aviso.alertaId,
       para: [],
-      para_etiqueta: "Owner y Admin",
+      para_etiqueta: etiqueta,
       asunto: aviso.asunto,
       estado: "omitido_prueba",
       ultimo_error: "El workspace no tiene Owner ni Admin con una dirección real.",
@@ -496,7 +549,7 @@ async function avisarAManagers(
     p_clave: aviso.claveTecho,
     p_alerta_id: aviso.alertaId,
     p_para: para,
-    p_para_etiqueta: "Owner y Admin",
+    p_para_etiqueta: etiqueta,
     p_asunto: aviso.asunto,
   });
   const fila = Array.isArray(reserva) ? reserva[0] : null;
@@ -511,7 +564,7 @@ async function avisarAManagers(
       workspaceId: aviso.workspaceId,
       tipo: aviso.tipo,
       para,
-      paraEtiqueta: "Owner y Admin",
+      paraEtiqueta: etiqueta,
       asunto: aviso.asunto,
       texto: aviso.parrafos.join("\n\n"),
       html: aHtml(aviso.parrafos),
