@@ -57,7 +57,12 @@ export async function createWorkspace(name: string) {
     .single();
 
   if (error || !workspace) {
-    return { error: error?.message || "Failed to create workspace" };
+    // Deuda de §15 (ítem 7 de la sesión de cierre): la seguridad por filas no
+    // deja crear espacios con la sesión (00002 no tiene política de alta); el
+    // único camino es el alta de usuario. El motivo técnico va al log, no a la
+    // pantalla. Si el producto necesita crear espacios desde acá, lo decide Marcos.
+    console.error("[workspace] no se pudo crear el espacio:", error?.message ?? "sin fila");
+    return { error: "Por ahora no se pueden crear espacios de trabajo desde acá." };
   }
 
   // Add user as owner

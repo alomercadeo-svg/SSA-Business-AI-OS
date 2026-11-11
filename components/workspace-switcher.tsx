@@ -28,6 +28,8 @@ export function WorkspaceSwitcher({
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
+  // Deuda de §15 (ítem 7 de la sesión de cierre): el error ya no se traga.
+  const [errorAlCrear, setErrorAlCrear] = useState<string | null>(null);
   const [switching, setSwitching] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -66,7 +68,9 @@ export function WorkspaceSwitcher({
     e.preventDefault();
     if (!newName.trim()) return;
     setSwitching("new");
+    setErrorAlCrear(null);
     const result = await createWorkspace(newName.trim());
+    if (!result.ok) setErrorAlCrear(result.error ?? "No se pudo crear el espacio de trabajo.");
     if (result.ok) {
       router.refresh();
       setOpen(false);
@@ -169,6 +173,11 @@ export function WorkspaceSwitcher({
                   Cancel
                 </button>
               </div>
+              {errorAlCrear && (
+                <p role="alert" className="mt-1.5 text-xs text-destructive">
+                  {errorAlCrear}
+                </p>
+              )}
             </form>
           ) : (
             <button
